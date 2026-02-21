@@ -64,9 +64,6 @@ export default function History() {
         <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
           History
         </Typography>
-        <Typography variant="body1" sx={{ mt: -1 }}>
-          Welcome to the History management page.
-        </Typography>
       </Box>
 
       {/* Filter Section */}
