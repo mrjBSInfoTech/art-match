@@ -160,6 +160,8 @@ export default function DashboardLayout({ children }) {
           sx={{
             height: 40,
             width: "auto",
+            position: "relative",
+            top: -3,
           }}
         />
       </Box>
