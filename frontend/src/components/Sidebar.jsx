@@ -23,6 +23,7 @@ import BarangayIcon from "../assets/BarangayIcon.png";
 //Icons
 import AccountBoxIcon from "@mui/icons-material/AccountBox";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import FileCopyIcon from '@mui/icons-material/FileCopy';
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -93,7 +94,7 @@ export default function DashboardLayout({ children }) {
     {
       segment: "records",
       title: "Records",
-      icon: <FolderIcon />,
+      icon: <FileCopyIcon />,
       children: [
         {
           segment: "resident",
@@ -108,7 +109,7 @@ export default function DashboardLayout({ children }) {
         {
           segment: "files",
           title: "Files",
-          icon: <FolderOpenIcon />,
+          icon: <FolderIcon />,
         },
       ],
     },
@@ -266,7 +267,6 @@ export default function DashboardLayout({ children }) {
             // Selected text
             "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
               color: "#2563eb",
-              fontWeight: 600,
             },
 
             // Selected icon

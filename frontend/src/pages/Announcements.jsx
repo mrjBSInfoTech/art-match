@@ -21,8 +21,37 @@ import {
   Divider,
   LinearProgress,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import AnnouncementForm from "../components/Announcement/AnnouncementForm";
+import AnnouncementDelete from "../components/Announcement/AnnouncementDelete";
 
 export default function Announcements() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [openAnnouncementForm, setOpenAnnouncementForm] = useState(false);
+  const [openAnnouncementDelete, setOpenAnnouncementDelete] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [announcementErrorMessage, setAnnouncementErrorMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // ========== ANNOUNCEMENT HANDLERS ==========
+  // ➕ Open Add Announcement Modal
+  const handleOpenAnnouncementAdd = () => {
+    setSelectedAnnouncement(null);
+    setOpenAnnouncementForm(true);
+  };
+
+  // ✏️ Open Edit Announcement Modal
+  const handleOpenAnnouncementEdit = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setOpenAnnouncementForm(true);
+  };
+
+  // 🗑️ Open Delete Announcement Modal
+  const handleOpenAnnouncementDelete = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setOpenAnnouncementDelete(true);
+  };
+
   return (
     <Box p={3}>
       <Box
@@ -39,6 +68,7 @@ export default function Announcements() {
         <Button
           variant="contained"
           color="primary"
+          onClick={handleOpenAnnouncementAdd}
           sx={{
             width: { xs: 150, sm: 150 },
             height: { xs: 45, sm: 45 },
@@ -55,6 +85,21 @@ export default function Announcements() {
           Announcement List
         </Typography>
       </Paper>
+      {/* ========== ANNOUNCEMENT MODALS ========== */}
+      <AnnouncementForm
+        open={openAnnouncementForm}
+        handleClose={() => setOpenAnnouncementForm(false)}
+        //onSubmit={handleSubmitAnnouncement} ON HOLD FOR NOW
+        selectedAnnouncement={selectedAnnouncement}
+        announcements={announcements}
+      />
+      <AnnouncementDelete
+        open={openAnnouncementDelete}
+        handleClose={() => setOpenAnnouncementDelete(false)}
+        //onSubmit={handleDeleteAnnouncement} ON HOLD FOR NOW
+        selectedAnnouncement={selectedAnnouncement}
+        mode="delete"
+      />
     </Box>
   );
 }

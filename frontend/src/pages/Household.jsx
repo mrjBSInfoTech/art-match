@@ -21,8 +21,36 @@ import {
   Divider,
   LinearProgress,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import HouseholdForm from "../components/Household/HouseholdForm";
+import HouseholdDelete from "../components/Household/HouseholdDelete";
 
 export default function Household() {
+  const [household, setHousehold] = useState([]);
+  const [openHouseholdForm, setOpenHouseholdForm] = useState(false);
+  const [openHouseholdDelete, setOpenHouseholdDelete] = useState(false);
+  const [selectedHousehold, setSelectedHousehold] = useState(null);
+  const [householdErrorMessage, setHouseholdErrorMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // ========== HOUSEHOLD HANDLERS ==========
+  // ➕ Open Add Household Modal
+  const handleOpenHouseholdAdd = () => {
+    setSelectedHousehold(null);
+    setOpenHouseholdForm(true);
+  };
+
+  // ✏️ Open Edit Household Modal
+  const handleOpenHouseholdEdit = (household) => {
+    setSelectedHousehold(household);
+    setOpenHouseholdForm(true);
+  };
+
+  // 🗑️ Open Delete Household Modal
+  const handleOpenHouseholdDelete = (household) => {
+    setSelectedHousehold(household);
+    setOpenHouseholdDelete(true);
+  };
   return (
     <Box p={3}>
       <Box
@@ -56,6 +84,21 @@ export default function Household() {
           Household List
         </Typography>
       </Paper>
+      {/* ========== HOUSEHOLD MODALS ========== */}
+      <HouseholdForm
+        open={openHouseholdForm}
+        handleClose={() => setOpenHouseholdForm(false)}
+        //onSubmit={handleSubmitHousehold} ON HOLD FOR NOW
+        selectedHousehold={selectedHousehold}
+        household={household}
+      />
+      <HouseholdDelete
+        open={openHouseholdDelete}
+        handleClose={() => setOpenHouseholdDelete(false)}
+        //onSubmit={handleDeleteHousehold} ON HOLD FOR NOW
+        selectedHousehold={selectedHousehold}
+        mode="delete"
+      />
     </Box>
   );
 }
