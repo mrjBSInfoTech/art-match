@@ -20,8 +20,15 @@ import {
   Divider,
   LinearProgress,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 export default function Messages() {
+  const [date, setDate] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("")
   return (
     <Box p={3}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>

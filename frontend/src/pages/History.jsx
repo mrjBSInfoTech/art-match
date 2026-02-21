@@ -24,7 +24,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { fetchTransactions } from "../api/historyAPI";
 
 export default function History() {
   const [date, setDate] = useState(null);
@@ -135,10 +134,10 @@ export default function History() {
                 label="Sort"
                 onChange={(e) => setSortOption(e.target.value)}
               >
-                <MenuItem value="highToLow">Purchase</MenuItem>
-                <MenuItem value="lowToHigh">Product</MenuItem>
-                <MenuItem value="lowToHigh">Category</MenuItem>
-                <MenuItem value="lowToHigh">Supplier</MenuItem>
+                <MenuItem value="highToLow">Residents</MenuItem>
+                <MenuItem value="lowToHigh">Household</MenuItem>
+                <MenuItem value="lowToHigh">Announcement</MenuItem>
+                <MenuItem value="lowToHigh">Files</MenuItem>
               </Select>
             </FormControl>
           </Box>
