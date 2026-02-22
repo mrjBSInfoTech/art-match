@@ -24,6 +24,7 @@ export const lightTheme = createTheme({
       paper: "#f8fafc",
       sidebar: "#466ABE",
       header : "#466ABE",
+      footer : "#466ABE",
     },
     text: {
       primary: "#0f172a",
