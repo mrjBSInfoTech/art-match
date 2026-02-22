@@ -23,7 +23,7 @@ import BarangayIcon from "../assets/BarangayIcon.png";
 //Icons
 import AccountBoxIcon from "@mui/icons-material/AccountBox";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import FileCopyIcon from '@mui/icons-material/FileCopy';
+import FileCopyIcon from "@mui/icons-material/FileCopy";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import FolderIcon from "@mui/icons-material/Folder";
@@ -181,6 +181,46 @@ export default function DashboardLayout({ children }) {
     homeUrl: "/dashboard",
   };
 
+  const SidebarFooter = ({ mini }) => (
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent={mini ? "center" : "space-between"}
+      spacing={mini ? 0 : 1.5}
+      sx={{
+        p: 1.5,
+        borderTop: "1px solid",
+        borderColor: "divider",
+        backgroundColor: theme.palette.background.sidebar,
+        color: theme.palette.text.sidebar,
+      }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Avatar
+          src="https://mui.com/static/images/avatar/1.jpg"
+          alt="Brgy. Captain"
+          sx={{ width: 40, height: 40 }}
+        />
+        {!mini && (
+          <Stack direction="column">
+            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 16 }}>
+              Brgy. Captain
+            </Typography>
+            <Typography variant="caption" >
+              brgy@example.com
+            </Typography>
+          </Stack>
+        )}
+      </Stack>
+
+      {!mini && (
+        <IconButton size="small" onClick={handleOpen}>
+          <ExitToAppIcon fontSize="small" />
+        </IconButton>
+      )}
+    </Stack>
+  );
+
   // Custom header with logout button on the right
   const CustomHeader = () => (
     <Box
@@ -192,14 +232,6 @@ export default function DashboardLayout({ children }) {
         px: 1,
       }}
     >
-      <IconButton
-        size="small"
-        onClick={handleOpen}
-        sx={{ color: "#ffffff" }}
-        title="Logout"
-      >
-        <ExitToAppIcon />
-      </IconButton>
     </Box>
   );
 
@@ -226,6 +258,12 @@ export default function DashboardLayout({ children }) {
           onClose={handleClose}
           TransitionComponent={Transition}
           keepMounted
+          slots={{ backdrop: Backdrop }}
+          slotProps={{
+            backdrop: {
+              timeout: 500,
+            },
+          }}
         >
           <DialogTitle>Log out</DialogTitle>
           <DialogContent>
@@ -245,6 +283,7 @@ export default function DashboardLayout({ children }) {
         <MuiDashboardLayout
           slots={{
             toolbarAccount: CustomHeader,
+            sidebarFooter: SidebarFooter,
           }}
           sx={{
             "& .MuiDrawer-paper": {
@@ -283,7 +322,7 @@ export default function DashboardLayout({ children }) {
             "& .MuiListItemButton-root": {
               color: "#ffffff",
               borderRadius: "8px",
-              margin: "4px 8px",
+              margin: "4px 2px",
             },
 
             // Sidebar icons
