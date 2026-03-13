@@ -70,7 +70,7 @@ function HouseholdDelete({
   };
 
   const householdName = selectedHousehold
-    ? `${selectedHousehold.household_name || selectedHousehold.id}`
+    ? `House #${selectedHousehold.house_number}, Street #${selectedHousehold.street_number}`
     : "this household";
 
   return (

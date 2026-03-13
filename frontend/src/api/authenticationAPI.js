@@ -30,31 +30,28 @@ const handleError = (error) => {
 ============================ */
 
 // REGISTER
-export const registerUser = async ({ username, password }) => {
+export const registerUser = async ({ name, email, password }) => {
   try {
     const res = await api.post("/authentication/register", {
-      username,
+      name,
+      email,
       password,
     });
-    console.log("Register API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Register API error:", error.message);
     handleError(error);
   }
 };
 
 // LOGIN
-export const loginUser = async ({ username, password }) => {
+export const loginUser = async ({ email, password }) => {
   try {
     const res = await api.post("/authentication/login", {
-      username,
+      email,
       password,
     });
-    console.log("Login API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Login API error:", error.message);
     handleError(error);
   }
 };
@@ -62,7 +59,7 @@ export const loginUser = async ({ username, password }) => {
 // LOGOUT (frontend only)
 export const logoutUser = () => {
   localStorage.removeItem("token");
-  localStorage.removeItem("username");
+  localStorage.removeItem("email");
 };
 
 // CHECK IF USER IS AUTHENTICATED

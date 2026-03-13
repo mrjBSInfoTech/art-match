@@ -4,6 +4,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   TextField,
   Button,
   Slide,
@@ -93,16 +97,19 @@ function ResidentsForm({
   handleClose,
   onSubmit,
   selectedResident,
+  households = [],
   mode = "form",
 }) {
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
     last_name: "",
+    gender: "",
     dob: "",
     address: "",
     phone_number: "",
     email: "",
+    household_id: "",
     image: "",
   });
   const [error, setError] = useState("");
@@ -118,10 +125,12 @@ function ResidentsForm({
         first_name: selectedResident.first_name ? String(selectedResident.first_name) : "",
         middle_name: selectedResident.middle_name ? String(selectedResident.middle_name) : "",
         last_name: selectedResident.last_name ? String(selectedResident.last_name) : "",
-        dob: selectedResident.dob ? String(selectedResident.dob) : "",
+        gender: selectedResident.gender ? String(selectedResident.gender).toLowerCase() : "",
+        dob: selectedResident.dob ? String(selectedResident.dob).split('T')[0] : "",
         address: selectedResident.address ? String(selectedResident.address) : "",
         phone_number: selectedResident.phone_number ? String(selectedResident.phone_number) : "",
         email: selectedResident.email ? String(selectedResident.email) : "",
+        household_id: selectedResident.household_id || "",
         image: selectedResident.image ? String(selectedResident.image) : "",
       });
 
@@ -136,10 +145,12 @@ function ResidentsForm({
         first_name: "",
         middle_name: "",
         last_name: "",
+        gender: "",
         dob: "",
         address: "",
         phone_number: "",
         email: "",
+        household_id: "",
         image: "",
       });
       setImagePreview(null);
@@ -208,6 +219,10 @@ function ResidentsForm({
     }
     if (!formData.last_name.trim()) {
       setError("❌ Last name is required");
+      return;
+    }
+    if (!formData.gender.trim()) {
+      setError("❌ Gender is required");
       return;
     }
     if (!formData.dob.trim()) {
@@ -293,6 +308,19 @@ function ResidentsForm({
                 fullWidth
                 margin="dense"
               />
+              {/* Gender */}
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Gender</InputLabel>
+                <Select
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                >
+                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value="female">Female</MenuItem>
+                  </Select>
+              </FormControl>
 
               {/* Date of Birth */}
               <TextField
@@ -326,6 +354,26 @@ function ResidentsForm({
                 fullWidth
                 margin="dense"
               />
+
+              {/* Household */}
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Household</InputLabel>
+                <Select
+                  label="Household"
+                  name="household_id"
+                  value={formData.household_id || ""}
+                  onChange={handleChange}
+                >
+                  <MenuItem value="">
+                    <em>No Household</em>
+                  </MenuItem>
+                  {households.map((household) => (
+                    <MenuItem key={household.household_id} value={household.household_id}>
+                      House #{household.house_number} - {household.head_family}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               {/* Address */}
               <TextField

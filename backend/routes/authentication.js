@@ -9,20 +9,20 @@ const router = express.Router();
  * REGISTER
  */
 router.post("/register", (req, res) => {
-  const { username, password } = req.body;
+  const { name, email, password } = req.body;
 
-  if (!username || !password) {
+  if (!name || !email || !password) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
 
-  const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+  const sql = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
 
-  db.query(sql, [username, hashedPassword], (err) => {
+  db.query(sql, [name, email, hashedPassword], (err) => {
     if (err) {
       if (err.code === "ER_DUP_ENTRY") {
-        return res.status(409).json({ message: "Username already exists" });
+        return res.status(409).json({ message: "Email already exists" });
       }
       return res.status(500).json({ message: "Database error" });
     }
@@ -35,11 +35,11 @@ router.post("/register", (req, res) => {
  * LOGIN
  */
 router.post("/login", (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
-  const sql = "SELECT * FROM users WHERE username = ?";
+  const sql = "SELECT * FROM users WHERE email = ?";
 
-  db.query(sql, [username], (err, result) => {
+  db.query(sql, [email], (err, result) => {
     if (err) return res.status(500).json({ message: "Database error" });
 
     if (result.length === 0) {
@@ -54,12 +54,12 @@ router.post("/login", (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username },
+      { id: user.user_id, name: user.name, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    res.json({ token, username: user.username });
+    res.json({ token, name: user.name, email: user.email });
   });
 });
 

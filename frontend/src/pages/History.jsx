@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Box,
   FormControl,
@@ -59,6 +60,9 @@ export default function History() {
    */
   return (
     <Box sx={{ p: 3 }}>
+      <Helmet titleTemplate="%s - Barangay Management System">
+        <title>History</title>
+      </Helmet>
       <Box>
         <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
           History
@@ -83,9 +87,9 @@ export default function History() {
             variant="outlined"
             placeholder="Search history..."
             size="small"
-            sx={{ 
+            sx={{
               width: { xs: "100%", md: 250 },
-              minWidth: { xs: "100%", md: 250 }
+              minWidth: { xs: "100%", md: 250 },
             }}
             InputProps={{
               startAdornment: (
@@ -97,12 +101,14 @@ export default function History() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
 
-          <Box sx={{ 
-            display: "flex", 
-            flexDirection: { xs: "column", sm: "row" },
-            gap: 2,
-            width: { xs: "100%", md: "auto" }
-          }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
+            }}
+          >
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
                 label="Select Date"
@@ -116,16 +122,16 @@ export default function History() {
                     fullWidth: true,
                   },
                 }}
-                sx={{ 
-                  width: { xs: "100%", sm: 200 }
+                sx={{
+                  width: { xs: "100%", sm: 200 },
                 }}
               />
             </LocalizationProvider>
 
-            <FormControl 
-              size="small" 
-              sx={{ 
-                width: { xs: "100%", sm: 180 }
+            <FormControl
+              size="small"
+              sx={{
+                width: { xs: "100%", sm: 180 },
               }}
             >
               <InputLabel>Sort</InputLabel>
@@ -141,7 +147,7 @@ export default function History() {
               </Select>
             </FormControl>
           </Box>
-        </Box>  
+        </Box>
       </Paper>
 
       {/* History List */}
@@ -149,7 +155,6 @@ export default function History() {
         <Typography variant="h6" sx={{ mb: 2 }}>
           History List
         </Typography>
-
       </Paper>
     </Box>
   );
