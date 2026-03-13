@@ -7,7 +7,7 @@ import Resident from "./pages/Resident";
 import Household from "./pages/Household";
 import Files from "./pages/Files";
 import Announcements from "./pages/Announcements";
-import Messages from "./pages/Messages";
+import Concern from "./pages/Concern";
 import Officials from "./pages/Officials";
 import Citizens from "./pages/Citizens";
 import History from "./pages/History";
@@ -24,7 +24,7 @@ function App() {
       <Router>
         <Routes>
           {/* First Page */}
-          <Route path="/" element={<Welcome />} />
+          <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* Dashboard Pages */}
           <Route
@@ -68,10 +68,10 @@ function App() {
             }
           />
           <Route
-            path="/messages"
+            path="/concern"
             element={
               <Sidebar>
-                <Messages />
+                <Concern />
               </Sidebar>
             }
           />

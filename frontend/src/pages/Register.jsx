@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import axios from "axios";
 import {
   Alert,
@@ -35,7 +36,8 @@ function SlideTransition(props) {
 }
 
 const Register = () => {
-  const [username, setUsername] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -60,7 +62,7 @@ const Register = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [username, password, confirmPassword]);
+  }, [name, email, password, confirmPassword]);
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -74,8 +76,23 @@ const Register = () => {
   };
 
   const handleRegister = async () => {
-    if (!username || !password || !confirmPassword) {
+    // Debug: log the values
+    console.log("Register attempt:", { name, email, password, confirmPassword });
+
+    // Check if fields are filled (trim whitespace)
+    const nameValid = name.trim() !== "";
+    const emailValid = email.trim() !== "";
+    const passwordValid = password.trim() !== "";
+    const confirmPasswordValid = confirmPassword.trim() !== "";
+
+    if (!nameValid || !emailValid || !passwordValid || !confirmPasswordValid) {
       showSnackbar("❌ Please fill in all fields");
+      console.log("Validation failed - Missing fields:", {
+        name: !nameValid,
+        email: !emailValid,
+        password: !passwordValid,
+        confirmPassword: !confirmPasswordValid,
+      });
       return;
     }
 
@@ -90,14 +107,17 @@ const Register = () => {
     }
 
     try {
-      const response = await registerUser({ username, password });
-
-      console.log("Register response:", response);
+      const response = await registerUser({
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+      });
 
       showSnackbar("✅ Registration Successful!");
 
       // Clear form
-      setUsername("");
+      setName("");
+      setEmail("");
       setPassword("");
       setConfirmPassword("");
 
@@ -137,6 +157,9 @@ const Register = () => {
         overflow: "hidden",
       }}
     >
+      <Helmet titleTemplate="%s - Barangay Management System">
+        <title>Register</title>
+      </Helmet>
       <Paper
         elevation={24}
         style={{
@@ -169,20 +192,6 @@ const Register = () => {
           />
         </Box>
 
-        {/* Subtitle */}
-        <Typography
-          variant="subtitle1"
-          align="center"
-          gutterBottom
-          sx={{
-            color: "#666",
-            mb: 4, // Reduced margin
-            fontSize: { xs: "0.85rem", sm: "1rem" }, // Smaller font
-          }}
-        >
-          Product Management System
-        </Typography>
-
         {/* Register Title */}
         <Typography
           variant="h6" // Changed from h5 to h6
@@ -207,7 +216,7 @@ const Register = () => {
             gap: 2.5, // Reduced gap
           }}
         >
-          {/* Username Field */}
+          {/* Name Field */}
           <Box>
             <Typography
               variant="body1"
@@ -219,14 +228,63 @@ const Register = () => {
                 fontSize: "0.95rem", // Smaller font
               }}
             >
-              Username
+              Name
             </Typography>
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              size="small" // Added small size
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon
+                      sx={{ color: "#FFD65A", fontSize: "1.25rem" }}
+                    />{" "}
+                    {/* Smaller icon */}
+                  </InputAdornment>
+                ),
+                sx: {
+                  borderRadius: "10px", // Smaller radius
+                  backgroundColor: "#f8f9fa",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#e0e0e0",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#FFD65A",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#FFD65A",
+                    borderWidth: "2px",
+                  },
+                  fontSize: "0.95rem", // Smaller text
+                },
+              }}
+            />
+          </Box>
+
+          {/* Email Field */}
+          <Box>
+            <Typography
+              variant="body1"
+              sx={{
+                fontWeight: "600",
+                color: "#444",
+                mb: 0.75, // Reduced margin
+                ml: 0.5,
+                fontSize: "0.95rem", // Smaller font
+              }}
+            >
+              Email
+            </Typography>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               size="small" // Added small size
               InputProps={{
                 startAdornment: (

@@ -88,6 +88,34 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
+// Helper function to get local date string (YYYY-MM-DD) without timezone conversion
+const getLocalDateString = (dateValue = null) => {
+  let date;
+  
+  if (dateValue) {
+    // If a date value is provided, parse it
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else {
+      // If it's a string like "2024-03-13" or "2024-03-13T00:00:00", just extract the date part
+      const dateStr = String(dateValue);
+      if (dateStr.includes('T')) {
+        return dateStr.split('T')[0]; // Already in correct format, just extract
+      }
+      return dateStr; // Already in YYYY-MM-DD format
+    }
+  } else {
+    // Use today's local date
+    date = new Date();
+  }
+  
+  // Get local date components (not UTC)
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 function AnnouncementForm({
   open,
   handleClose,
@@ -95,10 +123,20 @@ function AnnouncementForm({
   selectedAnnouncement,
   mode = "form",
 }) {
+  // Helper function to get local date without timezone conversion
+  const getLocalDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    image: "",
+    date_posted: getLocalDateString(),
+    file: null,
+    file_name: "",
   });
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
@@ -108,24 +146,31 @@ function AnnouncementForm({
 
   // Prefill data when editing
   useEffect(() => {
-    if (selectedAnnouncement) {
+    if (selectedAnnouncement) {      
       setFormData({
         title: selectedAnnouncement.title ? String(selectedAnnouncement.title) : "",
         description: selectedAnnouncement.description ? String(selectedAnnouncement.description) : "",
-        image: selectedAnnouncement.image ? String(selectedAnnouncement.image) : "",
+        date_posted: selectedAnnouncement.date_posted ? getLocalDateString(selectedAnnouncement.date_posted) : "",
+        file: null,
+        file_name: selectedAnnouncement.image ? String(selectedAnnouncement.image) : "",
       });
 
       // Set image preview for existing announcement
       if (selectedAnnouncement.image) {
-        setImagePreview(selectedAnnouncement.image);
+        setImagePreview(`http://localhost:5000/uploads/uploadAnnouncement/${selectedAnnouncement.image}`);
       } else {
         setImagePreview(null);
       }
     } else {
+      const newDate = getLocalDateString();
+      console.log("Create mode - new date:", newDate);
+      
       setFormData({
         title: "",
         description: "",
-        image: "",
+        date_posted: newDate,
+        file: null,
+        file_name: "",
       });
       setImagePreview(null);
     }
@@ -174,13 +219,52 @@ function AnnouncementForm({
     const file = e.target.files[0];
 
     if (file) {
+      // Store the actual File object
+      setFormData({ 
+        ...formData, 
+        file: file,
+        file_name: file.name 
+      });
+      
+      // Create preview
       const reader = new FileReader();
-
       reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result });
-        setImagePreview(reader.result); // <-- IMPORTANT
+        setImagePreview(reader.result);
       };
+      reader.readAsDataURL(file);
+    }
+  };
 
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragActive(true);
+    } else if (e.type === "dragleave") {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      
+      // Store the actual File object
+      setFormData({ 
+        ...formData, 
+        file: file,
+        file_name: file.name 
+      });
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -188,13 +272,23 @@ function AnnouncementForm({
   const handleSubmit = () => {
     // Validate required fields
     if (!formData.title.trim()) {
-      setError("❌ Title is required");
+      setError("Title is required");
       return;
     }
     if (!formData.description.trim()) {
-      setError("❌ Description is required");
+      setError("Description is required");
       return;
     }
+    if (!formData.date_posted) {
+      setError("Date posted is required");
+      return;
+    }
+    if (!formData.file && !selectedAnnouncement) {
+      setError("Image file is required");
+      return;
+    }
+
+    // Pass formData with file object to parent
     onSubmit(formData);
     handleClose();
   };
@@ -244,6 +338,21 @@ function AnnouncementForm({
               rows={4}
             />
 
+            {/* Date Posted */}
+            <TextField
+              type="date"
+              label="Date Posted"
+              name="date_posted"
+              value={formData.date_posted}
+              onChange={handleChange}
+              fullWidth
+              margin="dense"
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{display: "none"}}
+            />
+
             {/* Image Upload Section */}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Typography variant="subtitle2">Image</Typography>
@@ -262,6 +371,10 @@ function AnnouncementForm({
                   backgroundColor: "#ffffff",
                   color: "#aaa",
                 }}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
               >
                 {imagePreview ? (
                   <img

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Box,
   FormControl,
@@ -29,11 +30,41 @@ export default function Citizens() {
   const [date, setDate] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("");
+  const [part, setPart] = useState(1);
+
+  // Toggle handlers
+  const goToPartTwo = () => setPart(2);
+  const goToPartOne = () => setPart(1);
+
+  useEffect(() => {
+    if (sortOption === "verified") {
+      setPart(1);
+    } else if (sortOption === "pending") {
+      setPart(2);
+    }
+  }, [sortOption]);
+
   return (
     <Box p={3}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
-        Citizens
-      </Typography>
+      <Helmet titleTemplate="%s - Barangay Management System">
+        <title>Citizens</title>
+      </Helmet>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
+        >
+          {part === 1 ? "Citizens - Verified" : "Citizens - Pending"}
+        </Typography>
+      </Box>
 
       {/* Filter Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
@@ -66,7 +97,6 @@ export default function Citizens() {
             }}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-
           <Box
             sx={{
               display: "flex",
@@ -94,11 +124,21 @@ export default function Citizens() {
           </Box>
         </Box>
       </Paper>
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Citizens List
-        </Typography>
-      </Paper>
+
+      {part === 1 && (
+        <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Verified List
+          </Typography>
+        </Paper>
+      )}
+      {part === 2 && (
+        <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Pending List
+          </Typography>
+        </Paper>
+      )}
     </Box>
   );
 }

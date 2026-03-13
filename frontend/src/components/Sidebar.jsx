@@ -120,10 +120,10 @@ export default function DashboardLayout({ children }) {
       pattern: "/announcements",
     },
     {
-      segment: "messages",
-      title: "Messages",
+      segment: "concern",
+      title: "Concerns",
       icon: <LocalPostOfficeIcon />,
-      pattern: "/messages",
+      pattern: "/concern",
     },
     {
       segment: "officials",

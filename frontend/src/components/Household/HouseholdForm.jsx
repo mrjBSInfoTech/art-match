@@ -99,7 +99,6 @@ function HouseholdForm({
     house_number: "",
     street_number: "",
     barangay: "",
-    resident_id: "",
     household_members: "",
     head_family: "",
   });
@@ -113,7 +112,6 @@ function HouseholdForm({
         house_number: selectedHousehold.house_number ? String(selectedHousehold.house_number) : "",
         street_number: selectedHousehold.street_number ? String(selectedHousehold.street_number) : "",
         barangay: selectedHousehold.barangay ? String(selectedHousehold.barangay) : "",
-        resident_id: selectedHousehold.resident_id ? String(selectedHousehold.resident_id) : "",
         household_members: selectedHousehold.household_members ? String(selectedHousehold.household_members) : "",
         head_family: selectedHousehold.head_family ? String(selectedHousehold.head_family) : "",
       });
@@ -122,7 +120,6 @@ function HouseholdForm({
         house_number: "",
         street_number: "",
         barangay: "",
-        resident_id: "",
         household_members: "",
         head_family: "",
       });
@@ -180,10 +177,6 @@ function HouseholdForm({
     }
     if (!formData.barangay.trim()) {
       setError("❌ Barangay is required");
-      return;
-    }
-    if (!formData.resident_id.trim()) {
-      setError("❌ Resident ID is required");
       return;
     }
     if (!formData.household_members.trim()) {
@@ -255,16 +248,6 @@ function HouseholdForm({
               label="Barangay"
               name="barangay"
               value={formData.barangay}
-              onChange={handleChange}
-              fullWidth
-              margin="dense"
-            />
-
-            {/* Resident ID */}
-            <TextField
-              label="Resident ID"
-              name="resident_id"
-              value={formData.resident_id}
               onChange={handleChange}
               fullWidth
               margin="dense"

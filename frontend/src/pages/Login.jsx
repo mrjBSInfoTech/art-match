@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import axios from "axios";
 import {
   TextField,
@@ -32,7 +33,7 @@ function SlideTransition(props) {
 }
 
 const Login = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -53,18 +54,18 @@ const Login = () => {
   // Handle Enter key login
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Enter') {
+      if (event.key === "Enter") {
         event.preventDefault();
         handleLogin();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [username, password]);
+  }, [email, password]);
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -78,16 +79,17 @@ const Login = () => {
   };
 
   const handleLogin = async () => {
-    if (!username || !password) {
+    if (!email || !password) {
       showSnackbar("❌ Please fill in all fields");
       return;
     }
 
     try {
-      const data = await loginUser({ username, password });
+      const data = await loginUser({ email, password });
 
       localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.username);
+      localStorage.setItem("name", data.name);
+      localStorage.setItem("email", data.email);
 
       showSnackbar("✅ Login successful!");
 
@@ -110,11 +112,13 @@ const Login = () => {
         alignItems: "center",
         minHeight: "100vh",
         padding: "20px",
-        background:
-          "linear-gradient(135deg, #16C47F 0%, #FFD65A, #FF9D23 , #F93827 100%)",
+        background: "#466ABE",
         overflowY: "auto",
       }}
     >
+      <Helmet titleTemplate="%s - Barangay Management System">
+        <title>Login</title>
+      </Helmet>
       <Paper
         elevation={24}
         style={{
@@ -147,20 +151,6 @@ const Login = () => {
           />
         </Box>
 
-        {/* Subtitle */}
-        <Typography
-          variant="subtitle1"
-          align="center"
-          gutterBottom
-          sx={{
-            color: "#666",
-            mb: 4, // Reduced margin
-            fontSize: { xs: "0.85rem", sm: "1rem" }, // Smaller font
-          }}
-        >
-          Product Management System
-        </Typography>
-
         {/* Login Title */}
         <Typography
           variant="h6" // Changed from h5 to h6
@@ -185,7 +175,7 @@ const Login = () => {
             gap: 2.5, // Reduced gap
           }}
         >
-          {/* Username Field */}
+          {/* Email Field */}
           <Box>
             <Typography
               variant="body1"
@@ -197,20 +187,20 @@ const Login = () => {
                 fontSize: "0.95rem", // Smaller font
               }}
             >
-              Username
+              Email
             </Typography>
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               size="small" // Added small size
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <PersonIcon
-                      sx={{ color: "#FFD65A", fontSize: "1.25rem" }}
+                      sx={{ color: "#466ABE", fontSize: "1.25rem" }}
                     />{" "}
                     {/* Smaller icon */}
                   </InputAdornment>
@@ -222,10 +212,10 @@ const Login = () => {
                     borderColor: "#e0e0e0",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
+                    borderColor: "#466ABE",
                   },
                   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
+                    borderColor: "#466ABE",
                     borderWidth: "2px",
                   },
                   fontSize: "0.95rem", // Smaller text
@@ -259,7 +249,7 @@ const Login = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon sx={{ color: "#FFD65A", fontSize: "1.25rem" }} />{" "}
+                    <LockIcon sx={{ color: "#466ABE", fontSize: "1.25rem" }} />{" "}
                     {/* Smaller icon */}
                   </InputAdornment>
                 ),
@@ -288,10 +278,10 @@ const Login = () => {
                     borderColor: "#e0e0e0",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
+                    borderColor: "#466ABE",
                   },
                   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
+                    borderColor: "#466ABE",
                     borderWidth: "2px",
                   },
                   fontSize: "0.95rem", // Smaller text
@@ -310,11 +300,11 @@ const Login = () => {
               fontWeight: "700",
               textTransform: "none",
               fontSize: "16px", // Smaller font
-              backgroundColor: "#FFD65A",
+              backgroundColor: "#466ABE",
               borderRadius: "10px", // Smaller radius
               mt: 1.5, // Reduced margin
               "&:hover": {
-                backgroundColor: "#d3b14cff",
+                backgroundColor: "#344a7e",
                 transform: "translateY(-1px)", // Reduced lift
                 boxShadow: "0px 8px 15px rgba(94, 96, 206, 0.2)", // Reduced shadow
               },
@@ -342,7 +332,7 @@ const Login = () => {
               onClick={() => navigate("/register")}
               sx={{
                 fontWeight: "600",
-                color: "#FFD65A",
+                color: "#466ABE",
                 textDecoration: "none",
                 fontSize: "0.9rem", // Smaller font
                 "&:hover": {
@@ -354,7 +344,6 @@ const Login = () => {
             </Link>
           </Typography>
         </Box>
-
       </Paper>
       <Snackbar
         open={snackbarOpen}

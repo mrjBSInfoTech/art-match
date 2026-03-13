@@ -22,7 +22,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { styled } from "@mui/material/styles";
 
 // Styled component for the drop zone
-const DropZone = styled(Box)(({ theme, isDragActive, hasError }) => ({
+const DropZone = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'isDragActive' && prop !== 'hasError'
+})(({ theme, isDragActive, hasError }) => ({
   width: "100%",
   minHeight: 200,
   border: `2px dashed ${
@@ -139,17 +141,11 @@ function FilesForm({
     const file = e.target.files[0];
 
     if (file) {
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        setFormData({ 
-          ...formData, 
-          file: reader.result,
-          file_name: file.name 
-        });
-      };
-
-      reader.readAsDataURL(file);
+      setFormData({ 
+        ...formData, 
+        file: file,
+        file_name: file.name 
+      });
     }
   };
 
@@ -170,17 +166,11 @@ function FilesForm({
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        setFormData({ 
-          ...formData, 
-          file: reader.result,
-          file_name: file.name 
-        });
-      };
-
-      reader.readAsDataURL(file);
+      setFormData({ 
+        ...formData, 
+        file: file,
+        file_name: file.name 
+      });
     }
   };
 
@@ -190,7 +180,7 @@ function FilesForm({
       setError("❌ Please select a conversion format (PDF or Docs)");
       return;
     }
-    if (!formData.file.trim()) {
+    if (!formData.file) {
       setError("❌ File is required");
       return;
     }
@@ -237,7 +227,7 @@ function FilesForm({
                 label="Convert To"
               >
                 <MenuItem value="pdf">PDF</MenuItem>
-                <MenuItem value="docs">Google Docs</MenuItem>
+                <MenuItem value="docs">Docs</MenuItem>
               </Select>
             </FormControl>
 
