@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Box,
@@ -9,6 +9,8 @@ import {
   Snackbar,
   InputAdornment,
   Alert,
+  CircularProgress,
+  LinearProgress,
 } from "@mui/material";
 import { Slide } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -103,8 +105,7 @@ export default function Officials() {
       setOfficials(data || []);
     } catch (err) {
       console.error("Error loading officials:", err);
-      setOfficialErrorMessage(err.message || "Error loading officials");
-      showSnackbar("Error loading officials");
+      setOfficialErrorMessage("Failed to load officials: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -128,17 +129,19 @@ export default function Officials() {
         showSnackbar("Official added successfully");
       }
       await loadOfficials();
-      
+
       // Update selectedOfficial with fresh data if it was an edit
       if (officialId && part === 2) {
         // For part 2, fetch fresh data to ensure account info is preserved
         const freshData = await fetchOfficialsWithAccounts();
-        const updatedOfficial = freshData?.find(o => o.official_id === officialId);
+        const updatedOfficial = freshData?.find(
+          (o) => o.official_id === officialId,
+        );
         if (updatedOfficial) {
           setSelectedOfficial(updatedOfficial);
         }
       }
-      
+
       setOpenOfficialForm(false);
     } catch (err) {
       console.error("Error saving official:", err);
@@ -179,15 +182,17 @@ export default function Officials() {
 
         await updateOfficialAccountPermissions(
           selectedOfficial.official_account_id,
-          updatePayload
+          updatePayload,
         );
         showSnackbar("✅ Account updated successfully!");
       } else {
         // Create new account
         console.log("Creating account with data:", formData);
-        
+
         // Find the official to get position
-        const officialData = officials.find(o => o.official_id === parseInt(formData.official_id));
+        const officialData = officials.find(
+          (o) => o.official_id === parseInt(formData.official_id),
+        );
         const position = officialData?.position || "Staff";
 
         await createOfficialAccount(
@@ -197,7 +202,7 @@ export default function Officials() {
           formData.can_add ? 1 : 0,
           formData.can_edit ? 1 : 0,
           formData.can_delete ? 1 : 0,
-          position // Include position
+          position, // Include position
         );
         showSnackbar("✅ Account created successfully!");
       }
@@ -212,14 +217,16 @@ export default function Officials() {
   };
 
   // Filter officials based on search query
-  const filteredOfficials = officials.filter((official) => {
-    const fullName = `${official.first_name || ""} ${official.last_name || ""}`.toLowerCase();
-    const position = (official.position || "").toLowerCase();
-    const matchesSearch = 
-      fullName.includes(searchQuery.toLowerCase()) ||
-      position.includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredOfficials = useMemo(() => {
+    return officials.filter((official) => {
+      const fullName = `${official.first_name || ""} ${official.last_name || ""}`.toLowerCase();
+      const position = (official.position || "").toLowerCase();
+      const matchesSearch = 
+        fullName.includes(searchQuery.toLowerCase()) || 
+        position.includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [officials, searchQuery]);
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -268,7 +275,6 @@ export default function Officials() {
             Add Official
           </Button>
         )}
-        
       </Box>
 
       {/* Filter Section */}
@@ -308,41 +314,64 @@ export default function Officials() {
       {/* Officials Grid Display */}
       {part === 1 && (
         <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Official List
-          </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={goToPartTwo}
+          <Box
             sx={{
-              width: { xs: 150, sm: 150 },
-              height: { xs: 45, sm: 45 },
-              minWidth: { xs: 45, sm: 50 },
-              fontSize: { xs: 12, sm: 16 },
-              padding: 0,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
             }}
           >
-            Access Control
-          </Button>
-        </Box>
-          {filteredOfficials.length > 0 ? (
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Official List
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={goToPartTwo}
+              sx={{
+                width: { xs: 150, sm: 150 },
+                height: { xs: 45, sm: 45 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+              }}
+            >
+              Access Control
+            </Button>
+          </Box>
+          {loading && (
+            <LinearProgress
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+              }}
+            />
+          )}
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : officialErrorMessage ? (
+            <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
+              {officialErrorMessage}
+            </Typography>
+          ) : filteredOfficials.length > 0 ? (
             <OfficialCard
               officials={filteredOfficials}
               onEdit={handleOpenOfficialEdit}
               onDelete={handleOpenOfficialDelete}
             />
           ) : (
-            <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-              {searchQuery ? "No officials match your search." : "No officials found. Add your first official!"}
+            <Typography
+              color="text.secondary"
+              sx={{ textAlign: "center", py: 4 }}
+            >
+              {searchQuery
+                ? "No officials match your search."
+                : "No officials found. Add your first official!"}
             </Typography>
           )}
         </Paper>
@@ -351,41 +380,64 @@ export default function Officials() {
       {/* Access Control Grid Display */}
       {part === 2 && (
         <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Official Access Control
-          </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={goToPartOne}
+          <Box
             sx={{
-              width: { xs: 150, sm: 150 },
-              height: { xs: 45, sm: 45 },
-              minWidth: { xs: 45, sm: 50 },
-              fontSize: { xs: 12, sm: 16 },
-              padding: 0,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
             }}
           >
-            Back
-          </Button>
-        </Box>
-          {filteredOfficials.length > 0 ? (
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Official Access Control
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={goToPartOne}
+              sx={{
+                width: { xs: 150, sm: 150 },
+                height: { xs: 45, sm: 45 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+              }}
+            >
+              Back
+            </Button>
+          </Box>
+          {loading && (
+            <LinearProgress
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+              }}
+            />
+          )}
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : officialErrorMessage ? (
+            <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
+              {officialErrorMessage}
+            </Typography>
+          ) : filteredOfficials.length > 0 ? (
             <AccessCard
               officials={filteredOfficials}
               onCreateAccount={handleOpenAccessCreate}
               onEditAccount={handleOpenAccessEdit}
             />
           ) : (
-            <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-              {searchQuery ? "No officials match your search." : "No officials found. Add your first official!"}
+            <Typography
+              color="text.secondary"
+              sx={{ textAlign: "center", py: 4 }}
+            >
+              {searchQuery
+                ? "No officials match your search."
+                : "No officials found. Add your first official!"}
             </Typography>
           )}
         </Paper>

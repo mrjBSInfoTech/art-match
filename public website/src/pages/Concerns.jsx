@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Box,
   Button,
@@ -43,6 +44,9 @@ export default function Concerns() {
   const [sortOption, setSortOption] = useState("");
   return (
     <Box>
+      <Helmet titleTemplate="%s - Barangay 415 Zone 42">
+        <title>Concerns</title>
+      </Helmet>
       {/* CONCERNS */}
       <Box sx={{ py: 10, px: 3,mb: -10, backgroundColor: "#f5f5f5" }} id="concerns">
         <Typography variant="h4" textAlign="center" fontWeight="bold" mb={6}>
@@ -73,7 +77,7 @@ export default function Concerns() {
                 </Box>
 
                 {/* Contact Numbers */}
-                <Box sx={{ mb: 3, display: "flex", gap: 2 }}>
+                <Box id="contact-info" sx={{ mb: 3, display: "flex", gap: 2 }}>
                   <CallIcon sx={{ color: "primary.main", mt: 0.5 }} />
                   <Box>
                     <Typography variant="body2" sx={{fontWeight: "bold"}}>

@@ -54,13 +54,26 @@ export default function DashboardLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [image, setImage] = useState("");
+  const [position, setPosition] = useState("");
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("username");
-    setUser(storedUser);
+    const storedFirstName = localStorage.getItem("first_name");
+    const storedLastName = localStorage.getItem("last_name");
+    const storedPosition = localStorage.getItem("position");
+    const storedImage = localStorage.getItem("image");
+
+    setFirstName(storedFirstName || "");
+    setLastName(storedLastName || "");
+    setPosition(storedPosition || "");
+    setUser(storedUser || "");
+    setImage(storedImage || "");
   }, []);
 
   // Simulated router (for Toolpad)
@@ -73,6 +86,14 @@ export default function DashboardLayout({ children }) {
     // Clear all stored data
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+    localStorage.removeItem("account_type");
+    localStorage.removeItem("can_add");
+    localStorage.removeItem("can_edit");
+    localStorage.removeItem("can_delete");
+    localStorage.removeItem("first_name");
+    localStorage.removeItem("last_name");
+    localStorage.removeItem("position");
+    localStorage.removeItem("image");
 
     navigate("/", { replace: true }); // redirect to your Dashboard page
 
@@ -82,6 +103,8 @@ export default function DashboardLayout({ children }) {
       window.history.pushState(null, null, window.location.href);
     };
   };
+
+  const isAdmin = localStorage.getItem("account_type") === "Admin";
 
   // Sidebar menu items
   const navigation = [
@@ -119,51 +142,47 @@ export default function DashboardLayout({ children }) {
       icon: <PostAddIcon />,
       pattern: "/announcements",
     },
-    {
-      segment: "concern",
-      title: "Concerns",
-      icon: <LocalPostOfficeIcon />,
-      pattern: "/concern",
-    },
-    {
-      segment: "officials",
-      title: "Officials",
-      icon: <AdminPanelSettingsIcon />,
-      pattern: "/officials",
-    },
-    {
-      segment: "citizens",
-      title: "Citizens",
-      icon: <AccountBoxIcon />,
-      pattern: "/citizens",
-    },
-    {
-      segment: "history",
-      title: "History",
-      icon: <HistoryIcon />,
-      pattern: "/history",
-    },
+    ...(isAdmin
+      ? [
+          {
+            segment: "concern",
+            title: "Concerns",
+            icon: <LocalPostOfficeIcon />,
+            pattern: "/concern",
+          },
+
+          {
+            segment: "officials",
+            title: "Officials",
+            icon: <AdminPanelSettingsIcon />,
+            pattern: "/officials",
+          },
+          {
+            segment: "citizens",
+            title: "Citizens",
+            icon: <AccountBoxIcon />,
+            pattern: "/citizens",
+          },
+        ]
+      : []), // Only for Admins
   ];
 
   const branding = {
     logo: (
       <Box
         sx={{
+          backgroundColor: "white",
+          borderRadius: "50%",
+          width: 40,
           display: "flex",
+          justifyContent: "center",
           alignItems: "center",
-          gap: 1,
         }}
       >
-        <Box
-          component="img"
+        <img
           src={BarangayIcon}
-          alt="Barangay Logo"
-          sx={{
-            height: 40,
-            width: "auto",
-            position: "relative",
-            top: -3,
-          }}
+          alt="logo"
+          style={{ width: 50, height: 50, position: "relative", bottom: 2 }}
         />
       </Box>
     ),
@@ -197,18 +216,20 @@ export default function DashboardLayout({ children }) {
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Avatar
-          src="https://mui.com/static/images/avatar/1.jpg"
-          alt="Brgy. Captain"
+          src={
+            image
+              ? `http://localhost:5000/uploads/uploadOfficial/${encodeURIComponent(image)}`
+              : `http://localhost:5000/uploads/uploadOfficial/profile.jpg`
+          }
+          alt="Brgy. 415"
           sx={{ width: 40, height: 40 }}
         />
         {!mini && (
           <Stack direction="column">
             <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 16 }}>
-              Brgy. Captain
+              {firstName} {lastName}
             </Typography>
-            <Typography variant="caption" >
-              brgy@example.com
-            </Typography>
+            <Typography variant="caption">{position}</Typography>
           </Stack>
         )}
       </Stack>
@@ -231,8 +252,7 @@ export default function DashboardLayout({ children }) {
         width: "100%",
         px: 1,
       }}
-    >
-    </Box>
+    ></Box>
   );
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
@@ -246,8 +266,8 @@ export default function DashboardLayout({ children }) {
         router={router}
         session={{
           user: {
-            name: "Rob Justin",
-            email: "rob@example.com",
+            name: firstName && lastName ? `${firstName} ${lastName}` : user,
+            position: position || "",
           },
         }}
         theme={theme}

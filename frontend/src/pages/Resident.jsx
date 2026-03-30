@@ -4,9 +4,11 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   FormControl,
   InputLabel,
   InputAdornment,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
@@ -72,8 +74,9 @@ export default function Resident() {
       setResidents(data || []);
     } catch (err) {
       console.error("Error loading residents:", err);
-      setResidentErrorMessage(err.message || "Error loading residents");
-      showSnackbar("Error loading residents");
+      const message = setResidentErrorMessage(
+        "Failed to load residents: " + err.message,
+      );
     } finally {
       setLoading(false);
     }
@@ -135,10 +138,17 @@ export default function Resident() {
       `${resident.first_name || ""} ${resident.last_name || ""}`.toLowerCase();
     const matchesSearch = fullName.includes(searchQuery.toLowerCase());
 
-    const matchesGender = genderFilter === "" || resident.gender === genderFilter;
+    const matchesGender =
+      genderFilter === "" || resident.gender === genderFilter;
 
     return matchesSearch && matchesGender;
   });
+
+  const accountType = localStorage.getItem("account_type");
+  const isAdmin = accountType === "Admin";
+  const isStaff = accountType === "Staff";
+  const canAdd =
+    (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -164,66 +174,71 @@ export default function Resident() {
           mb: 2,
         }}
       >
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
+        >
           Residents
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenResidentAdd}
-          sx={{
-            width: { xs: 130, sm: 150 },
-            height: { xs: 35, sm: 45 },
-            minWidth: { xs: 45, sm: 50 },
-            fontSize: { xs: 12, sm: 16 },
-            padding: 0,
-          }}
-        >
-          Add Resident
-        </Button>
+        {canAdd && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenResidentAdd}
+            sx={{
+              width: { xs: 130, sm: 150 },
+              height: { xs: 35, sm: 45 },
+              minWidth: { xs: 45, sm: 50 },
+              fontSize: { xs: 12, sm: 16 },
+              padding: 0,
+            }}
+          >
+            Add Resident
+          </Button>
+        )}
       </Box>
 
       {/* Filter Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-          <Typography variant="h6">Filter</Typography>
+        <Typography variant="h6">Filter</Typography>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: { xs: "stretch", md: "center" },
+            gap: 2,
+            mb: 2,
+            mt: 2,
+          }}
+        >
+          <TextField
+            variant="outlined"
+            placeholder="Search residents..."
+            size="small"
+            sx={{
+              width: { xs: "100%", sm: 300 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              justifyContent: "space-between",
-              alignItems: { xs: "stretch", md: "center" },
+              flexDirection: { xs: "column", sm: "row" },
               gap: 2,
-              mb: 2,
-              mt: 2,
+              width: { xs: "100%", md: "auto" },
             }}
           >
-            <TextField
-              variant="outlined"
-              placeholder="Search residents..."
-              size="small"
-              sx={{
-                width: { xs: "100%", sm: 300 },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                gap: 2,
-                width: { xs: "100%", md: "auto" },
-              }}
-            >
-
-              <FormControl size="small" sx={{ width: { xs: "100%", sm: 180 } }}>
+            <FormControl size="small" sx={{ width: { xs: "100%", sm: 180 } }}>
               <InputLabel>Gender</InputLabel>
               <Select
                 name="gender"
@@ -236,67 +251,85 @@ export default function Resident() {
                 <MenuItem value="Female">Female</MenuItem>
                 <MenuItem value="Others">Others</MenuItem>
               </Select>
-            </FormControl> 
-            </Box>
+            </FormControl>
           </Box>
-        </Paper>
+        </Box>
+      </Paper>
 
-        {/* Residents Grid Display */}
-        <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Resident List
-          </Typography>
-          {filteredResidents.length > 0 ? (
-            <ResidentCard
-              residents={filteredResidents}
-              onEdit={handleOpenResidentEdit}
-              onDelete={handleOpenResidentDelete}
-              households={households}
+      {/* Residents Grid Display */}
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Resident List
+        </Typography>
+          {loading && (
+            <LinearProgress
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+              }}
             />
-          ) : (
-            <Typography
-              color="text.secondary"
-              sx={{ textAlign: "center", py: 4 }}
-            >
-              {searchQuery || genderFilter
-                ? "No residents match your search."
-                : "No residents found. Add your first resident!"}
-            </Typography>
           )}
-        </Paper>
-
-        {/* ========== RESIDENT MODALS ========== */}
-        <ResidentsForm
-          open={openResidentForm}
-          handleClose={() => setOpenResidentForm(false)}
-          onSubmit={handleSubmitResident}
-          selectedResident={selectedResident}
-          households={households}
-        />
-        <ResidentsDelete
-          open={openResidentDelete}
-          handleClose={() => setOpenResidentDelete(false)}
-          onSubmit={handleDeleteResident}
-          selectedResident={selectedResident}
-          mode="delete"
-        />
-
-        {/* Snackbar Notification */}
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={3000}
-          onClose={closeSnackbar}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-          TransitionComponent={SlideTransition}
-        >
-          <Alert
-            onClose={closeSnackbar}
-            severity="success"
-            sx={{ width: "100%" }}
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : residentErrorMessage ? (
+          <Typography align="center" color="error" sx={{ py: 3 }}>
+            {residentErrorMessage}
+          </Typography>
+        ) : filteredResidents.length > 0 ? (
+          <ResidentCard
+            residents={filteredResidents}
+            onEdit={handleOpenResidentEdit}
+            onDelete={handleOpenResidentDelete}
+            households={households}
+          />
+        ) : (
+          <Typography
+            color="text.secondary"
+            sx={{ textAlign: "center", py: 4 }}
           >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
+            {searchQuery || genderFilter
+              ? "No residents match your search."
+              : "No residents found. Add your first resident!"}
+          </Typography>
+        )}
+      </Paper>
+
+      {/* ========== RESIDENT MODALS ========== */}
+      <ResidentsForm
+        open={openResidentForm}
+        handleClose={() => setOpenResidentForm(false)}
+        onSubmit={handleSubmitResident}
+        selectedResident={selectedResident}
+        households={households}
+      />
+      <ResidentsDelete
+        open={openResidentDelete}
+        handleClose={() => setOpenResidentDelete(false)}
+        onSubmit={handleDeleteResident}
+        selectedResident={selectedResident}
+        mode="delete"
+      />
+
+      {/* Snackbar Notification */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

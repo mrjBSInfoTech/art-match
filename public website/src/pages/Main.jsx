@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Box,
   Typography,
@@ -12,12 +13,14 @@ import {
   TextField,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import BarangayIcon from "../assets/BarangayIcon.png";
 import Footer from "../components/Footer";
 import { fetchAnnouncements } from "../api/announcementAPI";
 
 export default function Main() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [announcements, setAnnouncements] = useState([]);
   const [announcementErrorMessage, setAnnouncementErrorMessage] = useState("");
 
@@ -49,8 +52,49 @@ export default function Main() {
     loadAnnouncements();
   }, []);
 
+  // Handle navigation with support for hash links
+  const handleNavigation = (path) => {
+    if (path.includes("#")) {
+      const [route, id] = path.split("#");
+
+      // Check if we are already on the target route (e.g., /main)
+      if (location.pathname === route) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      } else {
+        // If we're on a different page, navigate to the full path
+        // Note: Standard react-router navigate(path) might not scroll on load.
+        // See step 2 for the fix for that.
+        navigate(path);
+      }
+    } else {
+      navigate(path);
+    }
+
+    setMobileOpen(false);
+    setSearchOpen(false);
+  };
+  useEffect(() => {
+    // Check if there is a hash in the URL (e.g., #mission-vision)
+    if (location.hash) {
+      const id = location.hash.replace("#", "");
+      const element = document.getElementById(id);
+      if (element) {
+        // Small timeout ensures the DOM is fully rendered before scrolling
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
+    }
+  }, [location]);
+
   return (
     <Box>
+      <Helmet titleTemplate="%s - Barangay 415 Zone 42">
+        <title>Home</title>
+      </Helmet>
       {/* HERO SECTION */}
       <Box
         sx={{
@@ -63,7 +107,7 @@ export default function Main() {
         id="hero"
       >
         <Typography variant="h3" fontWeight="bold" gutterBottom>
-          Discover Barangay
+          Discover Barangay415
         </Typography>
 
         <Typography variant="h6" sx={{ maxWidth: 700, mx: "auto", mb: 4 }}>
@@ -124,7 +168,12 @@ export default function Main() {
             src={BarangayIcon}
             alt="Barangay Logo"
             sx={{
-              height: { md: "500px", xs: "250px", sm: "500px" }, // Adjust size as needed
+              height: {
+                xs: "250px",
+                sm: "350px",
+                md: "450px",
+                lg: "500px",
+              },
               width: "auto",
               objectFit: "contain",
             }}
@@ -209,26 +258,36 @@ export default function Main() {
       </Box>
 
       {/* ANNOUNCEMENTS */}
-      <Box sx={{ py: 10, px: 3, backgroundColor: "#f5f5f5" }}>
+      <Box
+        id="announcements"
+        sx={{ py: 10, px: 3, backgroundColor: "#f5f5f5" }}
+      >
         <Typography variant="h4" textAlign="center" fontWeight="bold" mb={6}>
           Latest Announcements
         </Typography>
 
         <Grid container spacing={4}>
           {announcements.map((announcement) => (
-            <Grid item xs={12} md={4} key={announcement.id} 
+            <Grid
+              item
+              xs={12}
+              md={4}
+              key={announcement.id}
               sx={{
-                width:"30%",
+                width: "30%",
               }}
             >
               <Card sx={{ p: 2 }}>
                 <CardContent>
                   <Typography variant="body2" color="text.secondary">
-                    {new Date(announcement.date_posted).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    {new Date(announcement.date_posted).toLocaleDateString(
+                      "en-US",
+                      {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      },
+                    )}
                   </Typography>
 
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -241,12 +300,14 @@ export default function Main() {
                       : announcement.description}
                   </Typography>
 
-                  <Button sx={{ mt: 2 }} 
+                  <Button
+                    sx={{ mt: 2 }}
                     onClick={() => {
-                        navigate("/announcements");
-                      } 
-                    }
-                  >Read More →</Button>
+                      navigate("/announcements");
+                    }}
+                  >
+                    Read More →
+                  </Button>
                 </CardContent>
               </Card>
             </Grid>

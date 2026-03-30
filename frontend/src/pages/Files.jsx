@@ -25,6 +25,7 @@ import {
   CardContent,
   Divider,
   LinearProgress,
+  CircularProgress,
   Tooltip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -41,10 +42,11 @@ function SlideTransition(props) {
 
 export default function Files() {
   const [files, setFiles] = useState([]);
+  const [filesErrorMessage, setFilesErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const [openFilesForm, setOpenFilesForm] = useState(false);
   const [openFilesDelete, setOpenFilesDelete] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState(null);
-  const [filesErrorMessage, setFilesErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -66,6 +68,7 @@ export default function Files() {
   // 🟢 Load all files
   const loadFiles = async () => {
     try {
+      setLoading(true);
       setFilesErrorMessage("");
       console.log("Loading all files...");
       const response = await fetchFiles();
@@ -81,9 +84,9 @@ export default function Files() {
     } catch (err) {
       console.error("Failed to fetch files:", err);
       setFiles([]);
-      setFilesErrorMessage(
-        `⚠️ ${err.message || "Failed to fetch files data. Please try again later."}`,
-      );
+      setFilesErrorMessage("Failed to load files: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
   useEffect(() => {
@@ -149,6 +152,14 @@ export default function Files() {
       return a.file_name?.localeCompare(b.file_name || "");
     });
 
+  const accountType = localStorage.getItem("account_type");
+  const isAdmin = accountType === "Admin";
+  const isStaff = accountType === "Staff";
+  const canAdd =
+    (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
+  const canDelete =
+    (isAdmin || isStaff) && localStorage.getItem("can_delete") === "1";
+
   // Snackbar handlers
   const showSnackbar = (message) => {
     setSnackbarMessage(message);
@@ -175,20 +186,22 @@ export default function Files() {
         <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
           Files
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenFilesAdd}
-          sx={{
-            width: { xs: 150, sm: 150 },
-            height: { xs: 45, sm: 45 },
-            minWidth: { xs: 45, sm: 50 },
-            fontSize: { xs: 12, sm: 16 },
-            padding: 0,
-          }}
-        >
-          Add Files
-        </Button>
+        {canAdd && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenFilesAdd}
+            sx={{
+              width: { xs: 150, sm: 150 },
+              height: { xs: 45, sm: 45 },
+              minWidth: { xs: 45, sm: 50 },
+              fontSize: { xs: 12, sm: 16 },
+              padding: 0,
+            }}
+          >
+            Add Files
+          </Button>
+        )}
       </Box>
       {/* Filter Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
@@ -256,14 +269,26 @@ export default function Files() {
         <Typography variant="h6" sx={{ mb: 2 }}>
           File List
         </Typography>
-
-        {filesErrorMessage && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            {filesErrorMessage}
-          </Typography>
+        {loading && (
+          <LinearProgress
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+          />
         )}
 
-        {filteredFiles.length === 0 ? (
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : filesErrorMessage ? (
+          <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
+            {filesErrorMessage}
+          </Typography>
+        ) : filteredFiles.length === 0 ? (
           <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
             No files found
           </Typography>
@@ -315,15 +340,17 @@ export default function Files() {
                           <FileDownloadIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleOpenFilesDelete(file)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                      {canDelete && (
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleOpenFilesDelete(file)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

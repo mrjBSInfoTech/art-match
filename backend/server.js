@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 
 // Routes
+import aboutRoutes from "./routes/about.js";
 import officialAccountRoutes from "./routes/officialAccount.js";
 import announcementRoutes from "./routes/announcement.js";
 import fileRoutes from "./routes/file.js";
@@ -41,6 +42,7 @@ app.get("/", (req, res) => {
 });
 
 // Routes
+app.use("/api/about", aboutRoutes);
 app.use("/api/officialAccounts", officialAccountRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/files", fileRoutes);

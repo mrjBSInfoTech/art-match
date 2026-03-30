@@ -29,7 +29,9 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 export default function Citizens() {
   const [date, setDate] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState("");
+  const [sortOption, setSortOption] = useState("verified");
+  const [loading, setLoading] = useState(false);
+  const [citizensErrorMessage, setCitizensErrorMessage] = useState("");
   const [part, setPart] = useState(1);
 
   // Toggle handlers

@@ -32,6 +32,13 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
+  const accountType = localStorage.getItem("account_type");
+  const isAdmin = accountType === "Admin";
+  const isStaff = accountType === "Staff";
+  const canEdit = (isAdmin || isStaff) && localStorage.getItem("can_edit") === "1";
+  const canDelete = (isAdmin || isStaff) && localStorage.getItem("can_delete") === "1";
+
+
   return (
     <Box
       sx={{
@@ -72,12 +79,15 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
                   {formatDate(announcement.date_posted)}
                 </Typography>
               </Box>
-              <IconButton
-                size="small"
-                onClick={(e) => handleMenuOpen(e, announcement)}
-              >
-                <MoreVertIcon fontSize="small" />
-              </IconButton>
+              {(canEdit || canDelete) && (
+                <IconButton
+                  size="small"
+                  onClick={(e) => handleMenuOpen(e, announcement)}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              )}
+              
             </Box>
 
             <Typography
@@ -119,15 +129,19 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
           </Box>
         </Card>
       ))}
-
+      
       {/* Actual Menu component so your buttons work */}
       <Menu anchorEl={anchorEl} open={open} onClose={handleMenuClose}>
-        <MenuItem onClick={() => { onEdit(selectedAnnouncement); handleMenuClose(); }} sx={{color:"success.main"}}>
-          <EditIcon sx={{ mr: 1 }} fontSize="small" /> Edit
-        </MenuItem>
-        <MenuItem onClick={() => { onDelete(selectedAnnouncement.announcement_id); handleMenuClose(); }} sx={{ color: "error.main" }}>
-          <DeleteIcon sx={{ mr: 1 }} fontSize="small" /> Delete
-        </MenuItem>
+        {canEdit && (
+          <MenuItem onClick={() => { onEdit(selectedAnnouncement); handleMenuClose(); }} sx={{color:"success.main"}}>
+            <EditIcon sx={{ mr: 1 }} fontSize="small" /> Edit
+          </MenuItem>
+        )}
+        {canDelete && (
+          <MenuItem onClick={() => { onDelete(selectedAnnouncement.announcement_id); handleMenuClose(); }} sx={{ color: "error.main" }}>
+            <DeleteIcon sx={{ mr: 1 }} fontSize="small" /> Delete
+          </MenuItem>
+        )}
       </Menu>
     </Box>
   );

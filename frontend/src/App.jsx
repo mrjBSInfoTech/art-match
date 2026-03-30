@@ -12,9 +12,7 @@ import Officials from "./pages/Officials";
 import Citizens from "./pages/Citizens";
 import History from "./pages/History";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
 import theme from './theme/fontTheme';
-import Welcome from "./Welcome";
 
 function App() {
   return (
@@ -25,7 +23,6 @@ function App() {
         <Routes>
           {/* First Page */}
           <Route path="/" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           {/* Dashboard Pages */}
           <Route
             path="/dashboard"
