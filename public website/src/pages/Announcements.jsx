@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
@@ -52,6 +53,9 @@ export default function Announcements() {
 
   return (
     <Box sx={{ backgroundColor: "#f5f5f5", minHeight: "100vh", py: 5 }}>
+      <Helmet titleTemplate="%s - Barangay 415 Zone 42">
+        <title>Announcements</title>
+      </Helmet>
       {/* Announcements List */}
       <Box sx={{ p: 3, mt: 3, borderRadius: 2 }} key="announcement.announcement_id">
         {announcementErrorMessage && (

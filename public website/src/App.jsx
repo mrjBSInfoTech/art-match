@@ -19,10 +19,11 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          {/* First Page */}
+          
           <Route path="/" element={<Welcome />} />
-          <Route path="/" element={<Register />} />
-          {/* Dashboard Pages */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />{/* First Page */}
+          {/* Main Pages */}
           <Route
             path="/main"
             element={

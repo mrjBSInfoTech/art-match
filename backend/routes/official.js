@@ -18,16 +18,27 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Configure multer for file uploads
+// Configure multer for file uploads
+// Image upload configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Sanitize filename
-    const fileName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-    const uniqueName = `${Date.now()}-${fileName}`;
-    cb(null, uniqueName);
+    const originalName = path.parse(file.originalname).name;
+    const ext = path.extname(file.originalname);
+    const safeName = originalName.replace(/[^a-zA-Z0-9_-]/g, "_");
+    
+    // Check if file exists and generate unique name if needed
+    let filename = `${safeName}${ext}`;
+    let counter = 1;
+    
+    while (fs.existsSync(path.join(uploadDir, filename))) {
+      filename = `${safeName}_${counter}${ext}`;
+      counter++;
+    }
+    
+    cb(null, filename);
   },
 });
 
@@ -86,11 +97,17 @@ router.get("/:id", authenticateToken, (req, res) => {
 // ➕ Add new official
 router.post("/", authenticateToken, upload.single("image"), (req, res) => {
   const { official_account_id, first_name, middle_name, last_name, position, dob, address, phone_number, email } = req.body;
-  const image = req.file ? req.file.filename : null;
 
   if (!first_name || !last_name || !position) {
     return res.status(400).json({ error: "Please fill all required fields (first_name, last_name, position)." });
   }
+
+  if (!req.file) {
+    return res.status(400).json({ error: "Image file is required" });
+  }
+
+  const imageName = req.file.filename;
+  console.log("New official image:", imageName);
 
   const sql = `
     INSERT INTO official 
@@ -100,7 +117,7 @@ router.post("/", authenticateToken, upload.single("image"), (req, res) => {
 
   db.query(
     sql,
-    [official_account_id || null, first_name, middle_name || null, last_name, position, dob || null, address || null, image, phone_number || null, email || null],
+    [official_account_id || null, first_name, middle_name || null, last_name, position, dob || null, address || null, imageName, phone_number || null, email || null],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: "✅ Official added successfully", id: result.insertId });
@@ -111,8 +128,7 @@ router.post("/", authenticateToken, upload.single("image"), (req, res) => {
 // ✏️ Update official
 router.put("/:id", authenticateToken, upload.single("image"), (req, res) => {
   const { id } = req.params;
-  const { official_account_id, first_name, middle_name, last_name, position, dob, address, phone_number, email } = req.body;
-  const image = req.file ? req.file.filename : req.body.image;
+  const { official_account_id, first_name, middle_name, last_name, position, dob, address, phone_number, email, image } = req.body;
 
   if (!first_name || !last_name || !position) {
     return res.status(400).json({ error: "Please fill all required fields (first_name, last_name, position)." });
@@ -126,6 +142,10 @@ router.put("/:id", authenticateToken, upload.single("image"), (req, res) => {
     // Preserve existing account_id if not explicitly provided in the request
     const accountId = official_account_id !== undefined ? official_account_id : results[0].official_account_id;
 
+    // Determine image name: use new file if uploaded, otherwise preserve existing image
+    const imageName = req.file ? req.file.filename : image;
+    console.log("Updated official image:", imageName || "(no change)");
+
     const sql = `
       UPDATE official 
       SET official_account_id = ?, first_name = ?, middle_name = ?, last_name = ?, position = ?, 
@@ -135,7 +155,7 @@ router.put("/:id", authenticateToken, upload.single("image"), (req, res) => {
 
     db.query(
       sql,
-      [accountId, first_name, middle_name || null, last_name, position, dob || null, address || null, image, phone_number || null, email || null, id],
+      [accountId, first_name, middle_name || null, last_name, position, dob || null, address || null, imageName, phone_number || null, email || null, id],
       (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: "✅ Official updated successfully" });

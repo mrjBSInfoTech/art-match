@@ -26,6 +26,7 @@ import {
 } from "@mui/icons-material";
 import { loginUser } from "../api/authenticationAPI";
 import SaleSyncLogo from "../assets/SaleSync_Logo_Design.png";
+import BarangayIcon from "../assets/BarangayIcon.png";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -33,7 +34,7 @@ function SlideTransition(props) {
 }
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -65,7 +66,7 @@ const Login = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [email, password]);
+  }, [username, password]);
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -79,17 +80,24 @@ const Login = () => {
   };
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!username || !password) {
       showSnackbar("❌ Please fill in all fields");
       return;
     }
 
     try {
-      const data = await loginUser({ email, password });
+      const data = await loginUser({ username, password });
 
       localStorage.setItem("token", data.token);
-      localStorage.setItem("name", data.name);
-      localStorage.setItem("email", data.email);
+      localStorage.setItem("username", data.username);
+      localStorage.setItem("account_type", data.account_type);
+      localStorage.setItem("can_add", data.can_add);
+      localStorage.setItem("can_edit", data.can_edit);
+      localStorage.setItem("can_delete", data.can_delete);
+      localStorage.setItem("first_name", data.first_name);
+      localStorage.setItem("last_name", data.last_name);
+      localStorage.setItem("position", data.position);
+      localStorage.setItem("image", data.image);
 
       showSnackbar("✅ Login successful!");
 
@@ -119,6 +127,7 @@ const Login = () => {
       <Helmet titleTemplate="%s - Barangay Management System">
         <title>Login</title>
       </Helmet>
+
       <Paper
         elevation={24}
         style={{
@@ -142,8 +151,8 @@ const Login = () => {
         >
           <Box
             component="img"
-            src={SaleSyncLogo}
-            alt="SaleSync Logo"
+            src={BarangayIcon}
+            alt="Barangay Logo"
             sx={{
               height: 50,
               width: "auto",
@@ -175,7 +184,7 @@ const Login = () => {
             gap: 2.5, // Reduced gap
           }}
         >
-          {/* Email Field */}
+          {/* Username Field */}
           <Box>
             <Typography
               variant="body1"
@@ -187,14 +196,14 @@ const Login = () => {
                 fontSize: "0.95rem", // Smaller font
               }}
             >
-              Email
+              Username
             </Typography>
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               size="small" // Added small size
               InputProps={{
                 startAdornment: (
@@ -314,35 +323,6 @@ const Login = () => {
           >
             Login
           </Button>
-
-          {/* Sign Up Link */}
-          <Typography
-            variant="body2"
-            align="center"
-            sx={{
-              mt: 2.5, // Reduced margin
-              color: "#666",
-              fontSize: "0.9rem", // Smaller font
-            }}
-          >
-            Don't have an account?{" "}
-            <Link
-              component="button"
-              variant="body2"
-              onClick={() => navigate("/register")}
-              sx={{
-                fontWeight: "600",
-                color: "#466ABE",
-                textDecoration: "none",
-                fontSize: "0.9rem", // Smaller font
-                "&:hover": {
-                  textDecoration: "underline",
-                },
-              }}
-            >
-              Sign Up
-            </Link>
-          </Typography>
         </Box>
       </Paper>
       <Snackbar

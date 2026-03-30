@@ -93,7 +93,9 @@ export const darkTheme = createTheme({
     background: {
       default: "#0f172a",
       paper: "#1e293b",
-      sidebar: "#0f172a",
+      sidebar: "#1e293b",
+      header : "#1e293b",
+      footer : "#1e293b",
     },
     text: {
       primary: "#f8fafc",

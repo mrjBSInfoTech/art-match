@@ -29,25 +29,11 @@ const handleError = (error) => {
    AUTHENTICATION REQUESTS
 ============================ */
 
-// REGISTER
-export const registerUser = async ({ name, email, password }) => {
-  try {
-    const res = await api.post("/authentication/register", {
-      name,
-      email,
-      password,
-    });
-    return res.data;
-  } catch (error) {
-    handleError(error);
-  }
-};
-
 // LOGIN
-export const loginUser = async ({ email, password }) => {
+export const loginUser = async ({ username, password }) => {
   try {
     const res = await api.post("/authentication/login", {
-      email,
+      username,
       password,
     });
     return res.data;
@@ -59,13 +45,21 @@ export const loginUser = async ({ email, password }) => {
 // LOGOUT (frontend only)
 export const logoutUser = () => {
   localStorage.removeItem("token");
-  localStorage.removeItem("email");
+  localStorage.removeItem("username");
+  localStorage.removeItem("first_name");
+  localStorage.removeItem("last_name");
+  localStorage.removeItem("position");
+  localStorage.removeItem("image");
+  localStorage.removeItem("account_type");
+  localStorage.removeItem("can_add");
+  localStorage.removeItem("can_edit");
+  localStorage.removeItem("can_delete");
 };
 
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
   return !!localStorage.getItem("token");
-};
+};  
 
 // GET TOKEN
 export const getToken = () => {

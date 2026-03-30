@@ -12,19 +12,8 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
-  const [anchorEl, setAnchorEl] = useState(null);
+export default function AnnouncementCard({ announcements,}) {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleMenuOpen = (event, announcement) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedAnnouncement(announcement);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
 
   const formatDate = (dateString) => {
     const options = { year: "numeric", month: "long", day: "numeric" };

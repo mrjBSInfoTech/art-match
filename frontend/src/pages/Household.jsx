@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  LinearProgress,
   Paper,
   Snackbar,
   Typography,
@@ -43,6 +44,7 @@ export default function Household() {
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [householdErrorMessage, setHouseholdErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -57,7 +59,7 @@ export default function Household() {
       const data = await fetchHouseholds();
       setHouseholds(data);
     } catch (error) {
-      showSnackbar("❌ Failed to load households: " + error.message);
+      setHouseholdErrorMessage("Failed to load households: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -108,6 +110,16 @@ export default function Household() {
     }
   };
 
+  const accountType = localStorage.getItem("account_type");
+  const isAdmin = accountType === "Admin";
+  const isStaff = accountType === "Staff";
+  const canAdd =
+    (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
+  const canEdit =
+    (isAdmin || isStaff) && localStorage.getItem("can_edit") === "1";
+  const canDelete =
+    (isAdmin || isStaff) && localStorage.getItem("can_delete") === "1";
+
   // Snackbar
   const showSnackbar = (message) => {
     setSnackbarMessage(message);
@@ -138,20 +150,28 @@ export default function Household() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 3,
+          mb: 2,
         }}
       >
-        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
           Household
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenHouseholdAdd}
-          sx={{ height: 45, px: 3 }}
-        >
-          Add Household
-        </Button>
+        {canAdd && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenHouseholdAdd}
+            sx={{
+              width: { xs: 150, sm: 150 },
+              height: { xs: 45, sm: 45 },
+              minWidth: { xs: 45, sm: 50 },
+              fontSize: { xs: 12, sm: 16 },
+              padding: 0,
+            }}
+          >
+            Add Household
+          </Button>
+        )}
       </Box>
 
       {/* Filter Section */}
@@ -193,17 +213,28 @@ export default function Household() {
         <Typography variant="h6" sx={{ mb: 2 }}>
           Household List
         </Typography>
+        {loading && (
+          <LinearProgress
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+          />
+        )}
 
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 5 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
+        ) : householdErrorMessage ? (
+          <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
+            {householdErrorMessage}
+          </Typography>
         ) : filteredHouseholds.length === 0 ? (
           <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
-            No households found.{" "}
-            {households.length === 0
-              ? "Add one to get started!"
-              : "Try adjusting your search."}
+            No households found
           </Typography>
         ) : (
           <TableContainer>
@@ -234,24 +265,29 @@ export default function Household() {
                     <TableCell>{household.head_family}</TableCell>
                     <TableCell>{household.household_members}</TableCell>
                     <TableCell sx={{ textAlign: "center" }}>
-                      <Tooltip title="Edit">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handleOpenHouseholdEdit(household)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleOpenHouseholdDelete(household)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                      {canEdit && (
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            color="success"
+                            onClick={() => handleOpenHouseholdEdit(household)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+
+                      {canDelete && (
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleOpenHouseholdDelete(household)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

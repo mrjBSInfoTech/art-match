@@ -93,16 +93,26 @@ export const addOfficial = async (officialData) => {
     if (!officialData.address || !officialData.address.trim()) {
       throw new Error("Address is required");
     }
+    if (!officialData.file) {
+      throw new Error("Image file is required");
+    }
 
-    const res = await api.post("/officials", {
-      first_name: officialData.first_name.trim(),
-      last_name: officialData.last_name.trim(),
-      middle_name: officialData.middle_name ? officialData.middle_name.trim() : null,
-      dob: officialData.dob.trim(),
-      position: officialData.position.trim(),
-      email: officialData.email.trim(),
-      phone_number: officialData.phone_number.trim(),
-      address: officialData.address.trim(),
+    // Create FormData to send file
+    const formData = new FormData();
+    formData.append("first_name", officialData.first_name.trim());
+    formData.append("last_name", officialData.last_name.trim());
+    formData.append("middle_name", officialData.middle_name ? officialData.middle_name.trim() : "");
+    formData.append("dob", officialData.dob.trim());
+    formData.append("position", officialData.position.trim());
+    formData.append("email", officialData.email.trim());
+    formData.append("phone_number", officialData.phone_number.trim());
+    formData.append("address", officialData.address.trim());
+    formData.append("image", officialData.file);
+
+    const res = await api.post("/officials", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
     return res.data;
   } catch (error) {
@@ -136,16 +146,32 @@ export const updateOfficial = async (id, officialData) => {
       throw new Error("Address is required");
     }
 
-    const res = await api.put(`/officials/${id}`, {
-      official_account_id: officialData.official_account_id || null,
-      first_name: officialData.first_name.trim(),
-      last_name: officialData.last_name.trim(),
-      middle_name: officialData.middle_name ? officialData.middle_name.trim() : null,
-      dob: officialData.dob.trim(),
-      position: officialData.position.trim(),
-      email: officialData.email.trim(),
-      phone_number: officialData.phone_number.trim(),
-      address: officialData.address.trim(),
+    // Create FormData to send file (if provided)
+    const formData = new FormData();
+    formData.append("first_name", officialData.first_name.trim());
+    formData.append("last_name", officialData.last_name.trim());
+    formData.append("middle_name", officialData.middle_name ? officialData.middle_name.trim() : "");
+    formData.append("dob", officialData.dob.trim());
+    formData.append("position", officialData.position.trim());
+    formData.append("email", officialData.email.trim());
+    formData.append("phone_number", officialData.phone_number.trim());
+    formData.append("address", officialData.address.trim());
+    if (officialData.official_account_id) {
+      formData.append("official_account_id", officialData.official_account_id);
+    }
+    
+    // Only append image if a new file was provided
+    if (officialData.file) {
+      formData.append("image", officialData.file);
+    } else if (officialData.image && typeof officialData.image === "string") {
+      // If no new file but existing image filename, preserve it
+      formData.append("image", officialData.image);
+    }
+
+    const res = await api.put(`/officials/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
     return res.data;
   } catch (error) {

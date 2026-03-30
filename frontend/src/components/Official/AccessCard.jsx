@@ -183,13 +183,13 @@ export default function AccessCard({
                       label={`Add: ${official.can_add ? "✓" : "✗"}`}
                       size="small"
                       variant="outlined"
-                      color={official.can_add ? "success" : "default"}
+                      color={official.can_add ? "success" : "error"}
                     />
                     <Chip
                       label={`Edit: ${official.can_edit ? "✓" : "✗"}`}
                       size="small"
                       variant="outlined"
-                      color={official.can_edit ? "success" : "default"}
+                      color={official.can_edit ? "success" : "error"}
                     />
                     <Chip
                       label={`Delete: ${official.can_delete ? "✓" : "✗"}`}

@@ -149,9 +149,26 @@ function OfficialForm({
   const [uploadError, setUploadError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
-  // Prefill data when editing
+  // Prefill data when editing or clear when adding
   useEffect(() => {
-    if (selectedOfficial) {
+    if (!open) {
+      // When dialog closes, clear all form data to prevent leaking between sessions
+      setFormData({
+        first_name: "",
+        middle_name: "",
+        last_name: "",
+        dob: "",
+        position: "",
+        email: "",
+        phone_number: "",
+        address: "",
+        image: "",
+      });
+      setImagePreview(null);
+      setError("");
+      setUploadError("");
+    } else if (selectedOfficial) {
+      // When editing an official, prefill with their data
       setFormData({
         first_name: selectedOfficial.first_name
           ? String(selectedOfficial.first_name)
@@ -178,13 +195,15 @@ function OfficialForm({
         image: selectedOfficial.image ? String(selectedOfficial.image) : "",
       });
 
-      // Set image preview for existing official
+      // Set image preview for existing official only
       if (selectedOfficial.image) {
-        setImagePreview(selectedOfficial.image);
+        setImagePreview(`http://localhost:5000/uploads/uploadOfficial/${selectedOfficial.image}`);
       } else {
         setImagePreview(null);
       }
+      setError(""); // Clear error when opening dialog
     } else {
+      // When adding a new official, clear the form completely
       setFormData({
         first_name: "",
         middle_name: "",
@@ -197,8 +216,8 @@ function OfficialForm({
         image: "",
       });
       setImagePreview(null);
+      setError("");
     }
-    setError(""); // Clear error when opening dialog
   }, [selectedOfficial, open]);
 
   // Handle Enter key for submit
@@ -243,13 +262,52 @@ function OfficialForm({
     const file = e.target.files[0];
 
     if (file) {
+      // Store the actual File object and clear old image data
+      setFormData((prev) => ({
+        ...prev,
+        file: file,
+        image: "", // Clear previous image filename when new file is selected
+      }));
+
+      // Create preview
       const reader = new FileReader();
-
       reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result });
-        setImagePreview(reader.result); // <-- IMPORTANT
+        setImagePreview(reader.result);
       };
+      reader.readAsDataURL(file);
+    }
+  };
 
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setIsDragActive(true);
+    } else if (e.type === "dragleave") {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+
+      // Store the actual File object and clear old image data
+      setFormData((prev) => ({
+        ...prev,
+        file: file,
+        image: "", // Clear previous image filename when new file is dropped
+      }));
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -284,6 +342,11 @@ function OfficialForm({
       setError("❌ Address is required");
       return;
     }
+    if (!formData.file && !selectedOfficial) {
+      setError("Image file is required");
+      return;
+    }
+
     onSubmit(formData);
     handleClose();
   };

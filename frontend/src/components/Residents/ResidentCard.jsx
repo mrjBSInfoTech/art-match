@@ -48,6 +48,13 @@ export default function ResidentCard({ residents, onEdit, onDelete, households =
     setOpenInfoDialog(false);
   };
 
+  const accountType = localStorage.getItem("account_type");
+  const isAdmin = accountType === "Admin";
+  const isStaff = accountType === "Staff";
+  const canAdd = (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
+  const canEdit = (isAdmin || isStaff) && localStorage.getItem("can_edit") === "1";
+  const canDelete = (isAdmin || isStaff) && localStorage.getItem("can_delete") === "1";
+
   return (
     <Box
       sx={{
@@ -116,6 +123,7 @@ export default function ResidentCard({ residents, onEdit, onDelete, households =
                   {resident.last_name}
                 </Typography>
               </Box>
+              {(canEdit || canDelete) && (
               <IconButton
                 size="small"
                 onClick={(e) => handleMenuOpen(e, resident)}
@@ -128,6 +136,7 @@ export default function ResidentCard({ residents, onEdit, onDelete, households =
               >
                 <MoreVertIcon fontSize="small" />
               </IconButton>
+              )}
             </Box>
 
             {/* Info Button */}
@@ -175,30 +184,34 @@ export default function ResidentCard({ residents, onEdit, onDelete, households =
                 horizontal: "right",
               }}
             >
-              <MenuItem
-                onClick={() => {
-                  onEdit(selectedResident);
-                  handleMenuClose();
-                }}
-                sx={{
-                  color: "success.main",
-                }}
-              >
-                <EditIcon sx={{ mr: 1, fontSize: "20px" }} />
-                Edit
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  onDelete(selectedResident.resident_id);
-                  handleMenuClose();
-                }}
-                sx={{
-                  color: "error.main",
-                }}
-              >
-                <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
-                Delete
-              </MenuItem>
+              {canEdit && (
+                <MenuItem
+                  onClick={() => {
+                    onEdit(selectedResident);
+                    handleMenuClose();
+                  }}
+                  sx={{
+                    color: "success.main",
+                  }}
+                >
+                  <EditIcon sx={{ mr: 1, fontSize: "20px" }} />
+                  Edit
+                </MenuItem>
+              )}
+              {canDelete && (
+                <MenuItem
+                  onClick={() => {
+                    onDelete(selectedResident.resident_id);
+                    handleMenuClose();
+                  }}
+                  sx={{
+                    color: "error.main",
+                  }}
+                >
+                  <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
+                  Delete
+                </MenuItem>
+              )}
             </Menu>
           </CardContent>
         </Card>

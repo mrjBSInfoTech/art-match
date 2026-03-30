@@ -1,33 +1,27 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Alert,
   Slide,
   TextField,
   Button,
-  Container,
   Typography,
   Paper,
   Box,
   InputAdornment,
   IconButton,
-  Link,
   Snackbar,
   useTheme,
   useMediaQuery,
-  MenuItem,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import {
-  WaterDrop as WaterDropIcon,
   Visibility,
   VisibilityOff,
   Person as PersonIcon,
   Lock as LockIcon,
-  Badge as BadgeIcon,
 } from "@mui/icons-material";
 import { registerUser } from "../api/authenticationAPI";
-import SaleSyncLogo from "../assets/SaleSync_Logo_Design.png";
+import BarangayIcon from "../assets/BarangayIcon.png";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -42,14 +36,16 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Handle Enter key register
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === "Enter") {
+      if (event.key === "Enter" && !isLoading) {
         event.preventDefault();
         handleRegister();
       }
@@ -60,7 +56,7 @@ const Register = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [username, password, confirmPassword]);
+  }, [username, password, confirmPassword, isLoading]);
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -89,6 +85,7 @@ const Register = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
       const response = await registerUser({ username, password });
 
@@ -112,6 +109,8 @@ const Register = () => {
         error.response?.data?.message || error.message || "Registration failed";
 
       showSnackbar(`❌ ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -124,341 +123,312 @@ const Register = () => {
   };
 
   return (
-    <Container
-      maxWidth={false}
-      style={{
+    <Box
+      sx={{
         display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
         minHeight: "100vh",
-        padding: "20px",
-        background:
-          "linear-gradient(135deg, #16C47F 0%, #FFD65A, #FF9D23 , #F93827 100%)",
+        background: "linear-gradient(135deg, #466ABE 0%, #2d4a8e 100%)",
         overflow: "hidden",
       }}
     >
-      <Paper
-        elevation={24}
-        style={{
+      {/* LEFT SIDE - REGISTER FORM */}
+      <Box
+        sx={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: isSmallMobile ? 2 : isMobile ? 3 : 4,
+          minHeight: "100vh",
+          order: isMobile ? 1 : 0,
           backgroundColor: "white",
-          padding: isMobile ? "25px 20px" : "40px 35px", // Reduced padding
-          borderRadius: "20px", // Slightly smaller radius
-          width: "100%",
-          maxWidth: "450px", // Reduced max width
-          boxShadow: "0px 15px 40px rgba(0, 0, 0, 0.2)", // Reduced shadow
-          position: "relative",
-          overflow: "hidden",
         }}
       >
-        {/* Logo */}
-        <Box
+        <Paper
+          elevation={24}
           sx={{
-            display: "flex",
-            justifyContent: "center",
-            mb: 2, // Reduced margin
+            padding: isSmallMobile ? 3 : isMobile ? 4 : 5,
+            borderRadius: "20px",
+            width: "100%",
+            maxWidth: "450px",
+            background: "white",
+            boxShadow: "0px 20px 60px rgba(0, 0, 0, 0.3)",
           }}
         >
-          <Box
-            component="img"
-            src={SaleSyncLogo}
-            alt="SaleSync Logo"
+          {/* Logo on Mobile */}
+          {isMobile && (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+              <img
+                src={BarangayIcon}
+                alt="Barangay Logo"
+                style={{ height: "80px" }}
+              />
+            </Box>
+          )}
+
+          {/* Title */}
+          <Typography
+            variant="h4"
             sx={{
-              height: 50,
-              width: "auto",
+              fontWeight: "bold",
+              mb: 1,
+              textAlign: "center",
+              color: "#333",
             }}
-          />
-        </Box>
+          >
+            Create Account
+          </Typography>
 
-        {/* Subtitle */}
-        <Typography
-          variant="subtitle1"
-          align="center"
-          gutterBottom
-          sx={{
-            color: "#666",
-            mb: 4, // Reduced margin
-            fontSize: { xs: "0.85rem", sm: "1rem" }, // Smaller font
-          }}
-        >
-          Product Management System
-        </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              textAlign: "center",
+              color: "#666",
+              mb: 4,
+            }}
+          >
+            Join the barangay management community
+          </Typography>
 
-        {/* Register Title */}
-        <Typography
-          variant="h6" // Changed from h5 to h6
-          align="center"
-          gutterBottom
-          sx={{
-            fontWeight: "600",
-            color: "#333",
-            mb: 3, // Reduced margin
-            fontSize: { xs: "1.2rem", sm: "1.4rem" }, // Smaller font
-          }}
-        >
-          Create an Account
-        </Typography>
-
-        <Box
-          component="form"
-          noValidate
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2.5, // Reduced gap
-          }}
-        >
           {/* Username Field */}
-          <Box>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: "600",
-                color: "#444",
-                mb: 0.75, // Reduced margin
-                ml: 0.5,
-                fontSize: "0.95rem", // Smaller font
-              }}
-            >
-              Username
-            </Typography>
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              size="small" // Added small size
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon
-                      sx={{ color: "#FFD65A", fontSize: "1.25rem" }}
-                    />{" "}
-                    {/* Smaller icon */}
-                  </InputAdornment>
-                ),
-                sx: {
-                  borderRadius: "10px", // Smaller radius
-                  backgroundColor: "#f8f9fa",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#e0e0e0",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
-                  },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
-                    borderWidth: "2px",
-                  },
-                  fontSize: "0.95rem", // Smaller text
+          <TextField
+            fullWidth
+            label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            margin="normal"
+            variant="outlined"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonIcon sx={{ color: "#466ABE" }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              mb: 2.5,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                "&:hover fieldset": {
+                  borderColor: "#466ABE",
                 },
-              }}
-            />
-          </Box>
+              },
+            }}
+            disabled={isLoading}
+          />
 
           {/* Password Field */}
-          <Box>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: "600",
-                color: "#444",
-                mb: 0.75, // Reduced margin
-                ml: 0.5,
-                fontSize: "0.95rem", // Smaller font
-              }}
-            >
-              Password
-            </Typography>
-            <TextField
-              fullWidth
-              type={showPassword ? "text" : "password"}
-              variant="outlined"
-              placeholder="Create a password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              size="small" // Added small size
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ color: "#FFD65A", fontSize: "1.25rem" }} />{" "}
-                    {/* Smaller icon */}
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={handleClickShowPassword}
-                      edge="end"
-                      sx={{ color: "#666", padding: "6px" }} // Smaller padding
-                      size="small"
-                    >
-                      {showPassword ? (
-                        <VisibilityOff fontSize="small" />
-                      ) : (
-                        <Visibility fontSize="small" />
-                      )}{" "}
-                      {/* Smaller icons */}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  borderRadius: "10px", // Smaller radius
-                  backgroundColor: "#f8f9fa",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#e0e0e0",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
-                  },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
-                    borderWidth: "2px",
-                  },
-                  fontSize: "0.95rem", // Smaller text
+          <TextField
+            fullWidth
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            margin="normal"
+            variant="outlined"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LockIcon sx={{ color: "#466ABE" }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword}
+                    edge="end"
+                    disabled={isLoading}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              mb: 2.5,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                "&:hover fieldset": {
+                  borderColor: "#466ABE",
                 },
-              }}
-            />
-          </Box>
+              },
+            }}
+            disabled={isLoading}
+          />
 
           {/* Confirm Password Field */}
-          <Box>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: "600",
-                color: "#444",
-                mb: 0.75, // Reduced margin
-                ml: 0.5,
-                fontSize: "0.95rem", // Smaller font
-              }}
-            >
-              Confirm Password
-            </Typography>
-            <TextField
-              fullWidth
-              type={showConfirmPassword ? "text" : "password"}
-              variant="outlined"
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              size="small" // Added small size
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ color: "#FFD65A", fontSize: "1.25rem" }} />{" "}
-                    {/* Smaller icon */}
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={handleClickShowConfirmPassword}
-                      edge="end"
-                      sx={{ color: "#666", padding: "6px" }} // Smaller padding
-                      size="small"
-                    >
-                      {showConfirmPassword ? (
-                        <VisibilityOff fontSize="small" />
-                      ) : (
-                        <Visibility fontSize="small" />
-                      )}{" "}
-                      {/* Smaller icons */}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  borderRadius: "10px", // Smaller radius
-                  backgroundColor: "#f8f9fa",
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#e0e0e0",
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
-                  },
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#FFD65A",
-                    borderWidth: "2px",
-                  },
-                  fontSize: "0.95rem", // Smaller text
+          <TextField
+            fullWidth
+            label="Confirm Password"
+            type={showConfirmPassword ? "text" : "password"}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            margin="normal"
+            variant="outlined"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LockIcon sx={{ color: "#466ABE" }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowConfirmPassword}
+                    edge="end"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              mb: 3,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                "&:hover fieldset": {
+                  borderColor: "#466ABE",
                 },
-              }}
-            />
-          </Box>
+              },
+            }}
+            disabled={isLoading}
+          />
 
           {/* Register Button */}
           <Button
-            variant="contained"
             fullWidth
+            variant="contained"
+            size="large"
             onClick={handleRegister}
+            disabled={isLoading}
             sx={{
-              height: "48px", // Reduced height
-              fontWeight: "700",
+              background: "linear-gradient(135deg, #466ABE 0%, #2d4a8e 100%)",
+              color: "white",
+              fontWeight: "600",
+              padding: "12px 24px",
+              borderRadius: "12px",
+              mb: 2,
+              fontSize: "1rem",
+              transition: "all 0.3s ease",
               textTransform: "none",
-              fontSize: "16px", // Smaller font
-              backgroundColor: "#FFD65A",
-              borderRadius: "10px", // Smaller radius
-              mt: 1.5, // Reduced margin
               "&:hover": {
-                backgroundColor: "#d3b14cff",
-                transform: "translateY(-1px)", // Reduced lift
-                boxShadow: "0px 8px 15px rgba(94, 96, 206, 0.2)", // Reduced shadow
+                boxShadow: "0px 10px 25px rgba(70, 106, 190, 0.4)",
+                transform: "translateY(-2px)",
               },
-              transition: "all 0.2s ease",
-              boxShadow: "0px 4px 10px rgba(94, 96, 206, 0.15)", // Reduced shadow
+              "&:disabled": {
+                background: "#ccc",
+              },
             }}
           >
-            Register
+            {isLoading ? "Creating Account..." : "Register"}
           </Button>
 
-          {/* Login Link */}
-          <Typography
-            variant="body2"
-            align="center"
+          {/* Divider */}
+          <Box
             sx={{
-              mt: 2.5, // Reduced margin
-              color: "#666",
-              fontSize: "0.9rem", // Smaller font
+              display: "flex",
+              alignItems: "center",
+              mb: 2,
+              gap: 1,
             }}
           >
-            Already have an account?{" "}
-            <Link
-              component="button"
-              variant="body2"
-              onClick={() => navigate("/")}
-              sx={{
-                fontWeight: "600",
-                color: "#FFD65A",
-                textDecoration: "none",
-                fontSize: "0.9rem", // Smaller font
-                "&:hover": {
-                  textDecoration: "underline",
-                },
-              }}
-            >
-              Login
-            </Link>
+            <Box sx={{ flex: 1, height: "1px", background: "#ddd" }} />
+            <Typography sx={{ color: "#999", fontSize: "0.85rem" }}>
+              OR
+            </Typography>
+            <Box sx={{ flex: 1, height: "1px", background: "#ddd" }} />
+          </Box>
+
+          {/* Login Link */}
+          <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ color: "#666", fontSize: "0.95rem" }}>
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                style={{
+                  color: "#466ABE",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.textDecoration = "underline";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.textDecoration = "none";
+                }}
+              >
+                Sign in here
+              </Link>
+            </Typography>
+          </Box>
+
+          {/* Footer Note */}
+          <Typography
+            sx={{
+              textAlign: "center",
+              fontSize: "0.75rem",
+              color: "#999",
+              mt: 3,
+            }}
+          >
+            By registering, you agree to our terms of service
           </Typography>
+        </Paper>
+      </Box>
+
+      {/* RIGHT SIDE - ICON ONLY (Hidden on mobile) */}
+      {!isMobile && (
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 4,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: "white",
+              borderRadius: "50%",
+              width: 500,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <img
+              src={BarangayIcon}
+              alt="Barangay Logo"
+              style={{ height: "500px", width: "auto" }}
+            />
+          </Box>
         </Box>
-      </Paper>
+      )}
+
+      {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        autoHideDuration={6000}
         onClose={closeSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         TransitionComponent={SlideTransition}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={closeSnackbar}
-          severity={snackbarMessage.includes("❌") ? "error" : "success"}
-          sx={{ width: "100%" }}
+          severity={snackbarMessage.includes("✅") ? "success" : "error"}
+          sx={{ width: "100%", borderRadius: "12px", boxShadow: 2 }}
         >
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    </Container>
+    </Box>
   );
 };
 

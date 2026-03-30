@@ -4,9 +4,11 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   FormControl,
   IconButton,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
@@ -34,6 +36,7 @@ function SlideTransition(props) {
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [openAnnouncementForm, setOpenAnnouncementForm] = useState(false);
   const [openAnnouncementDelete, setOpenAnnouncementDelete] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
@@ -46,6 +49,7 @@ export default function Announcements() {
   // Load all announcements
   const loadAnnouncements = async () => {
     try {
+      setLoading(true);
       setAnnouncementErrorMessage("");
       console.log("Loading all announcements...");
       const response = await fetchAnnouncements();
@@ -62,8 +66,10 @@ export default function Announcements() {
       console.error("Failed to fetch announcements:", err);
       setAnnouncements([]);
       setAnnouncementErrorMessage(
-        `${err.message || "Failed to fetch announcements. Please try again later."}`,
+        "Failed to load announcements: " + err.message,
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,6 +146,12 @@ export default function Announcements() {
       return 0;
     });
 
+  const accountType = localStorage.getItem("account_type");
+  const isAdmin = accountType === "Admin";
+  const isStaff = accountType === "Staff";
+  const canAdd =
+    (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
+
   // Snackbar handlers
   const showSnackbar = (message) => {
     setSnackbarMessage(message);
@@ -155,6 +167,7 @@ export default function Announcements() {
       <Helmet titleTemplate="%s - Barangay Management System">
         <title>Announcements</title>
       </Helmet>
+
       <Box
         sx={{
           display: "flex",
@@ -166,20 +179,22 @@ export default function Announcements() {
         <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
           Announcements
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenAnnouncementAdd}
-          sx={{
-            width: { xs: 150, sm: 150 },
-            height: { xs: 45, sm: 45 },
-            minWidth: { xs: 45, sm: 50 },
-            fontSize: { xs: 12, sm: 14 },
-            padding: 0,
-          }}
-        >
-          Add Announcement
-        </Button>
+        {canAdd && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenAnnouncementAdd}
+            sx={{
+              width: { xs: 150, sm: 150 },
+              height: { xs: 45, sm: 45 },
+              minWidth: { xs: 45, sm: 50 },
+              fontSize: { xs: 12, sm: 14 },
+              padding: 0,
+            }}
+          >
+            Add Announcement
+          </Button>
+        )}
       </Box>
 
       {/* Filter Section */}
@@ -243,14 +258,25 @@ export default function Announcements() {
         <Typography variant="h6" sx={{ mb: 2 }}>
           Announcements
         </Typography>
-
-        {announcementErrorMessage && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {announcementErrorMessage}
-          </Alert>
+        {loading && (
+          <LinearProgress
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+          />
         )}
-
-        {filteredAnnouncements.length === 0 ? (
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : announcementErrorMessage ? (
+          <Typography align="center" color="error" sx={{ py: 3 }}>
+            {announcementErrorMessage}
+          </Typography>
+        ) : filteredAnnouncements.length === 0 ? (
           <Typography align="center" color="textSecondary" sx={{ py: 3 }}>
             No announcements found.
           </Typography>
