@@ -9,6 +9,7 @@ import Concerns from "./pages/Concerns";
 import Main from "./pages/Main";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import SuccessPending from "./pages/SuccessPending";
 import theme from './theme/fontTheme';
 import Welcome from "./Welcome";
 
@@ -19,13 +20,9 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          
-          <Route path="/" element={<Welcome />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />{/* First Page */}
           {/* Main Pages */}
           <Route
-            path="/main"
+            path="/"
             element={
               <Headers>
                 <Main />
@@ -56,6 +53,9 @@ function App() {
               </Headers>
             }
           />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/success" element={<SuccessPending />} />  
         </Routes>
       </Router>
       

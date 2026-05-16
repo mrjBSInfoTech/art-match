@@ -81,6 +81,7 @@ export default function OfficialCard({ officials, onEdit, onDelete }) {
                   ? `http://localhost:5000/uploads/uploadOfficial/${encodeURIComponent(official.image)}`
                   : `http://localhost:5000/uploads/uploadOfficial/profile.jpg`
               }
+              loading="lazy"
               onError={(e) => {
                 console.error("Image failed to load:", official.image);
                 e.target.onerror = null;
@@ -90,7 +91,7 @@ export default function OfficialCard({ officials, onEdit, onDelete }) {
               alt={official.first_name}
             />
           </Box>
-          {/* 🧾 Official Details */}
+          {/* Official Details */}
           <CardContent sx={{ flex: 1, overflow: "auto" }}>
             <Box
               sx={{

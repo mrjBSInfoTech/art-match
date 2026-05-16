@@ -200,7 +200,7 @@ export default function Main() {
         {/* MISSION & VISION */}
         <Grid container justifyContent="center" spacing={6}>
           {/* Vision */}
-          <Grid item xs={12} sm={6} md={5}>
+          <Grid size={{ xs: 12, sm: 6, md: 5 }}>
             <Box
               sx={{
                 width: "100%",
@@ -228,7 +228,7 @@ export default function Main() {
           </Grid>
 
           {/* Mission */}
-          <Grid item xs={12} sm={6} md={5}>
+          <Grid size={{ xs: 12, sm: 6, md: 5 }}>
             <Box
               sx={{
                 width: "100%",
@@ -266,15 +266,15 @@ export default function Main() {
           Latest Announcements
         </Typography>
 
-        <Grid container spacing={4}>
+        <Grid container spacing={4} justifyContent="center">
           {announcements.map((announcement) => (
             <Grid
               item
               xs={12}
               md={4}
-              key={announcement.id}
+              key={announcement.announcement_id || announcement.id}
               sx={{
-                width: "30%",
+                width: { xs: "100%", md: "30%" },
               }}
             >
               <Card sx={{ p: 2 }}>

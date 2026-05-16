@@ -114,7 +114,7 @@ export default function Officials() {
   // Submit (Add or Edit) Official
   const handleSubmitOfficial = async (formData) => {
     try {
-      let officialId;
+      setOfficialErrorMessage(""); // Clear previous errors
       if (selectedOfficial) {
         // Preserve the account ID when updating
         const updateData = {
@@ -123,25 +123,12 @@ export default function Officials() {
         };
         await updateOfficial(selectedOfficial.official_id, updateData);
         showSnackbar("Official updated successfully");
-        officialId = selectedOfficial.official_id;
       } else {
         await addOfficial(formData);
         showSnackbar("Official added successfully");
       }
+      // Single fetch only - loadOfficials handles which API to call based on part
       await loadOfficials();
-
-      // Update selectedOfficial with fresh data if it was an edit
-      if (officialId && part === 2) {
-        // For part 2, fetch fresh data to ensure account info is preserved
-        const freshData = await fetchOfficialsWithAccounts();
-        const updatedOfficial = freshData?.find(
-          (o) => o.official_id === officialId,
-        );
-        if (updatedOfficial) {
-          setSelectedOfficial(updatedOfficial);
-        }
-      }
-
       setOpenOfficialForm(false);
     } catch (err) {
       console.error("Error saving official:", err);
@@ -152,6 +139,7 @@ export default function Officials() {
   // Delete Official
   const handleDeleteOfficial = async (id) => {
     try {
+      setOfficialErrorMessage(""); // Clear previous errors
       await deleteOfficial(id);
       await loadOfficials();
       setOpenOfficialDelete(false);
@@ -165,6 +153,7 @@ export default function Officials() {
   // Submit Account Creation or Update
   const handleSubmitAccess = async (formData) => {
     try {
+      setOfficialErrorMessage(""); // Clear previous errors
       if (accessFormMode === "edit" && selectedOfficial?.official_account_id) {
         // Edit existing account - update permissions and optionally password
         console.log("Updating account with data:", formData);
@@ -209,6 +198,7 @@ export default function Officials() {
 
       await loadOfficials();
       setOpenAccessForm(false);
+      setSelectedOfficial(null); // Clear selection after closing
     } catch (err) {
       console.error("Error processing account:", err);
       setOfficialErrorMessage(err.message || "Error processing account");
@@ -457,10 +447,7 @@ export default function Officials() {
         open={openOfficialForm}
         handleClose={() => {
           setOpenOfficialForm(false);
-          // Only clear selectedOfficial if not in edit mode or on part 2
-          if (part !== 2 || accessFormMode !== "edit") {
-            setSelectedOfficial(null);
-          }
+          setSelectedOfficial(null); // Always clear selection to prevent stale data
         }}
         onSubmit={handleSubmitOfficial}
         selectedOfficial={selectedOfficial}

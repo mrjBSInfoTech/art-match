@@ -311,7 +311,6 @@ export default function DashboardLayout({ children }) {
               color: theme.palette.text.sidebar,
               borderRight: "none",
             },
-
             "& .MuiAppBar-root .MuiIconButton-root": {
               color: "#ffffff",
             },

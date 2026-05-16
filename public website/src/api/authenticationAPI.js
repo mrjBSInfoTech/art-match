@@ -25,15 +25,14 @@ const handleError = (error) => {
   }
 };
 
-/* ============================
-   AUTHENTICATION REQUESTS
-============================ */
-
 // REGISTER
-export const registerUser = async ({ username, password }) => {
+export const registerUser = async ({ first_name, last_name, email, contact, password }) => {
   try {
-    const res = await api.post("/authentication/register", {
-      username,
+    const res = await api.post("/login/register", {
+      first_name,
+      last_name,
+      email,
+      contact,
       password,
     });
     console.log("Register API response:", res.data);
@@ -45,10 +44,10 @@ export const registerUser = async ({ username, password }) => {
 };
 
 // LOGIN
-export const loginUser = async ({ username, password }) => {
+export const loginUser = async ({ email, password }) => {
   try {
-    const res = await api.post("/authentication/login", {
-      username,
+    const res = await api.post("/login/login", {
+      email,
       password,
     });
     console.log("Login API response:", res.data);
@@ -62,7 +61,7 @@ export const loginUser = async ({ username, password }) => {
 // LOGOUT (frontend only)
 export const logoutUser = () => {
   localStorage.removeItem("token");
-  localStorage.removeItem("username");
+  localStorage.removeItem("email");
 };
 
 // CHECK IF USER IS AUTHENTICATED

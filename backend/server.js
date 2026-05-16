@@ -12,15 +12,16 @@ import aboutRoutes from "./routes/about.js";
 import officialAccountRoutes from "./routes/officialAccount.js";
 import announcementRoutes from "./routes/announcement.js";
 import fileRoutes from "./routes/file.js";
+import citizenRoutes from "./routes/citizen.js";
 import concernRoutes from "./routes/concern.js";
+import messageDetectionRoutes from "./routes/messageDetection.js";
 import residentRoutes from "./routes/resident.js";
 import officialRoutes from "./routes/official.js";
 import historyRoutes from "./routes/history.js";
 import authRoutes from "./routes/authentication.js";
 import householdRoutes from "./routes/household.js";
+import loginRoutes from "./routes/login.js";
 import postRoutes from "./routes/post.js";
-import db from "./database/db.js";
-import { use } from "react";
 
 dotenv.config();
 
@@ -46,12 +47,15 @@ app.use("/api/about", aboutRoutes);
 app.use("/api/officialAccounts", officialAccountRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/citizens", citizenRoutes);
 app.use("/api/concerns", concernRoutes);
+app.use("/api/messageDetection", messageDetectionRoutes);
 app.use("/api/residents", residentRoutes);
 app.use("/api/households", householdRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/officials", officialRoutes);
 app.use("/api/post", postRoutes);
+app.use("/api/login", loginRoutes);
 app.use("/api/authentication", authRoutes);
 
 

@@ -125,6 +125,7 @@ export default function AccessCard({
                   ? `http://localhost:5000/uploads/uploadOfficial/${encodeURIComponent(official.image)}`
                   : `http://localhost:5000/uploads/uploadOfficial/profile.jpg`
               }
+              loading="lazy"
               onError={(e) => {
                 console.error("Image failed to load:", official.image);
                 e.target.onerror = null;

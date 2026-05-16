@@ -19,8 +19,6 @@ import {
   VisibilityOff,
   Person as PersonIcon,
   Lock as LockIcon,
-  Email as EmailIcon,
-  Call as CallIcon,
 } from "@mui/icons-material";
 import { registerUser } from "../api/authenticationAPI";
 import BarangayIcon from "../assets/BarangayIcon.png";
@@ -31,10 +29,7 @@ function SlideTransition(props) {
 }
 
 const Register = () => {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [contact, setContact] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -61,7 +56,7 @@ const Register = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [firstName, lastName, email, contact, password, confirmPassword, isLoading]);
+  }, [username, password, confirmPassword, isLoading]);
 
   // Snackbar handlers
   const showSnackbar = (message) => {
@@ -75,7 +70,7 @@ const Register = () => {
   };
 
   const handleRegister = async () => {
-    if (!firstName || !lastName || !email || !contact || !password || !confirmPassword) {
+    if (!username || !password || !confirmPassword) {
       showSnackbar("❌ Please fill in all fields");
       return;
     }
@@ -92,27 +87,19 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      const response = await registerUser({ 
-        first_name: firstName, 
-        last_name: lastName, 
-        email, 
-        contact, 
-        password 
-      });
+      const response = await registerUser({ username, password });
+
       console.log("Register response:", response);
 
       showSnackbar("✅ Registration Successful!");
 
       // Clear form
-      setFirstName("");
-      setLastName("");
-      setEmail("");
-      setContact("");
+      setUsername("");
       setPassword("");
       setConfirmPassword("");
 
       setTimeout(() => {
-        navigate("/success");
+        navigate("/");
       }, 1500);
     } catch (error) {
       console.error("Register error:", error);
@@ -144,6 +131,7 @@ const Register = () => {
         overflow: "hidden",
       }}
     >
+      {/* LEFT SIDE - REGISTER FORM */}
       <Box
         sx={{
           flex: 1,
@@ -162,11 +150,22 @@ const Register = () => {
             padding: isSmallMobile ? 3 : isMobile ? 4 : 5,
             borderRadius: "20px",
             width: "100%",
-            maxWidth: "700px",
+            maxWidth: "450px",
             background: "white",
             boxShadow: "0px 20px 60px rgba(0, 0, 0, 0.3)",
           }}
         >
+          {/* Logo on Mobile */}
+          {isMobile && (
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+              <img
+                src={BarangayIcon}
+                alt="Barangay Logo"
+                style={{ height: "80px" }}
+              />
+            </Box>
+          )}
+
           {/* Title */}
           <Typography
             variant="h4"
@@ -190,197 +189,113 @@ const Register = () => {
           >
             Join the barangay management community
           </Typography>
-          <Box
-            sx={{
-              width: "100%",
-              maxWidth: "640px",
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-              gap: 2,
-              mb: 3,
-              
+
+          {/* Username Field */}
+          <TextField
+            fullWidth
+            label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            margin="normal"
+            variant="outlined"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonIcon sx={{ color: "#466ABE" }} />
+                </InputAdornment>
+              ),
             }}
-          >
-            {/* First Name Field */}
-            <TextField
-              fullWidth
-              label="First Name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              margin="normal"
-              variant="outlined"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon sx={{ color: "#466ABE" }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  "&:hover fieldset": {
-                    borderColor: "#466ABE",
-                  },
+            sx={{
+              mb: 2.5,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                "&:hover fieldset": {
+                  borderColor: "#466ABE",
                 },
-              }}
-              disabled={isLoading}
-            />
-            {/* Last Name Field */}
-            <TextField
-              fullWidth
-              label="Last Name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              margin="normal"
-              variant="outlined"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon sx={{ color: "#466ABE" }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  "&:hover fieldset": {
-                    borderColor: "#466ABE",
-                  },
-                },
-              }}
-              disabled={isLoading}
-            />
-            {/* Email Field */}
-            <TextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              margin="normal"
-              variant="outlined"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailIcon sx={{ color: "#466ABE" }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  "&:hover fieldset": {
-                    borderColor: "#466ABE",
-                  },
-                },
-              }}
-              disabled={isLoading}
-            />
-            {/* Contact Field */}
-            <TextField
-              fullWidth
-              label="Contact"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              margin="normal"
-              variant="outlined"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CallIcon sx={{ color: "#466ABE" }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  "&:hover fieldset": {
-                    borderColor: "#466ABE",
-                  },
-                },
-              }}
-              disabled={isLoading}
-            />
+              },
+            }}
+            disabled={isLoading}
+          />
 
-            {/* Password Field */}
-            <TextField
-              fullWidth
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              margin="normal"
-              variant="outlined"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ color: "#466ABE" }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={handleClickShowPassword}
-                      edge="end"
-                      disabled={isLoading}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  "&:hover fieldset": {
-                    borderColor: "#466ABE",
-                  },
+          {/* Password Field */}
+          <TextField
+            fullWidth
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            margin="normal"
+            variant="outlined"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LockIcon sx={{ color: "#466ABE" }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword}
+                    edge="end"
+                    disabled={isLoading}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              mb: 2.5,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                "&:hover fieldset": {
+                  borderColor: "#466ABE",
                 },
-              }}
-              disabled={isLoading}
-            />
+              },
+            }}
+            disabled={isLoading}
+          />
 
-            {/* Confirm Password Field */}
-            <TextField
-              fullWidth
-              label="Confirm Password"
-              type={showConfirmPassword ? "text" : "password"}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              margin="normal"
-              variant="outlined"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ color: "#466ABE" }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={handleClickShowConfirmPassword}
-                      edge="end"
-                      disabled={isLoading}
-                    >
-                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  "&:hover fieldset": {
-                    borderColor: "#466ABE",
-                  },
+          {/* Confirm Password Field */}
+          <TextField
+            fullWidth
+            label="Confirm Password"
+            type={showConfirmPassword ? "text" : "password"}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            margin="normal"
+            variant="outlined"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LockIcon sx={{ color: "#466ABE" }} />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowConfirmPassword}
+                    edge="end"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              mb: 3,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                "&:hover fieldset": {
+                  borderColor: "#466ABE",
                 },
-              }}
-              disabled={isLoading}
-            />
-          </Box>
+              },
+            }}
+            disabled={isLoading}
+          />
 
           {/* Register Button */}
           <Button
@@ -465,13 +380,45 @@ const Register = () => {
         </Paper>
       </Box>
 
+      {/* RIGHT SIDE - ICON ONLY (Hidden on mobile) */}
+      {!isMobile && (
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 4,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              backgroundColor: "white",
+              borderRadius: "50%",
+              width: 500,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <img
+              src={BarangayIcon}
+              alt="Barangay Logo"
+              style={{ height: "500px", width: "auto" }}
+            />
+          </Box>
+        </Box>
+      )}
+
       {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={closeSnackbar}
         TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={closeSnackbar}
