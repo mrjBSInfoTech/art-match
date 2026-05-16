@@ -1,4 +1,5 @@
 import React from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import Sidebar from "./components/Sidebar";
@@ -16,6 +17,7 @@ import theme from './theme/fontTheme';
 
 function App() {
   return (
+    <HelmetProvider>
     <ThemeProvider theme={theme}>
       {/* CssBaseline resets browser default styles for consistency */}
       <CssBaseline />
@@ -100,6 +102,7 @@ function App() {
       </Router>
       
     </ThemeProvider>
+    </HelmetProvider>
   );
 }
 

@@ -30,15 +30,16 @@ function SlideTransition(props) {
 }
 
 const Login = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const theme = useTheme();
-  
+
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -66,11 +67,12 @@ const Login = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [username, password, isLoading]);
+  }, [email, password, isLoading]);
 
   // Snackbar handlers
-  const showSnackbar = (message) => {
+  const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
+    setSnackbarSeverity(severity); // Set it to "success" or "error"
     setSnackbarOpen(true);
   };
 
@@ -79,34 +81,39 @@ const Login = () => {
     setSnackbarOpen(false);
   };
 
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.main"; // Green
+      case "error":
+        return "error.main"; // Red
+      default:
+        return "success.main"; // Green
+    }
+  };
+
   const handleLogin = async () => {
-    if (!username || !password) {
-      showSnackbar("❌ Please fill in all fields");
+    if (!email || !password) {
+      showSnackbar("Please fill in all fields", "error");
       return;
     }
 
     setIsLoading(true);
     try {
-      const data = await loginUser({ username, password });
+      const data = await loginUser({ email: email, password });
 
       localStorage.setItem("token", data.token);
-      localStorage.setItem("username", data.username);
+      localStorage.setItem("email", data.email);
       localStorage.setItem("account_type", data.account_type);
       localStorage.setItem("first_name", data.first_name);
       localStorage.setItem("last_name", data.last_name);
-      localStorage.setItem("image", data.image);
+      localStorage.setItem("contact", data.contact);
 
-      showSnackbar("✅ Login successful!");
+      showSnackbar("Login successful!", "success");
 
-      // Redirect based on account type
-      if (data.account_type === "admin" || data.account_type === "staff") {
-        // Redirect to admin dashboard
-        window.location.href = "http://localhost:5173/dashboard";
-      } else {
-        navigate("/");
-      }
+      navigate("/");
     } catch (error) {
-      showSnackbar(`❌ Login failed: ${error.message}`);
+      showSnackbar(`Login failed: ${error.message}`, "error");
     } finally {
       setIsLoading(false);
     }
@@ -216,12 +223,13 @@ const Login = () => {
             Enter your credentials to access your account
           </Typography>
 
-          {/* Username Field */}
+          {/* Email Field */}
           <TextField
             fullWidth
-            label="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             margin="normal"
             variant="outlined"
             InputProps={{
@@ -363,6 +371,33 @@ const Login = () => {
           >
             This is a secure login portal. Keep your credentials private.
           </Typography>
+          <Typography
+            sx={{
+              textAlign: "center",
+              fontSize: "0.75rem",
+              color: "#999",
+              mt: 3,
+            }}
+          >
+            For guest access, {" "}
+            <Link
+              to="/"
+              style={{
+                color: "#466ABE",
+                fontWeight: "600",
+                textDecoration: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.textDecoration = "underline";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.textDecoration = "none";
+              }}
+            >
+              Click Guest
+            </Link>
+          </Typography>
         </Paper>
       </Box>
 
@@ -372,12 +407,19 @@ const Login = () => {
         autoHideDuration={6000}
         onClose={closeSnackbar}
         TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert
           onClose={closeSnackbar}
-          severity={snackbarMessage.includes("✅") ? "success" : "error"}
-          sx={{ width: "100%", borderRadius: "12px", boxShadow: 2 }}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+            },
+          }}
         >
           {snackbarMessage}
         </Alert>

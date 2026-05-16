@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Avatar,
   Box,
   Card,
   CardMedia,
@@ -11,6 +12,8 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import BarangayIcon from "../../assets/BarangayIcon.png";
 
 export default function AnnouncementCard({ announcements,}) {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
@@ -48,10 +51,14 @@ export default function AnnouncementCard({ announcements,}) {
               sx={{
                 display: "flex",
                 alignItems: "flex-start",
-                justifyContent: "space-between",
                 mb: 2,
               }}
             >
+              <Avatar
+                src={BarangayIcon}
+                alt="Barangay Logo"
+                sx={{ width: 50, height: 50, mr: 2, border: "1px solid #eee",position: "relative", bottom: 2 }}
+              />
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: "bold", lineHeight: 1.2 }}>
                   {announcement.title}
@@ -60,12 +67,6 @@ export default function AnnouncementCard({ announcements,}) {
                   {formatDate(announcement.date_posted)}
                 </Typography>
               </Box>
-              <IconButton
-                size="small"
-                onClick={(e) => handleMenuOpen(e, announcement)}
-              >
-                
-              </IconButton>
             </Box>
 
             <Typography

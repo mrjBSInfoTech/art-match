@@ -29,6 +29,7 @@ import {
   deleteAnnouncement,
 } from "../api/announcementAPI";
 
+
 // Slide Transition for Snackbar
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -149,8 +150,7 @@ export default function Announcements() {
   const accountType = localStorage.getItem("account_type");
   const isAdmin = accountType === "Admin";
   const isStaff = accountType === "Staff";
-  const canAdd =
-    (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
+  const canAdd = (isAdmin || isStaff) && localStorage.getItem("can_add") === "1";
 
   // Snackbar handlers
   const showSnackbar = (message) => {

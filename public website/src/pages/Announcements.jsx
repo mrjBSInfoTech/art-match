@@ -18,6 +18,7 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import AnnouncementCard from "../components/Announcement/AnnouncementCard";
 import { fetchAnnouncements } from "../api/announcementAPI";
+import BarangayIcon from "../assets/BarangayIcon.png";
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -58,13 +59,12 @@ export default function Announcements() {
       </Helmet>
       {/* Announcements List */}
       <Box sx={{ p: 3, mt: 3, borderRadius: 2 }} key="announcement.announcement_id">
-        {announcementErrorMessage && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+        {announcementErrorMessage ? (
+          <Typography align="center" color="textSecondary" sx={{ py: 3 }}>
             {announcementErrorMessage}
-          </Alert>
-        )}
-
-        {announcements.length === 0 ? (
+          </Typography>
+        ):
+        announcements.length === 0 ? (
           <Typography align="center" color="textSecondary" sx={{ py: 3 }}>
             No announcements found.
           </Typography>

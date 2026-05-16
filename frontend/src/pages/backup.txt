@@ -1,0 +1,793 @@
+import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
+import {
+  Box,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  InputAdornment,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Typography,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableContainer,
+  Card,
+  CardContent,
+  Divider,
+  LinearProgress,
+  Slide,
+  Snackbar,
+  Alert,
+  Button,
+  Tooltip,
+  IconButton,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { fetchCitizens, updateCitizen, deleteCitizen } from "../api/citizenAPI";
+import { fetchResidents } from "../api/residentAPI";
+import CitizenCard from "../components/Citizen/CitizenCard";
+
+// Slide Transition for Snackbar
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
+
+export default function Citizens() {
+  const [citizens, setCitizens] = useState([]);
+  const [residents, setResidents] = useState([]);
+  const [selectedCitizen, setSelectedCitizen] = useState(null);
+  const [date, setDate] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("pending");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [loading, setLoading] = useState(false);
+  const [citizensErrorMessage, setCitizensErrorMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [part, setPart] = useState(2);
+
+  // Fetch all residents from API
+  const loadResidents = async () => {
+    try {
+      const data = await fetchResidents();
+      console.log("Residents loaded:", data);
+      setResidents(data || []);
+    } catch (err) {
+      console.error("Error loading residents:", err);
+      setResidents([]);
+    }
+  };
+
+  // Fetch all citizens from API
+  const loadCitizens = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchCitizens();
+      console.log("Citizens loaded:", data);
+      setCitizens(data || []);
+    } catch (err) {
+      console.error("Error loading citizens:", err);
+      const message = setCitizensErrorMessage(
+        "Failed to load citizens: " + err.message,
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Load residents and citizens
+  useEffect(() => {
+    loadCitizens();
+    loadResidents();
+  }, []);
+
+  const [formData, setFormData] = useState({
+    resident_id: "",
+    type: "",
+  });
+
+  // ========== CITIZEN HANDLERS ==========
+  // Submit Citizen - Verify user account
+  const handleSubmitCitizen = async (citizen, formData = {}) => {
+    try {
+      // Validate required fields
+      if (!formData.type || !formData.resident_id) {
+        showSnackbar("Please select both Type and Resident before verifying", "error");
+        return;
+      }
+
+      const updateData = {
+        status: "verified",
+        type: formData.type,
+        resident_id: formData.resident_id,
+      };
+      
+      console.log("Updating citizen with:", updateData);
+      await updateCitizen(citizen.user_id, updateData);
+      showSnackbar("User account verified successfully");
+      await loadCitizens();
+    } catch (err) {
+      console.error("Error verifying citizen:", err);
+      showSnackbar(err.message || "Error verifying citizen", "error");
+    }
+  };
+
+  // Delete Citizen - Delete user account
+  const handleDeleteCitizen = async (citizen) => {
+    try {
+      await deleteCitizen(citizen.user_id);
+      showSnackbar("User account deleted successfully");
+      await loadCitizens();
+    } catch (err) {
+      console.error("Error deleting citizen:", err);
+      setCitizensErrorMessage(err.message || "Error deleting citizen");
+    }
+  };
+
+  // Filter citizens based on search query and status
+  const filteredPendingCitizens = citizens.filter((citizen) => {
+    const fullName = `${citizen.first_name || ""} ${citizen.last_name || ""}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchQuery.toLowerCase());
+    
+    const isPending = citizen.status === "pending" || !citizen.status;
+
+    if (!date) {
+      return matchesSearch && isPending;
+    }
+
+    const citizenDate = new Date(citizen.date_created).toDateString();
+    const selectedDate = date.toDate().toDateString(); 
+
+    return matchesSearch && isPending && citizenDate === selectedDate;
+  });
+
+  const filteredVerifiedCitizens = citizens.filter((citizen) => {
+    const fullName = `${citizen.first_name || ""} ${citizen.last_name || ""}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchQuery.toLowerCase());
+    
+    const isVerified = citizen.status === "verified";
+
+    if (!date) {
+      return matchesSearch && isVerified;
+    }
+
+    const citizenDate = new Date(citizen.date_posted).toDateString();
+    const selectedDate = date.toDate().toDateString();
+
+    return matchesSearch && isVerified && citizenDate === selectedDate;
+  });
+
+  // Snackbar handlers
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity); // Set it to "success" or "error"
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.main"; // Green
+      case "error":
+        return "error.main"; // Red
+      default:
+        return "success.main"; // Green
+    }
+  };
+
+  // Toggle handlers
+  const goToPartTwo = () => setPart(2);
+  const goToPartOne = () => setPart(1);
+
+  useEffect(() => {
+    if (sortOption === "verified") {
+      setPart(1);
+    } else if (sortOption === "pending") {
+      setPart(2);
+    }
+  }, [sortOption]);
+
+  return (
+    <Box p={3}>
+      <Helmet titleTemplate="%s - Barangay Management System">
+        <title>Citizens</title>
+      </Helmet>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
+        >
+          {part === 1 ? "Citizens - Verified" : "Citizens - Pending"}
+        </Typography>
+      </Box>
+
+      {/* Filter Section */}
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Typography variant="h6">Filter</Typography>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: { xs: "stretch", md: "center" },
+            gap: 2,
+            mb: 2,
+            mt: 2,
+          }}
+        >
+          <TextField
+            variant="outlined"
+            placeholder="Search citizens..."
+            size="small"
+            sx={{
+              width: { xs: "100%", md: 250 },
+              minWidth: { xs: "100%", md: 250 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
+            }}
+          >
+            <FormControl
+              size="small"
+              sx={{
+                width: { xs: "100%", sm: 180 },
+              }}
+            >
+              <InputLabel>Sort</InputLabel>
+              <Select
+                value={sortOption}
+                label="Sort"
+                onChange={(e) => setSortOption(e.target.value)}
+              >
+                <MenuItem value="verified">Verified</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+      </Paper>
+
+      {part === 1 && (
+        <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Verified Accounts
+          </Typography>
+
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : citizensErrorMessage ? (
+            <Typography align="center" color="error" sx={{ py: 3 }}>
+              {citizensErrorMessage}
+            </Typography>
+          ) : filteredVerifiedCitizens.length === 0 ? (
+            <Typography align="center" color="textSecondary" sx={{ py: 3 }}>
+              No verified accounts yet.
+            </Typography>
+          ) : (
+            <CitizenCard
+              citizens={filteredVerifiedCitizens}              
+              residents={residents}              
+              onEdit={handleSubmitCitizen}
+              onDelete={handleDeleteCitizen}
+            />
+          )}
+        </Paper>
+      )}
+      {part === 2 && (
+        <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Pending Verification
+          </Typography>
+
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : citizensErrorMessage ? (
+            <Typography align="center" color="error" sx={{ py: 3 }}>
+              {citizensErrorMessage}
+            </Typography>
+          ) : filteredPendingCitizens.length === 0 ? (
+            <Typography align="center" color="textSecondary" sx={{ py: 3 }}>
+              No pending accounts.
+            </Typography>
+          ) : (
+            <CitizenCard
+              citizens={filteredPendingCitizens}              
+              residents={residents}              
+              onEdit={handleSubmitCitizen}
+              onDelete={handleDeleteCitizen}
+            />
+          )}
+        </Paper>
+      )}
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={closeSnackbar}
+        TransitionComponent={SlideTransition}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Error display */}
+      {citizensErrorMessage && (
+        <Alert
+          severity="error"
+          sx={{ mt: 2 }}
+          onClose={() => setCitizensErrorMessage("")}
+        >
+          {citizensErrorMessage}
+        </Alert>
+      )}
+    </Box>
+  );
+}
+
+
+
+
+import { useState, useEffect } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
+  Menu,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Divider,
+} from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import CheckIcon from "@mui/icons-material/Check";
+import DeleteIcon from "@mui/icons-material/Delete";
+
+const getStatusStyle = (status) => {
+  switch (status) {
+    case "verified":
+      return {
+        label: "Verified",
+        bg: "#c6d8ef",
+        text: "#0369A1",
+        border: "1px solid #0369A1",
+        cardBorder: "4px solid #0369A1",
+      };
+    case "pending":
+    default:
+      return {
+        label: "Pending",
+        bg: "#FED7AA",
+        text: "#92400E",
+        border: "1px solid #92400E",
+        cardBorder: "4px solid #92400E",
+      };
+  }
+};
+
+// Helper component for info display
+const InfoRow = ({ label, value }) => (
+  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+    <strong>{label}:</strong> {value}
+  </Typography>
+);
+
+// Helper component for Select forms
+const SelectField = ({ label, name, value, onChange, options, isLoading }) => {
+  const isTypeField = name === "type";
+  const typeOptions = [
+    { id: "resident", label: "Resident" },
+    { id: "visitor", label: "Visitor" },
+  ];
+  const displayOptions = isTypeField ? typeOptions : options;
+
+  return (
+    <FormControl
+      sx={{
+        minWidth: 150,
+      }}
+    >
+      <InputLabel>{label}</InputLabel>
+      <Select label={label} name={name} value={value} onChange={onChange}>
+        {!isTypeField && (
+          <MenuItem value="">
+            <em>No Resident</em>
+          </MenuItem>
+        )}
+        {isLoading ? (
+          <MenuItem disabled>Loading...</MenuItem>
+        ) : displayOptions.length > 0 ? (
+          displayOptions.map((option) => (
+            <MenuItem key={option.id} value={option.id}>
+              {option.label}
+            </MenuItem>
+          ))
+        ) : (
+          <MenuItem disabled>No options available</MenuItem>
+        )}
+      </Select>
+    </FormControl>
+  );
+};
+
+export default function CitizenCard({
+  citizens,
+  residents = [],
+  onEdit,
+  onDelete,
+}) {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedCitizen, setSelectedCitizen] = useState(null);
+  const [formDataMap, setFormDataMap] = useState({});
+  const open = Boolean(anchorEl);
+
+  const handleChange = (citizenId, e) => {
+    const { name, value } = e.target;
+    setFormDataMap((prev) => ({
+      ...prev,
+      [citizenId]: {
+        ...prev[citizenId],
+        [name]: value,
+      },
+    }));
+  };
+
+  const handleMenuOpen = (event, citizen) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedCitizen(citizen);
+    // Initialize formData for this citizen if not exists
+    if (!formDataMap[citizen.citizen_id]) {
+      setFormDataMap((prev) => ({
+        ...prev,
+        [citizen.citizen_id]: {
+          type: citizen.type || "",
+          resident_id: citizen.resident_id || "",
+        },
+      }));
+    }
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const residentOptions = residents.map((resident) => ({
+    id: resident.resident_id,
+    label: `${resident.first_name} ${resident.last_name}`,
+  }));
+
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gap: 2,
+      }}
+    >
+      {citizens.map((citizen) => (
+        <Card
+          key={citizen.citizen_id}
+          sx={{
+            width: "100%",
+            opacity: citizen.status === "solved" ? 0.75 : 1,
+            borderLeft: getStatusStyle(citizen.status).cardBorder,
+            transition: "box-shadow 0.2s ease",
+            "&:hover": { boxShadow: 4 },
+          }}
+        >
+          {/* Citizen Details */}
+          <CardContent sx={{ flex: 1, overflow: "auto" }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                mb: 2,
+              }}
+            >
+              <Box sx={{ flex: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                      {citizen.first_name} {citizen.last_name}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        px: 1.5,
+                        py: 0.4,
+                        borderRadius: "20px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        letterSpacing: "0.3px",
+                        backgroundColor: getStatusStyle(citizen.status).bg,
+                        color: getStatusStyle(citizen.status).text,
+                        border: getStatusStyle(citizen.status).border,
+                        userSelect: "none",
+                      }}
+                    >
+                      {getStatusStyle(citizen.status).label}
+                    </Box>
+                  </Box>
+
+                {/* Citizen Info */}
+                <Box sx={{ mb: 2 }}>
+                  <InfoRow label="Email" value={citizen.email} />
+                  <InfoRow label="Contact" value={citizen.contact} />
+                  {citizen.status === "verified" && (
+                    <>
+                      <InfoRow label="Type" value={citizen.type.toUpperCase().charAt(0) + citizen.type.slice(1)} />
+                      <InfoRow label="Resident" value={citizen.first_name + " " + citizen.last_name} />
+                    </>
+                  )}
+                </Box>
+
+                {/* Form Fields for Pending Status */}
+                {citizen.status === "pending" && selectedCitizen?.citizen_id === citizen.citizen_id && (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: { xs: "column", sm: "row" },
+                        gap: 2,
+                        width: { xs: "100%", md: "auto" },
+                      }}
+                    >
+                      <SelectField
+                        label="Type"
+                        name="type"
+                        value={formDataMap[citizen.citizen_id]?.type || ""}
+                        onChange={(e) => handleChange(citizen.citizen_id, e)}
+                        options={[]}
+                      />
+                      <SelectField
+                        label="Resident"
+                        name="resident_id"
+                        value={formDataMap[citizen.citizen_id]?.resident_id || ""}
+                        onChange={(e) => handleChange(citizen.citizen_id, e)}
+                        options={residentOptions}
+                        isLoading={false}
+                      />
+                    </Box>
+                  </>
+                )}
+              </Box>
+
+              <IconButton
+                size="small"
+                onClick={(e) => handleMenuOpen(e, citizen)}
+                sx={{
+                  ml: "auto",
+                  "&:hover": {
+                    backgroundColor: "action.hover",
+                  },
+                }}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            {/* Options Menu */}
+            <Menu
+              anchorEl={anchorEl}
+              open={open && selectedCitizen?.citizen_id === citizen.citizen_id}
+              onClose={handleMenuClose}
+              anchorOrigin={{
+                vertical: "bottom",
+                horizontal: "right",
+              }}
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+            >
+              {citizen.status === "pending" && (
+                <MenuItem
+                  onClick={() => {
+                    onEdit(selectedCitizen, formDataMap[selectedCitizen.citizen_id] || {});
+                    handleMenuClose();
+                  }}
+                  sx={{
+                    color: "success.main",
+                  }}
+                >
+                  <CheckIcon sx={{ mr: 1, fontSize: "20px" }} />
+                  Verify
+                </MenuItem>
+              )}
+
+              <MenuItem
+                onClick={() => {
+                  onDelete(selectedCitizen.citizen_id);
+                  handleMenuClose();
+                }}
+                sx={{
+                  color: "error.main",
+                }}
+              >
+                <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
+                {citizen.status === "verified" ? "Remove" : "Delete"}
+              </MenuItem>
+            </Menu>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
+}
+
+
+
+
+import express from "express";
+import db from "../database/db.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { authenticateToken } from "../middleware/authMiddleware.js";
+
+const router = express.Router();
+
+
+// 🟢 Get all citizen
+router.get("/", authenticateToken, (req, res) => {
+  const sql = `
+    SELECT 
+      user_id, 
+      first_name,
+      last_name,
+      email,
+      contact,
+      type,
+      resident_id,
+      status,
+      date_created
+    FROM user_account
+  ORDER BY user_id ASC`;
+
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// 🔍 Get single citizen by ID
+router.get("/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const sql = `
+    SELECT 
+      *
+    FROM user_account 
+    WHERE user_id = ?
+  `;
+  db.query(sql, [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0) return res.status(404).json({ error: "Citizen not found" });
+    res.json(results[0]);
+  });
+});
+
+// ✏️ Update citizen
+router.put("/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  let { status, resident_id, type } = req.body;
+
+  // Build dynamic SQL based on what fields are provided
+  const updates = [];
+  const params = [];
+
+  // Only update resident_id if it's a non-empty value
+  if (resident_id !== undefined && resident_id !== "") {
+    // Verify resident exists before updating
+    const checkResidentSql = "SELECT resident_id FROM resident WHERE resident_id = ?";
+    db.query(checkResidentSql, [resident_id], (err, results) => {
+      if (err) return res.status(500).json({ message: err.message });
+      if (results.length === 0) {
+        return res.status(400).json({ message: "Selected resident does not exist" });
+      }
+      
+      // Resident exists, proceed with update
+      const updateSql = buildUpdateQuery(id, { status, resident_id, type }, params);
+      if (!updateSql) {
+        return res.status(400).json({ message: "No fields to update" });
+      }
+      
+      db.query(updateSql, params, (err) => {
+        if (err) return res.status(500).json({ message: err.message });
+        res.json({ message: "Citizen updated successfully" });
+      });
+    });
+  } else {
+    // If resident_id is empty or undefined, skip it
+    const updateSql = buildUpdateQuery(id, { status, type }, params);
+    if (!updateSql) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+    
+    db.query(updateSql, params, (err) => {
+      if (err) return res.status(500).json({ message: err.message });
+      res.json({ message: "Citizen updated successfully" });
+    });
+  }
+});
+
+// Helper function to build update query
+function buildUpdateQuery(id, data, params) {
+  const updates = [];
+  
+  if (data.resident_id !== undefined && data.resident_id !== "") {
+    updates.push("resident_id = ?");
+    params.push(data.resident_id);
+  }
+  if (data.type !== undefined && data.type !== "") {
+    updates.push("type = ?");
+    params.push(data.type);
+  }
+  if (data.status !== undefined && data.status !== "") {
+    updates.push("status = ?");
+    params.push(data.status);
+  }
+
+  if (updates.length === 0) {
+    return null;
+  }
+
+  params.push(id);
+  return `UPDATE user_account SET ${updates.join(", ")} WHERE user_id = ?`;
+}
+export default router;

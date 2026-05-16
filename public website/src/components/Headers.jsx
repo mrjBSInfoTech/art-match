@@ -3,6 +3,8 @@ import {
   AppBar,
   Toolbar,
   Typography,
+  Backdrop,
+  Slide,
   Box,
   Button,
   TextField,
@@ -13,42 +15,120 @@ import {
   ListItemButton,
   ListItemText,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
   Divider,
   Collapse,
   Autocomplete,
+  Menu,
+  MenuItem,
+  Popover,
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SearchIcon from "@mui/icons-material/Search";
+import Settings from "@mui/icons-material/Settings";
+import Logout from "@mui/icons-material/Logout";
+import ListItemIcon from "@mui/material/ListItemIcon";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import BarangayIcon from "../assets/BarangayIcon.png";
+
+// Animation transition
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return (
+    <Slide
+      direction="up"
+      ref={ref}
+      {...props}
+      timeout={500}
+      easing={{
+        enter: "cubic-bezier(0.4, 0, 0.2, 1)",
+        exit: "ease-out",
+      }}
+    />
+  );
+});
 
 function Headers({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [
-    { label: "Home", path: "/main" },
+    { label: "Home", path: "/" },
     { label: "Concerns", path: "/concerns" },
     { label: "Announcements", path: "/announcements" },
     { label: "About us", path: "/about" },
   ];
 
-const searchSuggestions = [
-  { label: "About Us", path: "/main#about", page: "Home" },
-  { label: "Mission & Vision", path: "/main#mission-vision", page: "Home" },
-  { label: "Latest Announcements", path: "/main#announcements", page: "Home" },
-  { label: "Location", path: "/main#location", page: "Home" },
-  { label: "History", path: "/about#history", page: "About" },
-  { label: "Officials", path: "/about#officials", page: "About" },
-  { label: "Contact Information", path: "/concerns#contact-info", page: "Concerns" },
-];
+  const searchSuggestions = [
+    { label: "About Us", path: "/#about", page: "Home" },
+    { label: "Mission & Vision", path: "/#mission-vision", page: "Home" },
+    {
+      label: "Latest Announcements",
+      path: "/#announcements",
+      page: "Home",
+    },
+    { label: "Location", path: "/#location", page: "Home" },
+    { label: "History", path: "/about#history", page: "About" },
+    { label: "Officials", path: "/about#officials", page: "About" },
+    {
+      label: "Contact Information",
+      path: "/concerns#contact-info",
+      page: "Concerns",
+    },
+  ];
 
   const buttonRefs = useRef([]);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [openDialog, setOpenDialog] = React.useState(false);
+  const handleOpenDialog = () => setOpenDialog(true);
+  const handleCloseDialog = () => setOpenDialog(false);
+
+  useEffect(() => {
+    const storedLoggedIn = localStorage.getItem("token");
+    const storedFirstName = localStorage.getItem("first_name");
+    const storedLastName = localStorage.getItem("last_name");
+
+    setFirstName(storedFirstName || "");
+    setLastName(storedLastName || "");
+    setLoggedIn(!!storedLoggedIn);
+  }, []);
+
+  const handleLogout = () => {
+    // Clear all stored data
+    localStorage.removeItem("token");
+    localStorage.removeItem("first_name");
+    localStorage.removeItem("last_name");
+
+    navigate("/login", { replace: true }); // redirect to your Dashboard page
+
+    // Clear browser history for extra security
+    window.history.pushState(null, null, window.location.href);
+    window.onpopstate = function () {
+      window.history.pushState(null, null, window.location.href);
+    };
+  };
+
+  const open = Boolean(anchorEl);
+  // Open account popover
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  // Close account popover
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
   const activeIndex = menuItems.findIndex(
     (item) => item.path === location.pathname,
@@ -110,10 +190,15 @@ const searchSuggestions = [
               <img
                 src={BarangayIcon}
                 alt="logo"
-                style={{ width: 50, height: 50, position: "relative", bottom: 2 }}
+                style={{
+                  width: 50,
+                  height: 50,
+                  position: "relative",
+                  bottom: 2,
+                }}
               />
             </Box>
-            
+
             <Typography
               variant="h6"
               sx={{
@@ -194,10 +279,107 @@ const searchSuggestions = [
             />
 
             <Box>
-              <IconButton sx={{ color: "#2563eb", ml: 1 }} onClick={() => navigate("/login")}>
+              <IconButton
+                sx={{ color: "#2563eb", ml: 1 }}
+                onClick={(e) => {
+                  if (loggedIn) {
+                    handleClick(e);
+                  } else {
+                    navigate("/login");
+                  }
+                }}
+              >
                 <AccountCircleIcon />
               </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                id="account-menu"
+                open={open}
+                onClose={handleClose}
+                onClick={handleClose}
+                slotProps={{
+                  paper: {
+                    elevation: 0,
+                    sx: {
+                      overflow: "visible",
+                      filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
+                      mt: 1.5,
+                      "& .MuiAvatar-root": {
+                        width: 32,
+                        height: 32,
+                        ml: -0.5,
+                        mr: 1,
+                      },
+                      "&::before": {
+                        content: '""',
+                        display: "block",
+                        position: "absolute",
+                        top: 0,
+                        right: 14,
+                        width: 10,
+                        height: 10,
+                        bgcolor: "background.paper",
+                        transform: "translateY(-50%) rotate(45deg)",
+                        zIndex: 0,
+                      },
+                    },
+                  },
+                }}
+                transformOrigin={{ horizontal: "right", vertical: "top" }}
+                anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              >
+                <MenuItem>
+                  <ListItemIcon>
+                    <AccountCircleIcon fontSize="small" />
+                  </ListItemIcon>
+                  {firstName} {lastName}
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleClose}>
+                  <ListItemIcon>
+                    <Settings fontSize="small" />
+                  </ListItemIcon>
+                  Settings
+                </MenuItem>
+                <MenuItem onClick={handleOpenDialog}>
+                  <ListItemIcon>
+                    <Logout fontSize="small" />
+                  </ListItemIcon>
+                  Logout
+                </MenuItem>
+              </Menu>
             </Box>
+            <Dialog
+              open={openDialog}
+              onClose={handleCloseDialog}
+              TransitionComponent={Transition}
+              keepMounted
+              slots={{ backdrop: Backdrop }}
+              slotProps={{
+                backdrop: {
+                  timeout: 500,
+                },
+              }}
+            >
+              <DialogTitle>Log out</DialogTitle>
+              <DialogContent>
+                <DialogContentText>
+                  Are you sure you want to log out?
+                </DialogContentText>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={handleCloseDialog} color="primary">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleLogout}
+                  variant="contained"
+                  color="primary"
+                >
+                  Logout
+                </Button>
+              </DialogActions>
+            </Dialog>
           </Box>
 
           {/* MOBILE/TABLET BUTTONS (Visible below LG breakpoint) */}
@@ -292,6 +474,60 @@ const searchSuggestions = [
               </ListItem>
             ))}
           </List>
+          {/* Bottom Section: Account Actions */}
+          <Box sx={{ p: 2, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            {loggedIn ? (
+              <List disablePadding>
+                <Typography
+                  variant="caption"
+                  sx={{ opacity: 0.7, ml: 2, mb: 1, display: "block" }}
+                >
+                  Logged in as: {firstName} {lastName}
+                </Typography>
+
+                <ListItem disablePadding>
+                  <ListItemButton
+                    onClick={() => {
+                      handleClose();
+                      setMobileOpen(false);
+                    }}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <ListItemIcon sx={{ color: "#fff", minWidth: 40 }}>
+                      <Settings fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Settings" />
+                  </ListItemButton>
+                </ListItem>
+
+                <ListItem disablePadding>
+                  <ListItemButton
+                    onClick={() => {
+                      handleOpenDialog();
+                      setMobileOpen(false);
+                    }}
+                    sx={{ borderRadius: 2, color: "white" }} // Slight red tint for logout
+                  >
+                    <ListItemIcon sx={{ color: "white", minWidth: 40 }}>
+                      <Logout fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Logout" />
+                  </ListItemButton>
+                </ListItem>
+              </List>
+            ) : (
+              <Button
+                fullWidth
+                variant="outlined"
+                color="inherit"
+                onClick={() => handleNavigation("/login")}
+                startIcon={<AccountCircleIcon />}
+                sx={{ borderRadius: 2 }}
+              >
+                Login
+              </Button>
+            )}
+          </Box>
         </Box>
       </Drawer>
 

@@ -47,12 +47,6 @@ export default function Resident() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Load residents and households on component mount
-  useEffect(() => {
-    loadResidents();
-    loadHouseholds();
-  }, []);
-
   // Fetch all households from API
   const loadHouseholds = async () => {
     try {
@@ -81,6 +75,12 @@ export default function Resident() {
       setLoading(false);
     }
   };
+
+  // Load residents and households  
+  useEffect(() => {
+    loadResidents();
+    loadHouseholds();
+  }, []);
 
   // ========== RESIDENT HANDLERS ==========
   // ➕ Open Add Resident Modal
@@ -256,21 +256,11 @@ export default function Resident() {
         </Box>
       </Paper>
 
-      {/* Residents Grid Display */}
+      {/* Residents Display */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         <Typography variant="h6" sx={{ mb: 2 }}>
           Resident List
         </Typography>
-          {loading && (
-            <LinearProgress
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-              }}
-            />
-          )}
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />

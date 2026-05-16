@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Avatar,
   Box,
   Card,
   CardMedia,
@@ -12,6 +13,7 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import BarangayIcon from "../../assets/BarangayIcon.png";
 
 export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -35,17 +37,18 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
   const accountType = localStorage.getItem("account_type");
   const isAdmin = accountType === "Admin";
   const isStaff = accountType === "Staff";
-  const canEdit = (isAdmin || isStaff) && localStorage.getItem("can_edit") === "1";
-  const canDelete = (isAdmin || isStaff) && localStorage.getItem("can_delete") === "1";
-
+  const canEdit =
+    (isAdmin || isStaff) && localStorage.getItem("can_edit") === "1";
+  const canDelete =
+    (isAdmin || isStaff) && localStorage.getItem("can_delete") === "1";
 
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "column", // Stack cards vertically like a feed
-        alignItems: "center",     // Center the cards horizontally
-        gap: 4,                  // Spacing between posts
+        alignItems: "center", // Center the cards horizontally
+        gap: 4, // Spacing between posts
         p: 2,
       }}
     >
@@ -54,10 +57,10 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
           key={announcement.announcement_id}
           sx={{
             width: "100%",
-            maxWidth: 600,       // Standard Facebook post width
+            maxWidth: 600, // Standard Facebook post width
             display: "flex",
             flexDirection: "column",
-            borderRadius: 2,     // Slightly rounded corners
+            borderRadius: 2, // Slightly rounded corners
             boxShadow: "0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1)",
           }}
         >
@@ -71,14 +74,37 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
                 mb: 2,
               }}
             >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                }}
+              >
+              <Avatar
+                src={BarangayIcon}
+                alt="Barangay Logo"
+                sx={{
+                  width: 50,
+                  height: 50,
+                  mr: 2,
+                  border: "1px solid #eee",
+                  position: "relative",
+                  bottom: 2,
+                }}
+              />
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: "bold", lineHeight: 1.2 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "bold", lineHeight: 1.2 }}
+                >
                   {announcement.title}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {formatDate(announcement.date_posted)}
                 </Typography>
+              </Box>  
               </Box>
+
               {(canEdit || canDelete) && (
                 <IconButton
                   size="small"
@@ -87,7 +113,6 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
                   <MoreVertIcon fontSize="small" />
                 </IconButton>
               )}
-              
             </Box>
 
             <Typography
@@ -129,16 +154,28 @@ export default function AnnouncementCard({ announcements, onEdit, onDelete }) {
           </Box>
         </Card>
       ))}
-      
+
       {/* Actual Menu component so your buttons work */}
       <Menu anchorEl={anchorEl} open={open} onClose={handleMenuClose}>
         {canEdit && (
-          <MenuItem onClick={() => { onEdit(selectedAnnouncement); handleMenuClose(); }} sx={{color:"success.main"}}>
+          <MenuItem
+            onClick={() => {
+              onEdit(selectedAnnouncement);
+              handleMenuClose();
+            }}
+            sx={{ color: "success.main" }}
+          >
             <EditIcon sx={{ mr: 1 }} fontSize="small" /> Edit
           </MenuItem>
         )}
         {canDelete && (
-          <MenuItem onClick={() => { onDelete(selectedAnnouncement.announcement_id); handleMenuClose(); }} sx={{ color: "error.main" }}>
+          <MenuItem
+            onClick={() => {
+              onDelete(selectedAnnouncement.announcement_id);
+              handleMenuClose();
+            }}
+            sx={{ color: "error.main" }}
+          >
             <DeleteIcon sx={{ mr: 1 }} fontSize="small" /> Delete
           </MenuItem>
         )}
