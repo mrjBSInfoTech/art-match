@@ -22,6 +22,7 @@ import authRoutes from "./routes/authentication.js";
 import householdRoutes from "./routes/household.js";
 import loginRoutes from "./routes/login.js";
 import postRoutes from "./routes/post.js";
+import portRoutes from "./routes/port.js";
 
 dotenv.config();
 
@@ -57,7 +58,7 @@ app.use("/api/officials", officialRoutes);
 app.use("/api/post", postRoutes);
 app.use("/api/login", loginRoutes);
 app.use("/api/authentication", authRoutes);
-
+app.use("/api/ports", portRoutes);
 
 // Handle 404 (unknown routes)
 app.use((req, res) => {

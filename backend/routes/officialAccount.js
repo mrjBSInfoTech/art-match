@@ -205,6 +205,8 @@ router.put("/:id", authenticateToken, async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
       updates.push("password = ?");
       values.push(hashedPassword);
+      updates.push("password_changed = ?");
+      values.push(1);
     }
 
     // Update account_type if provided
