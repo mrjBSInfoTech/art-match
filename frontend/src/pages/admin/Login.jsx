@@ -1,34 +1,36 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import axios from "axios";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
-  TextField,
+  Alert,
+  Box,
   Button,
   Container,
-  Typography,
-  Paper,
-  Box,
-  Snackbar,
-  Alert,
-  Slide,
-  InputAdornment,
+  Divider,
   IconButton,
+  InputAdornment,
   Link,
-  useTheme,
+  MenuItem, 
+  Paper,
+  Select,
+  Snackbar,
+  Slide,
+  Stack,
+  TextField,
+  Typography,
   useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import {
+  Lock as LockIcon,
+  Person as PersonIcon,
   Visibility,
   VisibilityOff,
-  Person as PersonIcon,
-  Lock as LockIcon,
 } from "@mui/icons-material";
-import { loginUser } from "../api/authenticationAPI";
-import SaleSyncLogo from "../assets/SaleSync_Logo_Design.png";
-import BarangayIcon from "../assets/BarangayIcon.png";
+import { loginUser } from "../../api/admin/adminAuthenticationAPI";
+import Nexus from "../../assets/Nexus.png";
+import { clearAuthData, hasValidToken, setToken } from "../../../utils/auth";
 
-// Slide Transition for Snackbar
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
 }
@@ -36,23 +38,22 @@ function SlideTransition(props) {
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [module, setModule] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Check if user is already logged in
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      // User is already logged in, redirect to dashboard
-      navigate("/dashboard", { replace: true });
+    const adminToken = localStorage.getItem("admin_token");
+    if (adminToken && hasValidToken(adminToken)) {
+      navigate("/admin/dashboard", { replace: true });
     }
   }, [navigate]);
 
-  // Handle Enter key login
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Enter") {
@@ -68,9 +69,9 @@ const Login = () => {
     };
   }, [username, password]);
 
-  // Snackbar handlers
-  const showSnackbar = (message) => {
+  const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
     setSnackbarOpen(true);
   };
 
@@ -79,123 +80,168 @@ const Login = () => {
     setSnackbarOpen(false);
   };
 
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
+    }
+  };
+
   const handleLogin = async () => {
     if (!username || !password) {
-      showSnackbar("❌ Please fill in all fields");
+      showSnackbar("Please fill in all fields", "error");
       return;
     }
 
     try {
-      const data = await loginUser({ username, password });
+      const data = await loginUser({ username: username, password: password });
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("official_account_id", data.official_account_id);
-      localStorage.setItem("password_changed", data.password_changed);
-      localStorage.setItem("username", data.username);
-      localStorage.setItem("account_type", data.account_type);
-      localStorage.setItem("can_add", data.can_add);
-      localStorage.setItem("can_edit", data.can_edit);
-      localStorage.setItem("can_delete", data.can_delete);
-      localStorage.setItem("first_name", data.first_name);
-      localStorage.setItem("last_name", data.last_name);
-      localStorage.setItem("position", data.position);
-      localStorage.setItem("image", data.image);
+      clearAuthData("admin");
+      setToken("admin", data.token);
 
-      showSnackbar("✅ Login successful!");
+      localStorage.setItem("admin_token", data.token || "");
+      localStorage.setItem("admin_username", data.username || "");
+      localStorage.setItem("admin_first_name", data.first_name || "");
+      localStorage.setItem("admin_last_name", data.last_name || "");
+      localStorage.setItem("admin_email", data.email || "");
 
-      navigate("/dashboard");
+      showSnackbar("Login successful!", "success");
+      navigate("/admin/dashboard", { replace: true });
     } catch (error) {
-      showSnackbar(`❌ Login failed: ${error.message}`);
+      showSnackbar(`Login failed: ${error.message}`, "error");
     }
   };
 
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
+  const handleModuleChange = (event) => {
+    const selectedModule = event.target.value;
+    setModule(selectedModule);
+
+    if (selectedModule === "Student") {
+      navigate("/seller/login");
+    } else if (selectedModule === "Admin") {
+      navigate("/admin/login");
+    }
   };
 
   return (
     <Container
       maxWidth={false}
-      style={{
+      sx={{
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
         padding: "20px",
-        background: "#466ABE",
+        background: "#af4f4f",
         overflowY: "auto",
       }}
     >
-      <Helmet titleTemplate="%s - Barangay Management System">
+      <Helmet titleTemplate="%s - ArtMatch">
         <title>Login</title>
       </Helmet>
 
       <Paper
         elevation={24}
-        style={{
+        sx={{
           backgroundColor: "white",
-          padding: isMobile ? "25px 20px" : "40px 35px", // Reduced padding
-          borderRadius: "20px", // Slightly smaller radius
+          padding: isMobile ? "25px 20px" : "40px 35px",
+          borderRadius: "20px",
           width: "100%",
-          maxWidth: "450px", // Reduced max width
-          boxShadow: "0px 15px 40px rgba(0, 0, 0, 0.2)", // Reduced shadow
+          maxWidth: "450px",
+          boxShadow: "0px 15px 40px rgba(0, 0, 0, 0.2)",
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* Logo */}
         <Box
           sx={{
             display: "flex",
             justifyContent: "center",
-            mb: 2, // Reduced margin
+            mb: 2,
           }}
         >
           <Box
             component="img"
-            src={BarangayIcon}
-            alt="Barangay Logo"
-            sx={{
-              height: 50,
-              width: "auto",
-            }}
+            src={Nexus}
+            alt="ArtMatch"
+            sx={{ height: 50, width: "auto" }}
           />
         </Box>
 
-        {/* Login Title */}
         <Typography
-          variant="h6" // Changed from h5 to h6
+          variant="h6"
           align="center"
           gutterBottom
           sx={{
             fontWeight: "600",
             color: "#333",
-            mb: 3, // Reduced margin
-            fontSize: { xs: "1.2rem", sm: "1.4rem" }, // Smaller font
+            mb: 3,
+            fontSize: { xs: "1.2rem", sm: "1.4rem" },
           }}
         >
           Log In
         </Typography>
 
-        <Box
-          component="form"
-          noValidate
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2.5, // Reduced gap
-          }}
-        >
-          {/* Username Field */}
+        <Stack spacing={2.5}>
           <Box>
             <Typography
               variant="body1"
               sx={{
                 fontWeight: "600",
                 color: "#444",
-                mb: 0.75, // Reduced margin
+                mb: 0.75,
                 ml: 0.5,
-                fontSize: "0.95rem", // Smaller font
+                fontSize: "0.95rem",
+              }}
+            >
+              Module
+            </Typography>
+            <Select
+              fullWidth
+              variant="outlined"
+              name="course"
+              size="small"        
+              value={module}
+              onChange={handleModuleChange}
+              sx={{
+                borderRadius: "10px",
+                backgroundColor: "#f8f9fa",
+                fontSize: "0.95rem",
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#e0e0e0",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#466ABE",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#466ABE",
+                  borderWidth: "2px",
+                },
+              }}
+            >
+              <MenuItem value="">Module</MenuItem>
+              <MenuItem value="Admin">
+                Admin
+              </MenuItem>
+              <MenuItem value="Student">
+                Student
+              </MenuItem>
+            </Select>
+          </Box>
+
+          <Box>
+            <Typography
+              variant="body1"
+              sx={{
+                fontWeight: "600",
+                color: "#444",
+                mb: 0.75,
+                ml: 0.5,
+                fontSize: "0.95rem",
               }}
             >
               Username
@@ -206,18 +252,17 @@ const Login = () => {
               placeholder="Enter your username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              size="small" // Added small size
+              size="small"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <PersonIcon
-                      sx={{ color: "#466ABE", fontSize: "1.25rem" }}
-                    />{" "}
-                    {/* Smaller icon */}
+                      sx={{ color: "#af4f4f", fontSize: "1.25rem" }}
+                    />
                   </InputAdornment>
                 ),
                 sx: {
-                  borderRadius: "10px", // Smaller radius
+                  borderRadius: "10px",
                   backgroundColor: "#f8f9fa",
                   "& .MuiOutlinedInput-notchedOutline": {
                     borderColor: "#e0e0e0",
@@ -229,22 +274,21 @@ const Login = () => {
                     borderColor: "#466ABE",
                     borderWidth: "2px",
                   },
-                  fontSize: "0.95rem", // Smaller text
+                  fontSize: "0.95rem",
                 },
               }}
             />
           </Box>
 
-          {/* Password Field */}
           <Box>
             <Typography
               variant="body1"
               sx={{
                 fontWeight: "600",
                 color: "#444",
-                mb: 0.75, // Reduced margin
+                mb: 0.75,
                 ml: 0.5,
-                fontSize: "0.95rem", // Smaller font
+                fontSize: "0.95rem",
               }}
             >
               Password
@@ -256,79 +300,61 @@ const Login = () => {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              size="small" // Added small size
+              size="small"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon sx={{ color: "#466ABE", fontSize: "1.25rem" }} />{" "}
-                    {/* Smaller icon */}
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={handleClickShowPassword}
-                      edge="end"
-                      sx={{ color: "#666", padding: "6px" }} // Smaller padding
-                      size="small"
-                    >
-                      {showPassword ? (
-                        <VisibilityOff fontSize="small" />
-                      ) : (
-                        <Visibility fontSize="small" />
-                      )}{" "}
-                      {/* Smaller icons */}
-                    </IconButton>
+                    <LockIcon sx={{ color: "#af4f4f", fontSize: "1.25rem" }} />
                   </InputAdornment>
                 ),
                 sx: {
-                  borderRadius: "10px", // Smaller radius
+                  borderRadius: "10px",
                   backgroundColor: "#f8f9fa",
                   "& .MuiOutlinedInput-notchedOutline": {
                     borderColor: "#e0e0e0",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#466ABE",
+                    borderColor: "#af4f4f",
                   },
                   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#466ABE",
+                    borderColor: "#af4f4f",
                     borderWidth: "2px",
                   },
-                  fontSize: "0.95rem", // Smaller text
+                  fontSize: "0.95rem",
                 },
               }}
             />
           </Box>
 
-          {/* Login Button */}
           <Button
             variant="contained"
             fullWidth
             onClick={handleLogin}
             sx={{
-              height: "48px", // Reduced height
+              height: "48px",
               fontWeight: "700",
               textTransform: "none",
-              fontSize: "16px", // Smaller font
-              backgroundColor: "#466ABE",
-              borderRadius: "10px", // Smaller radius
-              mt: 1.5, // Reduced margin
+              fontSize: "16px",
+              backgroundColor: "#af4f4f",
+              borderRadius: "10px",
+              mt: 1.5,
               "&:hover": {
-                backgroundColor: "#344a7e",
-                transform: "translateY(-1px)", // Reduced lift
-                boxShadow: "0px 8px 15px rgba(94, 96, 206, 0.2)", // Reduced shadow
+                backgroundColor: "#8a3d3d",
+                transform: "translateY(-1px)",
+                boxShadow: "0px 8px 15px rgba(175, 79, 79, 0.2)",
               },
               transition: "all 0.2s ease",
-              boxShadow: "0px 4px 10px rgba(94, 96, 206, 0.15)", // Reduced shadow
+              boxShadow: "0px 4px 10px rgba(175, 79, 79, 0.15)",
             }}
           >
             Login
           </Button>
-        </Box>
+        </Stack>
       </Paper>
       <Snackbar
         open={snackbarOpen}
+        severity={snackbarSeverity}
+        variant="filled"
         autoHideDuration={3000}
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -336,8 +362,15 @@ const Login = () => {
       >
         <Alert
           onClose={closeSnackbar}
-          severity={snackbarMessage.includes("❌") ? "error" : "success"}
-          sx={{ width: "100%" }}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+            },
+          }}
         >
           {snackbarMessage}
         </Alert>

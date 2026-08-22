@@ -6,23 +6,21 @@ import { fileURLToPath } from 'url';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-
-// Routes
-import aboutRoutes from "./routes/about.js";
-import officialAccountRoutes from "./routes/officialAccount.js";
-import announcementRoutes from "./routes/announcement.js";
-import fileRoutes from "./routes/file.js";
-import citizenRoutes from "./routes/citizen.js";
-import concernRoutes from "./routes/concern.js";
-import messageDetectionRoutes from "./routes/messageDetection.js";
-import residentRoutes from "./routes/resident.js";
-import officialRoutes from "./routes/official.js";
-import historyRoutes from "./routes/history.js";
-import authRoutes from "./routes/authentication.js";
-import householdRoutes from "./routes/household.js";
-import loginRoutes from "./routes/login.js";
-import postRoutes from "./routes/post.js";
-import portRoutes from "./routes/port.js";
+// Routes (Admin)
+import adminAuthenticateRoutes from "./routes/admin/adminAuthentication.js";
+import adminArtworkRoutes from "./routes/admin/artwork.js";
+import adminStudentRoutes from "./routes/admin/student.js";
+//import adminSalesRoutes from "./routes/admin/sales.js";
+// Routes (Seller)
+import sellerArtworkRoutes from "./routes/seller/artwork.js";
+//import sellerSalesRoutes from "./routes/seller/sales.js";
+import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
+// Routes (Buyer)
+//import buyerArtworkRoutes from "./routes/buyer/artwork.js";
+import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
+import buyerAddressRoutes from "./routes/buyer/address.js";
+import buyerArtworkRoutes from "./routes/buyer/artwork.js";
+import buyerCartRoutes from "./routes/buyer/cart.js";
 
 dotenv.config();
 
@@ -34,31 +32,44 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: path.join(__dirname, 'uploads/seller/'),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
 
 // Serve static files with absolute path
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Root route (just to test if server runs)
 app.get("/", (req, res) => {
-  res.send("Product Management API is running ✅");
+  res.send("Art Match API is running ✅");
 });
 
-// Routes
-app.use("/api/about", aboutRoutes);
-app.use("/api/officialAccounts", officialAccountRoutes);
-app.use("/api/announcements", announcementRoutes);
-app.use("/api/files", fileRoutes);
-app.use("/api/citizens", citizenRoutes);
-app.use("/api/concerns", concernRoutes);
-app.use("/api/messageDetection", messageDetectionRoutes);
-app.use("/api/residents", residentRoutes);
-app.use("/api/households", householdRoutes);
-app.use("/api/history", historyRoutes);
-app.use("/api/officials", officialRoutes);
-app.use("/api/post", postRoutes);
-app.use("/api/login", loginRoutes);
-app.use("/api/authentication", authRoutes);
-app.use("/api/ports", portRoutes);
+// Routes (Admin)
+app.use("/api/admin/authenticate", adminAuthenticateRoutes);
+app.use("/api/admin/artwork", adminArtworkRoutes);
+app.use("/api/admin/student", adminStudentRoutes);
+//app.use("/api/admin/sales", adminSalesRoutes);
+// Routes (Seller)
+app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
+app.use("/api/seller/artwork", sellerArtworkRoutes);
+//app.use("/api/seller/sales", sellerSalesRoutes);
+// Routes (Buyer)
+app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
+app.use("/api/buyer/artworks", buyerArtworkRoutes);
+app.use("/api/buyer/addresses", buyerAddressRoutes);
+app.use("/api/buyer/cart", buyerCartRoutes);
+
 
 // Handle 404 (unknown routes)
 app.use((req, res) => {

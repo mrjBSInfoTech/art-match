@@ -1,219 +1,124 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { useNavigate } from "react-router-dom";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-} from "recharts";
-import {
+  Alert,
   Box,
+  Button,
   Card,
-  CardMedia,
   CardContent,
-  Divider,
+  CircularProgress,
   FormControl,
   InputLabel,
+  InputAdornment,
   LinearProgress,
-  Select,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  Typography,
-  IconButton,
-  Menu,
   MenuItem,
   Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button,
+  Select,
+  TextField,
+  Typography,
+  Snackbar,
   Slide,
-  Backdrop,
 } from "@mui/material";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { fetchArtworks } from "../../api/admin/artworkAPI";
 // Icons
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { fetchResidents } from "../api/residentAPI";
-import { fetchHouseholds } from "../api/householdAPI";
-import { fetchOfficials } from "../api/officialAPI";
-import { fetchConcerns } from "../api/concernAPI";
+import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
+import CreditScoreIcon from "@mui/icons-material/CreditScore";
+import SellRoundedIcon from "@mui/icons-material/SellRounded";
 
-const Transition = React.forwardRef(function Transition(props, ref) {
-  return (
-    <Slide
-      direction="up"
-      ref={ref}
-      {...props}
-      timeout={500}
-      easing={{
-        enter: "cubic-bezier(0.4, 0, 0.2, 1)",
-        exit: "ease-out",
-      }}
-    />
-  );
-});
+// Slide Transition for Snackbar
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
 
 export default function Dashboard() {
-  const [residents, setResidents] = useState([]);
-  const [households, setHouseholds] = useState([]);
-  const [userAccounts, setUserAccounts] = useState([]);
-  const [concerns, setConcerns] = useState([]);
+  const [artworks, setArtworks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const navigate = useNavigate();
-  const [openPasswordWarning, setOpenPasswordWarning] = useState(false);
-  const passwordChanged = localStorage.getItem("password_changed");
+  const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
-  useEffect(() => {
-    if (passwordChanged === 0) {
-      setOpenPasswordWarning(true);
-    }
-  }, [passwordChanged]);
-
-  // Load residents count
-  const loadResidents = async () => {
+  // Fetch all artworks from API
+  const loadArtworks = async () => {
     try {
       setLoading(true);
-      setErrorMessage("");
-      const response = await fetchResidents();
-      if (response) {
-        setResidents(Array.isArray(response) ? response : []);
+      setArtworkErrorMessage("");
+      const response = await fetchArtworks();
+      if (response && Array.isArray(response)) {
+        setArtworks(response);
+      } else if (response && response.data && Array.isArray(response.data)) {
+        setArtworks(response.data);
       } else {
-        setResidents([]);
-        setErrorMessage("0");
+        setArtworks([]);
+        setArtworkErrorMessage("No data received from server.");
       }
     } catch (err) {
-      console.error("0", err);
-      setResidents([]);
-      setErrorMessage("0");
+      setArtworks([]);
+      setArtworkErrorMessage("Failed to load artworks: " + err.message);
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
-    loadResidents();
+    loadArtworks();
   }, []);
 
-  // Load households count
-  const loadHouseholds = async () => {
-    try {
-      setLoading(true);
-      setErrorMessage("");
-      const response = await fetchHouseholds();
-      if (response) {
-        setHouseholds(Array.isArray(response) ? response : []);
-      } else {
-        setHouseholds([]);
-        setErrorMessage("0");
-      }
-    } catch (err) {
-      console.error("0", err);
-      setHouseholds([]);
-      setErrorMessage("0");
-    } finally {
-      setLoading(false);
+  const artworkCount = artworks.length;
+  const soldCount = 0; 
+  const salesCount = 0;
+
+  // Snackbar handlers
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity); 
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light"; 
+      case "error":
+        return "error.light"; 
+      default:
+        return "primary.light"; 
     }
   };
 
-  useEffect(() => {
-    loadHouseholds();
-  }, []);
-
-  // Load user accounts count
-  const loadUserAccounts = async () => {
-    try {
-      setLoading(true);
-      setErrorMessage("");
-      const response = await fetchOfficials();
-
-      if (response) {
-        setUserAccounts(Array.isArray(response) ? response : []);
-      } else {
-        setUserAccounts([]);
-        setErrorMessage("0");
-      }
-    } catch (err) {
-      console.error("0", err);
-      setUserAccounts([]);
-      setErrorMessage("0");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadUserAccounts();
-  }, []);
-
-  // Load concerns count
-  const loadConcerns = async () => {
-    try {
-      setLoading(true);
-      const response = await fetchConcerns();
-
-      if (response) {
-        setConcerns(Array.isArray(response) ? response : []);
-      } else {
-        setConcerns([]);
-        setErrorMessage("0");
-      }
-    } catch (err) {
-      console.error("0", err);
-      setConcerns([]);
-      setErrorMessage("0");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadConcerns();
-  }, []);
-
-  const totalResidents = residents.length;
-  const totalHouseholds = households.length;
-  const totalUserAccounts = userAccounts.length;
-
-  const maleCount = residents.filter(
-    (resident) => resident.gender === "Male",
-  ).length;
-  const femaleCount = residents.filter(
-    (resident) => resident.gender === "Female",
-  ).length;
-  const lowCount = concerns.filter(
-    (concern) =>
-      concern.message_urgency === "Low" &&
-      (concern.status || "").toLowerCase() === "solved",
-  ).length;
-  const mediumCount = concerns.filter(
-    (concern) =>
-      concern.message_urgency === "Medium" &&
-      (concern.status || "").toLowerCase() === "solved",
-  ).length;
-  const highCount = concerns.filter(
-    (concern) =>
-      concern.message_urgency === "High" &&
-      (concern.status || "").toLowerCase() === "solved",
-  ).length;
+  const salesData = [
+    { month: "Jan", sales: 1200 },
+    { month: "Feb", sales: 1800 },
+    { month: "Mar", sales: 1500 },
+    { month: "Apr", sales: 2500 },
+    { month: "May", sales: 3000 },
+    { month: "Jun", sales: 4200 },
+  ];
 
   return (
     <Box sx={{ p: 3 }}>
-      <Helmet titleTemplate="%s - Barangay Management System">
+      <Helmet titleTemplate="%s - ArtMatch">
         <title>Dashboard</title>
       </Helmet>
       <Box>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
+        >
           Dashboard
         </Typography>
       </Box>
@@ -230,27 +135,27 @@ export default function Dashboard() {
           variant="outlined"
           sx={{
             flex: "1 1 350px",
-            maxWidth: 500,
+            maxWidth: 600,
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#C1FFA9",
+            bgcolor: "#f5f5f5",
           }}
         >
           <CardContent>
             <Typography
               gutterBottom
               variant="h5"
-              sx={{ fontWeight: "bold", color: "#2C8508" }}
+              sx={{ fontWeight: "bold", color: "#b73636" }}
             >
-              Residents
+              Total Artworks
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <PersonIcon color="success" sx={{ fontSize: 30 }} />
+              <ColorLensRoundedIcon color="error" sx={{ fontSize: 30 }} />
               <Typography
-                sx={{ fontWeight: "bold", color: "#2C8508", fontSize: 30 }}
+                sx={{ fontWeight: "bold", color: "#b73636", fontSize: 30 }}
               >
-                {totalResidents}
+                {artworkCount}
               </Typography>
             </Box>
           </CardContent>
@@ -260,29 +165,27 @@ export default function Dashboard() {
           variant="outlined"
           sx={{
             flex: "1 1 350px",
-            maxWidth: 500,
+            maxWidth: 600,
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#FDCB80",
+            bgcolor: "#f5f5f5",
           }}
         >
           <CardContent>
             <Typography
               gutterBottom
               variant="h5"
-              sx={{ fontWeight: "bold", color: "#9B5F03" }}
+              sx={{ fontWeight: "bold", color: "#b73636" }}
             >
-              Households
+              Sold
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <HomeIcon color="warning" sx={{ fontSize: 30 }} />
+              <SellRoundedIcon color="error" sx={{ fontSize: 30 }} />
               <Typography
                 variant="h4"
-                sx={{ fontWeight: "bold", color: "#9B5F03" }}
-              >
-                {totalHouseholds}
-              </Typography>
+                sx={{ fontWeight: "bold", color: "#b73636" }}
+              >{soldCount}</Typography>
             </Box>
           </CardContent>
         </Card>
@@ -291,181 +194,85 @@ export default function Dashboard() {
           variant="outlined"
           sx={{
             flex: "1 1 350px",
-            maxWidth: 500,
+            maxWidth: 600,
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#FC9495",
+            bgcolor: "#f5f5f5",
           }}
         >
           <CardContent>
             <Typography
               gutterBottom
               variant="h5"
-              sx={{ fontWeight: "bold", color: "#880506" }}
+              sx={{ fontWeight: "bold", color: "#b73636" }}
             >
-              User Accounts
+              Total Sales
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <AccountCircleIcon color="error" sx={{ fontSize: 30 }} />
+              <CreditScoreIcon color="error" sx={{ fontSize: 30 }} />
               <Typography
                 variant="h4"
-                sx={{ fontWeight: "bold", color: "#880506" }}
-              >
-                {totalUserAccounts}
-              </Typography>
+                sx={{ fontWeight: "bold", color: "#b73636" }}
+              >{salesCount}</Typography>
             </Box>
           </CardContent>
         </Card>
       </Box>
-      <Box
-        sx={{
-          display: "flex",
-          gap: 2,
-          flexDirection: { xs: "column", md: "row" }, // Column on mobile, row on desktop
-          mt: 3,
-        }}
+
+      <Paper
+        sx={{ p: { xs: 2, md: 3 }, mt: 3, borderRadius: 2 }}
+        variant="outlined"
       >
-        <Paper
-          sx={{
-            p: { xs: 1.5, sm: 2, md: 3 },
-            mt: 3,
-            borderRadius: 2,
-            width: { xs: "100%", md: "50%" },
-          }}
-          variant="outlined"
-        >
-          <Typography
-            textAlign="center"
-            variant="h5"
-            sx={{ fontWeight: "bold", mb: 2 }}
-          >
-            Population 
-          </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              minHeight: { xs: 250, sm: 300, md: 400 },
-              width: "100%",
-            }}
-          >
-            <ResponsiveContainer width="100%" height={450}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: "Male", value: maleCount },
-                    { name: "Female", value: femaleCount },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  //label={({ name, value }) => `${name}: ${value}`} // For future use
-                  outerRadius={{ xs: 50, sm: 60, md: 80 }}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  <Cell fill="#0088FE" />
-                  <Cell fill="#f76cbb" />
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </Box>
-        </Paper>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+          Monthly Sales
+        </Typography>
 
-        <Paper
+        <Box sx={{ width: "100%", height: 330, overflowX: "auto" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={salesData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="sales"
+                stroke="#b73636"
+                strokeWidth={3}
+                dot={{ r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      </Paper>
+      {/* Snackbar Notification */}
+      {/* //For Future Use 
+      <Snackbar
+        open={snackbarOpen}
+        severity={snackbarSeverity}
+        variant="filled"
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
           sx={{
-            p: 3,
-            mt: 3,
-            borderRadius: 2,
-            width: { xs: "100%", md: "50%" },
-          }}
-          variant="outlined"
-        >
-          <Typography
-            textAlign="center"
-            variant="h5"
-            sx={{ fontWeight: "bold", mb: 2 }}
-          >
-            Concerns
-          </Typography>
-
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              minHeight: { xs: 250, sm: 300, md: 400 },
-              width: "100%",
-            }}
-          >
-            <ResponsiveContainer width="100%" height={450}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: "Low", value: lowCount },
-                    { name: "Medium", value: mediumCount },
-                    { name: "High", value: highCount },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={{ xs: 50, sm: 60, md: 80 }}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  <Cell fill="#0088FE" />
-                  <Cell fill="#00C49F" />
-                  <Cell fill="#FFBB28" />
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </Box>
-        </Paper>
-      </Box>
-      {passwordChanged && (
-        <Dialog
-          open={openPasswordWarning}
-          TransitionComponent={Transition}
-          keepMounted
-          disableEscapeKeyDown // Disables closing with the Escape key
-          onClose={(event, reason) => {
-            // Prevents closing the dialog if the user clicks outside of it
-            if (reason === "backdropClick") return;
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+            },
           }}
         >
-          <DialogTitle sx={{ color: "error.main", fontWeight: "bold" }}>
-            Security Action Required
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Hi there, you are currently using a temporary, system-generated
-              initial password. For security reasons, you must change your
-              password immediately before continuing to access system management
-              features.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => {
-                setOpenPasswordWarning(false);
-                setTimeout(() => {
-                  navigate("/settings");
-                }, 300);
-              }}
-            >
-              Change Password Now
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    */}
     </Box>
   );
 }
