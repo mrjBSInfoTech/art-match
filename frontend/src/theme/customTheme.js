@@ -22,9 +22,9 @@ export const lightTheme = createTheme({
     background: {
       default: "#ffffff",
       paper: "#f8fafc",
-      sidebar: "#466ABE",
-      header : "#466ABE",
-      footer : "#466ABE",
+      sidebar: "#AF4F4F",
+      header : "#AF4F4F",
+      footer : "#AF4F4F",
     },
     text: {
       primary: "#0f172a",
