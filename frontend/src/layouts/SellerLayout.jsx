@@ -320,6 +320,7 @@ export default function SellerLayout({ children }) {
             sidebarFooter: SidebarFooter,
           }}
           sx={{
+            backgroundColor: theme.palette.background.default,
             "& .MuiDrawer-paper": {
               backgroundColor: theme.palette.background.sidebar,
               color: theme.palette.text.sidebar,
@@ -340,6 +341,9 @@ export default function SellerLayout({ children }) {
             },
             // Selected icon
             "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
+              color: "#980404",
+            },
+            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
               color: "#980404",
             },
             // Sidebar icons color

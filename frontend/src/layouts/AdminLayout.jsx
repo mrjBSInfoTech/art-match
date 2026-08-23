@@ -133,6 +133,23 @@ export default function AdminLayout({ children }) {
       icon: <PaletteIcon />,
     },
     {
+      segment: "manage",
+      title: "Manage Users",
+      icon: <VerifiedRoundedIcon />,
+      children: [
+        {
+          segment: "students",
+          title: "Students",
+          icon: <HourglassBottomRoundedIcon />,
+        },
+        {
+          segment: "customers",
+          title: "Customers",
+          icon: <VerifiedUserRoundedIcon />,
+        },
+      ],
+    },
+    {
       segment: "verify",
       title: "Student Verification",
       icon: <VerifiedRoundedIcon />,
@@ -295,6 +312,7 @@ export default function AdminLayout({ children }) {
             sidebarFooter: SidebarFooter,
           }}
           sx={{
+            backgroundColor: theme.palette.background.default,
             "& .MuiDrawer-paper": {
               backgroundColor: theme.palette.background.sidebar,
               color: theme.palette.text.sidebar,
@@ -311,6 +329,9 @@ export default function AdminLayout({ children }) {
             },
             // Selected text
             "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
+              color: "#980404",
+            },
+            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
               color: "#980404",
             },
             // Selected icon

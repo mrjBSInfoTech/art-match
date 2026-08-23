@@ -139,7 +139,7 @@ export default function Dashboard() {
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#f5f5f5",
+            bgcolor: "background.paper",
           }}
         >
           <CardContent>
@@ -169,7 +169,7 @@ export default function Dashboard() {
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#f5f5f5",
+            bgcolor: "background.paper",
           }}
         >
           <CardContent>
@@ -198,7 +198,7 @@ export default function Dashboard() {
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#f5f5f5",
+            bgcolor: "background.paper",
           }}
         >
           <CardContent>
