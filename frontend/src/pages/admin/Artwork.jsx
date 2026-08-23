@@ -162,7 +162,7 @@ export default function Artwork() {
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#f8fafc",
+            bgcolor: "background.paper",
           }}
         >
           <CardContent>
@@ -192,7 +192,7 @@ export default function Artwork() {
             height: 150,
             padding: 2,
             borderRadius: 2,
-            bgcolor: "#f8fafc",
+            bgcolor: "background.paper",
           }}
         >
           <CardContent>

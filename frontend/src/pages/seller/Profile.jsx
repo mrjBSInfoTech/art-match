@@ -138,8 +138,8 @@ export default function Profile() {
 
   return (
     <Box sx={{ maxWidth: 1100, mx: "auto", pb: 5 }}>
-      <Helmet>
-        <title>Student Profile</title>
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Profile</title>
       </Helmet>
 
       <Paper
@@ -150,7 +150,7 @@ export default function Profile() {
           borderRadius: 3,
           border: "1px solid",
           borderColor: "divider",
-          background: "linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%)",
+          background: "background.paper",
         }}
       >
         <Grid container spacing={3} alignItems="center">
