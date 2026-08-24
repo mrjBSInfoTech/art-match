@@ -56,9 +56,11 @@ router.post("/login", (req, res) => {
     last_name,
     email,
     phone_number,
-    password
-  FROM customer 
-  WHERE username = ?`;
+    password,
+    COALESCE(x.is_banned, FALSE) AS is_banned
+  FROM customer c
+  LEFT JOIN account_access x ON x.role = 'buyer' AND x.account_id = c.customer_id
+  WHERE c.username = ?`;
 
   db.query(sql, [username], (err, result) => {
     if (err) {
@@ -78,6 +80,9 @@ router.post("/login", (req, res) => {
     }
 
     const user = result[0];
+    if (user.is_banned) {
+      return res.status(403).json({ message: "Buyer account is banned." });
+    }
     const isMatch = bcrypt.compareSync(password, user.password);
 
     if (!isMatch) {
@@ -117,6 +122,41 @@ router.post("/login", (req, res) => {
       phone_number: user.phone_number,
     });
   });
+});
+
+router.get("/me", authenticateBuyer, (req, res) => {
+  db.query(
+    "SELECT customer_id, username, first_name, last_name, email, phone_number FROM customer WHERE customer_id = ?",
+    [req.user.customer_id],
+    (err, result) => {
+      if (err) return res.status(500).json({ message: "Database error" });
+      if (!result.length) return res.status(404).json({ message: "Buyer not found" });
+      res.json(result[0]);
+    },
+  );
+});
+
+router.put("/me", authenticateBuyer, async (req, res) => {
+  const fields = ["username", "first_name", "last_name", "email", "phone_number"];
+  const updates = fields.filter((field) => Object.hasOwn(req.body, field));
+  const values = updates.map((field) => req.body[field]);
+  if (req.body.password) {
+    updates.push("password");
+    values.push(bcrypt.hashSync(req.body.password, 10));
+  }
+  if (!updates.length) return res.status(400).json({ message: "No profile changes supplied." });
+
+  db.query(
+    `UPDATE customer SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`,
+    [...values, req.user.customer_id],
+    (err) => {
+      if (err) {
+        if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Username or email already exists." });
+        return res.status(500).json({ message: "Database error" });
+      }
+      res.json({ message: "Buyer profile updated successfully." });
+    },
+  );
 });
 
 router.post("/logout", authenticateBuyer, async (req, res) => {

@@ -23,6 +23,7 @@ import AdminStudentPending from "../pages/admin/StudentPending";
 import AdminStudentVerify from "../pages/admin/StudentVerify";
 import AdminStudent from "../pages/admin/Student";
 import AdminCustomer from "../pages/admin/Customer";
+import AdminAccountAccess from "../pages/admin/AccountAccess";
 import AdminAuditLogs from "../pages/admin/AuditLogs";
 import AdminLogin from "../pages/admin/Login";
 
@@ -102,6 +103,7 @@ export default function AppRoutes() {
                 <Route path="artwork" element={<AdminArtwork />} />
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
+                <Route path="manage/access" element={<AdminAccountAccess />} />
                 <Route
                   path="verify/pending"
                   element={<AdminStudentPending />}
