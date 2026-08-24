@@ -29,6 +29,10 @@ import {
   YAxis,
 } from "recharts";
 import { fetchArtworks } from "../../api/admin/artworkAPI";
+import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
+import * as XLSX from "xlsx";
+import dayjs from "dayjs";
+import Export from "../../components/admin/Dashboard/Export";
 // Icons
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
@@ -41,11 +45,14 @@ function SlideTransition(props) {
 
 export default function Dashboard() {
   const [artworks, setArtworks] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
+  const [logsErrorMessage, setLogsErrorMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [openExportDialog, setOpenExportDialog] = useState(false);
 
   // Fetch all artworks from API
   const loadArtworks = async () => {
@@ -72,14 +79,100 @@ export default function Dashboard() {
     loadArtworks();
   }, []);
 
+  // Fetch all logs from API
+  const loadLogs = async () => {
+    try {
+      setLoading(true);
+      setLogsErrorMessage("");
+      const response = await fetchAuditLogs();
+      if (response && Array.isArray(response)) {
+        setLogs(response);
+      } else if (response && response.data && Array.isArray(response.data)) {
+        setLogs(response.data);
+      } else {
+        setLogs([]);
+        setLogsErrorMessage("No data received from server.");
+      }
+    } catch (err) {
+      setLogs([]);
+      setLogsErrorMessage("Failed to load logs: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    loadLogs();
+  }, []);
+
+  // Open Export Data Dialog
+  const handleOpenExportDialog = () => {
+    setOpenExportDialog(true);
+  };
+
+  const exportLogsCSV = () => {
+    if (logs.length === 0) return;
+
+    const headers = ["Date Time", "Action", "Role", "Status", "Information"];
+
+    const logRows = logs.map((log) => [
+      dayjs(log.datetime).format("YYYY-MM-DD HH:mm:ss"),
+      String(log.action || ""),
+      String(log.role || ""),
+      String(log.status || ""),
+      String(log.information || ""),
+    ]);
+
+    const csvContent =
+      headers.join(",") +
+      "\n" +
+      logRows
+        .map((row) =>
+          row
+            .map((value) => {
+              const safeValue = String(value).replace(/"/g, '""');
+              return `"${safeValue}"`;
+            })
+            .join(","),
+        )
+        .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Logs.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    setOpenExportDialog(false);
+  };
+
+  const exportLogsExcel = () => {
+    if (logs.length === 0) return;
+
+    const data = logs.map((log) => ({
+      "Date Time": dayjs(log.datetime).format("YYYY-MM-DD HH:mm:ss"),
+      Action: log.action,
+      Role: log.role,
+      Status: log.status,
+      Information: log.information,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Logs");
+    XLSX.writeFile(workbook, "Logs.xlsx");
+    setOpenExportDialog(false);
+  };
+
   const artworkCount = artworks.length;
-  const soldCount = 0; 
+  const soldCount = 0;
   const salesCount = 0;
 
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
-    setSnackbarSeverity(severity); 
+    setSnackbarSeverity(severity);
     setSnackbarOpen(true);
   };
 
@@ -91,11 +184,11 @@ export default function Dashboard() {
   const getSeverityColor = (severity) => {
     switch (severity) {
       case "success":
-        return "success.light"; 
+        return "success.light";
       case "error":
-        return "error.light"; 
+        return "error.light";
       default:
-        return "primary.light"; 
+        return "primary.light";
     }
   };
 
@@ -113,7 +206,14 @@ export default function Dashboard() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Dashboard</title>
       </Helmet>
-      <Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          mb: 2,
+        }}
+      >
         <Typography
           variant="h4"
           gutterBottom
@@ -121,6 +221,20 @@ export default function Dashboard() {
         >
           Dashboard
         </Typography>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={handleOpenExportDialog}
+          sx={{
+            width: { xs: "100%", sm: 150 },
+            height: { xs: 35, sm: 45 },
+            minWidth: { xs: 45, sm: 50 },
+            fontSize: { xs: 12, sm: 16 },
+            padding: 0,
+          }}
+        >
+          Export Data
+        </Button>
       </Box>
       <Box
         sx={{
@@ -185,7 +299,9 @@ export default function Dashboard() {
               <Typography
                 variant="h4"
                 sx={{ fontWeight: "bold", color: "#b73636" }}
-              >{soldCount}</Typography>
+              >
+                {soldCount}
+              </Typography>
             </Box>
           </CardContent>
         </Card>
@@ -214,7 +330,9 @@ export default function Dashboard() {
               <Typography
                 variant="h4"
                 sx={{ fontWeight: "bold", color: "#b73636" }}
-              >{salesCount}</Typography>
+              >
+                {salesCount}
+              </Typography>
             </Box>
           </CardContent>
         </Card>
@@ -245,6 +363,12 @@ export default function Dashboard() {
             </LineChart>
           </ResponsiveContainer>
         </Box>
+        <Export
+          open={openExportDialog}
+          handleClose={() => setOpenExportDialog(false)}
+          onExportCSV={exportLogsCSV}
+          onExportExcel={exportLogsExcel}
+        />
       </Paper>
       {/* Snackbar Notification */}
       {/* //For Future Use 
