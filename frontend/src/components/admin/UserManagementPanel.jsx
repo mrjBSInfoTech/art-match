@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Card,
+  CardMedia,
   CardContent,
   Chip,
   Alert,
@@ -10,15 +11,17 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   IconButton,
+  Menu,
+  MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import InfoIcon from "@mui/icons-material/Info";
 
 const emptyValue = "Not provided";
 
@@ -40,6 +43,10 @@ export default function UserManagementPanel({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Menu anchor state for MoreVertIcon
+  const [anchorEl, setAnchorEl] = useState(null);
+  const openMenu = Boolean(anchorEl);
+
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return users;
@@ -47,20 +54,32 @@ export default function UserManagementPanel({
       fields.some(({ key }) =>
         String(user[key] || "")
           .toLowerCase()
-          .includes(query),
-      ),
+          .includes(query)
+      )
     );
   }, [fields, search, users]);
 
   const getName = (user) =>
     `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Unnamed user";
+
   const getId = (user) =>
     user[type === "student" ? "student_id" : "customer_id"];
 
+  // Menu Handlers
+  const handleMenuOpen = (event, user) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedUser(user);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  // Dialog Handlers
   const openDialog = (user, mode) => {
     setSelectedUser(user);
     setFormData(
-      Object.fromEntries(fields.map(({ key }) => [key, user[key] || ""])),
+      Object.fromEntries(fields.map(({ key }) => [key, user[key] || ""]))
     );
     setDialogMode(mode);
   };
@@ -107,6 +126,8 @@ export default function UserManagementPanel({
           {operationError}
         </Alert>
       )}
+
+      {/* Search Input */}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
         <TextField
           fullWidth
@@ -131,40 +152,75 @@ export default function UserManagementPanel({
         </Typography>
       )}
 
-      <Grid container spacing={2}>
+      {/* Grid Layout matching ResidentCard */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+            lg: "repeat(4, 1fr)",
+          },
+          gap: 2,
+        }}
+      >
         {filteredUsers.map((user) => {
           const userId = getId(user);
           const status = user.register_status;
           return (
-            <Grid item xs={12} sm={6} lg={4} key={userId}>
-              <Card variant="outlined" sx={{ height: "100%", borderRadius: 2 }}>
-                <CardContent
+            <Card key={userId}>
+              {/* Media Container */}
+              <Box
+                sx={{
+                  width: "100%",
+                  height: 300,
+                  position: "relative",
+                  backgroundColor: "#f5f5f5",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                  }}
+                  image={
+                    user.image
+                      ? `http://localhost:5000/uploads/uploadUser/${encodeURIComponent(user.image)}`
+                      : `http://localhost:5000/uploads/profile.jpg`
+                  }
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src =
+                      "https://via.placeholder.com/250x150?text=No+Image";
+                  }}
+                  alt={getName(user)}
+                />
+              </Box>
+
+              {/* Card Content */}
+              <CardContent sx={{ flex: 1, overflow: "auto" }}>
+                <Box
                   sx={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: 1.5,
-                    height: "100%",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    mb: 1.5,
                   }}
                 >
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="flex-start"
-                    spacing={1}
-                  >
-                    <Box>
-                      <Typography
-                        variant="h6"
-                        sx={{ fontWeight: 700, wordBreak: "break-word" }}
-                      >
-                        {getName(user)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.email || emptyValue}
-                      </Typography>
-                    </Box>
+                  <Box sx={{ flex: 1, pr: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                      {getName(user)}
+                    </Typography>
                     <Chip
-                      size="small"
+                      size="small"x
                       label={
                         type === "student" ? status || "Pending" : "Customer"
                       }
@@ -173,51 +229,78 @@ export default function UserManagementPanel({
                           ? "success"
                           : "default"
                       }
+                      sx={{ mt: 0.5 }}
                     />
-                  </Stack>
-                  <Typography variant="body2">
-                    <strong>
-                      {type === "student" ? "Student no." : "Username"}:
-                    </strong>{" "}
-                    {user[type === "student" ? "student_number" : "username"] ||
-                      emptyValue}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Phone:</strong> {user.phone_number || emptyValue}
-                  </Typography>
-                  <Box sx={{ flexGrow: 1 }} />
-                  <Stack direction="row" spacing={1} sx={{ pt: 1 }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<VisibilityOutlinedIcon />}
-                      onClick={() => openDialog(user, "view")}
-                    >
-                      View
-                    </Button>
-                    <IconButton
-                      size="small"
-                      aria-label={`Edit ${getName(user)}`}
-                      onClick={() => openDialog(user, "edit")}
-                    >
-                      <EditOutlinedIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      aria-label={`Delete ${getName(user)}`}
-                      onClick={() => setDeleteTarget(user)}
-                    >
-                      <DeleteOutlineIcon />
-                    </IconButton>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
+                  </Box>
+
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleMenuOpen(e, user)}
+                    sx={{
+                      ml: "auto",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
+                      },
+                    }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+
+                {/* View Info Button */}
+                <Button
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  startIcon={<InfoIcon />}
+                  onClick={() => openDialog(user, "view")}
+                  sx={{ mb: 1 }}
+                >
+                  View Info
+                </Button>
+
+                {/* Options Menu */}
+                <Menu
+                  anchorEl={anchorEl}
+                  open={openMenu && getId(selectedUser) === userId}
+                  onClose={handleMenuClose}
+                  anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: "right",
+                  }}
+                  transformOrigin={{
+                    vertical: "top",
+                    horizontal: "right",
+                  }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      openDialog(selectedUser, "edit");
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "success.main" }}
+                  >
+                    <EditIcon sx={{ mr: 1, fontSize: "20px" }} />
+                    Edit
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setDeleteTarget(selectedUser);
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "error.main" }}
+                  >
+                    <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
+                    Delete
+                  </MenuItem>
+                </Menu>
+              </CardContent>
+            </Card>
           );
         })}
-      </Grid>
+      </Box>
 
+      {/* View/Edit Dialog */}
       <Dialog
         open={Boolean(dialogMode)}
         onClose={closeDialog}
@@ -247,7 +330,7 @@ export default function UserManagementPanel({
                 <Typography key={key} variant="body2">
                   <strong>{label}:</strong> {selectedUser?.[key] || emptyValue}
                 </Typography>
-              ),
+              )
             )}
           </Stack>
         </DialogContent>
@@ -261,6 +344,7 @@ export default function UserManagementPanel({
         </DialogActions>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
       <Dialog
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}

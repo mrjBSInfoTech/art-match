@@ -1,24 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   TextField,
   Typography,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import AccessReason from "../../components/admin/Access/AccessReason";
 import {
   addAccountStrike,
   fetchAccountAccess,
@@ -30,8 +34,10 @@ export default function AccountAccess() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [reason, setReason] = useState("");
   const [action, setAction] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("az");
+  const [roleOption, setRoleOption] = useState("");
 
   const loadAccounts = async () => {
     try {
@@ -52,7 +58,6 @@ export default function AccountAccess() {
   const openAction = (account, nextAction) => {
     setSelectedAccount(account);
     setAction(nextAction);
-    setReason("");
   };
 
   const closeAction = () => {
@@ -60,16 +65,20 @@ export default function AccountAccess() {
     setAction("");
   };
 
-  const submitAction = async () => {
+  const submitAction = async (reasonText = "") => {
     try {
       if (action === "strike") {
-        await addAccountStrike(selectedAccount.role, selectedAccount.account_id, reason);
+        await addAccountStrike(
+          selectedAccount.role,
+          selectedAccount.account_id,
+          reasonText,
+        );
       } else {
         await setAccountBan(
           selectedAccount.role,
           selectedAccount.account_id,
           action === "ban",
-          reason,
+          reasonText,
         );
       }
       closeAction();
@@ -79,6 +88,37 @@ export default function AccountAccess() {
     }
   };
 
+  const filteredAccounts = useMemo(() => {
+    let list = [...accounts];
+
+    if (roleOption) {
+      list = list.filter((account) => account.role === roleOption);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      list = list.filter((account) =>
+        [account.username, account.email, account.role]
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
+      );
+    }
+
+    list.sort((a, b) => {
+      const nameA = (a.username || "").toLowerCase();
+      const nameB = (b.username || "").toLowerCase();
+
+      if (sortOption === "za") {
+        return nameB.localeCompare(nameA);
+      }
+
+      return nameA.localeCompare(nameB);
+    });
+
+    return list;
+  }, [accounts, roleOption, searchQuery, sortOption]);
+
   return (
     <Box sx={{ p: 3 }}>
       <Helmet titleTemplate="%s - ArtMatch">
@@ -87,80 +127,185 @@ export default function AccountAccess() {
       <Typography variant="h4" sx={{ fontWeight: "bold", mb: 1 }}>
         Strikes & Bans
       </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Three strikes automatically ban an account.
-      </Typography>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <Paper variant="outlined" sx={{ overflow: "auto" }}>
+      {/* Filter Section */}
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Typography variant="h6">Filter</Typography>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: { xs: "stretch", md: "center" },
+            gap: 2,
+            mb: 2,
+            mt: 2,
+          }}
+        >
+          <TextField
+            variant="outlined"
+            placeholder="Search accounts..."
+            size="small"
+            sx={{
+              width: { xs: "100%", sm: 300 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
+            }}
+          >
+            <FormControl size="small" sx={{ width: { xs: "100%", md: 180 } }}>
+              <InputLabel>Sort</InputLabel>
+              <Select
+                name="sort"
+                label="Sort"
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+              >
+                <MenuItem value="az">A to Z</MenuItem>
+                <MenuItem value="za">Z to A</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ width: { xs: "100%", md: 180 } }}>
+              <InputLabel>Role</InputLabel>
+              <Select
+                name="role"
+                label="Role"
+                value={roleOption}
+                onChange={(e) => setRoleOption(e.target.value)}
+              >
+                <MenuItem value="">Default</MenuItem>
+                <MenuItem value="buyer">Buyer</MenuItem>
+                <MenuItem value="seller">Seller</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+      </Paper>
+      {/* Table Section */}
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Account List
+        </Typography>
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
+        ) : error ? (
+          <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
+            {error}
+          </Typography>
+        ) : filteredAccounts.length === 0 ? (
+          <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
+            No accounts found
+          </Typography>
         ) : (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Role</TableCell>
-                <TableCell>Account</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Strikes</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {accounts.map((account) => (
-                <TableRow key={`${account.role}-${account.account_id}`}>
-                  <TableCell sx={{ textTransform: "capitalize" }}>{account.role}</TableCell>
-                  <TableCell>{account.username}</TableCell>
-                  <TableCell>{account.email}</TableCell>
-                  <TableCell>{account.strikes} / 3</TableCell>
-                  <TableCell>{account.is_banned ? "Banned" : "Active"}</TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      {!account.is_banned && (
-                        <Button size="small" color="warning" onClick={() => openAction(account, "strike")}>
-                          Add strike
-                        </Button>
-                      )}
-                      <Button
-                        size="small"
-                        color={account.is_banned ? "success" : "error"}
-                        onClick={() => openAction(account, account.is_banned ? "unban" : "ban")}
-                      >
-                        {account.is_banned ? "Unban" : "Ban"}
-                      </Button>
-                    </Stack>
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ backgroundColor: "background.table" }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Account</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Strikes</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: "bold",
+                      width: 260,
+                      textAlign: "center",
+                    }}
+                  >
+                    Actions
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {filteredAccounts.map((account) => (
+                  <TableRow
+                    key={`${account.role}-${account.account_id}`}
+                    sx={{ "&:hover": { backgroundColor: "background.table" } }}
+                  >
+                    <TableCell sx={{ textTransform: "capitalize" }}>
+                      {account.role}
+                    </TableCell>
+                    <TableCell>{account.username}</TableCell>
+                    <TableCell>{account.email}</TableCell>
+                    <TableCell>{account.strikes} / 3</TableCell>
+                    <TableCell>
+                      {account.is_banned ? "Banned" : "Active"}
+                    </TableCell>
+                    <TableCell sx={{ width: 260 }}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        justifyContent="center"
+                        alignItems="center"
+                        sx={{ width: "100%" }}
+                      >
+                        {!account.is_banned && (
+                          <Button
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                            onClick={() => openAction(account, "strike")}
+                            sx={{
+                              minWidth: 110,
+                              textTransform: "none",
+                              fontWeight: 600,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Add strike
+                          </Button>
+                        )}
+                        <Button
+                          size="small"
+                          color={account.is_banned ? "success" : "error"}
+                          variant={account.is_banned ? "outlined" : "contained"}
+                          onClick={() =>
+                            openAction(
+                              account,
+                              account.is_banned ? "unban" : "ban",
+                            )
+                          }
+                          sx={{
+                            minWidth: 100,
+                            textTransform: "none",
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {account.is_banned ? "Unban" : "Ban"}
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </Paper>
-      <Dialog open={Boolean(selectedAccount)} onClose={closeAction} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {action === "strike" ? "Add strike" : action === "ban" ? "Ban account" : "Unban account"}
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2 }}>
-            {selectedAccount?.role} account: {selectedAccount?.username}
-          </Typography>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Reason"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeAction}>Cancel</Button>
-          <Button variant="contained" onClick={submitAction}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AccessReason
+        open={Boolean(selectedAccount)}
+        handleClose={closeAction}
+        selectedAccount={selectedAccount}
+        action={action}
+        submitAction={submitAction}
+      />
     </Box>
   );
 }

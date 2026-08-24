@@ -18,16 +18,18 @@ const fields = [
 
 export default function Customer() {
   const [customers, setCustomers] = useState([]);
+  const [openCustomerDelete, setOpenCustomerDelete] = useState(false);
+  const [openCustomerErrorAdd, setOpenCustomerErrorAdd] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [customerErrorMessage, setCustomerErrorMessage] = useState("");
 
   const loadCustomers = async () => {
     try {
       setLoading(true);
       setCustomers(await fetchCustomers());
-      setError("");
+      setCustomerErrorMessage("");
     } catch (err) {
-      setError(err.message || "Failed to load customers.");
+      setCustomerErrorMessage(err.message || "Failed to load customers.");
     } finally {
       setLoading(false);
     }
@@ -37,6 +39,7 @@ export default function Customer() {
     loadCustomers();
   }, []);
 
+  // ========== CUSTOMER HANDLERS ==========
   const saveCustomer = async (id, data) => {
     await updateCustomer(id, data);
     await loadCustomers();
@@ -55,13 +58,14 @@ export default function Customer() {
       <Typography variant="h4" sx={{ fontWeight: "bold", mb: 3 }}>
         Manage Customers
       </Typography>
+      
       <Paper sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }} variant="outlined">
         <UserManagementPanel
           users={customers}
           type="customer"
           fields={fields}
           loading={loading}
-          error={error}
+          error={customerErrorMessage}
           onSave={saveCustomer}
           onDelete={removeCustomer}
         />

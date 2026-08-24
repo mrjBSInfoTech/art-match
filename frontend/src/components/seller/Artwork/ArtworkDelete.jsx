@@ -25,11 +25,11 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function ArtworkDelete({
+function CustomerDelete({
   open,
   handleClose,
   onSubmit,
-  selectedArtwork,
+  selectedCustomer,
 }) {
   // Handle Enter key for delete
   useEffect(() => {
@@ -84,11 +84,11 @@ function ArtworkDelete({
     >
       <>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          Delete Artwork
+          Delete Customer
         </DialogTitle>
         <DialogContent dividers>
           <Typography>
-            Are you sure you want to delete this artwork? This action cannot be undone.
+            Are you sure you want to delete this user? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
