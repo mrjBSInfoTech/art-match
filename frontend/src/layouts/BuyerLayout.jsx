@@ -44,6 +44,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import logo from "../assets/Nexus.png";
 import Footer from "../pages/buyer/Footer";
 import { fetchCart } from "../api/buyer/cartAPI";
+import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -127,7 +128,8 @@ function BuyerLayout({ children }) {
     return () => window.removeEventListener("cart-updated", loadCartCount);
   }, [location.pathname]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await recordLogout();
     {
       localStorage.removeItem("buyer_token");
       localStorage.removeItem("buyer_username");
@@ -325,7 +327,11 @@ function BuyerLayout({ children }) {
                 navigate("/buyer/cart");
               }}
             >
-              <Badge badgeContent={cartCount} color="error" invisible={cartCount === 0}>
+              <Badge
+                badgeContent={cartCount}
+                color="error"
+                invisible={cartCount === 0}
+              >
                 <ShoppingBagIcon />
               </Badge>
             </IconButton>

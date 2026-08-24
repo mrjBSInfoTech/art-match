@@ -2,19 +2,15 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
+import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
+import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
 // Register route
 router.post("/register", (req, res) => {
-  const {
-    username,
-    first_name,
-    last_name,
-    email,
-    phone_number,
-    password,
-  } = req.body;
+  const { username, first_name, last_name, email, phone_number, password } =
+    req.body;
 
   if (
     !username ||
@@ -34,14 +30,7 @@ router.post("/register", (req, res) => {
 
   db.query(
     sql,
-    [
-      username,
-      first_name,
-      last_name,
-      email,
-      phone_number,
-      hashedPassword,
-    ],
+    [username, first_name, last_name, email, phone_number, hashedPassword],
     (err) => {
       if (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -78,6 +67,13 @@ router.post("/login", (req, res) => {
     }
 
     if (result.length === 0) {
+      logAudit({
+        action: "LOGIN",
+        actor: username,
+        role: "Customer",
+        status: "FAILED",
+        information: "Invalid username",
+      });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -85,6 +81,13 @@ router.post("/login", (req, res) => {
     const isMatch = bcrypt.compareSync(password, user.password);
 
     if (!isMatch) {
+      logAudit({
+        action: "LOGIN",
+        actor: username,
+        role: "Customer",
+        status: "FAILED",
+        information: "Invalid password",
+      });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -97,6 +100,13 @@ router.post("/login", (req, res) => {
       { expiresIn: "10d" },
     );
 
+    logAudit({
+      action: "LOGIN",
+      actor: user.username,
+      role: "Customer",
+      status: "SUCCESS",
+      information: "Customer logged in",
+    });
     res.json({
       token,
       customer_id: user.customer_id,
@@ -107,6 +117,23 @@ router.post("/login", (req, res) => {
       phone_number: user.phone_number,
     });
   });
+});
+
+router.post("/logout", authenticateBuyer, async (req, res) => {
+  try {
+    await logAudit({
+      action: "LOGOUT",
+      actor: req.user.username || req.user.customer_id,
+      role: "Customer",
+      status: "SUCCESS",
+      information: "Customer logged out",
+    });
+    res.json({ message: "Logout recorded" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Unable to record logout", error: error.message });
+  }
 });
 
 export default router;

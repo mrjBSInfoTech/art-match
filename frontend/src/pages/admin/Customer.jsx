@@ -1,59 +1,50 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { Box, Paper, Typography } from "@mui/material";
+import UserManagementPanel from "../../components/admin/UserManagementPanel";
 import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  InputAdornment,
-  LinearProgress,
-  MenuItem,
-  Paper,
-  Select,
-  TextField,
-  Typography,
-  Snackbar,
-  Slide,
-} from "@mui/material";
-// Icons
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+  deleteCustomer,
+  fetchCustomers,
+  updateCustomer,
+} from "../../api/admin/customerAPI";
 
-// Slide Transition for Snackbar
-function SlideTransition(props) {
-  return <Slide {...props} direction="up" />;
-}
+const fields = [
+  { key: "username", label: "Username" },
+  { key: "first_name", label: "First name" },
+  { key: "last_name", label: "Last name" },
+  { key: "email", label: "Email" },
+  { key: "phone_number", label: "Phone number" },
+];
 
-export default function Settings() {
-  const [loading, setLoading] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+export default function Customer() {
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Snackbar handlers
-  const showSnackbar = (message, severity = "success") => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity); // Set it to "success" or "error"
-    setSnackbarOpen(true);
-  };
-
-  const closeSnackbar = (event, reason) => {
-    if (reason === "clickaway") return;
-    setSnackbarOpen(false);
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light"; // Green
-      case "error":
-        return "error.light"; // Red
-      default:
-        return "primary.light"; //
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      setCustomers(await fetchCustomers());
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load customers.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const saveCustomer = async (id, data) => {
+    await updateCustomer(id, data);
+    await loadCustomers();
+  };
+
+  const removeCustomer = async (id) => {
+    await deleteCustomer(id);
+    await loadCustomers();
   };
 
   return (
@@ -61,39 +52,20 @@ export default function Settings() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Customers</title>
       </Helmet>
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
-          Customers
-        </Typography>
-      </Box>
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined"></Paper>
-      {/* Snackbar Notification */}
-      {/* //For Future Use 
-      <Snackbar
-        open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
-        autoHideDuration={3000}
-        onClose={closeSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        TransitionComponent={SlideTransition}
-      >
-        <Alert
-          onClose={closeSnackbar}
-          severity={snackbarSeverity}
-          sx={{
-            width: "100%",
-            backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "#fff",
-            "& .MuiAlert-icon": {
-              color: "#fff",
-            },
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    */}
+      <Typography variant="h4" sx={{ fontWeight: "bold", mb: 3 }}>
+        Manage Customers
+      </Typography>
+      <Paper sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }} variant="outlined">
+        <UserManagementPanel
+          users={customers}
+          type="customer"
+          fields={fields}
+          loading={loading}
+          error={error}
+          onSave={saveCustomer}
+          onDelete={removeCustomer}
+        />
+      </Paper>
     </Box>
   );
 }

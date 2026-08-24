@@ -6,6 +6,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
+import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
@@ -180,6 +182,13 @@ router.post("/login", (req, res) => {
     }
 
     if (result.length === 0) {
+      logAudit({
+        action: "LOGIN",
+        actor: student_number,
+        role: "Student",
+        status: "FAILED",
+        information: "Invalid student number",
+      });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -187,6 +196,13 @@ router.post("/login", (req, res) => {
     const isMatch = bcrypt.compareSync(password, user.password);
 
     if (!isMatch) {
+      logAudit({
+        action: "LOGIN",
+        actor: student_number,
+        role: "Student",
+        status: "FAILED",
+        information: "Invalid password",
+      });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -200,6 +216,13 @@ router.post("/login", (req, res) => {
       { expiresIn: "10d" },
     );
 
+    logAudit({
+      action: "LOGIN",
+      actor: user.student_number,
+      role: "Student",
+      status: "SUCCESS",
+      information: "Student logged in",
+    });
     res.json({
       token,
       student_id: user.student_id,
@@ -219,6 +242,23 @@ router.post("/login", (req, res) => {
       approved_date: user.approved_date,
     });
   });
+});
+
+router.post("/logout", authenticateSeller, async (req, res) => {
+  try {
+    await logAudit({
+      action: "LOGOUT",
+      actor: req.user.student_number || req.user.student_id,
+      role: "Student",
+      status: "SUCCESS",
+      information: "Student logged out",
+    });
+    res.json({ message: "Logout recorded" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Unable to record logout", error: error.message });
+  }
 });
 
 export default router;

@@ -23,6 +23,7 @@ import AdminStudentPending from "../pages/admin/StudentPending";
 import AdminStudentVerify from "../pages/admin/StudentVerify";
 import AdminStudent from "../pages/admin/Student";
 import AdminCustomer from "../pages/admin/Customer";
+import AdminAuditLogs from "../pages/admin/AuditLogs";
 import AdminLogin from "../pages/admin/Login";
 
 // Seller Pages
@@ -101,10 +102,17 @@ export default function AppRoutes() {
                 <Route path="artwork" element={<AdminArtwork />} />
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
-                <Route path="verify/pending" element={<AdminStudentPending />} />
-                <Route path="verify/verified" element={<AdminStudentVerify />} />
+                <Route
+                  path="verify/pending"
+                  element={<AdminStudentPending />}
+                />
+                <Route
+                  path="verify/verified"
+                  element={<AdminStudentVerify />}
+                />
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="settings" element={<AdminSettings />} />
+                <Route path="audit-logs" element={<AdminAuditLogs />} />
               </Route>
             </Route>
           </Route>

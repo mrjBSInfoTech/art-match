@@ -16,6 +16,7 @@ import Modal from "@mui/material/Modal";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { clearAuthData } from "../../utils/auth";
+import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Stack, Avatar, Typography, Divider, IconButton } from "@mui/material";
 import { ThemeProvider, CssBaseline, useMediaQuery } from "@mui/material";
@@ -23,13 +24,13 @@ import { lightTheme, darkTheme } from "../theme/customTheme";
 import Nexus from "../assets/Nexus.png";
 
 //Icons
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import LocalMallIcon from '@mui/icons-material/LocalMall';
-import MessageIcon from '@mui/icons-material/Message';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import PaletteIcon from '@mui/icons-material/Palette';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import LocalMallIcon from "@mui/icons-material/LocalMall";
+import MessageIcon from "@mui/icons-material/Message";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import PaletteIcon from "@mui/icons-material/Palette";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 
@@ -103,7 +104,7 @@ export default function SellerLayout({ children }) {
     setYearLevel(storedYearLevel || "");
     setCourse(storedCourse || "");
     setStudentNumber(storedStudentNumber || "");
-  },[]);
+  }, []);
 
   const openMenu = Boolean(anchorEl);
 
@@ -123,8 +124,9 @@ export default function SellerLayout({ children }) {
     },
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setOpen(false);
+    await recordLogout();
     clearAuthData("seller");
 
     setTimeout(() => {
@@ -232,9 +234,7 @@ export default function SellerLayout({ children }) {
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Avatar
-          src={
-            `http://localhost:5000/uploads/profile.jpg`
-          }
+          src={`http://localhost:5000/uploads/profile.jpg`}
           alt="ArtMatch"
           sx={{ width: 40, height: 40 }}
         />
@@ -368,7 +368,9 @@ export default function SellerLayout({ children }) {
             },
           }}
         >
-          <div style={{ padding: "20px" }}><Outlet /></div>
+          <div style={{ padding: "20px" }}>
+            <Outlet />
+          </div>
         </MuiDashboardLayout>
       </AppProvider>
     </ThemeProvider>
