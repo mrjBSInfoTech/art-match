@@ -21,17 +21,19 @@ import { ThemeProvider, CssBaseline, useMediaQuery } from "@mui/material";
 import { lightTheme, darkTheme } from "../theme/customTheme";
 import Nexus from "../assets/Nexus.png";
 import { clearAuthData } from "../../utils/auth";
+import { recordLogout } from "../api/admin/adminAuthenticationAPI";
 //Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import HourglassBottomRoundedIcon from '@mui/icons-material/HourglassBottomRounded';
+import HourglassBottomRoundedIcon from "@mui/icons-material/HourglassBottomRounded";
 import LocalMallIcon from "@mui/icons-material/LocalMall";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import PaletteIcon from '@mui/icons-material/Palette';
+import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
-import VerifiedUserRoundedIcon from '@mui/icons-material/VerifiedUserRounded';
-import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
+import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import HistoryIcon from "@mui/icons-material/History";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -100,8 +102,9 @@ export default function AdminLayout({ children }) {
     },
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setOpen(false);
+    await recordLogout();
     clearAuthData("admin");
 
     setTimeout(() => {
@@ -117,6 +120,11 @@ export default function AdminLayout({ children }) {
 
   // Sidebar menu items
   const navigation = [
+    {
+      segment: "profile",
+      title: "Profile",
+      icon: <AccountCircleIcon />,
+    },
     {
       segment: "dashboard",
       title: "Dashboard",
@@ -167,9 +175,9 @@ export default function AdminLayout({ children }) {
       ],
     },
     {
-      segment: "profile",
-      title: "Profile",
-      icon: <AccountCircleIcon />,
+      segment: "audit-logs",
+      title: "Audit Logs",
+      icon: <HistoryIcon />,
     },
     {
       segment: "settings",

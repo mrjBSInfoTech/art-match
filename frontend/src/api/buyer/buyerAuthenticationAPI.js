@@ -62,6 +62,18 @@ export const logout = () => {
   localStorage.removeItem("email");
 };
 
+export const recordLogout = async () => {
+  try {
+    await api.post("/logout", undefined, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("buyer_token")}`,
+      },
+    });
+  } catch (error) {
+    console.error("Unable to record customer logout:", error.message);
+  }
+};
+
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
   return !!localStorage.getItem("buyer_token");

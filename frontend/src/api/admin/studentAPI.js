@@ -30,7 +30,9 @@ const handleError = (error) => {
 // Fetch all students
 export const fetchStudents = async (register_status = "") => {
   try {
-    const url = register_status ? `/?status=${encodeURIComponent(register_status)}` : "/";
+    const url = register_status
+      ? `/?status=${encodeURIComponent(register_status)}`
+      : "/";
     const res = await api.get(url);
     return res.data || [];
   } catch (error) {
@@ -39,9 +41,10 @@ export const fetchStudents = async (register_status = "") => {
 };
 
 // Update student status
-export const updateStudent = async (studentId, register_status) => {
+export const updateStudent = async (studentId, data) => {
   try {
-    const res = await api.put(`/${studentId}`, { register_status });
+    const payload = typeof data === "string" ? { register_status: data } : data;
+    const res = await api.put(`/${studentId}`, payload);
     return res.data;
   } catch (error) {
     handleError(error);
@@ -58,8 +61,8 @@ export const bulkUpdateStudents = async (studentIds) => {
   }
 };
 
-// Deny student
-export const denyStudent = async (studentId) => {
+// Delete student
+export const deleteStudent = async (studentId) => {
   try {
     const res = await api.delete(`/${studentId}`);
     return res.data;
@@ -67,6 +70,8 @@ export const denyStudent = async (studentId) => {
     handleError(error);
   }
 };
+
+export const denyStudent = deleteStudent;
 
 // Bulk deny students
 export const bulkDenyStudents = async (ids) => {

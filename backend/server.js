@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
@@ -10,6 +10,9 @@ import multer from "multer";
 import adminAuthenticateRoutes from "./routes/admin/adminAuthentication.js";
 import adminArtworkRoutes from "./routes/admin/artwork.js";
 import adminStudentRoutes from "./routes/admin/student.js";
+import adminCustomerRoutes from "./routes/admin/customer.js";
+import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
+import { createAuditLogsTable } from "./utils/auditLogger.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -36,19 +39,19 @@ app.use(express.urlencoded({ extended: true }));
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: path.join(__dirname, 'uploads/seller/'),
+  dest: path.join(__dirname, "uploads/seller/"),
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error("Only image files are allowed"), false);
     }
   },
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
 // Serve static files with absolute path
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Root route (just to test if server runs)
 app.get("/", (req, res) => {
@@ -59,6 +62,8 @@ app.get("/", (req, res) => {
 app.use("/api/admin/authenticate", adminAuthenticateRoutes);
 app.use("/api/admin/artwork", adminArtworkRoutes);
 app.use("/api/admin/student", adminStudentRoutes);
+app.use("/api/admin/customer", adminCustomerRoutes);
+app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
@@ -69,7 +74,6 @@ app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
-
 
 // Handle 404 (unknown routes)
 app.use((req, res) => {
@@ -82,8 +86,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 
-
-
 // Start server
 const PORT = process.env.PORT || 5000;
+createAuditLogsTable().catch(() => {});
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

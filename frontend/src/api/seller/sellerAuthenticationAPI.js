@@ -23,7 +23,10 @@ const handleError = (error) => {
 // REGISTER
 export const registerUser = async (data) => {
   try {
-    const config = data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : {};
+    const config =
+      data instanceof FormData
+        ? { headers: { "Content-Type": "multipart/form-data" } }
+        : {};
     const res = await api.post("/register", data, config);
     console.log("Register API response:", res.data);
     return res.data;
@@ -70,6 +73,18 @@ export const logoutUser = () => {
   localStorage.removeItem("seller_register_status");
   localStorage.removeItem("seller_registered_date");
   localStorage.removeItem("seller_approved_date");
+};
+
+export const recordLogout = async () => {
+  try {
+    await api.post("/logout", undefined, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
+      },
+    });
+  } catch (error) {
+    console.error("Unable to record student logout:", error.message);
+  }
 };
 
 // CHECK IF USER IS AUTHENTICATED
