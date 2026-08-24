@@ -167,9 +167,11 @@ router.post("/login", (req, res) => {
       s.password, 
       a.register_status,
       a.registered_date,
-      a.approved_date
+      a.approved_date,
+      COALESCE(x.is_banned, FALSE) AS is_banned
     FROM student s
     LEFT JOIN accregistration a ON s.student_id = a.student_id
+    LEFT JOIN account_access x ON x.role = 'seller' AND x.account_id = s.student_id
     WHERE s.student_number = ?`;
 
   // defensive: remove any accidental trailing comma before FROM to avoid SQL syntax errors
@@ -193,6 +195,9 @@ router.post("/login", (req, res) => {
     }
 
     const user = result[0];
+    if (user.is_banned) {
+      return res.status(403).json({ message: "Seller account is banned." });
+    }
     const isMatch = bcrypt.compareSync(password, user.password);
 
     if (!isMatch) {
@@ -242,6 +247,41 @@ router.post("/login", (req, res) => {
       approved_date: user.approved_date,
     });
   });
+});
+
+router.get("/me", authenticateSeller, (req, res) => {
+  db.query(
+    "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, address, phone_number, year_level, course FROM student WHERE student_id = ?",
+    [req.user.student_id],
+    (err, result) => {
+      if (err) return res.status(500).json({ message: "Database error" });
+      if (!result.length) return res.status(404).json({ message: "Seller not found" });
+      res.json(result[0]);
+    },
+  );
+});
+
+router.put("/me", authenticateSeller, (req, res) => {
+  const fields = ["student_number", "first_name", "middle_name", "last_name", "birthdate", "email", "address", "phone_number", "year_level", "course"];
+  const updates = fields.filter((field) => Object.hasOwn(req.body, field));
+  const values = updates.map((field) => req.body[field]);
+  if (req.body.password) {
+    updates.push("password");
+    values.push(bcrypt.hashSync(req.body.password, 10));
+  }
+  if (!updates.length) return res.status(400).json({ message: "No profile changes supplied." });
+
+  db.query(
+    `UPDATE student SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE student_id = ?`,
+    [...values, req.user.student_id],
+    (err) => {
+      if (err) {
+        if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Student number or email already exists." });
+        return res.status(500).json({ message: "Database error" });
+      }
+      res.json({ message: "Seller profile updated successfully." });
+    },
+  );
 });
 
 router.post("/logout", authenticateSeller, async (req, res) => {

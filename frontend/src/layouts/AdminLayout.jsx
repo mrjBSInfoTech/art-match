@@ -34,6 +34,7 @@ import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import HistoryIcon from "@mui/icons-material/History";
+import GavelIcon from "@mui/icons-material/Gavel";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -154,6 +155,11 @@ export default function AdminLayout({ children }) {
           segment: "customers",
           title: "Customers",
           icon: <VerifiedUserRoundedIcon />,
+        },
+        {
+          segment: "access",
+          title: "Strikes & Bans",
+          icon: <GavelIcon />,
         },
       ],
     },

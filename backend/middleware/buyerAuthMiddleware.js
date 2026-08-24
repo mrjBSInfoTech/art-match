@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { getAccountAccess } from "../database/accountAccess.js";
 
 export const authenticateBuyer = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -21,7 +22,16 @@ export const authenticateBuyer = (req, res, next) => {
       return res.status(403).json({ message: "Unable to identify buyer." });
     }
 
-    req.user = { ...user, customer_id: customerId };
-    next();
+    getAccountAccess("buyer", customerId)
+      .then((access) => {
+        if (access.is_banned) {
+          return res.status(403).json({ message: "Buyer account is banned." });
+        }
+        req.user = { ...user, role: "buyer", customer_id: customerId };
+        next();
+      })
+      .catch(() =>
+        res.status(500).json({ message: "Unable to verify account status." }),
+      );
   });
 };

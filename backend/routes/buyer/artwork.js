@@ -16,12 +16,15 @@ router.get("/", (req, res) => {
       a.color_used,
       a.genre,
       a.art_size,
+      a.date_created,
+      f.mediums_used,
       CONCAT(s.first_name, ' ', s.last_name) AS artist,
-      ac.register_status,
+      COALESCE(ac.register_status, 'available') AS status,
       ac.approved_date
     FROM artwork a
     LEFT JOIN student s ON a.student_id = s.student_id
     LEFT JOIN accregistration ac ON a.student_id = ac.student_id
+    LEFT JOIN feature f ON a.artwork_id = f.artwork_id
     -- Include artworks where the seller either has been verified or has no registration row
     WHERE (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
     ORDER BY a.date_created DESC, a.artwork_id DESC

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import db from "../database/db.js";
+import { getAccountAccess } from "../database/accountAccess.js";
 
 export const authenticateSeller = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -18,8 +19,7 @@ export const authenticateSeller = (req, res, next) => {
     }
 
     if (user.student_id) {
-      req.user = { ...user, student_id: user.student_id};
-      return next();
+      return continueIfActive(req, res, next, user, user.student_id);
     }
 
     if (!user.student_number) {
@@ -38,9 +38,22 @@ export const authenticateSeller = (req, res, next) => {
           return res.status(403).json({ message: "Unable to identify seller." });
         }
 
-        req.user = { ...user, student_id: results[0].student_id };
-        next();
+        continueIfActive(req, res, next, user, results[0].student_id);
       },
     );
   });
+};
+
+const continueIfActive = (req, res, next, user, studentId) => {
+  getAccountAccess("seller", studentId)
+    .then((access) => {
+      if (access.is_banned) {
+        return res.status(403).json({ message: "Seller account is banned." });
+      }
+      req.user = { ...user, role: "seller", student_id: studentId };
+      next();
+    })
+    .catch(() =>
+      res.status(500).json({ message: "Unable to verify account status." }),
+    );
 };

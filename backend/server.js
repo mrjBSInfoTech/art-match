@@ -12,7 +12,9 @@ import adminArtworkRoutes from "./routes/admin/artwork.js";
 import adminStudentRoutes from "./routes/admin/student.js";
 import adminCustomerRoutes from "./routes/admin/customer.js";
 import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
+import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
+import { ensureAccountAccessTable } from "./database/accountAccess.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -64,6 +66,7 @@ app.use("/api/admin/artwork", adminArtworkRoutes);
 app.use("/api/admin/student", adminStudentRoutes);
 app.use("/api/admin/customer", adminCustomerRoutes);
 app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
+app.use("/api/admin/account-access", adminAccountAccessRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
@@ -89,4 +92,5 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 createAuditLogsTable().catch(() => {});
+ensureAccountAccessTable();
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
