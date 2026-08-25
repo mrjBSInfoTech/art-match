@@ -30,6 +30,7 @@ import LocalMallIcon from "@mui/icons-material/LocalMall";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
+import KeyIcon from "@mui/icons-material/Key";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
@@ -60,6 +61,11 @@ export default function AdminLayout({ children }) {
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [image, setImage] = useState("");
+  const [role, setRole] = useState("");
+  const [canAdd, setCanAdd] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -72,11 +78,22 @@ export default function AdminLayout({ children }) {
       const storedFirstName = localStorage.getItem("admin_first_name");
       const storedLastName = localStorage.getItem("admin_last_name");
       const storedEmail = localStorage.getItem("admin_email");
+      const storedImage = localStorage.getItem("admin_image");
+      const storedRole = localStorage.getItem("admin_role");
+      const storedCanAdd = localStorage.getItem("admin_can_add");
+      const storedCanEdit = localStorage.getItem("admin_can_edit");
+      const storedCanDelete = localStorage.getItem("admin_can_delete"); 
 
       setFirstName(storedFirstName || "");
       setLastName(storedLastName || "");
       setUsername(storedUsername || "");
       setEmail(storedEmail || "");
+      setRole(storedRole || "");
+      setImage(storedImage || "");
+      setCanAdd(storedCanAdd === "1");
+      setCanEdit(storedCanEdit === "1");
+      setCanDelete(storedCanDelete === "1");
+
     };
 
     loadAdminProfile();
@@ -118,6 +135,8 @@ export default function AdminLayout({ children }) {
       };
     }, 150);
   };
+
+  const isSuperAdmin = localStorage.getItem("admin_role") === "super admin";
 
   // Sidebar menu items
   const navigation = [
@@ -180,6 +199,17 @@ export default function AdminLayout({ children }) {
         },
       ],
     },
+    // Only for Super Admin Panel
+    ...(isSuperAdmin
+      ? [
+          {
+            segment: "admin",
+            title: "Admin Control",
+            icon: <KeyIcon />,
+          },
+        ]
+      : []),
+
     {
       segment: "audit-logs",
       title: "Audit Logs",

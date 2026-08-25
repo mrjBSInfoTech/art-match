@@ -406,9 +406,6 @@ export default function Artwork() {
       </Paper>
       {/* Artwork Display */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Artwork List
-        </Typography>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />

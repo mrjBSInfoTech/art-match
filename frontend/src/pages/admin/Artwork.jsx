@@ -103,6 +103,15 @@ export default function Artwork() {
     }
   };
 
+  const currentRole = localStorage.getItem("admin_account_type");
+  const isSuperAdmin = currentRole === "super admin";
+  const isAdmin = currentRole === "admin";
+  const canEdit =
+    (isSuperAdmin || isAdmin) && localStorage.getItem("admin_can_add") === "1";
+  const canDelete =
+    (isSuperAdmin || isAdmin) &&
+    localStorage.getItem("admin_can_delete") === "1";
+
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);

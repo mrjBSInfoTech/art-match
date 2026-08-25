@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -33,6 +34,7 @@ import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import Export from "../../components/admin/Dashboard/Export";
+import PasswordWarning from "../../components/admin/Dashboard/PasswordWarning";
 // Icons
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
@@ -44,6 +46,7 @@ function SlideTransition(props) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [artworks, setArtworks] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -53,6 +56,14 @@ export default function Dashboard() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openExportDialog, setOpenExportDialog] = useState(false);
+  const [openPasswordWarning, setOpenPasswordWarning] = useState(false);
+  const passwordChanged = localStorage.getItem("admin_password_changed");
+
+  useEffect(() => {
+    if (passwordChanged === "0" || passwordChanged === "false") {
+      setOpenPasswordWarning(true);
+    }
+  }, [passwordChanged]);
 
   // Fetch all artworks from API
   const loadArtworks = async () => {
@@ -107,6 +118,11 @@ export default function Dashboard() {
   // Open Export Data Dialog
   const handleOpenExportDialog = () => {
     setOpenExportDialog(true);
+  };
+
+  // Open Password Warning Dialog
+  const handleOpenPasswordWarning = () => {
+    setOpenPasswordWarning(true);
   };
 
   const exportLogsCSV = () => {
@@ -368,6 +384,11 @@ export default function Dashboard() {
           handleClose={() => setOpenExportDialog(false)}
           onExportCSV={exportLogsCSV}
           onExportExcel={exportLogsExcel}
+        />
+        <PasswordWarning
+          open={openPasswordWarning}
+          handleClose={() => setOpenPasswordWarning(false)}
+          navigate={navigate}
         />
       </Paper>
       {/* Snackbar Notification */}

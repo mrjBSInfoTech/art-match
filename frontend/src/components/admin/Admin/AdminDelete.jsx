@@ -29,7 +29,7 @@ function ArtworkDelete({
   open,
   handleClose,
   onSubmit,
-  selectedArtwork,
+  selectedAdmin,
 }) {
   // Handle Enter key for delete
   useEffect(() => {
@@ -64,7 +64,7 @@ function ArtworkDelete({
   }, [open]);
 
   const handleDelete = () => {
-    onSubmit(selectedArtwork?.artwork_id || selectedArtwork?.id || selectedArtwork);
+    onSubmit(selectedAdmin?.admin_id || selectedAdmin?.id || selectedAdmin);
     handleClose();
   };
 
@@ -84,11 +84,11 @@ function ArtworkDelete({
     >
       <>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          Delete Artwork
+          Delete Account
         </DialogTitle>
         <DialogContent dividers>
           <Typography>
-            Are you sure you want to delete this artwork? This action cannot be undone.
+            Are you sure you want to delete this account? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

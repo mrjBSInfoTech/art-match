@@ -17,10 +17,13 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
+import ChangePassword from "../../components/admin/Settings/ChangePassword";
+import { changePassword } from "../../api/admin/adminAuthenticationAPI";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LockResetIcon from "@mui/icons-material/LockReset";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -32,6 +35,26 @@ export default function Settings() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [openPasswordForm, setOpenPasswordForm] = useState(false);
+
+  const handleOpenPasswordEdit = () => {
+    setOpenPasswordForm(true);
+  };
+
+  const handleSubmitPassword = async (formData) => {
+    try {
+      const { currentPassword, newPassword } = formData;
+      if (currentPassword && newPassword) {
+        await changePassword(currentPassword, newPassword);
+        localStorage.setItem("admin_password_changed", "1");
+      }
+      showSnackbar("Password updated successfully", "success");
+      setOpenPasswordForm(false);
+    } catch (err) {
+      console.error("Error updating password:", err);
+      showSnackbar("Failed to update password: " + err.message, "error");
+    }
+  };
 
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
@@ -66,9 +89,62 @@ export default function Settings() {
           Settings
         </Typography>
       </Box>
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined"></Paper>
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: 2,
+            justifyContent: "space-between",
+            p: { xs: 1.5, sm: 2 },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 2.5,
+                bgcolor: "rgba(30, 31, 135, 0.08)",
+                color: "#1e1f87",
+              }}
+            >
+              <LockResetIcon />
+            </Box>
+            <Box>
+              <Typography variant="body1" fontWeight="700">
+                Account Password
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Change your password regularly to secure your account.
+              </Typography>
+            </Box>
+          </Box>
+
+          <Button
+            variant="contained"
+            onClick={handleOpenPasswordEdit}
+            sx={{
+              bgcolor: "#1e1f87",
+              textTransform: "none",
+              fontWeight: "bold",
+              borderRadius: 2,
+              px: 2.5,
+              alignSelf: { xs: "stretch", sm: "auto" },
+              boxShadow: "none",
+              "&:hover": { bgcolor: "#151663" },
+            }}
+          >
+            Update
+          </Button>
+        </Box>
+      </Paper>
+      <ChangePassword
+        open={openPasswordForm}
+        handleClose={() => setOpenPasswordForm(false)}
+        onSubmit={handleSubmitPassword}
+      />
       {/* Snackbar Notification */}
-      {/* //For Future Use 
       <Snackbar
         open={snackbarOpen}
         severity={snackbarSeverity}
@@ -93,7 +169,6 @@ export default function Settings() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    */}
     </Box>
   );
 }

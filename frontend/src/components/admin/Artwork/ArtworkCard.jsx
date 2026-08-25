@@ -11,6 +11,7 @@ import {
   Stack,
 } from "@mui/material";
 import ArtworkInfo from "../../admin/Artwork/ArtworkInfo";
+import ArtworkVerify from "./ArtworkVerify";
 // Icons
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -21,6 +22,7 @@ import InfoIcon from "@mui/icons-material/Info";
 export default function ArtworkCard({ artworks, onVerify }) {
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
+  const [openVerifyDialog, setOpenVerifyDialog] = useState(false);
   const pendingArtworks = Array.isArray(artworks) ? artworks : [];
 
   const handleInfoOpen = (artwork) => {
@@ -32,6 +34,15 @@ export default function ArtworkCard({ artworks, onVerify }) {
     setOpenInfoDialog(false);
   };
 
+  const handleVerifyOpen = (artwork) => {
+    setSelectedArtwork(artwork);
+    setOpenVerifyDialog(true);
+  };
+
+  const handleVerifyClose = () => {
+    setOpenVerifyDialog(false);
+  };
+
   const getRequestStatus = (artwork) => {
     const raw = artwork?.request_status ?? artwork?.status ?? "";
     return String(raw).trim();
@@ -39,6 +50,15 @@ export default function ArtworkCard({ artworks, onVerify }) {
 
   const isVerified = (artwork) =>
     String(getRequestStatus(artwork)).toLowerCase() === "verified";
+
+  const currentRole = localStorage.getItem("admin_role");
+  const isSuperAdmin = currentRole === "super admin";
+  const isAdmin = currentRole === "admin";
+  const canEdit =
+    (isSuperAdmin || isAdmin) && localStorage.getItem("admin_can_edit") === "1";
+  const canDelete =
+    (isSuperAdmin || isAdmin) &&
+    localStorage.getItem("admin_can_delete") === "1";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -143,18 +163,19 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 spacing={1}
                 sx={{ mt: "auto" }}
               >
-                {!isVerified(artwork) && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    color="success"
-                    fullWidth
-                    sx={{ color: "#fff" }}
-                    onClick={() => onVerify?.(artwork)}
-                  >
-                    Verify
-                  </Button>
-                )}
+                {canEdit ||
+                  (!isVerified(artwork) && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      color="success"
+                      fullWidth
+                      sx={{ color: "#fff" }}
+                      onClick={() => handleVerifyOpen(artwork)}
+                    >
+                      Verify
+                    </Button>
+                  ))}
               </Stack>
             </CardContent>
           </Card>
@@ -165,6 +186,13 @@ export default function ArtworkCard({ artworks, onVerify }) {
         open={openInfoDialog}
         handleClose={handleInfoClose}
         selectedArtwork={selectedArtwork}
+      />
+
+      <ArtworkVerify
+        open={openVerifyDialog}
+        handleClose={handleVerifyClose}
+        onSubmit={onVerify}
+        selectedArt={selectedArtwork}
       />
     </Box>
   );

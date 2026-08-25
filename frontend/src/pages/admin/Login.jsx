@@ -104,10 +104,18 @@ const Login = () => {
       setToken("admin", data.token);
 
       localStorage.setItem("admin_token", data.token || "");
+      localStorage.setItem("admin_id", data.admin_id);
       localStorage.setItem("admin_username", data.username || "");
       localStorage.setItem("admin_first_name", data.first_name || "");
       localStorage.setItem("admin_last_name", data.last_name || "");
       localStorage.setItem("admin_email", data.email || "");
+      localStorage.setItem("admin_image", data.image || "");
+      localStorage.setItem("admin_role", data.role || "");
+      localStorage.setItem("admin_can_add", data.can_add);
+      localStorage.setItem("admin_can_edit", data.can_edit);
+      localStorage.setItem("admin_can_delete", data.can_delete);
+      localStorage.setItem("admin_password_changed", data.password_changed);
+      localStorage.setItem("admin_date_created", data.date_created || "");
 
       showSnackbar("Login successful!", "success");
       navigate("/admin/dashboard", { replace: true });

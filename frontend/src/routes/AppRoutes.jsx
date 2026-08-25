@@ -24,6 +24,7 @@ import AdminStudentVerify from "../pages/admin/StudentVerify";
 import AdminStudent from "../pages/admin/Student";
 import AdminCustomer from "../pages/admin/Customer";
 import AdminAccountAccess from "../pages/admin/AccountAccess";
+import AdminControl from "../pages/admin/Admin";
 import AdminAuditLogs from "../pages/admin/AuditLogs";
 import AdminLogin from "../pages/admin/Login";
 
@@ -115,6 +116,7 @@ export default function AppRoutes() {
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="audit-logs" element={<AdminAuditLogs />} />
+                <Route path="admin" element={<AdminControl />} />
               </Route>
             </Route>
           </Route>
