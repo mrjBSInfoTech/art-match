@@ -57,6 +57,16 @@ router.post("/login", (req, res) => {
         id: user.admin_id,
         admin_id: user.admin_id,
         username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        image: user.image,
+        email: user.email,
+        role: user.role,
+        can_add: user.can_add,
+        can_edit: user.can_edit,
+        can_delete: user.can_delete,
+        password_changed: user.password_changed,
+        date_created: user.date_created,
       },
       process.env.JWT_SECRET || "your_secret_key",
       { expiresIn: "10d" },
@@ -75,7 +85,14 @@ router.post("/login", (req, res) => {
       username: user.username,
       first_name: user.first_name,
       last_name: user.last_name,
+      image: user.image,
       email: user.email,
+      role: user.role,
+      can_add: user.can_add,
+      can_edit: user.can_edit,
+      can_delete: user.can_delete,
+      password_changed: user.password_changed,
+      date_created: user.date_created,
     });
   });
 });
@@ -85,7 +102,7 @@ router.post("/logout", authenticateAdmin, async (req, res) => {
     await logAudit({
       action: "LOGOUT",
       actor: req.user.username,
-      role: "Admin",
+      role: req.user.role,
       status: "SUCCESS",
       information: "Admin logged out",
     });
@@ -94,6 +111,68 @@ router.post("/logout", authenticateAdmin, async (req, res) => {
     res
       .status(500)
       .json({ message: "Unable to record logout", error: error.message });
+  }
+});
+
+router.put("/change-password", authenticateAdmin, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const adminId = req.user?.admin_id;
+
+  if (!adminId || !currentPassword || !newPassword) {
+    return res.status(400).json({
+      message: "Current password and new password are required.",
+    });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({
+      message: "New password must be at least 8 characters long.",
+    });
+  }
+
+  try {
+    const user = await new Promise((resolve, reject) => {
+      db.query(
+        "SELECT password FROM admin WHERE admin_id = ?",
+        [adminId],
+        (error, results) => {
+          if (error) return reject(error);
+          resolve(results[0]);
+        },
+      );
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Admin account not found." });
+    }
+
+    const currentPasswordMatches = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+    if (!currentPasswordMatches) {
+      return res.status(401).json({ message: "Current password is incorrect." });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        message: "New password must be different from the current password.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await new Promise((resolve, reject) => {
+      db.query(
+        "UPDATE admin SET password = ?, password_changed = password_changed + 1 WHERE admin_id = ?",
+        [hashedPassword, adminId],
+        (error) => (error ? reject(error) : resolve()),
+      );
+    });
+
+    res.json({ message: "Password changed successfully.", password_changed: 1 });
+  } catch (error) {
+    console.error("Error changing admin password:", error);
+    res.status(500).json({ message: "Unable to change password." });
   }
 });
 

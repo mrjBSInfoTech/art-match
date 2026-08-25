@@ -54,8 +54,8 @@ export default function UserManagementPanel({
       fields.some(({ key }) =>
         String(user[key] || "")
           .toLowerCase()
-          .includes(query)
-      )
+          .includes(query),
+      ),
     );
   }, [fields, search, users]);
 
@@ -79,7 +79,7 @@ export default function UserManagementPanel({
   const openDialog = (user, mode) => {
     setSelectedUser(user);
     setFormData(
-      Object.fromEntries(fields.map(({ key }) => [key, user[key] || ""]))
+      Object.fromEntries(fields.map(({ key }) => [key, user[key] || ""])),
     );
     setDialogMode(mode);
   };
@@ -114,6 +114,15 @@ export default function UserManagementPanel({
       setDeleting(false);
     }
   };
+
+  const currentRole = localStorage.getItem("admin_role");
+  const isSuperAdmin = currentRole === "super admin";
+  const isAdmin = currentRole === "admin";
+  const canEdit =
+    (isSuperAdmin || isAdmin) && localStorage.getItem("admin_can_edit") === "1";
+  const canDelete =
+    (isSuperAdmin || isAdmin) &&
+    localStorage.getItem("admin_can_delete") === "1";
 
   return (
     <Box>
@@ -167,7 +176,19 @@ export default function UserManagementPanel({
       >
         {filteredUsers.map((user) => {
           const userId = getId(user);
-          const status = user.register_status;
+          const status = String(
+            user.register_status || "pending",
+          ).toLowerCase();
+          const chipColor =
+            type === "customer"
+              ? "info"
+              : status === "verified" || status === "approved"
+                ? "success"
+                : status === "rejected" || status === "declined"
+                  ? "error"
+                  : status === "banned"
+                    ? "error"
+                    : "warning";
           return (
             <Card key={userId}>
               {/* Media Container */}
@@ -220,31 +241,30 @@ export default function UserManagementPanel({
                       {getName(user)}
                     </Typography>
                     <Chip
-                      size="small"x
+                      size="small"
                       label={
                         type === "student" ? status || "Pending" : "Customer"
                       }
-                      color={
-                        type === "student" && status === "verified"
-                          ? "success"
-                          : "default"
-                      }
-                      sx={{ mt: 0.5 }}
+                      color={chipColor}
+                      sx={{
+                        mt: 0.5,
+                        textTransform: "capitalize",
+                        color: "white",
+                      }}
                     />
                   </Box>
-
                   <IconButton
-                    size="small"
-                    onClick={(e) => handleMenuOpen(e, user)}
-                    sx={{
-                      ml: "auto",
-                      "&:hover": {
-                        backgroundColor: "action.hover",
-                      },
-                    }}
-                  >
-                    <MoreVertIcon fontSize="small" />
-                  </IconButton>
+                      size="small"
+                      onClick={(e) => handleMenuOpen(e, user)}
+                      sx={{
+                        ml: "auto",
+                        "&:hover": {
+                          backgroundColor: "action.hover",
+                        },
+                      }}
+                    >
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
                 </Box>
 
                 {/* View Info Button */}
@@ -273,26 +293,30 @@ export default function UserManagementPanel({
                     horizontal: "right",
                   }}
                 >
-                  <MenuItem
-                    onClick={() => {
-                      openDialog(selectedUser, "edit");
-                      handleMenuClose();
-                    }}
-                    sx={{ color: "success.main" }}
-                  >
-                    <EditIcon sx={{ mr: 1, fontSize: "20px" }} />
-                    Edit
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      setDeleteTarget(selectedUser);
-                      handleMenuClose();
-                    }}
-                    sx={{ color: "error.main" }}
-                  >
-                    <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
-                    Delete
-                  </MenuItem>
+                  {canEdit && (
+                    <MenuItem
+                      onClick={() => {
+                        openDialog(selectedUser, "edit");
+                        handleMenuClose();
+                      }}
+                      sx={{ color: "success.main" }}
+                    >
+                      <EditIcon sx={{ mr: 1, fontSize: "20px" }} />
+                      Edit
+                    </MenuItem>
+                  )}
+                  {canDelete && (
+                    <MenuItem
+                      onClick={() => {
+                        setDeleteTarget(selectedUser);
+                        handleMenuClose();
+                      }}
+                      sx={{ color: "error.main" }}
+                    >
+                      <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
+                      Delete
+                    </MenuItem>
+                  )}
                 </Menu>
               </CardContent>
             </Card>
@@ -330,7 +354,7 @@ export default function UserManagementPanel({
                 <Typography key={key} variant="body2">
                   <strong>{label}:</strong> {selectedUser?.[key] || emptyValue}
                 </Typography>
-              )
+              ),
             )}
           </Stack>
         </DialogContent>

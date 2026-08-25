@@ -119,6 +119,23 @@ export default function AccountAccess() {
     return list;
   }, [accounts, roleOption, searchQuery, sortOption]);
 
+  const currentRole = (
+    localStorage.getItem("admin_role") ||
+    localStorage.getItem("admin_account_type") ||
+    ""
+  ).trim().toLowerCase();
+  const isSuperAdmin = currentRole === "super admin";
+  const isAdmin = currentRole === "admin";
+  const hasPermission = (key) =>
+    ["1", "true"].includes(String(localStorage.getItem(key)).toLowerCase());
+  const canAdd =
+    isSuperAdmin || (isAdmin && hasPermission("admin_can_add"));
+  const canEdit =
+    isSuperAdmin || (isAdmin && hasPermission("admin_can_edit"));
+  const canDelete =
+    isSuperAdmin || (isAdmin && hasPermission("admin_can_delete"));
+  const canManageAccess = canAdd || canEdit || canDelete;
+
   return (
     <Box sx={{ p: 3 }}>
       <Helmet titleTemplate="%s - ArtMatch">
@@ -221,7 +238,8 @@ export default function AccountAccess() {
                   <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Strikes</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                  <TableCell
+                  {canManageAccess && (
+                    <TableCell
                     sx={{
                       fontWeight: "bold",
                       width: 260,
@@ -230,6 +248,8 @@ export default function AccountAccess() {
                   >
                     Actions
                   </TableCell>
+                  )}
+                  
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -247,51 +267,55 @@ export default function AccountAccess() {
                     <TableCell>
                       {account.is_banned ? "Banned" : "Active"}
                     </TableCell>
-                    <TableCell sx={{ width: 260 }}>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        justifyContent="center"
-                        alignItems="center"
-                        sx={{ width: "100%" }}
-                      >
-                        {!account.is_banned && (
+                    {canManageAccess && (
+                      <TableCell sx={{ width: 260 }}>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          justifyContent="center"
+                          alignItems="center"
+                          sx={{ width: "100%" }}
+                        >
+                          {!account.is_banned && (
+                            <Button
+                              size="small"
+                              color="warning"
+                              variant="outlined"
+                              onClick={() => openAction(account, "strike")}
+                              sx={{
+                                minWidth: 110,
+                                textTransform: "none",
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Add strike
+                            </Button>
+                          )}
                           <Button
                             size="small"
-                            color="warning"
-                            variant="outlined"
-                            onClick={() => openAction(account, "strike")}
+                            color={account.is_banned ? "success" : "error"}
+                            variant={
+                              account.is_banned ? "outlined" : "contained"
+                            }
+                            onClick={() =>
+                              openAction(
+                                account,
+                                account.is_banned ? "unban" : "ban",
+                              )
+                            }
                             sx={{
-                              minWidth: 110,
+                              minWidth: 100,
                               textTransform: "none",
-                              fontWeight: 600,
+                              fontWeight: 700,
                               whiteSpace: "nowrap",
                             }}
                           >
-                            Add strike
+                            {account.is_banned ? "Unban" : "Ban"}
                           </Button>
-                        )}
-                        <Button
-                          size="small"
-                          color={account.is_banned ? "success" : "error"}
-                          variant={account.is_banned ? "outlined" : "contained"}
-                          onClick={() =>
-                            openAction(
-                              account,
-                              account.is_banned ? "unban" : "ban",
-                            )
-                          }
-                          sx={{
-                            minWidth: 100,
-                            textTransform: "none",
-                            fontWeight: 700,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {account.is_banned ? "Unban" : "Ban"}
-                        </Button>
-                      </Stack>
-                    </TableCell>
+                        </Stack>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

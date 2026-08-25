@@ -9,6 +9,16 @@ const api = axios.create({
   timeout: 5000,
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin_token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 // Centralized error handler
 const handleError = (error) => {
   if (error.response) {
@@ -48,6 +58,14 @@ export const logout = () => {
   localStorage.removeItem("first_name");
   localStorage.removeItem("last_name");
   localStorage.removeItem("email");
+  localStorage.removeItem("image");
+  localStorage.removeItem("admin_account_type");
+  localStorage.removeItem("admin_role");
+  localStorage.removeItem("admin_can_add");
+  localStorage.removeItem("admin_can_edit");
+  localStorage.removeItem("admin_can_delete");
+  localStorage.removeItem("admin_password_changed");
+  localStorage.removeItem("admin_date_created");
 };
 
 export const recordLogout = async () => {
@@ -68,4 +86,17 @@ export const isAuthenticated = () => {
 // GET TOKEN
 export const getToken = () => {
   return localStorage.getItem("admin_token");
+};
+
+// CHANGE PASSWORD
+export const changePassword = async (currentPassword, newPassword) => {
+  try {
+    const res = await api.put("/change-password", {
+      currentPassword,
+      newPassword,
+    });
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
 };

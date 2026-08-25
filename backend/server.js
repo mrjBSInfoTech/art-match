@@ -13,6 +13,7 @@ import adminStudentRoutes from "./routes/admin/student.js";
 import adminCustomerRoutes from "./routes/admin/customer.js";
 import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
 import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
+import adminAdminRoutes from "./routes/admin/admin.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
@@ -67,6 +68,7 @@ app.use("/api/admin/student", adminStudentRoutes);
 app.use("/api/admin/customer", adminCustomerRoutes);
 app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
 app.use("/api/admin/account-access", adminAccountAccessRoutes);
+app.use("/api/admin/admin", adminAdminRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);

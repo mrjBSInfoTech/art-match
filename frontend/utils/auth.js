@@ -7,6 +7,11 @@ const ADMIN_AUTH_KEYS = [
   "admin_first_name",
   "admin_last_name",
   "admin_email",
+  "admin_image",
+  "admin_role",
+  "admin_can_add",
+  "admin_can_edit",
+  "admin_can_delete",
 ];
 
 // For seller part

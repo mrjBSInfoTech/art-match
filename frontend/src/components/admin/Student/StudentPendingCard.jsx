@@ -113,14 +113,24 @@ export default function StudentPendingCard({
 
   const openCorPreview = (student) => {
     const url = getCorUrl(student);
-    if (!url) return; 
+    if (!url) return;
     setCorPreviewUrl(url);
     setCorPreviewOpen(true);
   };
 
-  const hide = (style) => {
-    style.display = "none";
-  };
+  const currentRole = (
+    localStorage.getItem("admin_role") ||
+    localStorage.getItem("admin_account_type") ||
+    ""
+  ).trim().toLowerCase();
+  const isSuperAdmin = currentRole === "super admin";
+  const isAdmin = currentRole === "admin";
+  const hasPermission = (key) =>
+    ["1", "true"].includes(String(localStorage.getItem(key)).toLowerCase());
+  const canEdit =
+    isSuperAdmin || (isAdmin && hasPermission("admin_can_edit"));
+  const canDelete =
+    isSuperAdmin || (isAdmin && hasPermission("admin_can_delete"));
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -141,7 +151,8 @@ export default function StudentPendingCard({
           <Typography variant="h6" sx={{ fontWeight: "bold" }}>
             Pending Students
           </Typography>
-          {pendingStudents.length > 0 && (
+
+          {(canEdit || canDelete) && pendingStudents.length > 0 && (
             <Typography variant="body2" color="text.secondary">
               {selectedStudentIds.length > 0
                 ? `${selectedStudentIds.length} selected`
@@ -150,48 +161,51 @@ export default function StudentPendingCard({
           )}
         </Stack>
 
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          alignItems={{ xs: "flex-start", sm: "center" }}
-        >
-          {selectedStudentIds.length > 0 && (
-            <>
-              <Button
-                variant="contained"
-                color="success"
-                size="small"
-                sx={{ color: "white" }}
-                onClick={handleBulkVerify}
-              >
-                Verify Selected
-              </Button>
-              {hide && (
-                <Button
-                  variant="contained"
-                  color="error"
-                  size="small"
-                  sx={{ color: "white" }}
-                  onClick={handleBulkDeny}
-                >
-                  Deny Selected
-                </Button>
-              )}
-              
-            </>
-          )}
+        {(canEdit || canDelete) && (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+          >
+            {selectedStudentIds.length > 0 && (
+              <>
+                {canEdit && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    sx={{ color: "white" }}
+                    onClick={handleBulkVerify}
+                  >
+                    Verify Selected
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    sx={{ color: "white" }}
+                    onClick={handleBulkDeny}
+                  >
+                    Deny Selected
+                  </Button>
+                )}
+              </>
+            )}
 
-          {pendingStudents.length > 0 && (
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Checkbox
-                checked={isAllSelected}
-                indeterminate={isSomeSelected}
-                onChange={handleSelectAll}
-              />
-              <Typography variant="body2">Select All</Typography>
-            </Box>
-          )}
-        </Stack>
+            {(canEdit || canDelete) && pendingStudents.length > 0 && (
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <Checkbox
+                  checked={isAllSelected}
+                  indeterminate={isSomeSelected}
+                  onChange={handleSelectAll}
+                />
+                <Typography variant="body2">Select All</Typography>
+              </Box>
+            )}
+          </Stack>
+        )}
       </Box>
 
       {pendingStudents.length === 0 ? (
@@ -237,11 +251,13 @@ export default function StudentPendingCard({
                       <Box
                         sx={{ display: "flex", alignItems: "center", flex: 1 }}
                       >
-                        <Checkbox
-                          checked={isSelected}
-                          onChange={() => toggleStudentSelection(studentId)}
-                          sx={{ mr: 1, p: 0.5 }}
-                        />
+                        {(canEdit || canDelete) && (
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => toggleStudentSelection(studentId)}
+                            sx={{ mr: 1, p: 0.5 }}
+                          />
+                        )}
                         <Typography
                           variant="subtitle1"
                           sx={{
@@ -340,23 +356,26 @@ export default function StudentPendingCard({
                         <Typography variant="body2">No COR uploaded</Typography>
                       )}
                     </Box>
-
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={1}
-                      sx={{ mt: "auto", pt: 1 }}
-                    >
-                      <Button
-                        fullWidth
-                        size="small"
-                        variant="contained"
-                        color="success"
-                        sx={{ color: "white" }}
-                        onClick={() => onVerify(student)}
+                    
+                    {(canEdit || canDelete) && (
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        sx={{ mt: "auto", pt: 1 }}
                       >
-                        Verify
-                      </Button>
-                      {hide && (
+                        {canEdit && (
+                          <Button
+                            fullWidth
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            sx={{ color: "white" }}
+                            onClick={() => onVerify(student)}
+                          >
+                            Verify
+                          </Button>
+                        )}
+                        {canDelete && (
                         <Button
                           fullWidth
                           size="small"
@@ -366,8 +385,10 @@ export default function StudentPendingCard({
                         >
                           Deny
                         </Button>
-                      )}
-                    </Stack>
+                        )}
+                      </Stack>
+                    )}
+                    
                   </CardContent>
                 </Card>
               </Grid>
