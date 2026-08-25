@@ -2,10 +2,15 @@ import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Box,
+  Button,
   Chip,
   CircularProgress,
+  FormControl,
   InputAdornment,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -25,7 +30,9 @@ import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 export default function AuditLogs() {
   const [search, setSearch] = useState("");
   const [date, setDate] = useState(null);
+  const [period, setPeriod] = useState("all");
   const [logs, setLogs] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(50);
   const [logsErrorMessage, setLogsErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +40,8 @@ export default function AuditLogs() {
     const loadLogs = async () => {
       try {
         setLoading(true);
-        setLogs(await fetchAuditLogs(search, date));
+        setLogs(await fetchAuditLogs(search, date, period));
+        setVisibleCount(50);
         setLogsErrorMessage("");
       } catch (loadError) {
         setLogsErrorMessage(loadError.message || "Unable to load audit logs.");
@@ -42,7 +50,7 @@ export default function AuditLogs() {
       }
     };
     loadLogs();
-  }, [search, date]);
+  }, [search, date, period]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -112,6 +120,23 @@ export default function AuditLogs() {
               }}
             />
           </LocalizationProvider>
+
+          <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 } }}>
+            <InputLabel id="audit-period-label">Time period</InputLabel>
+            <Select
+              labelId="audit-period-label"
+              value={period}
+              label="Time period"
+              onChange={(event) => setPeriod(event.target.value)}
+            >
+              <MenuItem value="hour">Last 1 hour</MenuItem>
+              <MenuItem value="day">Last 1 day</MenuItem>
+              <MenuItem value="week">Last 1 week</MenuItem>
+              <MenuItem value="month">Last 1 month</MenuItem>
+              <MenuItem value="year">Last 1 year</MenuItem>
+              <MenuItem value="all">All time</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
       </Paper>
 
@@ -146,7 +171,7 @@ export default function AuditLogs() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {logs.map((log) => (
+                {logs.slice(0, visibleCount).map((log) => (
                   <TableRow
                     key={log.audit_id}
                     sx={{ "&:hover": { backgroundColor: "background.table" } }}
@@ -154,13 +179,22 @@ export default function AuditLogs() {
                     <TableCell>
                       {new Date(log.datetime).toLocaleString()}
                     </TableCell>
-                    <TableCell>{log.action.charAt(0).toUpperCase() + log.action.slice(1).toLowerCase()}</TableCell>
+                    <TableCell>
+                      {String(log.action)
+                        .replace(/_/g, " ")
+                        .toLowerCase()
+                        .replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                    </TableCell>
                     <TableCell>{log.actor}</TableCell>
                     <TableCell>{log.role}</TableCell>
                     <TableCell>
                       <Chip
-                        label={String(log.status).charAt(0).toUpperCase() + String(log.status).slice(1).toLowerCase()}
-                        size="small" sx={{ fontWeight: 600, color: "white", width: 75 }}
+                        label={
+                          String(log.status).charAt(0).toUpperCase() +
+                          String(log.status).slice(1).toLowerCase()
+                        }
+                        size="small"
+                        sx={{ fontWeight: 600, color: "white", width: 75 }}
                         color={
                           String(log.status).toLowerCase() === "success" ||
                           String(log.status).toLowerCase() === "logged in" ||
@@ -178,6 +212,32 @@ export default function AuditLogs() {
                 ))}
               </TableBody>
             </Table>
+            {logs.length > 50 && (
+              <Stack
+                direction="row"
+                justifyContent="center"
+                spacing={1}
+                sx={{ mt: 2 }}
+              >
+                {visibleCount < logs.length && (
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      setVisibleCount((count) =>
+                        Math.min(count + 50, logs.length),
+                      )
+                    }
+                  >
+                    More
+                  </Button>
+                )}
+                {visibleCount > 50 && (
+                  <Button variant="text" onClick={() => setVisibleCount(50)}>
+                    Less
+                  </Button>
+                )}
+              </Stack>
+            )}
           </TableContainer>
         )}
       </Paper>

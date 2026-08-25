@@ -5,6 +5,10 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
   InputAdornment,
@@ -18,12 +22,18 @@ import {
   Slide,
 } from "@mui/material";
 import ChangePassword from "../../components/admin/Settings/ChangePassword";
-import { changePassword } from "../../api/admin/adminAuthenticationAPI";
+import {
+  changePassword,
+  verifyPassword,
+} from "../../api/admin/adminAuthenticationAPI";
+import { updateAdmin } from "../../api/admin/adminAPI";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
+import BackupIcon from "@mui/icons-material/Backup";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -36,6 +46,27 @@ export default function Settings() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openPasswordForm, setOpenPasswordForm] = useState(false);
+  const [accountInformation, setAccountInformation] = useState({
+    username: "",
+    first_name: "",
+    last_name: "",
+    email: "",
+  });
+  const [savingAccountInformation, setSavingAccountInformation] =
+    useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [confirmationPassword, setConfirmationPassword] = useState("");
+  const [passwordVerificationError, setPasswordVerificationError] =
+    useState("");
+
+  useEffect(() => {
+    setAccountInformation({
+      username: localStorage.getItem("admin_username") || "",
+      first_name: localStorage.getItem("admin_first_name") || "",
+      last_name: localStorage.getItem("admin_last_name") || "",
+      email: localStorage.getItem("admin_email") || "",
+    });
+  }, []);
 
   const handleOpenPasswordEdit = () => {
     setOpenPasswordForm(true);
@@ -53,6 +84,51 @@ export default function Settings() {
     } catch (err) {
       console.error("Error updating password:", err);
       showSnackbar("Failed to update password: " + err.message, "error");
+    }
+  };
+
+  const handleAccountInformationChange = (event) => {
+    const { name, value } = event.target;
+    setAccountInformation((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSaveAccountInformation = () => {
+    const adminId = localStorage.getItem("admin_id");
+    if (
+      !adminId ||
+      Object.values(accountInformation).some((value) => !value.trim())
+    ) {
+      showSnackbar("Please fill in all account information fields.", "error");
+      return;
+    }
+
+    setConfirmationPassword("");
+    setPasswordVerificationError("");
+    setPasswordDialogOpen(true);
+  };
+
+  const handleConfirmAccountInformation = async () => {
+    if (!confirmationPassword) {
+      setPasswordVerificationError("Enter your password to continue.");
+      return;
+    }
+
+    try {
+      setSavingAccountInformation(true);
+      await verifyPassword(confirmationPassword);
+      await updateAdmin(localStorage.getItem("admin_id"), accountInformation);
+      Object.entries(accountInformation).forEach(([key, value]) => {
+        localStorage.setItem(`admin_${key}`, value.trim());
+      });
+      setPasswordDialogOpen(false);
+      setConfirmationPassword("");
+      showSnackbar("Account information updated successfully", "success");
+    } catch (error) {
+      setPasswordVerificationError(
+        error.message || "Password verification failed.",
+      );
+    } finally {
+      setSavingAccountInformation(false);
     }
   };
 
@@ -89,6 +165,132 @@ export default function Settings() {
           Settings
         </Typography>
       </Box>
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: "rgba(30, 31, 135, 0.08)",
+              color: "#1e1f87",
+            }}
+          >
+            <AccountCircleIcon />
+          </Box>
+          <Box>
+            <Typography variant="body1" fontWeight="700">
+              Profile Picture
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage the picture displayed on your admin profile.
+            </Typography>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Box
+            component="img"
+            src="http://localhost:5000/uploads/profile.jpg"
+            alt="Admin profile"
+            sx={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<CloudUploadIcon />}
+            disabled
+            sx={{ textTransform: "none" }}
+          >
+            Upload Picture
+          </Button>
+        </Box>
+      </Paper>
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: "rgba(30, 31, 135, 0.08)",
+              color: "#1e1f87",
+            }}
+          >
+            <AccountCircleIcon />
+          </Box>
+          <Box>
+            <Typography variant="body1" fontWeight="700">
+              Account Information
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Update the information associated with your admin account.
+            </Typography>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+            gap: 2,
+          }}
+        >
+          <TextField
+            label="First Name"
+            name="first_name"
+            value={accountInformation.first_name}
+            onChange={handleAccountInformationChange}
+            disabled={savingAccountInformation}
+          />
+          <TextField
+            label="Last Name"
+            name="last_name"
+            value={accountInformation.last_name}
+            onChange={handleAccountInformationChange}
+            disabled={savingAccountInformation}
+          />
+          <TextField
+            label="Username"
+            name="username"
+            value={accountInformation.username}
+            onChange={handleAccountInformationChange}
+            disabled={savingAccountInformation}
+          />
+          <TextField
+            label="Email"
+            name="email"
+            type="email"
+            value={accountInformation.email}
+            onChange={handleAccountInformationChange}
+            disabled={savingAccountInformation}
+          />
+        </Box>
+        <Button
+          variant="contained"
+          onClick={handleSaveAccountInformation}
+          disabled={savingAccountInformation}
+          sx={{
+            mt: 3,
+            bgcolor: "#1e1f87",
+            textTransform: "none",
+            fontWeight: "bold",
+            boxShadow: "none",
+            "&:hover": { bgcolor: "#151663" },
+          }}
+        >
+          {savingAccountInformation ? "Saving..." : "Save Information"}
+        </Button>
+      </Paper>
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         <Box
           sx={{
@@ -139,11 +341,88 @@ export default function Settings() {
           </Button>
         </Box>
       </Paper>
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: "rgba(30, 31, 135, 0.08)",
+              color: "#1e1f87",
+            }}
+          >
+            <BackupIcon />
+          </Box>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="body1" fontWeight="700">
+              Backup
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Backup and restore options will be available here.
+            </Typography>
+          </Box>
+          <Button variant="outlined" disabled sx={{ textTransform: "none" }}>
+            Backup
+          </Button>
+        </Box>
+      </Paper>
       <ChangePassword
         open={openPasswordForm}
         handleClose={() => setOpenPasswordForm(false)}
         onSubmit={handleSubmitPassword}
       />
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={
+          savingAccountInformation
+            ? undefined
+            : () => setPasswordDialogOpen(false)
+        }
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirm Your Password</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enter your current password to confirm these account changes.
+          </Typography>
+          {passwordVerificationError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {passwordVerificationError}
+            </Alert>
+          )}
+          <TextField
+            autoFocus
+            fullWidth
+            type="password"
+            label="Current Password"
+            value={confirmationPassword}
+            onChange={(event) => {
+              setConfirmationPassword(event.target.value);
+              setPasswordVerificationError("");
+            }}
+            disabled={savingAccountInformation}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleConfirmAccountInformation();
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setPasswordDialogOpen(false)}
+            disabled={savingAccountInformation}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmAccountInformation}
+            variant="contained"
+            disabled={savingAccountInformation}
+          >
+            {savingAccountInformation ? "Verifying..." : "Confirm & Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
       {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}

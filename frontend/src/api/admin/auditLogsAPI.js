@@ -11,12 +11,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const fetchAuditLogs = async (search = "", date = null) => {
+export const fetchAuditLogs = async (
+  search = "",
+  date = null,
+  period = "all",
+) => {
   try {
     const response = await api.get("/", {
       params: {
         search,
         date: date ? (date.format ? date.format("YYYY-MM-DD") : date) : "",
+        period,
       },
     });
     return response.data || [];

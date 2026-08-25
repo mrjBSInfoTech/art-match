@@ -5,23 +5,29 @@ export const authenticateAdmin = (req, res, next) => {
   const token = authHeader?.split(" ")[1];
 
   if (!authHeader) {
-    return res.status(401).json({ message: "Access denied. No token provided." });
+    return res
+      .status(401)
+      .json({ message: "Access denied. No token provided." });
   }
   if (!token) {
     return res.status(401).json({ message: "Invalid token format." });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: "Invalid or expired token." });
-    }
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "your_secret_key",
+    (err, user) => {
+      if (err) {
+        return res.status(403).json({ message: "Invalid or expired token." });
+      }
 
-    const adminId = user.admin_id || user.id;
-    if (!adminId) {
-      return res.status(403).json({ message: "Unable to identify admin." });
-    }
+      const adminId = user.admin_id || user.id;
+      if (!adminId) {
+        return res.status(403).json({ message: "Unable to identify admin." });
+      }
 
-    req.user = { ...user, admin_id: adminId };
-    next();
-  });
+      req.user = { ...user, admin_id: adminId };
+      next();
+    },
+  );
 };

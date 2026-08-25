@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem("admin_token");
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`; 
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
   return config;
@@ -21,19 +21,17 @@ api.interceptors.request.use((config) => {
 const handleError = (error) => {
   if (error.response) {
     // Server responded but with an error code
-    console.error(
-      "Server error:",
-      error.response.status,
-      error.response.data
-    );
+    console.error("Server error:", error.response.status, error.response.data);
     throw new Error(
-      error.response.data.message || "Server responded with an error"
+      error.response.data.message ||
+        error.response.data.error ||
+        "Server responded with an error",
     );
   } else if (error.request) {
     // Request was made but no response (server down, CORS issue, etc.)
     console.error("No response from server:", error.message);
     throw new Error(
-      "Server not responding. Please check your connection or try again later."
+      "Server not responding. Please check your connection or try again later.",
     );
   } else {
     // Something else happened
@@ -94,15 +92,21 @@ export const updateAdmin = async (id, adminData) => {
   try {
     const formData = new FormData();
 
-    if (adminData.username) formData.append("username", adminData.username.trim());
-    if (adminData.first_name) formData.append("first_name", adminData.first_name.trim());
-    if (adminData.last_name) formData.append("last_name", adminData.last_name.trim());
+    if (adminData.username)
+      formData.append("username", adminData.username.trim());
+    if (adminData.first_name)
+      formData.append("first_name", adminData.first_name.trim());
+    if (adminData.last_name)
+      formData.append("last_name", adminData.last_name.trim());
     if (adminData.email) formData.append("email", adminData.email.trim());
     if (adminData.role) formData.append("role", adminData.role);
-    
-    if (adminData.can_add !== undefined) formData.append("can_add", adminData.can_add ? 1 : 0);
-    if (adminData.can_edit !== undefined) formData.append("can_edit", adminData.can_edit ? 1 : 0);
-    if (adminData.can_delete !== undefined) formData.append("can_delete", adminData.can_delete ? 1 : 0);
+
+    if (adminData.can_add !== undefined)
+      formData.append("can_add", adminData.can_add ? 1 : 0);
+    if (adminData.can_edit !== undefined)
+      formData.append("can_edit", adminData.can_edit ? 1 : 0);
+    if (adminData.can_delete !== undefined)
+      formData.append("can_delete", adminData.can_delete ? 1 : 0);
 
     if (adminData.password) {
       formData.append("password", adminData.password.trim());
