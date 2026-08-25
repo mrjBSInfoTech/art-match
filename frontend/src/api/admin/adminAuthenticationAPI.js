@@ -78,6 +78,15 @@ export const recordLogout = async () => {
   }
 };
 
+export const verifyPassword = async (password) => {
+  try {
+    const response = await api.post("/verify-password", { password });
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
   return !!localStorage.getItem("admin_token");

@@ -82,7 +82,7 @@ export default function AdminLayout({ children }) {
       const storedRole = localStorage.getItem("admin_role");
       const storedCanAdd = localStorage.getItem("admin_can_add");
       const storedCanEdit = localStorage.getItem("admin_can_edit");
-      const storedCanDelete = localStorage.getItem("admin_can_delete"); 
+      const storedCanDelete = localStorage.getItem("admin_can_delete");
 
       setFirstName(storedFirstName || "");
       setLastName(storedLastName || "");
@@ -93,7 +93,6 @@ export default function AdminLayout({ children }) {
       setCanAdd(storedCanAdd === "1");
       setCanEdit(storedCanEdit === "1");
       setCanDelete(storedCanDelete === "1");
-
     };
 
     loadAdminProfile();
@@ -165,6 +164,11 @@ export default function AdminLayout({ children }) {
       title: "Manage Users",
       icon: <VerifiedRoundedIcon />,
       children: [
+        {
+          segment: "admins",
+          title: "Admins",
+          icon: <KeyIcon />,
+        },
         {
           segment: "students",
           title: "Students",

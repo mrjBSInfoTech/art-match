@@ -6,7 +6,7 @@ import { ensureAuditLogsTable } from "../../utils/auditLogger.js";
 const router = express.Router();
 
 router.get("/", authenticateAdmin, async (req, res) => {
-  const { search = "", date = "" } = req.query;
+  const { search = "", date = "", period = "all" } = req.query;
   const searchValue = `%${search}%`;
 
   try {
@@ -25,12 +25,29 @@ router.get("/", authenticateAdmin, async (req, res) => {
           action LIKE ? OR actor LIKE ? OR role LIKE ? OR status LIKE ? OR information LIKE ?
         )
       `;
-      params.push(searchValue, searchValue, searchValue, searchValue, searchValue);
+      params.push(
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+        searchValue,
+      );
     }
 
     if (date) {
       sql += ` AND DATE(datetime) = ? `;
       params.push(date);
+    }
+
+    const periodIntervals = {
+      hour: "1 HOUR",
+      day: "1 DAY",
+      week: "1 WEEK",
+      month: "1 MONTH",
+      year: "1 YEAR",
+    };
+    if (periodIntervals[period]) {
+      sql += ` AND datetime >= DATE_SUB(NOW(), INTERVAL ${periodIntervals[period]}) `;
     }
 
     sql += ` ORDER BY datetime DESC, audit_id DESC `;

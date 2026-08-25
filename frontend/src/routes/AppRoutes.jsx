@@ -105,6 +105,7 @@ export default function AppRoutes() {
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
                 <Route path="manage/access" element={<AdminAccountAccess />} />
+                <Route path="manage/admins" element={<AdminControl />} />
                 <Route
                   path="verify/pending"
                   element={<AdminStudentPending />}

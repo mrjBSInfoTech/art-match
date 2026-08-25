@@ -101,8 +101,8 @@ router.post("/logout", authenticateAdmin, async (req, res) => {
   try {
     await logAudit({
       action: "LOGOUT",
-      actor: req.user.username,
-      role: req.user.role,
+      actor: req.user.username || req.user.admin_id,
+      role: req.user.role || "Admin",
       status: "SUCCESS",
       information: "Admin logged out",
     });
@@ -111,6 +111,60 @@ router.post("/logout", authenticateAdmin, async (req, res) => {
     res
       .status(500)
       .json({ message: "Unable to record logout", error: error.message });
+  }
+});
+
+router.post("/verify-password", authenticateAdmin, async (req, res) => {
+  const { password } = req.body;
+  const adminId = req.user?.admin_id;
+
+  if (!adminId || !password) {
+    logAudit({
+      action: "UPDATE_ACCOUNT_INFORMATION",
+      actor: req.user?.username || adminId,
+      role: req.user?.role || "Admin",
+      status: "FAILED",
+      information: "Password confirmation was not provided",
+    }).catch((auditError) =>
+      console.error(
+        "Unable to record password verification audit:",
+        auditError.message,
+      ),
+    );
+    return res.status(400).json({ message: "Password is required." });
+  }
+
+  try {
+    const user = await new Promise((resolve, reject) => {
+      db.query(
+        "SELECT password FROM admin WHERE admin_id = ?",
+        [adminId],
+        (error, results) => {
+          if (error) return reject(error);
+          resolve(results[0]);
+        },
+      );
+    });
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      logAudit({
+        action: "UPDATE_ACCOUNT_INFORMATION",
+        actor: req.user?.username || adminId,
+        role: req.user?.role || "Admin",
+        status: "FAILED",
+        information: "Incorrect password confirmation",
+      }).catch((auditError) =>
+        console.error(
+          "Unable to record password verification audit:",
+          auditError.message,
+        ),
+      );
+      return res.status(401).json({ message: "Incorrect password." });
+    }
+
+    res.json({ message: "Password verified." });
+  } catch (error) {
+    res.status(500).json({ message: "Unable to verify password." });
   }
 });
 
@@ -151,7 +205,9 @@ router.put("/change-password", authenticateAdmin, async (req, res) => {
       user.password,
     );
     if (!currentPasswordMatches) {
-      return res.status(401).json({ message: "Current password is incorrect." });
+      return res
+        .status(401)
+        .json({ message: "Current password is incorrect." });
     }
 
     if (currentPassword === newPassword) {
@@ -169,7 +225,10 @@ router.put("/change-password", authenticateAdmin, async (req, res) => {
       );
     });
 
-    res.json({ message: "Password changed successfully.", password_changed: 1 });
+    res.json({
+      message: "Password changed successfully.",
+      password_changed: 1,
+    });
   } catch (error) {
     console.error("Error changing admin password:", error);
     res.status(500).json({ message: "Unable to change password." });
