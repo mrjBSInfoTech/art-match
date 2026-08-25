@@ -1,154 +1,175 @@
-import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import {
-  Alert,
+  Avatar,
   Box,
-  Button,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  InputAdornment,
-  LinearProgress,
-  MenuItem,
+  Chip,
+  Divider,
+  Grid,
   Paper,
-  Select,
-  TextField,
+  Stack,
   Typography,
-  Snackbar,
-  Slide,
 } from "@mui/material";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-// Icons
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
-// Slide Transition for Snackbar
-function SlideTransition(props) {
-  return <Slide {...props} direction="up" />;
-}
+const salesData = [
+  { month: "Jan", sales: 1600 },
+  { month: "Feb", sales: 2100 },
+  { month: "Mar", sales: 1850 },
+  { month: "Apr", sales: 2800 },
+  { month: "May", sales: 3350 },
+  { month: "Jun", sales: 4100 },
+  { month: "Jul", sales: 4900 },
+  { month: "Aug", sales: 5600 },
+];
+
+const bestSellers = [
+  { title: "Sunset Over Davao", sold: 18, revenue: 33000 },
+  { title: "Waves of Mindanao", sold: 14, revenue: 26400 },
+  { title: "Night Bloom", sold: 11, revenue: 20800 },
+  { title: "Golden Horizon", sold: 9, revenue: 17300 },
+];
+
+const recentSales = [
+  { id: "ORD-1045", customer: "Maria Dela Cruz", artwork: "Sunset Over Davao", amount: 2450, date: "Aug 22", status: "Paid" },
+  { id: "ORD-1048", customer: "Janelle Santos", artwork: "Waves of Mindanao", amount: 3680, date: "Aug 23", status: "Packed" },
+  { id: "ORD-1052", customer: "Rafael Tan", artwork: "The Makers' Table", amount: 4200, date: "Aug 24", status: "Shipped" },
+  { id: "ORD-1059", customer: "Alice Lim", artwork: "Night Bloom", amount: 2960, date: "Aug 25", status: "Paid" },
+];
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: 0,
+  }).format(value);
 
 export default function Sales() {
-  const [loading, setLoading] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-
-  const salesData = [
-    { month: "Jan", sales: 1200 },
-    { month: "Feb", sales: 1800 },
-    { month: "Mar", sales: 1500 },
-    { month: "Apr", sales: 2500 },
-    { month: "May", sales: 3000 },
-    { month: "Jun", sales: 4200 },
-  ];
-  // Snackbar handlers
-  const showSnackbar = (message, severity = "success") => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity); // Set it to "success" or "error"
-    setSnackbarOpen(true);
-  };
-
-  const closeSnackbar = (event, reason) => {
-    if (reason === "clickaway") return;
-    setSnackbarOpen(false);
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light"; // Green
-      case "error":
-        return "error.light"; // Red
-      default:
-        return "primary.light"; //
-    }
-  };
+  const totalRevenue = salesData.reduce((sum, entry) => sum + entry.sales, 0);
+  const averageOrder = Math.round(totalRevenue / salesData.length / 1.5);
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: "auto" }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Sales</title>
       </Helmet>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          justifyContent: "space-between",
-          mb: 2,
-        }}
-      >
-        <Typography
-          variant="h4"
-          gutterBottom
-          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
-        >
-          Sales
-        </Typography>
-      </Box>
-      <Paper sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, width: "100%" }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
-          Monthly Sales
-        </Typography>
 
-        <Box sx={{ width: "100%", height: 320 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={salesData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#b73636"
-                strokeWidth={3}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+            Sales Dashboard
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Your shop performance and recent transactions.
+          </Typography>
         </Box>
-      </Paper>
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
-          Recent Sold Artworks
-        </Typography>
-      </Paper>
-      {/* Snackbar Notification */}
-      {/* //For Future Use 
-      <Snackbar
-        open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
-        autoHideDuration={3000}
-        onClose={closeSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        TransitionComponent={SlideTransition}
-      >
-        <Alert
-          onClose={closeSnackbar}
-          severity={snackbarSeverity}
-          sx={{
-            width: "100%",
-            backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "#fff",
-            "& .MuiAlert-icon": {
-              color: "#fff",
-            },
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    */}
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">Total revenue</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>{formatCurrency(totalRevenue)}</Typography>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">This month</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>{formatCurrency(salesData[salesData.length - 1].sales)}</Typography>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">Orders sold</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>42</Typography>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">Avg. order</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>{formatCurrency(averageOrder)}</Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Revenue trend</Typography>
+          <Box sx={{ width: "100%", height: 320 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={salesData}>
+                <defs>
+                  <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#b73636" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#b73636" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => [formatCurrency(value), "Sales"]} />
+                <Area type="monotone" dataKey="sales" stroke="#b73636" strokeWidth={3} fill="url(#salesFill)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Box>
+        </Paper>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Paper elevation={0} sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Best sellers</Typography>
+              <Stack spacing={2}>
+                {bestSellers.map((item, index) => (
+                  <Box key={item.title}>
+                    <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32, fontSize: 12 }}>{index + 1}</Avatar>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{item.title}</Typography>
+                          <Typography variant="caption" color="text.secondary">{item.sold} sold</Typography>
+                        </Box>
+                      </Stack>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatCurrency(item.revenue)}</Typography>
+                    </Stack>
+                    {index < bestSellers.length - 1 && <Divider sx={{ my: 1.5 }} />}
+                  </Box>
+                ))}
+              </Stack>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Paper elevation={0} sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Recent sales</Typography>
+              <Stack spacing={2}>
+                {recentSales.map((sale) => (
+                  <Box key={sale.id} sx={{ p: 1.5, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{sale.artwork}</Typography>
+                        <Typography variant="caption" color="text.secondary">{sale.customer} • {sale.date}</Typography>
+                      </Box>
+                      <Chip label={sale.status} color={sale.status === "Paid" ? "success" : sale.status === "Packed" ? "info" : "primary"} size="small" />
+                    </Stack>
+                    <Box sx={{ mt: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Typography variant="caption" color="text.secondary">{sale.id}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatCurrency(sale.amount)}</Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Stack>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Stack>
     </Box>
   );
 }
