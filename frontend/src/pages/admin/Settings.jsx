@@ -5,10 +5,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
   InputLabel,
   InputAdornment,
@@ -22,6 +18,8 @@ import {
   Slide,
 } from "@mui/material";
 import ChangePassword from "../../components/admin/Settings/ChangePassword";
+import ChangeInfoProfile from "../../components/admin/Settings/ChangeInfoProfile";
+import ChangeProfileImage from "../../components/admin/Settings/ChangeProfileImage";
 import {
   changePassword,
   verifyPassword,
@@ -58,6 +56,7 @@ export default function Settings() {
   const [confirmationPassword, setConfirmationPassword] = useState("");
   const [passwordVerificationError, setPasswordVerificationError] =
     useState("");
+  const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
 
   useEffect(() => {
     setAccountInformation({
@@ -70,6 +69,17 @@ export default function Settings() {
 
   const handleOpenPasswordEdit = () => {
     setOpenPasswordForm(true);
+  };
+
+  const handleProfileImageSubmit = async (file) => {
+    const adminId = localStorage.getItem("admin_id");
+    if (!adminId) throw new Error("Admin account not found.");
+
+    const response = await updateAdmin(adminId, { file });
+    const image = response.image || file.name;
+    localStorage.setItem("admin_image", image);
+    window.dispatchEvent(new Event("admin-profile-updated"));
+    showSnackbar("Profile image updated successfully.");
   };
 
   const handleSubmitPassword = async (formData) => {
@@ -165,14 +175,22 @@ export default function Settings() {
           Settings
         </Typography>
       </Box>
+
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
           <Box
             sx={{
               p: 1.5,
               borderRadius: 2.5,
               bgcolor: "rgba(30, 31, 135, 0.08)",
               color: "#1e1f87",
+              mb: 1.5,
             }}
           >
             <AccountCircleIcon />
@@ -196,7 +214,11 @@ export default function Settings() {
         >
           <Box
             component="img"
-            src="http://localhost:5000/uploads/profile.jpg"
+            src={
+              localStorage.getItem("admin_image")
+                ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
+                : "http://localhost:5000/uploads/profile.jpg"
+            }
             alt="Admin profile"
             sx={{
               width: 72,
@@ -210,8 +232,8 @@ export default function Settings() {
           <Button
             variant="outlined"
             startIcon={<CloudUploadIcon />}
-            disabled
             sx={{ textTransform: "none" }}
+            onClick={() => setProfileImageDialogOpen(true)}
           >
             Upload Picture
           </Button>
@@ -275,21 +297,23 @@ export default function Settings() {
             disabled={savingAccountInformation}
           />
         </Box>
-        <Button
-          variant="contained"
-          onClick={handleSaveAccountInformation}
-          disabled={savingAccountInformation}
-          sx={{
-            mt: 3,
-            bgcolor: "#1e1f87",
-            textTransform: "none",
-            fontWeight: "bold",
-            boxShadow: "none",
-            "&:hover": { bgcolor: "#151663" },
-          }}
-        >
-          {savingAccountInformation ? "Saving..." : "Save Information"}
-        </Button>
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            onClick={handleSaveAccountInformation}
+            disabled={savingAccountInformation}
+            sx={{
+              mt: 3,
+              bgcolor: "#1e1f87",
+              textTransform: "none",
+              fontWeight: "bold",
+              boxShadow: "none",
+              "&:hover": { bgcolor: "#151663" },
+            }}
+          >
+            {savingAccountInformation ? "Saving..." : "Save Information"}
+          </Button>
+        </Box>
       </Paper>
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         <Box
@@ -299,7 +323,6 @@ export default function Settings() {
             alignItems: { xs: "stretch", sm: "center" },
             gap: 2,
             justifyContent: "space-between",
-            p: { xs: 1.5, sm: 2 },
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -330,7 +353,6 @@ export default function Settings() {
               bgcolor: "#1e1f87",
               textTransform: "none",
               fontWeight: "bold",
-              borderRadius: 2,
               px: 2.5,
               alignSelf: { xs: "stretch", sm: "auto" },
               boxShadow: "none",
@@ -342,7 +364,15 @@ export default function Settings() {
         </Box>
       </Paper>
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: 2,
+            justifyContent: "space-between",
+          }}
+        >
           <Box
             sx={{
               p: 1.5,
@@ -371,58 +401,23 @@ export default function Settings() {
         handleClose={() => setOpenPasswordForm(false)}
         onSubmit={handleSubmitPassword}
       />
-      <Dialog
+      <ChangeProfileImage
+        open={profileImageDialogOpen}
+        handleClose={() => setProfileImageDialogOpen(false)}
+        onSubmit={handleProfileImageSubmit}
+      />
+      <ChangeInfoProfile
         open={passwordDialogOpen}
-        onClose={
-          savingAccountInformation
-            ? undefined
-            : () => setPasswordDialogOpen(false)
-        }
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Your Password</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter your current password to confirm these account changes.
-          </Typography>
-          {passwordVerificationError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {passwordVerificationError}
-            </Alert>
-          )}
-          <TextField
-            autoFocus
-            fullWidth
-            type="password"
-            label="Current Password"
-            value={confirmationPassword}
-            onChange={(event) => {
-              setConfirmationPassword(event.target.value);
-              setPasswordVerificationError("");
-            }}
-            disabled={savingAccountInformation}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") handleConfirmAccountInformation();
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => setPasswordDialogOpen(false)}
-            disabled={savingAccountInformation}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmAccountInformation}
-            variant="contained"
-            disabled={savingAccountInformation}
-          >
-            {savingAccountInformation ? "Verifying..." : "Confirm & Save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        handleClose={() => setPasswordDialogOpen(false)}
+        password={confirmationPassword}
+        onPasswordChange={(event) => {
+          setConfirmationPassword(event.target.value);
+          setPasswordVerificationError("");
+        }}
+        error={passwordVerificationError}
+        loading={savingAccountInformation}
+        onConfirm={handleConfirmAccountInformation}
+      />
       {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}

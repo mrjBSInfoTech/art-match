@@ -101,42 +101,53 @@ export default function AuditLogs() {
               ),
             }}
           />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
+            }}
+          >
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Select Date"
+                value={date}
+                onChange={(newDate) => setDate(newDate)}
+                enableAccessibleFieldDOMStructure={false}
+                slots={{ textField: TextField }}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                  },
+                }}
+                sx={{
+                  width: { xs: "100%", sm: 200 },
+                }}
+              />
+            </LocalizationProvider>
 
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DatePicker
-              label="Select Date"
-              value={date}
-              onChange={(newDate) => setDate(newDate)}
-              enableAccessibleFieldDOMStructure={false}
-              slots={{ textField: TextField }}
-              slotProps={{
-                textField: {
-                  size: "small",
-                  fullWidth: true,
-                },
-              }}
-              sx={{
-                width: { xs: "100%", sm: 200 },
-              }}
-            />
-          </LocalizationProvider>
-
-          <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 } }}>
-            <InputLabel id="audit-period-label">Time period</InputLabel>
-            <Select
-              labelId="audit-period-label"
-              value={period}
-              label="Time period"
-              onChange={(event) => setPeriod(event.target.value)}
+            <FormControl
+              size="small"
+              sx={{ minWidth: { xs: "100%", sm: 160 } }}
             >
-              <MenuItem value="hour">Last 1 hour</MenuItem>
-              <MenuItem value="day">Last 1 day</MenuItem>
-              <MenuItem value="week">Last 1 week</MenuItem>
-              <MenuItem value="month">Last 1 month</MenuItem>
-              <MenuItem value="year">Last 1 year</MenuItem>
-              <MenuItem value="all">All time</MenuItem>
-            </Select>
-          </FormControl>
+              <InputLabel id="audit-period-label">Time period</InputLabel>
+              <Select
+                labelId="audit-period-label"
+                value={period}
+                label="Time period"
+                onChange={(event) => setPeriod(event.target.value)}
+              >
+                <MenuItem value="hour">Last 1 hour</MenuItem>
+                <MenuItem value="day">Last 1 day</MenuItem>
+                <MenuItem value="week">Last 1 week</MenuItem>
+                <MenuItem value="month">Last 1 month</MenuItem>
+                <MenuItem value="year">Last 1 year</MenuItem>
+                <MenuItem value="all">All time</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Paper>
 
