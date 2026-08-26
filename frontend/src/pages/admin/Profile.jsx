@@ -18,6 +18,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
@@ -28,6 +29,29 @@ import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import { updateAdmin } from "../../api/admin/adminAPI";
+
+const DropZone = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "isDragActive",
+})(({ theme, isDragActive }) => ({
+  minHeight: 130,
+  border: `2px dashed ${isDragActive ? theme.palette.primary.main : theme.palette.grey[400]}`,
+  borderRadius: theme.shape.borderRadius,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: theme.spacing(2),
+  cursor: "pointer",
+  backgroundColor: isDragActive ? theme.palette.action.hover : "transparent",
+  transition: "all 0.2s ease-in-out",
+  "&:hover": { backgroundColor: theme.palette.action.hover },
+}));
+
+const getImageUrl = (image) =>
+  image
+    ? `http://localhost:5000/uploads/uploadAdmin/${encodeURIComponent(image)}`
+    : "http://localhost:5000/uploads/profile.jpg";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -40,6 +64,11 @@ export default function Profile() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [image, setImage] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [role, setRole] = useState("Administrator");
 
   const [loading, setLoading] = useState(false);
@@ -65,11 +94,48 @@ export default function Profile() {
     const storedLast = localStorage.getItem("admin_last_name") || "";
     const storedEmail = localStorage.getItem("admin_email") || "";
     const storedUsername = localStorage.getItem("admin_username") || "";
+    const storedImage = localStorage.getItem("admin_image") || "";
     setFirstName(storedFirst);
     setLastName(storedLast);
     setEmail(storedEmail);
     setUsername(storedUsername);
+    setImage(storedImage);
   }, []);
+
+  const handleImageChange = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Image must be 2MB or smaller.");
+      return;
+    }
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setUploadError("");
+  };
+
+  const handleImageSubmit = async () => {
+    if (!selectedFile) return;
+    try {
+      setLoading(true);
+      const adminId = localStorage.getItem("admin_id");
+      const response = await updateAdmin(adminId, { file: selectedFile });
+      const updatedImage = response.image || selectedFile.name;
+      setImage(updatedImage);
+      setSelectedFile(null);
+      setImagePreview(null);
+      localStorage.setItem("admin_image", updatedImage);
+      window.dispatchEvent(new Event("admin-profile-updated"));
+      showSnackbar("Profile image updated successfully.");
+    } catch (error) {
+      showSnackbar(error.message || "Unable to update profile image.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   function InfoRow({ icon, label, value, onCopy }) {
     return (
@@ -127,7 +193,7 @@ export default function Profile() {
                 fontWeight: "bold",
                 boxShadow: 2,
               }}
-              src={`http://localhost:5000/uploads/profile.jpg`}
+              src={imagePreview || getImageUrl(image)}
               alt="Admin"
             />
           </Grid>
@@ -151,6 +217,35 @@ export default function Profile() {
             </Stack>
           </Grid>
         </Grid>
+        <Stack spacing={1.5} sx={{ mt: 3, maxWidth: 520 }}>
+          <Typography variant="subtitle1" fontWeight="700">Profile image</Typography>
+          {uploadError && <Alert severity="error">{uploadError}</Alert>}
+          <DropZone
+            isDragActive={isDragActive}
+            onDragEnter={() => setIsDragActive(true)}
+            onDragLeave={() => setIsDragActive(false)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDragActive(false);
+              handleImageChange(event.dataTransfer.files?.[0]);
+            }}
+            onClick={() => document.getElementById("admin-profile-image-input")?.click()}
+          >
+            {imagePreview ? (
+              <Box component="img" src={imagePreview} alt="Profile preview" sx={{ maxWidth: "100%", maxHeight: 100, objectFit: "contain" }} />
+            ) : (
+              <>
+                <Typography fontWeight="700">Drag an image here</Typography>
+                <Typography variant="body2" color="text.secondary">PNG, JPG, or WEBP up to 2MB</Typography>
+              </>
+            )}
+            <input id="admin-profile-image-input" hidden type="file" accept="image/*" onChange={(event) => handleImageChange(event.target.files?.[0])} />
+          </DropZone>
+          <Button variant="contained" onClick={handleImageSubmit} disabled={!selectedFile || loading}>
+            {loading ? "Uploading..." : "Save profile image"}
+          </Button>
+        </Stack>
       </Paper>
 
       {/* Main Details Grid */}

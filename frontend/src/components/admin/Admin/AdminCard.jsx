@@ -81,7 +81,7 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
               sx={{ width: "100%", height: "100%", objectFit: "cover" }}
               image={
                 admin.image
-                  ? `http://localhost:5000/uploads/uploadAdmin/${encodeURIComponent(admin.image)}`
+                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
                   : `http://localhost:5000/uploads/profile.jpg`
               }
               onError={(e) => {

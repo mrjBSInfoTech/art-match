@@ -141,7 +141,7 @@ export default function Messages() {
   );
 
   return (
-    <Box sx={{ height: { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" }, display: "flex", flexDirection: "column" }}>
+    <Box sx={{ height: { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" }, display: "flex", flexDirection: "column", p: { xs: 2, md: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Messages</title>
       </Helmet>

@@ -164,11 +164,15 @@ export default function AdminLayout({ children }) {
       title: "Manage Users",
       icon: <VerifiedRoundedIcon />,
       children: [
-        {
-          segment: "admins",
-          title: "Admins",
-          icon: <KeyIcon />,
-        },
+        ...(isSuperAdmin
+          ? [
+              {
+                segment: "admins",
+                title: "Admins",
+                icon: <KeyIcon />,
+              },
+            ]
+          : []),
         {
           segment: "students",
           title: "Students",

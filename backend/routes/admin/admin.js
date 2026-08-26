@@ -13,7 +13,7 @@ const router = express.Router();
 // Get absolute path for uploads folder
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const uploadDir = path.join(__dirname, "..", "uploads", "uploadAdmin");
+const uploadDir = path.join(__dirname, "..", "..", "uploads", "admin", "uploadAdmin");
 
 // Ensure upload directory exists
 if (!fs.existsSync(uploadDir)) {
@@ -42,7 +42,14 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  },
+});
 
 const toBoolean = (value) =>
   value === true ||
@@ -81,7 +88,7 @@ router.get("/", authenticateAdmin, (req, res) => {
       can_delete,
       password_changed,
       image,
-      created_at AS date_created
+      date_created
     FROM admin
     ORDER BY admin_id ASC
   `;
@@ -107,7 +114,7 @@ router.get("/:id", authenticateAdmin, (req, res) => {
       can_delete,
       password_changed,
       image,
-      created_at AS date_created
+      date_created
     FROM admin
     WHERE admin_id = ?
   `;
@@ -302,7 +309,10 @@ router.put(
           "SUCCESS",
           "Account information updated successfully",
         );
-        res.json({ message: "✅ Admin account updated successfully" });
+        res.json({
+          message: "✅ Admin account updated successfully",
+          image: req.file?.filename,
+        });
       });
     } catch (error) {
       await auditAdminUpdate(req, id, "FAILED", error.message);
