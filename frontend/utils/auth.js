@@ -12,6 +12,11 @@ const ADMIN_AUTH_KEYS = [
   "admin_can_add",
   "admin_can_edit",
   "admin_can_delete",
+  "admin_can_promote",
+  "admin_can_demote",
+  "admin_password_changed",
+  "admin_created_at",
+  "admin_updated_at",
 ];
 
 // For seller part

@@ -18,7 +18,25 @@ router.post("/login", (req, res) => {
   }
 
   const sql = `
-  SELECT * FROM admin 
+  SELECT 
+      a.admin_id,
+      a.username,
+      a.password,
+      a.first_name,
+      a.last_name,
+      a.email,
+      a.image,
+      a.password_changed,
+      ar.role,
+      ar.can_add,
+      ar.can_edit,
+      ar.can_delete,
+      ar.can_promote,
+      ar.can_demote,
+      ar.created_at,
+      ar.updated_at
+    FROM admin a
+    LEFT JOIN admin_role ar ON a.admin_id = ar.admin_id
   WHERE username = ?`;
 
   db.query(sql, [username], (err, result) => {
@@ -27,25 +45,27 @@ router.post("/login", (req, res) => {
       return res.status(500).json({ message: "Database error" });
     }
 
-    if (result.length === 0) {
+    const user = result.length > 0 ? result[0] : null;
+    const userRole = user?.role || "Admin";
+
+    if (!user) {
       logAudit({
         action: "LOGIN",
         actor: username,
-        role: "Admin",
+        role: userRole,
         status: "FAILED",
         information: "Invalid username",
       });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const user = result[0];
     const isMatch = bcrypt.compareSync(password, user.password);
 
     if (!isMatch) {
       logAudit({
         action: "LOGIN",
         actor: username,
-        role: "Admin",
+        role: userRole,
         status: "FAILED",
         information: "Invalid password",
       });
@@ -65,8 +85,11 @@ router.post("/login", (req, res) => {
         can_add: user.can_add,
         can_edit: user.can_edit,
         can_delete: user.can_delete,
+        can_promote: user.can_promote,
+        can_demote: user.can_demote,
         password_changed: user.password_changed,
-        date_created: user.date_created,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
       },
       process.env.JWT_SECRET || "your_secret_key",
       { expiresIn: "10d" },
@@ -75,7 +98,7 @@ router.post("/login", (req, res) => {
     logAudit({
       action: "LOGIN",
       actor: user.username,
-      role: "Admin",
+      role: user.role || "Admin",
       status: "SUCCESS",
       information: "Admin logged in",
     });
@@ -91,8 +114,11 @@ router.post("/login", (req, res) => {
       can_add: user.can_add,
       can_edit: user.can_edit,
       can_delete: user.can_delete,
+      can_promote: user.can_promote,
+      can_demote: user.can_demote,
       password_changed: user.password_changed,
-      date_created: user.date_created,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
     });
   });
 });

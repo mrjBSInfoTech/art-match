@@ -73,6 +73,8 @@ export const addAdmin = async (adminData) => {
     formData.append("can_add", adminData.can_add ? 1 : 0);
     formData.append("can_edit", adminData.can_edit ? 1 : 0);
     formData.append("can_delete", adminData.can_delete ? 1 : 0);
+    formData.append("can_promote", adminData.can_promote ? 1 : 0);
+    formData.append("can_demote", adminData.can_demote ? 1 : 0);
 
     if (adminData.file) {
       formData.append("image", adminData.file);
@@ -107,6 +109,10 @@ export const updateAdmin = async (id, adminData) => {
       formData.append("can_edit", adminData.can_edit ? 1 : 0);
     if (adminData.can_delete !== undefined)
       formData.append("can_delete", adminData.can_delete ? 1 : 0);
+    if (adminData.can_promote !== undefined)
+      formData.append("can_promote", adminData.can_promote ? 1 : 0);
+    if (adminData.can_demote !== undefined)
+      formData.append("can_demote", adminData.can_demote ? 1 : 0);
 
     if (adminData.password) {
       formData.append("password", adminData.password.trim());

@@ -27,13 +27,24 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
   }, [selectedAdmin, open]);
 
   function capitalize(text) {
-  if (!text) return '';
-  return text
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
+    if (!text) return "";
+    return text
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "N/A";
+
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   return (
     <Dialog
@@ -50,15 +61,48 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
       <DialogContent dividers>
         {admin && (
           <Stack spacing={1.5}>
-            <Typography variant="body2"><strong>Username:</strong> {admin.username}</Typography>
-            <Typography variant="body2"><strong>Name:</strong> {admin.first_name} {admin.last_name}</Typography>
-            <Typography variant="body2"><strong>Email:</strong> {admin.email}</Typography>
-            <Typography variant="body2"><strong>Role:</strong> {capitalize(admin.role)}</Typography>
-            <Typography variant="body2"><strong>Can Add:</strong> {admin.can_add ? "Yes" : "No"}</Typography>
-            <Typography variant="body2"><strong>Can Edit:</strong> {admin.can_edit ? "Yes" : "No"}</Typography>
-            <Typography variant="body2"><strong>Can Delete:</strong> {admin.can_delete ? "Yes" : "No"}</Typography>
-            <Typography variant="body2"><strong>Password Changes:</strong> {admin.password_changed ?? 0}</Typography>
-            <Typography variant="body2"><strong>Date Created:</strong> {admin.date_created ? new Date(admin.date_created).toLocaleString() : "N/A"}</Typography>
+            <Typography variant="body2">
+              <strong>Username:</strong> {admin.username}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Name:</strong> {admin.first_name} {admin.last_name}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Email:</strong> {admin.email}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Role:</strong> {capitalize(admin.role)}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Can Add:</strong> {admin.can_add ? "Yes" : "No"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Can Edit:</strong> {admin.can_edit ? "Yes" : "No"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Can Delete:</strong> {admin.can_delete ? "Yes" : "No"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Can Promote:</strong> {admin.can_promote ? "Yes" : "No"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Can Demote:</strong> {admin.can_demote ? "Yes" : "No"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Password Changes:</strong> {admin.password_changed ?? 0}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Date Created:</strong>{" "}
+              {admin.created_at
+                ? formatDate(admin.created_at)
+                : "N/A"}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Profile Updated:</strong>{" "}
+              {admin.updated_at
+                ? formatDate(admin.updated_at)
+                : "N/A"}
+            </Typography>
           </Stack>
         )}
       </DialogContent>

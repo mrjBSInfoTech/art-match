@@ -10,17 +10,14 @@ import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
-// Get absolute path for uploads folder
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, "..", "..", "uploads", "admin", "uploadAdmin");
 
-// Ensure upload directory exists
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer for admin profile picture uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -73,24 +70,28 @@ const auditAdminUpdate = async (req, id, status, information) => {
   }
 };
 
-// 🟢 Get all admin accounts
+// 🟢 Get all admin accounts with roles
 router.get("/", authenticateAdmin, (req, res) => {
   const sql = `
     SELECT 
-      admin_id,
-      username,
-      first_name,
-      last_name,
-      email,
-      role,
-      can_add,
-      can_edit,
-      can_delete,
-      password_changed,
-      image,
-      date_created
-    FROM admin
-    ORDER BY admin_id ASC
+      a.admin_id,
+      a.username,
+      a.first_name,
+      a.last_name,
+      a.email,
+      a.image,
+      a.password_changed,
+      ar.role,
+      ar.can_add,
+      ar.can_edit,
+      ar.can_delete,
+      ar.can_promote,
+      ar.can_demote,
+      ar.created_at,
+      ar.updated_at
+    FROM admin a
+    LEFT JOIN admin_role ar ON a.admin_id = ar.admin_id
+    ORDER BY a.admin_id ASC
   `;
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -103,20 +104,24 @@ router.get("/:id", authenticateAdmin, (req, res) => {
   const { id } = req.params;
   const sql = `
     SELECT 
-      admin_id,
-      username,
-      first_name,
-      last_name,
-      email,
-      role,
-      can_add,
-      can_edit,
-      can_delete,
-      password_changed,
-      image,
-      date_created
-    FROM admin
-    WHERE admin_id = ?
+      a.admin_id,
+      a.username,
+      a.first_name,
+      a.last_name,
+      a.email,
+      a.image,
+      a.password_changed,
+      ar.role,
+      ar.can_add,
+      ar.can_edit,
+      ar.can_delete,
+      ar.can_promote,
+      ar.can_demote,
+      ar.created_at,
+      ar.updated_at
+    FROM admin a
+    LEFT JOIN admin_role ar ON a.admin_id = ar.admin_id
+    WHERE a.admin_id = ?
   `;
   db.query(sql, [id], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -126,7 +131,7 @@ router.get("/:id", authenticateAdmin, (req, res) => {
   });
 });
 
-// ➕ Add new admin account
+// ➕ Add new admin account and assign role/permissions
 router.post(
   "/",
   authenticateAdmin,
@@ -139,9 +144,11 @@ router.post(
       last_name,
       email,
       role = "admin",
-      can_add = 1,
-      can_edit = 1,
-      can_delete = 1,
+      can_add = 0,
+      can_edit = 0,
+      can_delete = 0,
+      can_promote = 0,
+      can_demote = 0,
     } = req.body;
 
     if (!username || !password || !first_name || !last_name || !email) {
@@ -154,48 +161,85 @@ router.post(
       const hashedPassword = await bcrypt.hash(password, 10);
       const imageName = req.file ? req.file.filename : null;
 
-      const sql = `
-      INSERT INTO admin 
-      (username, password, first_name, last_name, email, role, can_add, can_edit, can_delete, password_changed, image) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
-    `;
+      db.beginTransaction((err) => {
+        if (err) return res.status(500).json({ error: err.message });
 
-      db.query(
-        sql,
-        [
-          username.trim(),
-          hashedPassword,
-          first_name.trim(),
-          last_name.trim(),
-          email.trim(),
-          role,
-          toBoolean(can_add) ? 1 : 0,
-          toBoolean(can_edit) ? 1 : 0,
-          toBoolean(can_delete) ? 1 : 0,
-          imageName,
-        ],
-        (err, result) => {
-          if (err) {
-            if (err.code === "ER_DUP_ENTRY") {
-              return res
-                .status(400)
-                .json({ error: "Username or email already exists." });
+        const sqlAdmin = `
+          INSERT INTO admin (username, password, first_name, last_name, email, password_changed, image) 
+          VALUES (?, ?, ?, ?, ?, 0, ?)
+        `;
+
+        db.query(
+          sqlAdmin,
+          [
+            username.trim(),
+            hashedPassword,
+            first_name.trim(),
+            last_name.trim(),
+            email.trim(),
+            imageName,
+          ],
+          (err, result) => {
+            if (err) {
+              return db.rollback(() => {
+                if (err.code === "ER_DUP_ENTRY") {
+                  return res
+                    .status(400)
+                    .json({ error: "Username or email already exists." });
+                }
+                return res.status(500).json({ error: err.message });
+              });
             }
-            return res.status(500).json({ error: err.message });
+
+            const newAdminId = result.insertId;
+
+            const sqlRole = `
+              INSERT INTO admin_role (admin_id, role, can_add, can_edit, can_delete, can_promote, can_demote)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            db.query(
+              sqlRole,
+              [
+                newAdminId,
+                role,
+                toBoolean(can_add) ? 1 : 0,
+                toBoolean(can_edit) ? 1 : 0,
+                toBoolean(can_delete) ? 1 : 0,
+                toBoolean(can_promote) ? 1 : 0,
+                toBoolean(can_demote) ? 1 : 0,
+              ],
+              (err) => {
+                if (err) {
+                  return db.rollback(() => {
+                    res.status(500).json({ error: err.message });
+                  });
+                }
+
+                db.commit((err) => {
+                  if (err) {
+                    return db.rollback(() => {
+                      res.status(500).json({ error: err.message });
+                    });
+                  }
+
+                  res.json({
+                    message: "✅ Admin created successfully",
+                    id: newAdminId,
+                  });
+                });
+              }
+            );
           }
-          res.json({
-            message: "✅ Admin created successfully",
-            id: result.insertId,
-          });
-        },
-      );
+        );
+      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  },
+  }
 );
 
-// ✏️ Update admin account
+// ✏️ Update admin account and permissions
 router.put(
   "/:id",
   authenticateAdmin,
@@ -212,134 +256,152 @@ router.put(
       can_add,
       can_edit,
       can_delete,
+      can_promote,
+      can_demote,
       image,
     } = req.body;
 
     try {
-      const updates = [];
-      const values = [];
+      db.beginTransaction(async (err) => {
+        if (err) return res.status(500).json({ error: err.message });
 
-      if (username) {
-        updates.push("username = ?");
-        values.push(username.trim());
-      }
+        const adminUpdates = [];
+        const adminValues = [];
 
-      if (first_name) {
-        updates.push("first_name = ?");
-        values.push(first_name.trim());
-      }
-
-      if (last_name) {
-        updates.push("last_name = ?");
-        values.push(last_name.trim());
-      }
-
-      if (email) {
-        updates.push("email = ?");
-        values.push(email.trim());
-      }
-
-      if (role) {
-        updates.push("role = ?");
-        values.push(role);
-      }
-
-      if (can_add !== undefined) {
-        updates.push("can_add = ?");
-        values.push(toBoolean(can_add) ? 1 : 0);
-      }
-
-      if (can_edit !== undefined) {
-        updates.push("can_edit = ?");
-        values.push(toBoolean(can_edit) ? 1 : 0);
-      }
-
-      if (can_delete !== undefined) {
-        updates.push("can_delete = ?");
-        values.push(toBoolean(can_delete) ? 1 : 0);
-      }
-
-      if (req.file) {
-        updates.push("image = ?");
-        values.push(req.file.filename);
-      } else if (image !== undefined) {
-        updates.push("image = ?");
-        values.push(image);
-      }
-
-      if (password) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        updates.push("password = ?");
-        values.push(hashedPassword);
-        updates.push("password_changed = password_changed + 1");
-      }
-
-      if (updates.length === 0) {
-        await auditAdminUpdate(
-          req,
-          id,
-          "FAILED",
-          "No account information changes provided",
-        );
-        return res.status(400).json({ error: "No fields provided to update." });
-      }
-
-      values.push(id);
-      const sql = `UPDATE admin SET ${updates.join(", ")} WHERE admin_id = ?`;
-
-      db.query(sql, values, async (err) => {
-        if (err) {
-          if (err.code === "ER_DUP_ENTRY") {
-            await auditAdminUpdate(
-              req,
-              id,
-              "FAILED",
-              "Username or email already exists",
-            );
-            return res
-              .status(400)
-              .json({ error: "Username or email already exists." });
-          }
-          await auditAdminUpdate(req, id, "FAILED", err.message);
-          return res.status(500).json({ error: err.message });
+        if (username) {
+          adminUpdates.push("username = ?");
+          adminValues.push(username.trim());
         }
-        await auditAdminUpdate(
-          req,
-          id,
-          "SUCCESS",
-          "Account information updated successfully",
-        );
-        res.json({
-          message: "✅ Admin account updated successfully",
-          image: req.file?.filename,
+        if (first_name) {
+          adminUpdates.push("first_name = ?");
+          adminValues.push(first_name.trim());
+        }
+        if (last_name) {
+          adminUpdates.push("last_name = ?");
+          adminValues.push(last_name.trim());
+        }
+        if (email) {
+          adminUpdates.push("email = ?");
+          adminValues.push(email.trim());
+        }
+        if (req.file) {
+          adminUpdates.push("image = ?");
+          adminValues.push(req.file.filename);
+        } else if (image !== undefined) {
+          adminUpdates.push("image = ?");
+          adminValues.push(image);
+        }
+        if (password) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          adminUpdates.push("password = ?");
+          adminValues.push(hashedPassword);
+          adminUpdates.push("password_changed = password_changed + 1");
+        }
+
+        const roleUpdates = [];
+        const roleValues = [];
+
+        if (role) {
+          roleUpdates.push("role = ?");
+          roleValues.push(role);
+        }
+        if (can_add !== undefined) {
+          roleUpdates.push("can_add = ?");
+          roleValues.push(toBoolean(can_add) ? 1 : 0);
+        }
+        if (can_edit !== undefined) {
+          roleUpdates.push("can_edit = ?");
+          roleValues.push(toBoolean(can_edit) ? 1 : 0);
+        }
+        if (can_delete !== undefined) {
+          roleUpdates.push("can_delete = ?");
+          roleValues.push(toBoolean(can_delete) ? 1 : 0);
+        }
+        if (can_promote !== undefined) {
+          roleUpdates.push("can_promote = ?");
+          roleValues.push(toBoolean(can_promote) ? 1 : 0);
+        }
+        if (can_demote !== undefined) {
+          roleUpdates.push("can_demote = ?");
+          roleValues.push(toBoolean(can_demote) ? 1 : 0);
+        }
+
+        if (adminUpdates.length === 0 && roleUpdates.length === 0) {
+          return db.rollback(async () => {
+            await auditAdminUpdate(req, id, "FAILED", "No changes provided");
+            return res.status(400).json({ error: "No fields provided to update." });
+          });
+        }
+
+        const runAdminUpdate = (cb) => {
+          if (adminUpdates.length === 0) return cb(null);
+          adminValues.push(id);
+          const sql = `UPDATE admin SET ${adminUpdates.join(", ")} WHERE admin_id = ?`;
+          db.query(sql, adminValues, cb);
+        };
+
+        const runRoleUpdate = (cb) => {
+          if (roleUpdates.length === 0) return cb(null);
+          roleValues.push(id);
+          const sql = `UPDATE admin_role SET ${roleUpdates.join(", ")} WHERE admin_id = ?`;
+          db.query(sql, roleValues, cb);
+        };
+
+        runAdminUpdate(async (err) => {
+          if (err) {
+            return db.rollback(async () => {
+              const msg = err.code === "ER_DUP_ENTRY" ? "Username or email already exists." : err.message;
+              await auditAdminUpdate(req, id, "FAILED", msg);
+              return res.status(400).json({ error: msg });
+            });
+          }
+
+          runRoleUpdate(async (err) => {
+            if (err) {
+              return db.rollback(async () => {
+                await auditAdminUpdate(req, id, "FAILED", err.message);
+                return res.status(500).json({ error: err.message });
+              });
+            }
+
+            db.commit(async (err) => {
+              if (err) {
+                return db.rollback(async () => {
+                  res.status(500).json({ error: err.message });
+                });
+              }
+
+              await auditAdminUpdate(req, id, "SUCCESS", "Account information updated successfully");
+              res.json({
+                message: "✅ Admin account updated successfully",
+                image: req.file?.filename,
+              });
+            });
+          });
         });
       });
     } catch (error) {
       await auditAdminUpdate(req, id, "FAILED", error.message);
       res.status(500).json({ error: error.message });
     }
-  },
+  }
 );
 
-// ❌ Delete admin account
+// ❌ Delete admin account 
 router.delete("/:id", authenticateAdmin, (req, res) => {
   const { id } = req.params;
 
-  db.query(
-    "SELECT image FROM admin WHERE admin_id = ?",
-    [id],
-    (err, results) => {
-      if (results && results[0]?.image) {
-        const imagePath = path.join(uploadDir, results[0].image);
-        if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
-      }
+  db.query("SELECT image FROM admin WHERE admin_id = ?", [id], (err, results) => {
+    if (results && results[0]?.image) {
+      const imagePath = path.join(uploadDir, results[0].image);
+      if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+    }
 
-      db.query("DELETE FROM admin WHERE admin_id = ?", [id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: "✅ Admin account deleted successfully" });
-      });
-    },
-  );
+    db.query("DELETE FROM admin WHERE admin_id = ?", [id], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "✅ Admin account deleted successfully" });
+    });
+  });
 });
 
 export default router;
