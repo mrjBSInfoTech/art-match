@@ -50,7 +50,7 @@ const DropZone = styled(Box, {
 
 const getImageUrl = (image) =>
   image
-    ? `http://localhost:5000/uploads/uploadAdmin/${encodeURIComponent(image)}`
+    ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
     : "http://localhost:5000/uploads/profile.jpg";
 
 // Slide Transition for Snackbar
@@ -65,22 +65,23 @@ export default function Profile() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [image, setImage] = useState("");
+  const [role, setRole] = useState("Administrator");
+  const [createdAt, setCreatedAt] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
+
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [role, setRole] = useState("Administrator");
-
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
-  
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
-    setSnackbarSeverity(severity); 
+    setSnackbarSeverity(severity);
     setSnackbarOpen(true);
   };
 
@@ -95,59 +96,105 @@ export default function Profile() {
     const storedEmail = localStorage.getItem("admin_email") || "";
     const storedUsername = localStorage.getItem("admin_username") || "";
     const storedImage = localStorage.getItem("admin_image") || "";
+    const storedRole = localStorage.getItem("admin_role") || "";
+    const storedCreatedAt = localStorage.getItem("admin_created_at") || "";
+    const storedUpdatedAt = localStorage.getItem("admin_updated_at") || "";
+
     setFirstName(storedFirst);
     setLastName(storedLast);
     setEmail(storedEmail);
     setUsername(storedUsername);
     setImage(storedImage);
+    setRole(storedRole);
+    setCreatedAt(storedCreatedAt);
+    setUpdatedAt(storedUpdatedAt);
   }, []);
 
-  const handleImageChange = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Please choose an image file.");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setUploadError("Image must be 2MB or smaller.");
-      return;
-    }
-    setSelectedFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    setUploadError("");
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "N/A";
+
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
-  const handleImageSubmit = async () => {
-    if (!selectedFile) return;
-    try {
-      setLoading(true);
-      const adminId = localStorage.getItem("admin_id");
-      const response = await updateAdmin(adminId, { file: selectedFile });
-      const updatedImage = response.image || selectedFile.name;
-      setImage(updatedImage);
-      setSelectedFile(null);
-      setImagePreview(null);
-      localStorage.setItem("admin_image", updatedImage);
-      window.dispatchEvent(new Event("admin-profile-updated"));
-      showSnackbar("Profile image updated successfully.");
-    } catch (error) {
-      showSnackbar(error.message || "Unable to update profile image.", "error");
-    } finally {
-      setLoading(false);
+  const formatAndCapitalize = (data) => {
+    if (!data) return "N/A";
+
+    const list = Array.isArray(data)
+      ? data
+      : typeof data === "string"
+        ? data.split(",")
+        : [];
+
+    if (list.length === 0) return "N/A";
+
+    const formatted = list
+      .map((item) => {
+        if (typeof item !== "string") return "";
+        const trimmed = item.trim();
+        if (!trimmed) return "";
+
+        return trimmed
+          .split(" ")
+          .map(
+            (word) =>
+              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+          )
+          .join(" ");
+      })
+      .filter(Boolean);
+    return formatted.length > 0 ? formatted.join(", ") : "N/A";
+  };
+
+  const getRoleColor = (roleName) => {
+    const normalizedRole = String(roleName).toLowerCase().trim();
+
+    switch (normalizedRole) {
+      case "super admin":
+        return "error"; // Red / Error theme
+      case "admin":
+        return "primary"; // Blue / Primary theme
+      case "moderator":
+        return "warning"; // Orange / Amber
+      case "customize":
+        return "secondary"; // Purple / Secondary theme
+      default:
+        return "default"; // Neutral gray
     }
   };
 
   function InfoRow({ icon, label, value, onCopy }) {
     return (
       <Stack direction="row" spacing={2} alignItems="center">
-        <Box sx={{ p: 1, borderRadius: 2, bgcolor: "action.selected", display: "flex", alignItems: "center" }}>{icon}</Box>
+        <Box
+          sx={{
+            p: 1,
+            borderRadius: 2,
+            bgcolor: "action.selected",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          {icon}
+        </Box>
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
-          <Typography variant="body2" fontWeight="500" noWrap>{value || "N/A"}</Typography>
+          <Typography variant="caption" color="text.secondary" display="block">
+            {label}
+          </Typography>
+          <Typography variant="body2" fontWeight="500" noWrap>
+            {value || "N/A"}
+          </Typography>
         </Box>
         {onCopy && value && (
           <Tooltip title="Copy">
-            <IconButton size="small" onClick={onCopy}><ContentCopyIcon fontSize="small"/></IconButton>
+            <IconButton size="small" onClick={onCopy}>
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
         )}
       </Stack>
@@ -157,11 +204,11 @@ export default function Profile() {
   const getSeverityColor = (severity) => {
     switch (severity) {
       case "success":
-        return "success.light"; 
+        return "success.light";
       case "error":
-        return "error.light"; 
+        return "error.light";
       default:
-        return "primary.light"; 
+        return "primary.light";
     }
   };
 
@@ -193,18 +240,33 @@ export default function Profile() {
                 fontWeight: "bold",
                 boxShadow: 2,
               }}
-              src={imagePreview || getImageUrl(image)}
-              alt="Admin"
+              src={
+                localStorage.getItem("admin_image")
+                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
+                  : "http://localhost:5000/uploads/profile.jpg"
+              }
+              alt={role}
             />
           </Grid>
 
-          <Grid item xs={12} sm={6} md={6} sx={{ display: "flex", flexDirection: "column" }}>
+          <Grid
+            item
+            xs={12}
+            sm={6}
+            md={6}
+            sx={{ display: "flex", flexDirection: "column" }}
+          >
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <Typography variant="h5" fontWeight="700">
                   {`${firstName} ${lastName}`.trim() || "Admin Name"}
                 </Typography>
-                <Chip label={role} size="small" sx={{ fontWeight: 600 }} />
+                <Chip
+                  color={getRoleColor(role)}
+                  label={formatAndCapitalize(role)}
+                  size="small"
+                  sx={{ fontWeight: 600 }}
+                />
               </Stack>
 
               <Typography variant="body2" color="text.secondary">
@@ -217,65 +279,154 @@ export default function Profile() {
             </Stack>
           </Grid>
         </Grid>
-        <Stack spacing={1.5} sx={{ mt: 3, maxWidth: 520 }}>
-          <Typography variant="subtitle1" fontWeight="700">Profile image</Typography>
-          {uploadError && <Alert severity="error">{uploadError}</Alert>}
-          <DropZone
-            isDragActive={isDragActive}
-            onDragEnter={() => setIsDragActive(true)}
-            onDragLeave={() => setIsDragActive(false)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              setIsDragActive(false);
-              handleImageChange(event.dataTransfer.files?.[0]);
-            }}
-            onClick={() => document.getElementById("admin-profile-image-input")?.click()}
-          >
-            {imagePreview ? (
-              <Box component="img" src={imagePreview} alt="Profile preview" sx={{ maxWidth: "100%", maxHeight: 100, objectFit: "contain" }} />
-            ) : (
-              <>
-                <Typography fontWeight="700">Drag an image here</Typography>
-                <Typography variant="body2" color="text.secondary">PNG, JPG, or WEBP up to 2MB</Typography>
-              </>
-            )}
-            <input id="admin-profile-image-input" hidden type="file" accept="image/*" onChange={(event) => handleImageChange(event.target.files?.[0])} />
-          </DropZone>
-          <Button variant="contained" onClick={handleImageSubmit} disabled={!selectedFile || loading}>
-            {loading ? "Uploading..." : "Save profile image"}
-          </Button>
-        </Stack>
       </Paper>
 
       {/* Main Details Grid */}
-      <Grid container spacing={3} sx={{ width: "100%", m: 0, justifyContent: { md: "space-between" }, alignItems: "stretch" }}>
-        <Grid item xs={12} sm={6} md={6} sx={{ display: "flex", flex: { xs: "0 0 100%", sm: "0 0 48.5%" }, maxWidth: { xs: "100%", sm: "48.5%" }, boxSizing: "border-box" }}>
-          <Paper elevation={0} sx={{ p: 3, width: "100%", display: "flex", flexDirection: "column", flex: 1, minWidth: 0, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-            <Typography variant="h6" fontWeight="600" mb={2}>Personal Information</Typography>
+      <Grid
+        container
+        spacing={3}
+        sx={{
+          width: "100%",
+          m: 0,
+          justifyContent: { md: "space-between" },
+          alignItems: "stretch",
+        }}
+      >
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={6}
+          sx={{
+            display: "flex",
+            flex: { xs: "0 0 100%", sm: "0 0 48.5%" },
+            maxWidth: { xs: "100%", sm: "48.5%" },
+            boxSizing: "border-box",
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              minWidth: 0,
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography variant="h6" fontWeight="600" mb={2}>
+              Personal Information
+            </Typography>
             <Divider sx={{ mb: 2.5 }} />
             <Stack spacing={2.5} sx={{ flexGrow: 1 }}>
-              <InfoRow icon={<PersonIcon color="action" />} label="Name" value={`${firstName} ${lastName}`.trim()} />
-              <InfoRow icon={<AccountCircleIcon color="action" />} label="Username" value={username} />
-              <InfoRow icon={<HomeIcon color="action" />} label="Email" value={email} onCopy={() => navigator.clipboard.writeText(email || "")} />
+              <InfoRow
+                icon={<PersonIcon color="action" />}
+                label="Name"
+                value={`${firstName} ${lastName}`.trim()}
+              />
+              <InfoRow
+                icon={<AccountCircleIcon color="action" />}
+                label="Username"
+                value={username}
+              />
+              <InfoRow
+                icon={<HomeIcon color="action" />}
+                label="Email"
+                value={email}
+                onCopy={() => navigator.clipboard.writeText(email || "")}
+              />
             </Stack>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={6} sx={{ display: "flex", flex: { xs: "0 0 100%", sm: "0 0 48.5%" }, maxWidth: { xs: "100%", sm: "48.5%" }, boxSizing: "border-box" }}>
-          <Paper elevation={0} sx={{ p: 3, width: "100%", display: "flex", flexDirection: "column", flex: 1, minWidth: 0, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-            <Typography variant="h6" fontWeight="600" mb={2}>Account Details</Typography>
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={6}
+          sx={{
+            display: "flex",
+            flex: { xs: "0 0 100%", sm: "0 0 48.5%" },
+            maxWidth: { xs: "100%", sm: "48.5%" },
+            boxSizing: "border-box",
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              minWidth: 0,
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography variant="h6" fontWeight="600" mb={2}>
+              Account Details
+            </Typography>
             <Divider sx={{ mb: 2.5 }} />
             <Stack spacing={2.5} sx={{ flexGrow: 1 }}>
-              <InfoRow icon={<BadgeOutlinedIcon color="action" />} label="Role" value={role} />
-              <InfoRow icon={<CalendarTodayOutlinedIcon color="action" />} label="Member Since" value={"N/A"} />
-              <InfoRow icon={<VerifiedUserOutlinedIcon color="action" />} label="Status" value={"Active"} />
+              <InfoRow
+                icon={<BadgeOutlinedIcon color="action" />}
+                label="Role"
+                value={formatAndCapitalize(role)}
+              />
+              <InfoRow
+                icon={<CalendarTodayOutlinedIcon color="action" />}
+                label="Member Since"
+                value={formatDate(createdAt)}
+              />
+              <InfoRow
+                icon={<VerifiedUserOutlinedIcon color="action" />}
+                label="Status"
+                value={"Active"}
+              />
+              <InfoRow
+                icon={<CalendarTodayOutlinedIcon color="action" />}
+                label="Last Updated"
+                value={formatDate(updatedAt)}
+              />
             </Stack>
             <Box sx={{ mt: 3 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight="600" display="block" mb={1}>Admin Actions</Typography>
-              <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: "action.hover", cursor: "pointer", transition: "0.2s", '&:hover': { borderColor: 'primary.main' } }}>
-                <CardContent sx={{ py: 1.5, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}> 
-                  <Button size="small" startIcon={<VisibilityIcon />}>View Activity</Button>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                fontWeight="600"
+                display="block"
+                mb={1}
+              >
+                Admin Actions
+              </Typography>
+              <Card
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  bgcolor: "action.hover",
+                  cursor: "pointer",
+                  transition: "0.2s",
+                  "&:hover": { borderColor: "primary.main" },
+                }}
+              >
+                <CardContent
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Button size="small" startIcon={<VisibilityIcon />}>
+                    View Activity
+                  </Button>
                 </CardContent>
               </Card>
             </Box>

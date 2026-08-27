@@ -52,6 +52,35 @@ export default function AuditLogs() {
     loadLogs();
   }, [search, date, period]);
 
+  const formatAndCapitalize = (data) => {
+    if (!data) return "N/A";
+
+    const list = Array.isArray(data)
+      ? data
+      : typeof data === "string"
+        ? data.split(",")
+        : [];
+
+    if (list.length === 0) return "N/A";
+
+    const formatted = list
+      .map((item) => {
+        if (typeof item !== "string") return "";
+        const trimmed = item.trim();
+        if (!trimmed) return "";
+
+        return trimmed
+          .split(" ")
+          .map(
+            (word) =>
+              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+          )
+          .join(" ");
+      })
+      .filter(Boolean);
+    return formatted.length > 0 ? formatted.join(", ") : "N/A";
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Helmet titleTemplate="%s - ArtMatch">
@@ -76,7 +105,7 @@ export default function AuditLogs() {
 
       {/* Filter Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6">Filter</Typography>
+        <Typography variant="h6" sx={{fontWeight: "bold"}}>Filter</Typography>
         <Box
           sx={{
             display: "flex",
@@ -153,7 +182,7 @@ export default function AuditLogs() {
 
       {/* Table Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
           Audit Log List
         </Typography>
         {loading ? (
@@ -197,7 +226,7 @@ export default function AuditLogs() {
                         .replace(/\b\w/g, (letter) => letter.toUpperCase())}
                     </TableCell>
                     <TableCell>{log.actor}</TableCell>
-                    <TableCell>{log.role}</TableCell>
+                    <TableCell>{formatAndCapitalize(log.role)}</TableCell>
                     <TableCell>
                       <Chip
                         label={

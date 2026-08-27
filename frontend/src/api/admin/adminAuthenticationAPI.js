@@ -64,9 +64,12 @@ export const logout = () => {
   localStorage.removeItem("admin_can_add");
   localStorage.removeItem("admin_can_edit");
   localStorage.removeItem("admin_can_delete");
+  localStorage.removeItem("admin_can_promote");
+  localStorage.removeItem("admin_can_demote");
   localStorage.removeItem("admin_password_changed");
-  localStorage.removeItem("admin_date_created");
-};
+  localStorage.removeItem("admin_created_at");
+  localStorage.removeItem("admin_updated_at");
+}
 
 export const recordLogout = async () => {
   try {

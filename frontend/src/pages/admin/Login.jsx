@@ -114,8 +114,11 @@ const Login = () => {
       localStorage.setItem("admin_can_add", data.can_add);
       localStorage.setItem("admin_can_edit", data.can_edit);
       localStorage.setItem("admin_can_delete", data.can_delete);
+      localStorage.setItem("admin_can_promote", data.can_promote);
+      localStorage.setItem("admin_can_demote", data.can_demote);
       localStorage.setItem("admin_password_changed", data.password_changed);
-      localStorage.setItem("admin_date_created", data.date_created || "");
+      localStorage.setItem("admin_created_at", data.created_at || data.date_created || "");
+      localStorage.setItem("admin_updated_at", data.updated_at || "");
 
       showSnackbar("Login successful!", "success");
       navigate("/admin/dashboard", { replace: true });
