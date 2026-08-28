@@ -184,7 +184,7 @@ export default function AdminLayout({ children }) {
       title: "Manage Users",
       icon: <VerifiedRoundedIcon />,
       children: [
-        ...(isSuperAdmin
+        ...(isSuperAdmin || localStorage.getItem("admin_role") === "admin"
           ? [
               {
                 segment: "admins",

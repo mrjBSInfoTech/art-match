@@ -25,6 +25,7 @@ import {
   deleteAdmin,
   fetchAdmins,
   updateAdmin,
+  changeAdminRole,
 } from "../../api/admin/adminAPI";
 
 // Slide Transition for Snackbar
@@ -65,7 +66,9 @@ export default function Admin() {
 
   const filteredAdmins = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    const currentAdminId = String(localStorage.getItem("admin_id") || "");
     return admins.filter((admin) => {
+      if (String(admin.admin_id) === currentAdminId) return false;
       const normalizedRole = String(admin.role || "").toLowerCase();
       const matchesRole = roleFilter === "all" || normalizedRole === roleFilter;
       const matchesSearch = [
@@ -121,7 +124,24 @@ export default function Admin() {
       setSnackbarOpen(true);
       setSelectedAdmin(null);
     } catch (error) {
-      setAdminErrorMessage(error.message || "Unable to delete admin account.", "error");
+      setAdminErrorMessage(
+        error.message || "Unable to delete admin account.",
+        "error",
+      );
+    }
+  };
+
+  const handleRoleChange = async (id, action) => {
+    try {
+      const response = await changeAdminRole(id, action);
+      await loadAdmins();
+      setSnackbarMessage(response.message || `Admin ${action}d successfully.`);
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
+    } catch (error) {
+      setAdminErrorMessage(
+        error.message || `Unable to ${action} admin account.`,
+      );
     }
   };
 
@@ -220,6 +240,8 @@ export default function Admin() {
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
               <MenuItem value="super admin">Super Admin</MenuItem>
+              <MenuItem value="moderator">Moderator</MenuItem>
+              <MenuItem value="customize">Customize</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -239,6 +261,8 @@ export default function Admin() {
             admins={filteredAdmins}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
+            onPromote={(id) => handleRoleChange(id, "promote")}
+            onDemote={(id) => handleRoleChange(id, "demote")}
           />
         ) : (
           <Typography
@@ -257,6 +281,7 @@ export default function Admin() {
         handleClose={handleCloseForm}
         onSubmit={handleSubmitAdmin}
         selectedAdmin={selectedAdmin}
+        admins={admins}
       />
 
       <AdminDelete

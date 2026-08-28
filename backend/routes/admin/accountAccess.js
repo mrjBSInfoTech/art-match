@@ -2,11 +2,13 @@ import express from "express";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { addStrike, setBanned } from "../../database/accountAccess.js";
+import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
 
 const router = express.Router();
 const validRoles = new Set(["buyer", "seller"]);
 
 router.use(authenticateAdmin);
+router.use(requireAdminPermission("can_edit"));
 
 router.get("/", (req, res) => {
   const sql = `
@@ -35,8 +37,18 @@ router.post("/:role/:id/strike", async (req, res) => {
     return res.status(400).json({ message: "Invalid account role or ID." });
   }
   try {
-    const access = await addStrike(role, Number(id), req.body.reason, req.user.admin_id);
-    res.json({ message: access.is_banned ? "Third strike applied; account banned." : "Strike applied.", access });
+    const access = await addStrike(
+      role,
+      Number(id),
+      req.body.reason,
+      req.user.admin_id,
+    );
+    res.json({
+      message: access.is_banned
+        ? "Third strike applied; account banned."
+        : "Strike applied.",
+      access,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -48,8 +60,17 @@ router.put("/:role/:id/ban", async (req, res) => {
     return res.status(400).json({ message: "Invalid account role or ID." });
   }
   try {
-    const access = await setBanned(role, Number(id), req.body.banned !== false, req.body.reason, req.user.admin_id);
-    res.json({ message: access.is_banned ? "Account banned." : "Account unbanned.", access });
+    const access = await setBanned(
+      role,
+      Number(id),
+      req.body.banned !== false,
+      req.body.reason,
+      req.user.admin_id,
+    );
+    res.json({
+      message: access.is_banned ? "Account banned." : "Account unbanned.",
+      access,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

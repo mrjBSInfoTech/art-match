@@ -49,7 +49,6 @@ export default function AdminForm({
   handleClose,
   onSubmit,
   selectedAdmin,
-  admins = [],
 }) {
   const isEditMode = Boolean(selectedAdmin);
   const [formData, setFormData] = useState(emptyForm);
@@ -64,7 +63,7 @@ export default function AdminForm({
       first_name: selectedAdmin?.first_name || "",
       last_name: selectedAdmin?.last_name || "",
       email: selectedAdmin?.email || "",
-      role: selectedAdmin?.role || "",
+      role: selectedAdmin?.role || emptyForm.role,
       can_add: toBoolean(selectedAdmin?.can_add),
       can_edit: toBoolean(selectedAdmin?.can_edit),
       can_delete: toBoolean(selectedAdmin?.can_delete),
@@ -76,6 +75,41 @@ export default function AdminForm({
 
   const handleChange = (event) => {
     const { name, value, checked, type } = event.target;
+    if (name === "role") {
+      const permissions = {
+        "super admin": {
+          can_add: true,
+          can_edit: true,
+          can_delete: true,
+          can_promote: true,
+          can_demote: true,
+        },
+        admin: {
+          can_add: true,
+          can_edit: true,
+          can_delete: true,
+          can_promote: false,
+          can_demote: false,
+        },
+        moderator: {
+          can_add: true,
+          can_edit: true,
+          can_delete: false,
+          can_promote: false,
+          can_demote: false,
+        },
+        customize: {
+          can_add: false,
+          can_edit: false,
+          can_delete: false,
+          can_promote: false,
+          can_demote: false,
+        },
+      }[value];
+      setFormData((current) => ({ ...current, role: value, ...permissions }));
+      setError("");
+      return;
+    }
     setFormData((current) => ({
       ...current,
       [name]: type === "checkbox" ? checked : value,
@@ -118,16 +152,9 @@ export default function AdminForm({
     }
   };
 
-  const hasSuperAdmin = admins.some(
-    (admin) =>
-      admin.role?.toLowerCase() === "super admin" &&
-      admin.admin_id !== selectedAdmin?.admin_id,
-  );
-
-  // Hide promote/demote checkboxes for 'customize' and 'moderator' roles
-  const hidePromoteDemote = ["customize", "moderator"].includes(
-    formData.role?.toLowerCase(),
-  );
+  const currentRole = localStorage.getItem("admin_role")?.toLowerCase();
+  const canAssignSuperAdmin = currentRole === "super admin";
+  const fixedRole = formData.role?.toLowerCase() !== "customize";
 
   return (
     <Dialog
@@ -194,7 +221,7 @@ export default function AdminForm({
               onChange={handleChange}
             >
               <MenuItem value="admin">Admin</MenuItem>
-              {hasSuperAdmin && (
+              {canAssignSuperAdmin && (
                 <MenuItem value="super admin">Super Admin</MenuItem>
               )}
               <MenuItem value="moderator">Moderator</MenuItem>
@@ -220,7 +247,7 @@ export default function AdminForm({
                     name="can_add"
                     checked={formData.can_add}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={loading || fixedRole}
                   />
                 }
                 label="Can Add"
@@ -231,7 +258,7 @@ export default function AdminForm({
                     name="can_edit"
                     checked={formData.can_edit}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={loading || fixedRole}
                   />
                 }
                 label="Can Edit"
@@ -242,37 +269,38 @@ export default function AdminForm({
                     name="can_delete"
                     checked={formData.can_delete}
                     onChange={handleChange}
-                    disabled={loading}
+                    disabled={loading || fixedRole}
                   />
                 }
                 label="Can Delete"
               />
-              {!hidePromoteDemote && (
-                <>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        name="can_promote"
-                        checked={formData.can_promote}
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Can Promote"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        name="can_demote"
-                        checked={formData.can_demote}
-                        onChange={handleChange}
-                        disabled={loading}
-                      />
-                    }
-                    label="Can Demote"
-                  />
-                </>
-              )}
+              {canAssignSuperAdmin &&
+                formData.role?.toLowerCase() === "super admin" && (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          name="can_promote"
+                          checked={formData.can_promote}
+                          onChange={handleChange}
+                          disabled={loading}
+                        />
+                      }
+                      label="Can Promote"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          name="can_demote"
+                          checked={formData.can_demote}
+                          onChange={handleChange}
+                          disabled={loading}
+                        />
+                      }
+                      label="Can Demote"
+                    />
+                  </>
+                )}
             </Box>
           </Box>
           <TextField
