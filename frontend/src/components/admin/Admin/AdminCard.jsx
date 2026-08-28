@@ -15,9 +15,17 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AdminInfo from "./AdminInfo";
 
-export default function AdminCard({ admins, onEdit, onDelete }) {
+export default function AdminCard({
+  admins,
+  onEdit,
+  onDelete,
+  onPromote,
+  onDemote,
+}) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
@@ -25,12 +33,34 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
 
   const currentRole = localStorage.getItem("admin_role");
   const isSuperAdmin = currentRole === "super admin";
-  const isAdmin = currentRole === "admin";
-  const canEdit =
-    (isSuperAdmin || isAdmin) && localStorage.getItem("admin_can_edit") === "1";
-  const canDelete =
-    (isSuperAdmin || isAdmin) &&
-    localStorage.getItem("admin_can_delete") === "1";
+  const roleRank = {
+    customize: 1,
+    moderator: 2,
+    admin: 3,
+    "super admin": 4,
+  };
+  const currentRank = roleRank[currentRole] || 0;
+  const hasPermission = (permission) => {
+    if (isSuperAdmin) return true;
+    if (currentRole === "admin")
+      return ["can_edit", "can_delete"].includes(permission);
+    if (currentRole === "moderator") return permission === "can_edit";
+    return (
+      permission === "can_edit" &&
+      localStorage.getItem("admin_can_edit") === "1"
+    );
+  };
+  const canManageTarget = (admin, permission) => {
+    if (!admin) return false;
+    return (
+      hasPermission(permission) &&
+      (roleRank[String(admin.role).toLowerCase()] || 0) < currentRank
+    );
+  };
+  const canPromote =
+    isSuperAdmin && localStorage.getItem("admin_can_promote") === "1";
+  const canDemote =
+    isSuperAdmin && localStorage.getItem("admin_can_demote") === "1";
 
   const handleMenuOpen = (event, admin) => {
     setAnchorEl(event.currentTarget);
@@ -117,7 +147,10 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
                 />
               </Box>
 
-              {(canEdit || canDelete) && (
+              {(canManageTarget(admin, "can_edit") ||
+                canManageTarget(admin, "can_delete") ||
+                canPromote ||
+                canDemote) && (
                 <IconButton
                   size="small"
                   onClick={(event) => handleMenuOpen(event, admin)}
@@ -131,7 +164,6 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
                   <MoreVertIcon fontSize="small" />
                 </IconButton>
               )}
-
             </Box>
 
             {/* Info Button */}
@@ -160,7 +192,7 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
                 horizontal: "right",
               }}
             >
-              {canEdit && (
+              {canManageTarget(selectedAdmin, "can_edit") && (
                 <MenuItem
                   onClick={() => {
                     onEdit(selectedAdmin);
@@ -174,7 +206,36 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
                   Edit
                 </MenuItem>
               )}
-              <MenuItem
+              {canPromote &&
+                selectedAdmin?.admin_id !==
+                  Number(localStorage.getItem("admin_id")) && (
+                  <MenuItem
+                    onClick={() => {
+                      onPromote(selectedAdmin.admin_id);
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "primary.main" }}
+                  >
+                    <ArrowUpwardIcon sx={{ mr: 1, fontSize: "20px" }} />
+                    Promote
+                  </MenuItem>
+                )}
+              {canDemote &&
+                selectedAdmin?.admin_id !==
+                  Number(localStorage.getItem("admin_id")) && (
+                  <MenuItem
+                    onClick={() => {
+                      onDemote(selectedAdmin.admin_id);
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "warning.main" }}
+                  >
+                    <ArrowDownwardIcon sx={{ mr: 1, fontSize: "20px" }} />
+                    Demote
+                  </MenuItem>
+                )}
+              {canManageTarget(selectedAdmin, "can_delete") && (
+                <MenuItem
                   onClick={() => {
                     onDelete(selectedAdmin.admin_id);
                     handleMenuClose();
@@ -186,6 +247,7 @@ export default function AdminCard({ admins, onEdit, onDelete }) {
                   <DeleteIcon sx={{ mr: 1, fontSize: "20px" }} />
                   Delete
                 </MenuItem>
+              )}
             </Menu>
           </CardContent>
         </Card>

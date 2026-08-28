@@ -133,6 +133,15 @@ export const updateAdmin = async (id, adminData) => {
   }
 };
 
+export const changeAdminRole = async (id, action) => {
+  try {
+    const res = await api.put(`/admin/admin/${id}/${action}`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 // Delete admin account
 export const deleteAdmin = async (id) => {
   try {
