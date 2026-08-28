@@ -54,7 +54,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 export default function AdminLayout({ children }) {
-  //Info 
+  //Info
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -93,7 +93,9 @@ export default function AdminLayout({ children }) {
       const storedCanDelete = localStorage.getItem("admin_can_delete");
       const storedCanPromote = localStorage.getItem("admin_can_promote");
       const storedCanDemote = localStorage.getItem("admin_can_demote");
-      const storedPasswordChanged = localStorage.getItem("admin_password_changed");
+      const storedPasswordChanged = localStorage.getItem(
+        "admin_password_changed",
+      );
       const storedCreatedAt = localStorage.getItem("admin_created_at");
       const storedUpdatedAt = localStorage.getItem("admin_updated_at");
 
@@ -225,17 +227,6 @@ export default function AdminLayout({ children }) {
         },
       ],
     },
-    // Only for Super Admin Panel
-    ...(isSuperAdmin
-      ? [
-          {
-            segment: "admin",
-            title: "Admin Control",
-            icon: <KeyIcon />,
-          },
-        ]
-      : []),
-
     {
       segment: "audit-logs",
       title: "Audit Logs",
@@ -297,10 +288,10 @@ export default function AdminLayout({ children }) {
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Avatar
           src={
-              localStorage.getItem("admin_image")
-                ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
-                : "http://localhost:5000/uploads/profile.jpg"
-            }
+            localStorage.getItem("admin_image")
+              ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
+              : "http://localhost:5000/uploads/profile.jpg"
+          }
           alt="ArtMatch"
           sx={{ width: 40, height: 40 }}
         />

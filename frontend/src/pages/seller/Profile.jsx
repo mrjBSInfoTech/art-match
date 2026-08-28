@@ -53,6 +53,7 @@ export default function Profile() {
   const [status, setStatus] = useState("");
   const [registeredDate, setRegisteredDate] = useState("");
   const [approvedDate, setApprovedDate] = useState("");
+  const [profileImage, setProfileImage] = useState("");
 
   // Modals & Notifications
   const [openCor, setOpenCor] = useState(false);
@@ -75,6 +76,7 @@ export default function Profile() {
     setStatus(localStorage.getItem("seller_register_status") || "pending");
     setRegisteredDate(localStorage.getItem("seller_registered_date") || "");
     setApprovedDate(localStorage.getItem("seller_approved_date") || "");
+    setProfileImage(localStorage.getItem("seller_profile_image") || "");
   }, []);
 
   const formatDate = (dateString) => {
@@ -164,7 +166,11 @@ export default function Profile() {
                 fontWeight: "bold",
                 boxShadow: 2,
               }}
-              src={`http://localhost:5000/uploads/profile.jpg`}
+              src={
+                profileImage
+                  ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
+                  : undefined
+              }
               alt="ArtMatch"
             />
           </Grid>
@@ -210,7 +216,16 @@ export default function Profile() {
       </Paper>
 
       {/* Main Details Grid */}
-      <Grid container spacing={3} sx={{ width: "100%", m: 0, justifyContent: { md: 'space-between' }, alignItems: 'stretch' }}>
+      <Grid
+        container
+        spacing={3}
+        sx={{
+          width: "100%",
+          m: 0,
+          justifyContent: { md: "space-between" },
+          alignItems: "stretch",
+        }}
+      >
         {/* Personal Details Card */}
         <Grid
           item
