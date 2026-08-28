@@ -21,7 +21,12 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Lock as LockIcon, Person as PersonIcon, Visibility, VisibilityOff } from "@mui/icons-material";
+import {
+  Lock as LockIcon,
+  Person as PersonIcon,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 import { loginUser } from "../../api/seller/sellerAuthenticationAPI";
 import Nexus from "../../assets/Nexus.png";
 import { hasValidToken, setToken } from "../../../utils/auth";
@@ -120,9 +125,16 @@ const Login = () => {
       localStorage.setItem("seller_cor", data.cor || "");
       localStorage.setItem("seller_year_level", data.year_level || "");
       localStorage.setItem("seller_course", data.course || "");
-      localStorage.setItem("seller_register_status", data.register_status || "");
-      localStorage.setItem("seller_registered_date", data.registered_date || "");
+      localStorage.setItem(
+        "seller_register_status",
+        data.register_status || "",
+      );
+      localStorage.setItem(
+        "seller_registered_date",
+        data.registered_date || "",
+      );
       localStorage.setItem("seller_approved_date", data.approved_date || "");
+      localStorage.setItem("seller_profile_image", data.profile_image || "");
 
       showSnackbar("Login successful!", "success");
       navigate("/seller/dashboard", { replace: true });
@@ -168,7 +180,12 @@ const Login = () => {
             mb: 2,
           }}
         >
-          <Box component="img" src={Nexus} alt="ArtMatch" sx={{ height: 50, width: "auto" }} />
+          <Box
+            component="img"
+            src={Nexus}
+            alt="ArtMatch"
+            sx={{ height: 50, width: "auto" }}
+          />
         </Box>
 
         <Typography
@@ -203,7 +220,7 @@ const Login = () => {
               fullWidth
               variant="outlined"
               name="course"
-              size="small"        
+              size="small"
               value={module}
               onChange={handleModuleChange}
               sx={{
@@ -223,12 +240,8 @@ const Login = () => {
               }}
             >
               <MenuItem value="">Module</MenuItem>
-              <MenuItem value="Admin">
-                Admin
-              </MenuItem>
-              <MenuItem value="Student">
-                Student
-              </MenuItem>
+              <MenuItem value="Admin">Admin</MenuItem>
+              <MenuItem value="Student">Student</MenuItem>
             </Select>
           </Box>
 
@@ -255,7 +268,9 @@ const Login = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PersonIcon sx={{ color: "#af4f4f", fontSize: "1.25rem" }} />
+                    <PersonIcon
+                      sx={{ color: "#af4f4f", fontSize: "1.25rem" }}
+                    />
                   </InputAdornment>
                 ),
                 sx: {
@@ -350,8 +365,13 @@ const Login = () => {
           <Divider />
 
           <Typography variant="body2" align="center">
-            Don&apos;t have an account?{' '}
-            <Link component={RouterLink} to="/seller/register" underline="hover" sx={{ fontWeight: 700 }}>
+            Don&apos;t have an account?{" "}
+            <Link
+              component={RouterLink}
+              to="/seller/register"
+              underline="hover"
+              sx={{ fontWeight: 700 }}
+            >
               Create one
             </Link>
           </Typography>

@@ -52,6 +52,29 @@ const upload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
+const profileUploadDir = path.join(
+  __dirname,
+  "..",
+  "..",
+  "uploads",
+  "seller",
+  "profile",
+);
+if (!fs.existsSync(profileUploadDir))
+  fs.mkdirSync(profileUploadDir, { recursive: true });
+const profileUpload = multer({
+  storage: multer.diskStorage({
+    destination: profileUploadDir,
+    filename: (req, file, cb) =>
+      cb(
+        null,
+        `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_")}`,
+      ),
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith("image/")),
+});
+
 // Register route
 router.post("/register", upload.single("cor"), (req, res) => {
   const {
@@ -164,6 +187,7 @@ router.post("/login", (req, res) => {
       s.year_level, 
       s.course, 
       s.student_number, 
+      s.profile_image,
       s.password, 
       a.register_status,
       a.registered_date,
@@ -238,6 +262,7 @@ router.post("/login", (req, res) => {
       email: user.email,
       address: user.address,
       phone_number: user.phone_number,
+      profile_image: user.profile_image,
       cor: user.cor,
       year_level: user.year_level,
       student_number: user.student_number,
@@ -251,38 +276,66 @@ router.post("/login", (req, res) => {
 
 router.get("/me", authenticateSeller, (req, res) => {
   db.query(
-    "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, address, phone_number, year_level, course FROM student WHERE student_id = ?",
+    "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, address, phone_number, year_level, course, profile_image FROM student WHERE student_id = ?",
     [req.user.student_id],
     (err, result) => {
       if (err) return res.status(500).json({ message: "Database error" });
-      if (!result.length) return res.status(404).json({ message: "Seller not found" });
+      if (!result.length)
+        return res.status(404).json({ message: "Seller not found" });
       res.json(result[0]);
     },
   );
 });
 
-router.put("/me", authenticateSeller, (req, res) => {
-  const fields = ["student_number", "first_name", "middle_name", "last_name", "birthdate", "email", "address", "phone_number", "year_level", "course"];
-  const updates = fields.filter((field) => Object.hasOwn(req.body, field));
-  const values = updates.map((field) => req.body[field]);
-  if (req.body.password) {
-    updates.push("password");
-    values.push(bcrypt.hashSync(req.body.password, 10));
-  }
-  if (!updates.length) return res.status(400).json({ message: "No profile changes supplied." });
+router.put(
+  "/me",
+  authenticateSeller,
+  profileUpload.single("profile_image"),
+  (req, res) => {
+    const fields = [
+      "student_number",
+      "first_name",
+      "middle_name",
+      "last_name",
+      "birthdate",
+      "email",
+      "address",
+      "phone_number",
+      "year_level",
+      "course",
+    ];
+    const updates = fields.filter((field) => Object.hasOwn(req.body, field));
+    const values = updates.map((field) => req.body[field]);
+    if (req.file) {
+      updates.push("profile_image");
+      values.push(req.file.filename);
+    }
+    if (req.body.password) {
+      updates.push("password");
+      values.push(bcrypt.hashSync(req.body.password, 10));
+    }
+    if (!updates.length)
+      return res.status(400).json({ message: "No profile changes supplied." });
 
-  db.query(
-    `UPDATE student SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE student_id = ?`,
-    [...values, req.user.student_id],
-    (err) => {
-      if (err) {
-        if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ message: "Student number or email already exists." });
-        return res.status(500).json({ message: "Database error" });
-      }
-      res.json({ message: "Seller profile updated successfully." });
-    },
-  );
-});
+    db.query(
+      `UPDATE student SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE student_id = ?`,
+      [...values, req.user.student_id],
+      (err) => {
+        if (err) {
+          if (err.code === "ER_DUP_ENTRY")
+            return res
+              .status(409)
+              .json({ message: "Student number or email already exists." });
+          return res.status(500).json({ message: "Database error" });
+        }
+        res.json({
+          message: "Seller profile updated successfully.",
+          profile_image: req.file?.filename,
+        });
+      },
+    );
+  },
+);
 
 router.post("/logout", authenticateSeller, async (req, res) => {
   try {

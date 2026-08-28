@@ -82,6 +82,7 @@ export default function Login() {
       localStorage.setItem("buyer_last_name", data.last_name);
       localStorage.setItem("buyer_email", data.email);
       localStorage.setItem("buyer_phone_number", data.phone_number);
+      localStorage.setItem("buyer_profile_image", data.profile_image || "");
 
       setTimeout(() => {
         navigate("/buyer/main", { replace: true });

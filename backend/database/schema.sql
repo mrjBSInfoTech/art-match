@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS customer (
   email VARCHAR(255) NOT NULL UNIQUE,
   phone_number VARCHAR(30) NOT NULL,
   password VARCHAR(255) NOT NULL,
+  profile_image VARCHAR(255) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS student (
   course VARCHAR(100) NOT NULL,
   student_number VARCHAR(50) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
+  profile_image VARCHAR(255) NULL
 );
 
 CREATE TABLE IF NOT EXISTS accregistration (
