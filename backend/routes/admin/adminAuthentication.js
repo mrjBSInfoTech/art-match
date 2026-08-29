@@ -46,7 +46,7 @@ router.post("/login", (req, res) => {
     }
 
     const user = result.length > 0 ? result[0] : null;
-    const userRole = user?.role || "Admin";
+    const userRole = user?.role || "admin";
 
     if (!user) {
       logAudit({
@@ -81,12 +81,12 @@ router.post("/login", (req, res) => {
         last_name: user.last_name,
         image: user.image,
         email: user.email,
-        role: user.role,
-        can_add: user.can_add,
-        can_edit: user.can_edit,
-        can_delete: user.can_delete,
-        can_promote: user.can_promote,
-        can_demote: user.can_demote,
+        role: user.role || "admin",
+        can_add: user.can_add || 0,
+        can_edit: user.can_edit || 0,
+        can_delete: user.can_delete || 0,
+        can_promote: user.can_promote || 0,
+        can_demote: user.can_demote || 0,
         password_changed: user.password_changed,
         created_at: user.created_at,
         updated_at: user.updated_at,
@@ -110,12 +110,12 @@ router.post("/login", (req, res) => {
       last_name: user.last_name,
       image: user.image,
       email: user.email,
-      role: user.role,
-      can_add: user.can_add,
-      can_edit: user.can_edit,
-      can_delete: user.can_delete,
-      can_promote: user.can_promote,
-      can_demote: user.can_demote,
+      role: user.role || "admin",
+      can_add: user.can_add || 0,
+      can_edit: user.can_edit || 0,
+      can_delete: user.can_delete || 0,
+      can_promote: user.can_promote || 0,
+      can_demote: user.can_demote || 0,
       password_changed: user.password_changed,
       created_at: user.created_at,
       updated_at: user.updated_at,

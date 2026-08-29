@@ -156,6 +156,25 @@ export default function AdminForm({
   const canAssignSuperAdmin = currentRole === "super admin";
   const fixedRole = formData.role?.toLowerCase() !== "customize";
 
+  // Define which roles current user can assign (hierarchy)
+  const creatableRoles = {
+    "super admin": ["admin", "moderator", "customize"],
+    admin: ["moderator", "customize"],
+    moderator: ["customize"],
+    customize: ["customize"],
+  };
+
+  const currentUserCanAdd = localStorage.getItem("admin_can_add") === "1";
+  const allowedRoles = creatableRoles[currentRole] || [];
+
+  // For editing mode, show current role; for create mode, filter based on permissions
+  const availableRoles = [];
+  if (allowedRoles.includes("admin")) availableRoles.push("admin");
+  if (allowedRoles.includes("super admin") && canAssignSuperAdmin)
+    availableRoles.push("super admin");
+  if (allowedRoles.includes("moderator")) availableRoles.push("moderator");
+  if (allowedRoles.includes("customize")) availableRoles.push("customize");
+
   return (
     <Dialog
       open={open}
@@ -220,12 +239,18 @@ export default function AdminForm({
               label="Account Type"
               onChange={handleChange}
             >
-              <MenuItem value="admin">Admin</MenuItem>
-              {canAssignSuperAdmin && (
+              {availableRoles.includes("admin") && (
+                <MenuItem value="admin">Admin</MenuItem>
+              )}
+              {availableRoles.includes("super admin") && (
                 <MenuItem value="super admin">Super Admin</MenuItem>
               )}
-              <MenuItem value="moderator">Moderator</MenuItem>
-              <MenuItem value="customize">Customize</MenuItem>
+              {availableRoles.includes("moderator") && (
+                <MenuItem value="moderator">Moderator</MenuItem>
+              )}
+              {availableRoles.includes("customize") && (
+                <MenuItem value="customize">Customize</MenuItem>
+              )}
             </Select>
           </FormControl>
           <Box
