@@ -59,7 +59,7 @@ export const requireAdminPermission = (permission) => (req, res, next) => {
 
 export const requireAdminRoleManagement = (req, res, next) => {
   db.query(
-    "SELECT role FROM admin_role WHERE admin_id = ?",
+    "SELECT role, can_add FROM admin_role WHERE admin_id = ?",
     [req.user.admin_id],
     (error, results) => {
       if (error)
@@ -67,10 +67,19 @@ export const requireAdminRoleManagement = (req, res, next) => {
           .status(500)
           .json({ message: "Unable to verify admin role." });
       const role = results[0]?.role;
+      const can_add = results[0]?.can_add;
       req.adminRole = role;
-      if (role === "super admin" || role === "admin") return next();
+      req.adminCanAdd = can_add;
+      // Allow if super admin, admin, moderator, or custom role with can_add permission
+      if (
+        role === "super admin" ||
+        role === "admin" ||
+        role === "moderator" ||
+        (role === "customize" && can_add)
+      )
+        return next();
       return res.status(403).json({
-        message: "Only Super Admins and Admins can assign admin access.",
+        message: "You do not have permission to manage admin accounts.",
       });
     },
   );

@@ -172,6 +172,11 @@ export default function Admin() {
     }
   };
 
+  // Check if current user has permission to add admins
+  const canAddAdmin =
+    localStorage.getItem("admin_can_add") === "1" ||
+    localStorage.getItem("admin_role") === "super admin";
+
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
@@ -191,9 +196,11 @@ export default function Admin() {
         <Typography variant="h4" sx={{ fontWeight: "bold" }}>
           Admin Accounts
         </Typography>
-        <Button variant="contained" color="error" onClick={handleOpenAdd}>
-          Add Admin Account
-        </Button>
+        {canAddAdmin && (
+          <Button variant="contained" color="error" onClick={handleOpenAdd}>
+            Add Admin Account
+          </Button>
+        )}
       </Box>
 
       {/* Filter Section */}

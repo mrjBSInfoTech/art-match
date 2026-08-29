@@ -112,6 +112,7 @@ const rolePermissions = (role, values = {}) => {
 const changeRole = (direction) => (req, res) => {
   const roleOrder = ["customize", "moderator", "admin", "super admin"];
   const targetId = req.params.id;
+
   db.query(
     "SELECT role FROM admin_role WHERE admin_id = ?",
     [targetId],
@@ -128,28 +129,103 @@ const changeRole = (direction) => (req, res) => {
         });
       }
 
-      const role = roleOrder[nextIndex];
-      const permissions = rolePermissions(role);
-      db.query(
-        `UPDATE admin_role SET role = ?, can_add = ?, can_edit = ?, can_delete = ?, can_promote = ?, can_demote = ? WHERE admin_id = ?`,
-        [
-          role,
-          permissions.can_add,
-          permissions.can_edit,
-          permissions.can_delete,
-          permissions.can_promote,
-          permissions.can_demote,
-          targetId,
-        ],
-        (updateError) => {
-          if (updateError)
-            return res.status(500).json({ error: updateError.message });
-          res.json({
-            message: `Admin ${direction > 0 ? "promoted" : "demoted"} successfully.`,
-            role,
-          });
-        },
-      );
+      const newRole = roleOrder[nextIndex];
+      const permissions = rolePermissions(newRole);
+
+      // Special case: if promoting to super admin, demote the existing super admin to admin
+      if (direction > 0 && newRole === "super admin") {
+        // First, find and demote the current super admin
+        db.query(
+          "SELECT admin_id FROM admin_role WHERE role = ? AND admin_id != ?",
+          ["super admin", targetId],
+          (findError, superAdminResults) => {
+            if (findError)
+              return res.status(500).json({ error: findError.message });
+
+            let updateCount = 1; // Count for the target user promotion
+            let updateErrors = [];
+
+            const performUpdates = () => {
+              // Demote existing super admin to admin
+              if (superAdminResults.length > 0) {
+                const existingSuperAdminId = superAdminResults[0].admin_id;
+                const adminPermissions = rolePermissions("admin");
+
+                db.query(
+                  `UPDATE admin_role SET role = ?, can_add = ?, can_edit = ?, can_delete = ?, can_promote = ?, can_demote = ? WHERE admin_id = ?`,
+                  [
+                    "admin",
+                    adminPermissions.can_add,
+                    adminPermissions.can_edit,
+                    adminPermissions.can_delete,
+                    adminPermissions.can_promote,
+                    adminPermissions.can_demote,
+                    existingSuperAdminId,
+                  ],
+                  (demoteError) => {
+                    if (demoteError) updateErrors.push(demoteError);
+                    updateCount--;
+                    if (updateCount === 0) finishUpdate();
+                  },
+                );
+              }
+
+              // Promote target user to super admin
+              db.query(
+                `UPDATE admin_role SET role = ?, can_add = ?, can_edit = ?, can_delete = ?, can_promote = ?, can_demote = ? WHERE admin_id = ?`,
+                [
+                  newRole,
+                  permissions.can_add,
+                  permissions.can_edit,
+                  permissions.can_delete,
+                  permissions.can_promote,
+                  permissions.can_demote,
+                  targetId,
+                ],
+                (promoteError) => {
+                  if (promoteError) updateErrors.push(promoteError);
+                  updateCount--;
+                  if (updateCount === 0) finishUpdate();
+                },
+              );
+            };
+
+            const finishUpdate = () => {
+              if (updateErrors.length > 0) {
+                return res.status(500).json({ error: updateErrors[0].message });
+              }
+              res.json({
+                message: `Admin promoted to Super Admin successfully. Previous Super Admin has been demoted to Admin.`,
+                role: newRole,
+              });
+            };
+
+            performUpdates();
+          },
+        );
+      } else {
+        // Normal promotion/demotion
+        db.query(
+          `UPDATE admin_role SET role = ?, can_add = ?, can_edit = ?, can_delete = ?, can_promote = ?, can_demote = ? WHERE admin_id = ?`,
+          [
+            newRole,
+            permissions.can_add,
+            permissions.can_edit,
+            permissions.can_delete,
+            permissions.can_promote,
+            permissions.can_demote,
+            targetId,
+          ],
+          (updateError) => {
+            if (updateError)
+              return res.status(500).json({ error: updateError.message });
+            res.json({
+              message: `Admin ${direction > 0 ? "promoted" : "demoted"} successfully.`,
+              role: newRole,
+            });
+          },
+        );
+      }
     },
   );
 };
@@ -272,6 +348,23 @@ router.post(
         .json({ error: "Please fill in all required fields." });
     }
 
+    // Define which roles each user can create (hierarchy)
+    const creatableRoles = {
+      "super admin": ["admin", "moderator", "customize"],
+      admin: ["moderator", "customize"],
+      moderator: ["customize"],
+      customize: ["customize"],
+    };
+
+    const currentUserRole = req.adminRole || "admin";
+    const allowedRoles = creatableRoles[currentUserRole] || [];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({
+        error: `Your role cannot create ${role} accounts. Allowed roles: ${allowedRoles.join(", ") || "none"}.`,
+      });
+    }
+
     const permissions = rolePermissions(role, {
       can_add,
       can_edit,
@@ -281,11 +374,6 @@ router.post(
     });
     if (!permissions)
       return res.status(400).json({ error: "Invalid admin role." });
-    if (req.adminRole === "admin" && role === "super admin") {
-      return res
-        .status(403)
-        .json({ error: "Only a Super Admin can assign the Super Admin role." });
-    }
 
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -403,12 +491,10 @@ router.put(
         "can_demote",
       ].some((field) => req.body[field] !== undefined)
     ) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "You can update your personal account details, but not your admin access.",
-        });
+      return res.status(403).json({
+        error:
+          "You can update your personal account details, but not your admin access.",
+      });
     }
 
     try {

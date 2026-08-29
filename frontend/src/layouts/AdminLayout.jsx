@@ -155,7 +155,8 @@ export default function AdminLayout({ children }) {
     }, 150);
   };
 
-  const isSuperAdmin = localStorage.getItem("admin_role") === "super admin";
+  // Check if user has permissions to manage admins (can add or edit)
+  const canManageAdmins = canAdd || canEdit;
 
   // Sidebar menu items
   const navigation = [
@@ -184,7 +185,7 @@ export default function AdminLayout({ children }) {
       title: "Manage Users",
       icon: <VerifiedRoundedIcon />,
       children: [
-        ...(isSuperAdmin || localStorage.getItem("admin_role") === "admin"
+        ...(canManageAdmins
           ? [
               {
                 segment: "admins",

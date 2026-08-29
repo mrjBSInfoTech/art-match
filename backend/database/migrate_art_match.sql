@@ -92,6 +92,15 @@ CREATE TABLE `admin_role` (
   CONSTRAINT `admin_role_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admin` (`admin_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Insert default admin roles for existing admins
+INSERT INTO admin_role (admin_id, role, can_add, can_edit, can_delete, can_promote, can_demote)
+SELECT admin_id, 'admin', 1, 1, 1, 0, 0
+FROM admin a
+WHERE NOT EXISTS (
+    SELECT 1 FROM admin_role ar WHERE ar.admin_id = a.admin_id
+)
+ON DUPLICATE KEY UPDATE role=VALUES(role);
+
 
 DROP TABLE IF EXISTS `artupload`;
 CREATE TABLE `artupload` (
