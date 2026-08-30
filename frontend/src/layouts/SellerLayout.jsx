@@ -64,6 +64,7 @@ export default function SellerLayout({ children }) {
   const [registerStatus, setRegisterStatus] = useState();
   const [registeredDate, setRegisteredDate] = useState();
   const [approvedDate, setApprovedDate] = useState();
+  const [profileImage, setProfileImage] = useState();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
@@ -74,36 +75,44 @@ export default function SellerLayout({ children }) {
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
 
   useEffect(() => {
-    const storedFirstName = localStorage.getItem("seller_first_name");
-    const storedLastName = localStorage.getItem("seller_last_name");
-    const storedBirthdate = localStorage.getItem("seller_birthdate");
-    const storedEmail = localStorage.getItem("seller_email");
-    const storedPhoneNumber = localStorage.getItem("seller_phone_number");
-    const storedCor = localStorage.getItem("seller_cor");
-    const storedYearLevel = localStorage.getItem("seller_year_level");
-    const storedCourse = localStorage.getItem("seller_course");
-    const storedStudentNumber = localStorage.getItem("seller_student_number");
-    const storedRegisterStatus = localStorage.getItem("seller_register_status");
-    const storedRegisteredDate = localStorage.getItem("seller_registered_date");
-    const storedApprovedDate = localStorage.getItem("seller_approved_date");
+    const loadSellerProfile = () => {
+      const storedFirstName = localStorage.getItem("seller_first_name");
+      const storedLastName = localStorage.getItem("seller_last_name");
+      const storedBirthdate = localStorage.getItem("seller_birthdate");
+      const storedEmail = localStorage.getItem("seller_email");
+      const storedPhoneNumber = localStorage.getItem("seller_phone_number");
+      const storedCor = localStorage.getItem("seller_cor");
+      const storedYearLevel = localStorage.getItem("seller_year_level");
+      const storedCourse = localStorage.getItem("seller_course");
+      const storedStudentNumber = localStorage.getItem("seller_student_number");
+      const storedRegisterStatus = localStorage.getItem(
+        "seller_register_status",
+      );
+      const storedRegisteredDate = localStorage.getItem(
+        "seller_registered_date",
+      );
+      const storedApprovedDate = localStorage.getItem("seller_approved_date");
+      const storedProfileImage = localStorage.getItem("seller_profile_image");
 
-    setFirstName(storedFirstName || "");
-    setLastName(storedLastName || "");
-    setBirthdate(storedBirthdate || "");
-    setEmail(storedEmail || "");
-    setPhoneNumber(storedPhoneNumber || "");
-    setCor(storedCor || "");
-    setYearLevel(storedYearLevel || "");
-    setCourse(storedCourse || "");
-    setStudentNumber(storedStudentNumber || "");
-    setRegisterStatus(storedRegisterStatus || "");
-    setRegisteredDate(storedRegisteredDate || "");
-    setApprovedDate(storedApprovedDate || "");
-    setPhoneNumber(storedPhoneNumber || "");
-    setCor(storedCor || "");
-    setYearLevel(storedYearLevel || "");
-    setCourse(storedCourse || "");
-    setStudentNumber(storedStudentNumber || "");
+      setFirstName(storedFirstName || "");
+      setLastName(storedLastName || "");
+      setBirthdate(storedBirthdate || "");
+      setEmail(storedEmail || "");
+      setPhoneNumber(storedPhoneNumber || "");
+      setCor(storedCor || "");
+      setYearLevel(storedYearLevel || "");
+      setCourse(storedCourse || "");
+      setStudentNumber(storedStudentNumber || "");
+      setRegisterStatus(storedRegisterStatus || "");
+      setRegisteredDate(storedRegisteredDate || "");
+      setApprovedDate(storedApprovedDate || "");
+      setProfileImage(storedProfileImage || "");
+    };
+
+    loadSellerProfile();
+    window.addEventListener("seller-profile-updated", loadSellerProfile);
+    return () =>
+      window.removeEventListener("seller-profile-updated", loadSellerProfile);
   }, []);
 
   const openMenu = Boolean(anchorEl);
@@ -143,6 +152,12 @@ export default function SellerLayout({ children }) {
   // Sidebar menu items
   const navigation = [
     {
+      segment: "profile",
+      title: "Profile",
+      icon: <AccountCircleIcon />,
+      pattern: "/seller/profile",
+    },
+    {
       segment: "dashboard",
       title: "Dashboard",
       icon: <DashboardIcon />,
@@ -171,12 +186,6 @@ export default function SellerLayout({ children }) {
       title: "Messages",
       icon: <MessageIcon />,
       pattern: "/seller/messages",
-    },
-    {
-      segment: "profile",
-      title: "Profile",
-      icon: <AccountCircleIcon />,
-      pattern: "/seller/profile",
     },
     {
       segment: "settings",
@@ -234,7 +243,11 @@ export default function SellerLayout({ children }) {
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Avatar
-          src={`http://localhost:5000/uploads/profile.jpg`}
+          src={
+            profileImage
+              ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
+              : "http://localhost:5000/uploads/profile.jpg"
+          }
           alt="ArtMatch"
           sx={{ width: 40, height: 40 }}
         />

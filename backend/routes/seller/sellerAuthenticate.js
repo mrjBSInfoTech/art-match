@@ -287,6 +287,39 @@ router.get("/me", authenticateSeller, (req, res) => {
   );
 });
 
+// VERIFY PASSWORD
+router.post("/verify-password", authenticateSeller, (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ message: "Password is required" });
+  }
+
+  db.query(
+    "SELECT password FROM student WHERE student_id = ?",
+    [req.user.student_id],
+    (err, result) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ message: "Database error" });
+      }
+
+      if (!result.length) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const user = result[0];
+      const isMatch = bcrypt.compareSync(password, user.password);
+
+      if (!isMatch) {
+        return res.status(401).json({ message: "Password is incorrect" });
+      }
+
+      res.json({ message: "Password verified successfully" });
+    },
+  );
+});
+
 router.put(
   "/me",
   authenticateSeller,
