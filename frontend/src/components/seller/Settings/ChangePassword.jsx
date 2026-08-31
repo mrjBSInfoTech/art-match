@@ -145,7 +145,7 @@ function ChangePassword({
     return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return;
 
     const submitData = {
@@ -153,8 +153,12 @@ function ChangePassword({
       newPassword: newPassword,
     };
 
-    onSubmit(submitData);
-    handleClose();
+    try {
+      await onSubmit(submitData);
+      handleClose();
+    } catch (error) {
+      setError(error.message || "Unable to update password.");
+    }
   };
 
   return (

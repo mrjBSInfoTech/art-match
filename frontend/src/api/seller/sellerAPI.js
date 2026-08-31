@@ -74,3 +74,22 @@ export const verifyPassword = async (password) => {
     handleError(error);
   }
 };
+
+// CHANGE PASSWORD
+export const changePassword = async (currentPassword, newPassword) => {
+  try {
+    const res = await api.put(
+      "/change-password",
+      { currentPassword, newPassword },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
+        },
+      },
+    );
+    return res.data;
+  } catch (error) {
+    console.error("Change password API error:", error.message);
+    handleError(error);
+  }
+};
