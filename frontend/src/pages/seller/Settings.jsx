@@ -24,7 +24,11 @@ import {
 import ChangePassword from "../../components/seller/Settings/ChangePassword";
 import ChangeInfoProfile from "../../components/seller/Settings/ChangeInfoProfile";
 import ChangeProfileImage from "../../components/seller/Settings/ChangeProfileImage";
-import { updateSeller, verifyPassword } from "../../api/seller/sellerAPI";
+import {
+  updateSeller,
+  verifyPassword,
+  changePassword,
+} from "../../api/seller/sellerAPI";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
@@ -117,9 +121,7 @@ export default function Settings() {
     try {
       const { currentPassword, newPassword } = formData;
       if (currentPassword && newPassword) {
-        await updateSeller(localStorage.getItem("seller_student_id"), {
-          password: newPassword,
-        });
+        await changePassword(currentPassword, newPassword);
         localStorage.setItem("seller_password_changed", "1");
       }
       showSnackbar("Password updated successfully", "success");
@@ -127,6 +129,7 @@ export default function Settings() {
     } catch (err) {
       console.error("Error updating password:", err);
       showSnackbar("Failed to update password: " + err.message, "error");
+      throw err;
     }
   };
 
@@ -137,11 +140,17 @@ export default function Settings() {
 
   const handleSaveAccountInformation = () => {
     const sellerId = localStorage.getItem("seller_student_id");
-    if (
-      !sellerId ||
-      Object.values(accountInformation).some((value) => !value.trim())
-    ) {
-      showSnackbar("Please fill in all account information fields.", "error");
+    const requiredFields = [
+      accountInformation.first_name,
+      accountInformation.last_name,
+      accountInformation.email,
+    ];
+
+    if (!sellerId || requiredFields.some((value) => !String(value).trim())) {
+      showSnackbar(
+        "Please fill in your first name, last name, and email.",
+        "error",
+      );
       return;
     }
 
@@ -158,6 +167,7 @@ export default function Settings() {
 
     try {
       setSavingAccountInformation(true);
+      await verifyPassword(confirmationPassword);
       await updateSeller(localStorage.getItem("seller_student_id"), {
         ...accountInformation,
       });
