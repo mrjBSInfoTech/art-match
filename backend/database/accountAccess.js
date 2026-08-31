@@ -1,4 +1,5 @@
 import db from "./db.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 const createTableSql = `
   CREATE TABLE IF NOT EXISTS account_access (
@@ -85,7 +86,20 @@ export const addStrike = (role, accountId, reason, adminId = null) =>
             [role, accountId, adminId, access.strikes, reason || "Policy violation"],
             (logError) => {
               if (logError) return reject(logError);
-              resolve(access);
+
+              logAudit({
+                action: access.is_banned ? "STRIKE_BAN" : "STRIKE",
+                actor: adminId ? `admin_${adminId}` : "system",
+                role,
+                status: access.is_banned ? "banned" : "success",
+                information: JSON.stringify({
+                  account_id: accountId,
+                  strike_number: access.strikes,
+                  reason: reason || "Policy violation",
+                }),
+              })
+                .then(() => resolve(access))
+                .catch(reject);
             },
           );
         })
@@ -112,7 +126,20 @@ export const setBanned = (role, accountId, banned, reason, adminId = null) =>
             [role, accountId, adminId, banned ? "BAN" : "UNBAN", reason || null],
             (logError) => {
               if (logError) return reject(logError);
-              resolve(access);
+
+              logAudit({
+                action: banned ? "BAN" : "UNBAN",
+                actor: adminId ? `admin_${adminId}` : "system",
+                role,
+                status: banned ? "banned" : "unbanned",
+                information: JSON.stringify({
+                  account_id: accountId,
+                  reason: reason || null,
+                  is_banned: access.is_banned,
+                }),
+              })
+                .then(() => resolve(access))
+                .catch(reject);
             },
           );
         })
