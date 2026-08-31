@@ -27,6 +27,7 @@ import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
+import chatRoutes from "./routes/chat.js";
 
 dotenv.config();
 
@@ -79,6 +80,7 @@ app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
+app.use("/api/chat", chatRoutes);
 
 // Handle 404 (unknown routes)
 app.use((req, res) => {
