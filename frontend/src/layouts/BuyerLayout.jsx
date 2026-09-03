@@ -314,7 +314,7 @@ function BuyerLayout({ children }) {
             <IconButton
               sx={{ color: "white" }}
               onClick={() => {
-                navigate("/buyer/message");
+                navigate("/buyer/messages");
               }}
             >
               <Badge badgeContent={badgeCount} color="error">

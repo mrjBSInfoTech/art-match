@@ -36,6 +36,24 @@ export const fetchBuyerMessages = async (conversationId) => {
   }
 };
 
+export const fetchBuyerNotifications = async () => {
+  try {
+    const res = await api.get("/buyer/notifications");
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const startBuyerConversation = async (sellerId) => {
+  try {
+    const res = await api.post(`/buyer/conversations/${sellerId}`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const sendBuyerMessage = async (sellerId, formData) => {
   try {
     const res = await api.post(`/buyer/conversations/${sellerId}/messages`, formData, {

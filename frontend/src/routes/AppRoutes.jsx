@@ -80,7 +80,8 @@ export default function AppRoutes() {
               <Route element={<BuyerLayout />}>
                 <Route path="cart" element={<BuyerCart />} />
                 <Route path="checkout" element={<BuyerCheckout />} />
-                <Route path="message" element={<BuyerMessage />} />
+                <Route path="messages" element={<BuyerMessage />} />
+                <Route path="message" element={<Navigate to="../messages" replace />} />
 
                 {/* Account Center */}
                 <Route path="profile" element={<ProfileLayout />}>

@@ -16,7 +16,11 @@ const selectFields =
 
 router.get("/", authenticateAdmin, (req, res) => {
   db.query(
-    `SELECT ${selectFields} FROM customer ORDER BY customer_id ASC`,
+    `SELECT ${selectFields}, COALESCE(x.strikes, 0) AS strikes,
+      COALESCE(x.is_banned, FALSE) AS is_banned
+     FROM customer c
+     LEFT JOIN account_access x ON x.role = 'buyer' AND x.account_id = c.customer_id
+     ORDER BY c.customer_id ASC`,
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(results);

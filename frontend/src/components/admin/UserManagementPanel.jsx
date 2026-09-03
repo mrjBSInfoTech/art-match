@@ -22,6 +22,8 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
+import AccessReason from "./Access/AccessReason";
+import { addAccountStrike, setAccountBan } from "../../api/admin/accountAccessAPI";
 
 const emptyValue = "Not provided";
 
@@ -33,6 +35,7 @@ export default function UserManagementPanel({
   error,
   onSave,
   onDelete,
+  onAccessChange,
 }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [dialogMode, setDialogMode] = useState(null);
@@ -42,6 +45,7 @@ export default function UserManagementPanel({
   const [operationError, setOperationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [accessAction, setAccessAction] = useState("");
 
   // Menu anchor state for MoreVertIcon
   const [anchorEl, setAnchorEl] = useState(null);
@@ -73,6 +77,31 @@ export default function UserManagementPanel({
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const openAccessAction = (action) => {
+    setAccessAction(action);
+    handleMenuClose();
+  };
+
+  const submitAccessAction = async (reason) => {
+    try {
+      setOperationError("");
+      if (accessAction === "strike") {
+        await addAccountStrike(type === "student" ? "seller" : "buyer", getId(selectedUser), reason);
+      } else {
+        await setAccountBan(
+          type === "student" ? "seller" : "buyer",
+          getId(selectedUser),
+          accessAction === "ban",
+          reason,
+        );
+      }
+      setAccessAction("");
+      await onAccessChange?.();
+    } catch (err) {
+      setOperationError(err.message || `Unable to update ${type} access.`);
+    }
   };
 
   // Dialog Handlers
@@ -317,6 +346,19 @@ export default function UserManagementPanel({
                       Delete
                     </MenuItem>
                   )}
+                  {canEdit && !selectedUser?.is_banned && (
+                    <MenuItem onClick={() => openAccessAction("strike")} sx={{ color: "warning.main" }}>
+                      Add strike
+                    </MenuItem>
+                  )}
+                  {canEdit && (
+                    <MenuItem
+                      onClick={() => openAccessAction(selectedUser?.is_banned ? "unban" : "ban")}
+                      sx={{ color: selectedUser?.is_banned ? "success.main" : "error.main" }}
+                    >
+                      {selectedUser?.is_banned ? "Unban account" : "Ban account"}
+                    </MenuItem>
+                  )}
                 </Menu>
               </CardContent>
             </Card>
@@ -367,6 +409,19 @@ export default function UserManagementPanel({
           )}
         </DialogActions>
       </Dialog>
+
+      <AccessReason
+        open={Boolean(accessAction)}
+        handleClose={() => setAccessAction("")}
+        selectedAccount={selectedUser && {
+          ...selectedUser,
+          role: type === "student" ? "seller" : "buyer",
+          account_id: getId(selectedUser),
+          username: type === "student" ? selectedUser.student_number : selectedUser.username,
+        }}
+        action={accessAction}
+        submitAction={submitAccessAction}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog

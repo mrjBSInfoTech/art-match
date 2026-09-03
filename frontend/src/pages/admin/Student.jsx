@@ -70,6 +70,7 @@ export default function Student() {
           error={error}
           onSave={saveStudent}
           onDelete={removeStudent}
+          onAccessChange={loadStudents}
         />
       </Paper>
     </Box>

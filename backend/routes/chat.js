@@ -128,6 +128,97 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
     });
 });
 
+  const fetchAccountNotifications = (role, accountId) =>
+    new Promise((resolve, reject) => {
+      db.query(
+        `SELECT notification_id, notification_type, message, is_read, created_at
+         FROM account_notifications
+         WHERE role = ? AND account_id = ?
+         ORDER BY created_at DESC
+         LIMIT 50`,
+        [role, accountId],
+        (error, rows) => (error ? reject(error) : resolve(rows)),
+      );
+    });
+
+  router.get("/buyer/notifications", authenticateBuyer, (req, res) => {
+    fetchAccountNotifications("buyer", req.user.customer_id || req.user.id)
+      .then((rows) => res.json(rows))
+      .catch((error) => {
+        console.error("Buyer notification fetch failed:", error);
+        res.status(500).json({ message: "Unable to load notifications" });
+      });
+  });
+
+  router.get("/seller/notifications", authenticateSeller, (req, res) => {
+    fetchAccountNotifications("seller", req.user.student_id || req.user.id)
+      .then((rows) => res.json(rows))
+      .catch((error) => {
+        console.error("Seller notification fetch failed:", error);
+        res.status(500).json({ message: "Unable to load notifications" });
+      });
+  });
+
+  router.post("/buyer/conversations/:sellerId", authenticateBuyer, async (req, res) => {
+    const buyerId = req.user.customer_id || req.user.id;
+    const sellerIdentifier = String(req.params.sellerId || "").trim();
+
+    if (!/^\d+$/.test(sellerIdentifier) || Number(sellerIdentifier) <= 0) {
+      return res.status(400).json({ message: "Invalid seller id" });
+    }
+
+    try {
+      const sellerId = await new Promise((resolve, reject) => {
+        db.query(
+          "SELECT student_id FROM student WHERE student_id = ? OR student_number = ? LIMIT 1",
+          [sellerIdentifier, sellerIdentifier],
+          (error, rows) => {
+          if (error) return reject(error);
+          resolve(rows.length > 0 ? rows[0].student_id : null);
+          },
+        );
+      });
+
+      if (!sellerId) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+
+      const conversationId = await getOrCreateConversation(sellerId, buyerId);
+      res.status(201).json({ conversation_id: conversationId });
+    } catch (error) {
+      console.error("Buyer conversation creation failed:", error);
+      res.status(500).json({ message: "Unable to start conversation" });
+    }
+  });
+
+  router.post("/seller/conversations/:buyerId", authenticateSeller, async (req, res) => {
+    const sellerId = req.user.student_id || req.user.id;
+    const buyerId = Number(req.params.buyerId);
+
+    if (!Number.isInteger(buyerId) || buyerId <= 0) {
+      return res.status(400).json({ message: "Invalid buyer id" });
+    }
+
+    try {
+      const buyerExists = await new Promise((resolve, reject) => {
+        db.query("SELECT customer_id FROM customer WHERE customer_id = ? LIMIT 1", [buyerId], (error, rows) => {
+          if (error) return reject(error);
+          resolve(rows.length > 0);
+        });
+      });
+
+      if (!buyerExists) {
+        return res.status(404).json({ message: "Buyer not found" });
+      }
+
+      const conversationId = await getOrCreateConversation(sellerId, buyerId);
+      res.status(201).json({ conversation_id: conversationId });
+    } catch (error) {
+      console.error("Seller conversation creation failed:", error);
+      res.status(500).json({ message: "Unable to start conversation" });
+    }
+  });
+
 router.get("/buyer/conversations/:conversationId/messages", authenticateBuyer, (req, res) => {
   const buyerId = req.user.customer_id || req.user.id;
   const conversationId = Number(req.params.conversationId);

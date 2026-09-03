@@ -68,6 +68,7 @@ export default function Customer() {
           error={customerErrorMessage}
           onSave={saveCustomer}
           onDelete={removeCustomer}
+          onAccessChange={loadCustomers}
         />
       </Paper>
     </Box>
