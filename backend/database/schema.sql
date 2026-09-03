@@ -180,6 +180,18 @@ CREATE TABLE IF NOT EXISTS ban_logs (
   INDEX idx_ban_logs_created (created_at)
 );
 
+CREATE TABLE IF NOT EXISTS account_notifications (
+  notification_id INT AUTO_INCREMENT PRIMARY KEY,
+  role VARCHAR(20) NOT NULL,
+  account_id INT NOT NULL,
+  notification_type VARCHAR(20) NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_account_notifications_account (role, account_id),
+  INDEX idx_account_notifications_created (created_at)
+);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
   audit_id INT AUTO_INCREMENT PRIMARY KEY,
   datetime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

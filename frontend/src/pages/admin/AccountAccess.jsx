@@ -3,7 +3,6 @@ import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
-  Button,
   CircularProgress,
   FormControl,
   InputAdornment,
@@ -11,7 +10,6 @@ import {
   MenuItem,
   Paper,
   Select,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -22,19 +20,12 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import AccessReason from "../../components/admin/Access/AccessReason";
-import {
-  addAccountStrike,
-  fetchAccountAccess,
-  setAccountBan,
-} from "../../api/admin/accountAccessAPI";
+import { fetchAccountAccess } from "../../api/admin/accountAccessAPI";
 
 export default function AccountAccess() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedAccount, setSelectedAccount] = useState(null);
-  const [action, setAction] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("az");
   const [roleOption, setRoleOption] = useState("");
@@ -54,39 +45,6 @@ export default function AccountAccess() {
   useEffect(() => {
     loadAccounts();
   }, []);
-
-  const openAction = (account, nextAction) => {
-    setSelectedAccount(account);
-    setAction(nextAction);
-  };
-
-  const closeAction = () => {
-    setSelectedAccount(null);
-    setAction("");
-  };
-
-  const submitAction = async (reasonText = "") => {
-    try {
-      if (action === "strike") {
-        await addAccountStrike(
-          selectedAccount.role,
-          selectedAccount.account_id,
-          reasonText,
-        );
-      } else {
-        await setAccountBan(
-          selectedAccount.role,
-          selectedAccount.account_id,
-          action === "ban",
-          reasonText,
-        );
-      }
-      closeAction();
-      await loadAccounts();
-    } catch (actionError) {
-      setError(actionError.message || "Unable to update account access.");
-    }
-  };
 
   const filteredAccounts = useMemo(() => {
     let list = [...accounts];
@@ -128,21 +86,13 @@ export default function AccountAccess() {
   const isAdmin = currentRole === "admin";
   const hasPermission = (key) =>
     ["1", "true"].includes(String(localStorage.getItem(key)).toLowerCase());
-  const canAdd =
-    isSuperAdmin || (isAdmin && hasPermission("admin_can_add"));
-  const canEdit =
-    isSuperAdmin || (isAdmin && hasPermission("admin_can_edit"));
-  const canDelete =
-    isSuperAdmin || (isAdmin && hasPermission("admin_can_delete"));
-  const canManageAccess = canAdd || canEdit || canDelete;
-
   return (
     <Box sx={{ p: 3 }}>
       <Helmet titleTemplate="%s - ArtMatch">
-        <title>Strikes and Bans</title>
+        <title>Account List</title>
       </Helmet>
       <Typography variant="h4" sx={{ fontWeight: "bold", mb: 1 }}>
-        Strikes & Bans
+        Account List
       </Typography>
       {/* Filter Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
@@ -213,9 +163,6 @@ export default function AccountAccess() {
       </Paper>
       {/* Table Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Account List
-        </Typography>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -238,18 +185,6 @@ export default function AccountAccess() {
                   <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Strikes</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                  {canManageAccess && (
-                    <TableCell
-                    sx={{
-                      fontWeight: "bold",
-                      width: 260,
-                      textAlign: "center",
-                    }}
-                  >
-                    Actions
-                  </TableCell>
-                  )}
-                  
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -267,55 +202,6 @@ export default function AccountAccess() {
                     <TableCell>
                       {account.is_banned ? "Banned" : "Active"}
                     </TableCell>
-                    {canManageAccess && (
-                      <TableCell sx={{ width: 260 }}>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          justifyContent="center"
-                          alignItems="center"
-                          sx={{ width: "100%" }}
-                        >
-                          {!account.is_banned && (
-                            <Button
-                              size="small"
-                              color="warning"
-                              variant="outlined"
-                              onClick={() => openAction(account, "strike")}
-                              sx={{
-                                minWidth: 110,
-                                textTransform: "none",
-                                fontWeight: 600,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Add strike
-                            </Button>
-                          )}
-                          <Button
-                            size="small"
-                            color={account.is_banned ? "success" : "error"}
-                            variant={
-                              account.is_banned ? "outlined" : "contained"
-                            }
-                            onClick={() =>
-                              openAction(
-                                account,
-                                account.is_banned ? "unban" : "ban",
-                              )
-                            }
-                            sx={{
-                              minWidth: 100,
-                              textTransform: "none",
-                              fontWeight: 700,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {account.is_banned ? "Unban" : "Ban"}
-                          </Button>
-                        </Stack>
-                      </TableCell>
-                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -323,13 +209,6 @@ export default function AccountAccess() {
           </TableContainer>
         )}
       </Paper>
-      <AccessReason
-        open={Boolean(selectedAccount)}
-        handleClose={closeAction}
-        selectedAccount={selectedAccount}
-        action={action}
-        submitAction={submitAction}
-      />
     </Box>
   );
 }

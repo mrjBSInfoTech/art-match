@@ -5,6 +5,7 @@ import {
   Avatar,
   Badge,
   Box,
+  Button,
   Divider,
   IconButton,
   InputAdornment,
@@ -31,6 +32,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
   fetchBuyerConversations,
   fetchBuyerMessages,
+  fetchBuyerNotifications,
+  startBuyerConversation,
   sendBuyerMessage,
 } from "../../api/buyer/messageAPI";
 
@@ -54,6 +57,8 @@ export default function Messages() {
   const [attachedPreview, setAttachedPreview] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -63,26 +68,49 @@ export default function Messages() {
     () => conversations.find((chat) => chat.conversation_id === selectedConversationId) || null,
     [conversations, selectedConversationId],
   );
+  const activeNotification = notifications.find(
+    (notification) => notification.notification_id === selectedNotificationId,
+  );
 
   useEffect(() => {
-    const loadConversations = async () => {
+    const loadConversations = async (initialLoad = false) => {
       try {
-        setLoading(true);
-        setError("");
+        if (initialLoad) {
+          setLoading(true);
+          setError("");
+        }
         const data = await fetchBuyerConversations();
         setConversations(data || []);
-        if (data && data.length > 0 && !selectedConversationId) {
+        if (data && data.length > 0 && !selectedConversationId && !selectedNotificationId) {
           setSelectedConversationId(data[0].conversation_id);
         }
       } catch (err) {
         setError(err.message || "Unable to load conversations");
       } finally {
-        setLoading(false);
+        if (initialLoad) setLoading(false);
       }
     };
 
-    loadConversations();
-  }, [selectedConversationId]);
+    loadConversations(true);
+    const intervalId = window.setInterval(() => loadConversations(), 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [selectedConversationId, selectedNotificationId]);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        setNotifications((await fetchBuyerNotifications()) || []);
+      } catch (err) {
+        setError(err.message || "Unable to load account notices");
+      }
+    };
+
+    loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -106,11 +134,31 @@ export default function Messages() {
     };
 
     loadMessages();
+    const intervalId = window.setInterval(loadMessages, 3000);
+
+    return () => window.clearInterval(intervalId);
   }, [selectedConversationId]);
 
   const filteredConversations = conversations.filter((chat) =>
-    (chat.other_name || "").toLowerCase().includes(searchQuery.toLowerCase()),
+    (chat.other_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(chat.other_id || "").includes(searchQuery.trim()),
   );
+
+  const searchedSellerId = searchQuery.trim();
+  const canStartConversation = /^\d+$/.test(searchedSellerId) &&
+    !conversations.some((chat) => String(chat.other_id) === searchedSellerId);
+
+  const handleStartConversation = async () => {
+    try {
+      setError("");
+      const result = await startBuyerConversation(searchedSellerId);
+      const updated = await fetchBuyerConversations();
+      setConversations(updated || []);
+      setSelectedConversationId(result.conversation_id);
+    } catch (err) {
+      setError(err.message || "Unable to start conversation");
+    }
+  };
 
   const handleSelectChat = (conversationId) => {
     setSelectedConversationId(conversationId);
@@ -194,7 +242,7 @@ export default function Messages() {
           bgcolor: "background.paper",
         }}
       >
-        {(!isMobile || !selectedConversationId) && (
+        {(!isMobile || (!selectedConversationId && !selectedNotificationId)) && (
           <Box
             sx={{
               width: { xs: "100%", md: 360 },
@@ -211,6 +259,11 @@ export default function Messages() {
                 placeholder="Search seller..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canStartConversation) {
+                    handleStartConversation();
+                  }
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -220,12 +273,38 @@ export default function Messages() {
                 }}
                 sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
               />
+              {canStartConversation && (
+                <Button fullWidth size="small" sx={{ mt: 1 }} onClick={handleStartConversation}>
+                  Message seller #{searchedSellerId}
+                </Button>
+              )}
             </Box>
 
             {loading ? (
               <Box sx={{ p: 3, color: "text.secondary" }}>Loading conversations…</Box>
             ) : (
               <List sx={{ flexGrow: 1, overflowY: "auto", p: 0 }}>
+                {notifications.map((notification) => (
+                  <Box key={notification.notification_id}>
+                    <ListItemButton
+                      selected={notification.notification_id === selectedNotificationId}
+                      onClick={() => {
+                        setSelectedNotificationId(notification.notification_id);
+                        setSelectedConversationId(null);
+                      }}
+                      sx={{ py: 1.5, px: 2 }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar sx={{ bgcolor: notification.notification_type === "ban" ? "error.main" : "warning.main" }}>!</Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={<Typography variant="subtitle2" fontWeight={600}>Account notice</Typography>}
+                        secondary={<Typography variant="body2" color="text.secondary" noWrap>{notification.message}</Typography>}
+                      />
+                    </ListItemButton>
+                    <Divider component="li" />
+                  </Box>
+                ))}
                 {filteredConversations.length === 0 ? (
                   <Box sx={{ p: 3, color: "text.secondary" }}>No conversations yet.</Box>
                 ) : (
@@ -235,7 +314,10 @@ export default function Messages() {
                       <Box key={chat.conversation_id}>
                         <ListItemButton
                           selected={isSelected}
-                          onClick={() => handleSelectChat(chat.conversation_id)}
+                          onClick={() => {
+                            handleSelectChat(chat.conversation_id);
+                            setSelectedNotificationId(null);
+                          }}
                           sx={{ py: 1.5, px: 2 }}
                         >
                           <ListItemAvatar>
@@ -274,28 +356,26 @@ export default function Messages() {
           </Box>
         )}
 
-        {(!isMobile || selectedConversationId) && activeChat ? (
+        {(!isMobile || selectedConversationId || selectedNotificationId) && (activeChat || activeNotification) ? (
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%" }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
               <Stack direction="row" spacing={1.5} alignItems="center">
                 {isMobile && (
-                  <IconButton size="small" onClick={() => setSelectedConversationId(null)}>
+                  <IconButton size="small" onClick={() => { setSelectedConversationId(null); setSelectedNotificationId(null); }}>
                     <ArrowBackIcon />
                   </IconButton>
                 )}
-                <Avatar src={activeChat.other_avatar || ""} alt={activeChat.other_name || "Seller"} />
+                <Avatar src={activeChat?.other_avatar || ""} alt={activeChat?.other_name || "Account notice"} />
                 <Box>
                   <Typography variant="subtitle1" fontWeight={700}>
-                    {activeChat.other_name || "Seller"}
+                    {activeNotification ? "Account notice" : activeChat?.other_name || "Seller"}
                   </Typography>
-                  <Typography variant="caption" color="success.main">
-                    Online
+                  <Typography variant="caption" color={activeNotification ? "text.secondary" : "success.main"}>
+                    {activeNotification ? "From ArtMatch administration" : "Online"}
                   </Typography>
                 </Box>
               </Stack>
-              <IconButton size="small">
-                <MoreVertIcon />
-              </IconButton>
+              {!activeNotification && <IconButton size="small"><MoreVertIcon /></IconButton>}
             </Stack>
 
             <Box
@@ -309,7 +389,16 @@ export default function Messages() {
                 gap: 1.5,
               }}
             >
-              {messages.length === 0 ? (
+              {activeNotification ? (
+                <Box sx={{ alignSelf: "flex-start", maxWidth: { xs: "85%", sm: "70%" } }}>
+                  <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.5 }}>{activeNotification.message}</Typography>
+                  </Paper>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}>
+                    {formatMessageTime(activeNotification.created_at)}
+                  </Typography>
+                </Box>
+              ) : messages.length === 0 ? (
                 <Typography color="text.secondary" sx={{ mt: 2 }}>
                   Start the conversation.
                 </Typography>
@@ -346,7 +435,7 @@ export default function Messages() {
               )}
             </Box>
 
-            {attachedPreview && (
+            {activeChat && attachedPreview && (
               <Box sx={{ px: 2, pt: 1.5, display: "flex", alignItems: "center", borderTop: "1px solid", borderColor: "divider" }}>
                 <Box sx={{ position: "relative", display: "inline-block" }}>
                   <Box component="img" src={attachedPreview} alt="Preview" sx={{ width: 60, height: 60, borderRadius: 2, objectFit: "cover" }} />
@@ -357,7 +446,7 @@ export default function Messages() {
               </Box>
             )}
 
-            <Box sx={{ p: 2, borderTop: attachedPreview ? "none" : "1px solid", borderColor: "divider" }}>
+            {activeChat ? <Box sx={{ p: 2, borderTop: attachedPreview ? "none" : "1px solid", borderColor: "divider" }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
                 <IconButton onClick={() => fileInputRef.current?.click()}>
@@ -388,7 +477,11 @@ export default function Messages() {
                   <SendIcon fontSize="small" />
                 </IconButton>
               </Stack>
-            </Box>
+            </Box> : <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider", textAlign: "center" }}>
+              <Typography variant="body2" color="text.secondary">
+                You can&apos;t reply to this user.
+              </Typography>
+            </Box>}
           </Box>
         ) : (
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "grid" }, placeItems: "center" }}>

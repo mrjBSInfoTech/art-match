@@ -25,9 +25,12 @@ router.get("/", authenticateAdmin, (req, res) => {
       a.register_status, 
       a.registered_date,
       a.approved_date, 
-      a.admin_id 
-    FROM student s 
+      a.admin_id,
+      COALESCE(x.strikes, 0) AS strikes,
+      COALESCE(x.is_banned, FALSE) AS is_banned
+    FROM student s
     LEFT JOIN accregistration a ON s.student_id = a.student_id
+    LEFT JOIN account_access x ON x.role = 'seller' AND x.account_id = s.student_id
   `;
   const params = [];
 

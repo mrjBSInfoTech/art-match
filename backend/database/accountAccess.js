@@ -42,6 +42,20 @@ const createBanLogsSql = `
   )
 `;
 
+const createAccountNotificationsSql = `
+  CREATE TABLE IF NOT EXISTS account_notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    role VARCHAR(20) NOT NULL,
+    account_id INT NOT NULL,
+    notification_type VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_account_notifications_account (role, account_id),
+    INDEX idx_account_notifications_created (created_at)
+  )
+`;
+
 export const ensureAccountAccessTable = () => {
   db.query(createTableSql, (error) => {
     if (error) console.error("Unable to initialize account_access table:", error.message);
@@ -52,7 +66,19 @@ export const ensureAccountAccessTable = () => {
   db.query(createBanLogsSql, (error) => {
     if (error) console.error("Unable to initialize ban_logs table:", error.message);
   });
+  db.query(createAccountNotificationsSql, (error) => {
+    if (error) console.error("Unable to initialize account_notifications table:", error.message);
+  });
 };
+
+const createAccountNotification = (role, accountId, notificationType, message) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      "INSERT INTO account_notifications (role, account_id, notification_type, message) VALUES (?, ?, ?, ?)",
+      [role, accountId, notificationType, message],
+      (error, result) => (error ? reject(error) : resolve(result.insertId)),
+    );
+  });
 
 export const getAccountAccess = (role, accountId) =>
   new Promise((resolve, reject) => {
@@ -98,6 +124,16 @@ export const addStrike = (role, accountId, reason, adminId = null) =>
                   reason: reason || "Policy violation",
                 }),
               })
+                .then(() =>
+                  createAccountNotification(
+                    role,
+                    accountId,
+                    access.is_banned ? "ban" : "strike",
+                    access.is_banned
+                      ? `Your account has been banned after receiving strike ${access.strikes}. Reason: ${reason || "Policy violation"}`
+                      : `You received strike ${access.strikes}. Reason: ${reason || "Policy violation"}`,
+                  ),
+                )
                 .then(() => resolve(access))
                 .catch(reject);
             },
@@ -138,6 +174,16 @@ export const setBanned = (role, accountId, banned, reason, adminId = null) =>
                   is_banned: access.is_banned,
                 }),
               })
+                .then(() =>
+                  createAccountNotification(
+                    role,
+                    accountId,
+                    banned ? "ban" : "unban",
+                    banned
+                      ? `Your account has been banned. Reason: ${reason || "No reason provided"}`
+                      : `Your account ban has been removed. Reason: ${reason || "No reason provided"}`,
+                  ),
+                )
                 .then(() => resolve(access))
                 .catch(reject);
             },
