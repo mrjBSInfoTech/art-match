@@ -25,26 +25,6 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-let genAI = null;
-
-const getGenAI = async () => {
-  if (genAI) return genAI;
-
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. Add it to .env before using it.");
-  }
-
-  try {
-    const mod = await import("@google/generative-ai");
-    const GoogleGenerativeAI = mod.GoogleGenerativeAI || mod.default || mod;
-    genAI = new GoogleGenerativeAI(apiKey);
-    return genAI;
-  } catch (err) {
-    throw new Error("Google Generative AI module not available: " + err.message);
-  }
-};
-
 // Image upload configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -200,43 +180,25 @@ router.post("/", authenticateSeller, upload.single("file"), async (req, res) => 
       return res.status(400).json({ error: "Please fill all required fields." });
     }
 
-    const imagePath = path.join(uploadDir, req.file.filename);
-    const imageBuffer = fs.readFileSync(imagePath);
-    const imageBase64 = imageBuffer.toString("base64");
+    const absoluteImagePath = path.join(uploadDir, req.file.filename);
+    let detectedColors = "Pending";
 
-    const imagePart = {
-      inlineData: {
-        data: imageBase64,
-        mimeType: req.file.mimetype || "image/jpeg",
-      },
-    };
-
-    let detectedColors = "";
+    // Call Local Python ML API Service for Color Extraction
     try {
-      const ai = await getGenAI();
-      const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_path: absoluteImagePath }),
+      });
 
-      const prompt = `Analyze this artwork image and detect the primary colors used in the artwork itself.
-      Requirements:
-      - Focus STRICTLY on the artwork canvas or paper itself. Ignore everything outside (such as background tables, walls, floors, frames, borders, hands, or camera edges).
-      - Only identify colors that are visibly used in the artwork.
-      - Do not include background or photo environment colors that are not part of the art.
-      - Do not guess colors or provide color psychology.
-      - Group very similar shades together when appropriate.
-      - Return ONLY a single line of comma-separated color names.
-      - Do not use bullet points, line breaks, descriptions, or prefixes.
-
-      Output format:
-      Red, Dark Green, White, Black, Yellow`;
-
-      const aiResult = await model.generateContent([prompt, imagePart]);
-      detectedColors = aiResult.response
-        .text()
-        .trim()
-        .replace(/[\r\n]+/g, ", ");
-    } catch (aiError) {
-      console.error("AI Color Detection Warning:", aiError.message);
-      detectedColors = "Colors pending analysis";
+      if (mlResponse.ok) {
+        const mlData = await mlResponse.json();
+        if (mlData.success && Array.isArray(mlData.colors) && mlData.colors.length > 0) {
+          detectedColors = mlData.colors.join(", ");
+        }
+      }
+    } catch (mlError) {
+      console.error("Python ML Service offline, saving default color status:", mlError.message);
     }
 
     const imageName = req.file.filename;

@@ -38,7 +38,7 @@ function SlideTransition(props) {
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [module, setModule] = useState("");
+  const [module, setModule] = useState("Admin");
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -234,7 +234,6 @@ const Login = () => {
                 },
               }}
             >
-              <MenuItem value="">Module</MenuItem>
               <MenuItem value="Admin">
                 Admin
               </MenuItem>
