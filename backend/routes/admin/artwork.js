@@ -5,26 +5,6 @@ import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
 
-let genAI = null;
-const getGenAI = async () => {
-  if (genAI) return genAI;
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. Add it to .env before using it.");
-  }
-
-  try {
-    const mod = await import("@google/generative-ai");
-    const GoogleGenerativeAI = mod.GoogleGenerativeAI || mod.default || mod;
-    genAI = new GoogleGenerativeAI(apiKey);
-    return genAI;
-  } catch (err) {
-    throw new Error(
-      "Google Generative AI module not available: " + err.message,
-    );
-  }
-};
-
 const router = express.Router();
 
 // Helper to get correct MIME type from image extension
@@ -42,13 +22,10 @@ function getMimeType(filePath) {
   }
 }
 
-// Helper function to scan artwork using Gemini AI and store features/mediums in MySQL
 async function scanAndSaveArtworkData(artworkId, imageName) {
-  console.log(
-    `[AI Scan] scanAndSaveArtworkData called for artwork ${artworkId}`,
-  );
+  console.log(`[ML Scan] Starting model scan for artwork ${artworkId}...`);
   if (!imageName) {
-    console.warn(`[AI Scan] No imageName provided for artwork ${artworkId}`);
+    console.warn(`[ML Scan] No imageName provided for artwork ${artworkId}`);
     return;
   }
 
@@ -59,216 +36,78 @@ async function scanAndSaveArtworkData(artworkId, imageName) {
     "uploadArtwork",
     imageName,
   );
-  console.log(`[AI Scan] imagePath resolved to: ${imagePath}`);
 
   if (!fs.existsSync(imagePath)) {
-    console.warn(`[AI Scan] Image file not found at: ${imagePath}`);
+    console.warn(`[ML Scan] Image file not found at: ${imagePath}`);
     return;
   }
 
   try {
-    const imageBuffer = fs.readFileSync(imagePath);
-    const imageBase64 = imageBuffer.toString("base64");
-    const mimeType = getMimeType(imagePath);
+    // Send image to local Python FastAPI inference server
+    const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_path: imagePath }),
+    });
 
-    const imagePart = {
-      inlineData: {
-        data: imageBase64,
-        mimeType: mimeType,
-      },
-    };
-
-    const ai = await getGenAI();
-    const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    // Scan Features & Mediums (Comma-separated output)
-    const featurePrompt = `Analyze this artwork image and identify:
-1. Visual features/elements (e.g., paint brush, brush, heavy brush, thick strokes, portrait, landscape, geometric patterns).
-2. Art mediums used (e.g., acrylic paint, oil paint, watercolor, digital illustration, charcoal, canvas, paper).
-
-Requirements:
-- Return output STRICTLY in JSON format with two keys: "features" and "mediums".
-- Both values MUST be a single line of comma-separated items.
-Example JSON:
-{
-  "features": "paint brush, brush, heavy brush",
-  "mediums": "acrylic paint, canvas"
-}
-Do not include any Markdown code blocks outside the valid JSON object.`;
-
-    const featureResult = await model.generateContent([
-      featurePrompt,
-      imagePart,
-    ]);
-
-    let detectedFeatures = "";
-    let detectedMediums = "";
-
-    try {
-      const cleanJson = featureResult.response
-        .text()
-        .replace(/```json|```/g, "")
-        .trim();
-      const parsed = JSON.parse(cleanJson);
-      detectedFeatures = parsed.features || "";
-      detectedMediums = parsed.mediums || "";
-    } catch (e) {
-      // Fallback if AI outputs plain text instead of JSON
-      detectedFeatures = featureResult.response
-        .text()
-        .trim()
-        .replace(/[\r\n]+/g, ", ");
+    if (!mlResponse.ok) {
+      throw new Error(`Python server returned status ${mlResponse.status}`);
     }
 
-    // Normalize and truncate AI outputs to avoid DB constraint/length issues
-    detectedFeatures = String(detectedFeatures || "").trim();
-    detectedMediums = String(detectedMediums || "").trim();
-    const MAX_LEN = 1000;
-    if (detectedFeatures.length > MAX_LEN)
-      detectedFeatures = detectedFeatures.slice(0, MAX_LEN);
-    if (detectedMediums.length > MAX_LEN)
-      detectedMediums = detectedMediums.slice(0, MAX_LEN);
+    const mlData = await mlResponse.json();
+    
+    // Normalize and format predictions into comma-separated values
+    let detectedFeatures = Array.isArray(mlData.features) 
+      ? mlData.features.join(", ") 
+      : (mlData.features || "None");
+      
+    let detectedMediums = Array.isArray(mlData.mediums) 
+      ? mlData.mediums.join(", ") 
+      : (mlData.mediums || "None");
 
-    // Save or Update entry in feature table
+    const MAX_LEN = 1000;
+    if (detectedFeatures.length > MAX_LEN) detectedFeatures = detectedFeatures.slice(0, MAX_LEN);
+    if (detectedMediums.length > MAX_LEN) detectedMediums = detectedMediums.slice(0, MAX_LEN);
+
+    // Check if entry already exists in the feature table
     const checkSql = "SELECT feature_id FROM feature WHERE artwork_id = ?";
     db.query(checkSql, [artworkId], (err, results) => {
       if (err) {
-        console.error(
-          "[AI Scan] Error checking feature table:",
-          err && err.message ? err.message : err,
-        );
+        console.error("[ML Scan] Error querying feature table:", err.message);
         return;
       }
 
-      const insertSql = `
-        INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
-        VALUES (?, ?, ?)
-      `;
-      const updateSql = `
-        UPDATE feature
-        SET feature_scanned = ?, mediums_used = ?
-        WHERE artwork_id = ?
-      `;
-
-      const doFallback = (errMessage) => {
-        try {
-          const dumpDir = path.join(process.cwd(), "uploads", "ai_features");
-          fs.mkdirSync(dumpDir, { recursive: true });
-          const dumpPath = path.join(
-            dumpDir,
-            `artwork_${artworkId}_features.txt`,
-          );
-          fs.writeFileSync(
-            dumpPath,
-            `features:${detectedFeatures}\nmediums:${detectedMediums}`,
-            "utf8",
-          );
-          console.log(
-            `[AI Scan] Wrote AI output to ${dumpPath} due to DB error: ${errMessage}`,
-          );
-        } catch (e) {
-          console.error(
-            "[AI Scan] Failed to write AI fallback file:",
-            e && e.message ? e.message : e,
-          );
-        }
-      };
-
       if (results && results.length > 0) {
-        db.query(
-          updateSql,
-          [detectedFeatures, detectedMediums, artworkId],
-          (updateErr) => {
-            if (updateErr) {
-              console.error(
-                "[AI Scan] Update DB Error:",
-                updateErr && updateErr.message ? updateErr.message : updateErr,
-              );
-              if (
-                String(updateErr.message || "")
-                  .toLowerCase()
-                  .includes("feature_scanned")
-              ) {
-                doFallback(updateErr.message || updateErr);
-                const updateMediumsSql = `
-                UPDATE feature
-                SET mediums_used = ?
-                WHERE artwork_id = ?
-              `;
-                db.query(
-                  updateMediumsSql,
-                  [detectedMediums, artworkId],
-                  (retryErr) => {
-                    if (retryErr)
-                      console.error(
-                        "[AI Scan] Retry update (mediums_only) failed:",
-                        retryErr && retryErr.message
-                          ? retryErr.message
-                          : retryErr,
-                      );
-                    else
-                      console.log(
-                        `[AI Scan] Updated feature for artwork ${artworkId} (mediums_only)`,
-                      );
-                  },
-                );
-              }
-            } else {
-              console.log(
-                `[AI Scan] Successfully updated feature data for artwork ${artworkId}`,
-              );
-            }
-          },
-        );
+        // Update existing record
+        const updateSql = `
+          UPDATE feature
+          SET feature_scanned = ?, mediums_used = ?
+          WHERE artwork_id = ?
+        `;
+        db.query(updateSql, [detectedFeatures, detectedMediums, artworkId], (updateErr) => {
+          if (updateErr) {
+            console.error("[ML Scan] DB Update Error:", updateErr.message);
+          } else {
+            console.log(`[ML Scan] Successfully updated features & mediums for artwork ${artworkId}`);
+          }
+        });
       } else {
-        db.query(
-          insertSql,
-          [artworkId, detectedFeatures, detectedMediums],
-          (insertErr) => {
-            if (insertErr) {
-              console.error(
-                "[AI Scan] Insert DB Error:",
-                insertErr && insertErr.message ? insertErr.message : insertErr,
-              );
-              if (
-                String(insertErr.message || "")
-                  .toLowerCase()
-                  .includes("feature_scanned")
-              ) {
-                doFallback(insertErr.message || insertErr);
-                const insertMediumsSql = `
-                INSERT INTO feature (artwork_id, mediums_used)
-                VALUES (?, ?)
-              `;
-                db.query(
-                  insertMediumsSql,
-                  [detectedMediums, artworkId],
-                  (retryErr) => {
-                    if (retryErr)
-                      console.error(
-                        "[AI Scan] Retry insert (mediums_only) failed:",
-                        retryErr && retryErr.message
-                          ? retryErr.message
-                          : retryErr,
-                      );
-                    else
-                      console.log(
-                        `[AI Scan] Inserted feature for artwork ${artworkId} (mediums_only)`,
-                      );
-                  },
-                );
-              }
-            } else {
-              console.log(
-                `[AI Scan] Successfully inserted feature data for artwork ${artworkId}`,
-              );
-            }
-          },
-        );
+        // Insert new record
+        const insertSql = `
+          INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
+          VALUES (?, ?, ?)
+        `;
+        db.query(insertSql, [artworkId, detectedFeatures, detectedMediums], (insertErr) => {
+          if (insertErr) {
+            console.error("[ML Scan] DB Insert Error:", insertErr.message);
+          } else {
+            console.log(`[ML Scan] Successfully inserted features & mediums for artwork ${artworkId}`);
+          }
+        });
       }
     });
   } catch (error) {
-    console.error("[AI Scan] Failed to process artwork scan:", error.message);
+    console.error("[ML Scan] Failed to process artwork scan:", error.message);
   }
 }
 
