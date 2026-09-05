@@ -70,42 +70,39 @@ async function scanAndSaveArtworkData(artworkId, imageName) {
     if (detectedMediums.length > MAX_LEN) detectedMediums = detectedMediums.slice(0, MAX_LEN);
 
     // Check if entry already exists in the feature table
-    const checkSql = "SELECT feature_id FROM feature WHERE artwork_id = ?";
-    db.query(checkSql, [artworkId], (err, results) => {
-      if (err) {
-        console.error("[ML Scan] Error querying feature table:", err.message);
-        return;
-      }
+    const query = (sql, params) =>
+      new Promise((resolve, reject) => {
+        db.query(sql, params, (error, results) => {
+          if (error) reject(error);
+          else resolve(results);
+        });
+      });
 
-      if (results && results.length > 0) {
-        // Update existing record
-        const updateSql = `
+    const results = await query(
+      "SELECT feature_id FROM feature WHERE artwork_id = ?",
+      [artworkId],
+    );
+
+    if (results && results.length > 0) {
+      await query(
+        `
           UPDATE feature
           SET feature_scanned = ?, mediums_used = ?
           WHERE artwork_id = ?
-        `;
-        db.query(updateSql, [detectedFeatures, detectedMediums, artworkId], (updateErr) => {
-          if (updateErr) {
-            console.error("[ML Scan] DB Update Error:", updateErr.message);
-          } else {
-            console.log(`[ML Scan] Successfully updated features & mediums for artwork ${artworkId}`);
-          }
-        });
-      } else {
-        // Insert new record
-        const insertSql = `
+        `,
+        [detectedFeatures, detectedMediums, artworkId],
+      );
+      console.log(`[ML Scan] Successfully updated features & mediums for artwork ${artworkId}`);
+    } else {
+      await query(
+        `
           INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
           VALUES (?, ?, ?)
-        `;
-        db.query(insertSql, [artworkId, detectedFeatures, detectedMediums], (insertErr) => {
-          if (insertErr) {
-            console.error("[ML Scan] DB Insert Error:", insertErr.message);
-          } else {
-            console.log(`[ML Scan] Successfully inserted features & mediums for artwork ${artworkId}`);
-          }
-        });
-      }
-    });
+        `,
+        [artworkId, detectedFeatures, detectedMediums],
+      );
+      console.log(`[ML Scan] Successfully inserted features & mediums for artwork ${artworkId}`);
+    }
   } catch (error) {
     console.error("[ML Scan] Failed to process artwork scan:", error.message);
   }
@@ -227,7 +224,7 @@ router.put(
     }
 
     const selectSql = "SELECT image FROM artwork WHERE artwork_id = ?";
-    db.query(selectSql, [id], (err, results) => {
+    db.query(selectSql, [id], async (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       if (results.length === 0)
         return res.status(404).json({ error: "Artwork not found" });
@@ -237,7 +234,7 @@ router.put(
 
       const checkUploadSql =
         "SELECT artupload_id FROM artupload WHERE artwork_id = ?";
-      db.query(checkUploadSql, [id], (checkErr, uploadResults) => {
+      db.query(checkUploadSql, [id], async (checkErr, uploadResults) => {
         if (checkErr) return res.status(500).json({ error: checkErr.message });
 
         if (uploadResults && uploadResults.length > 0) {
@@ -250,12 +247,12 @@ router.put(
           db.query(
             updateSql,
             [status, adminId, approvedDate, id],
-            (updateErr) => {
+            async (updateErr) => {
               if (updateErr)
                 return res.status(500).json({ error: updateErr.message });
 
               if (status === "verified") {
-                scanAndSaveArtworkData(id, artwork.image);
+                await scanAndSaveArtworkData(id, artwork.image);
               }
 
               return res.json({
@@ -272,12 +269,12 @@ router.put(
           db.query(
             insertSql,
             [id, adminId, status, approvedDate],
-            (insertErr) => {
+            async (insertErr) => {
               if (insertErr)
                 return res.status(500).json({ error: insertErr.message });
 
               if (status === "verified") {
-                scanAndSaveArtworkData(id, artwork.image);
+                await scanAndSaveArtworkData(id, artwork.image);
               }
 
               return res.json({

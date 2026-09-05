@@ -4,4 +4,4 @@ frontend/.env
 .env.*
 !.env.example
 node_modules/
-dist/
+dist/gi

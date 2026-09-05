@@ -32,7 +32,7 @@ export default function Artwork() {
   const [artworks, setArtworks] = useState([]);
   const [allArtworks, setAllArtworks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("verified");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -102,15 +102,6 @@ export default function Artwork() {
       showSnackbar(err.message || "Failed to verify artwork.", "error");
     }
   };
-
-  const currentRole = localStorage.getItem("admin_account_type");
-  const isSuperAdmin = currentRole === "super admin";
-  const isAdmin = currentRole === "admin";
-  const canEdit =
-    (isSuperAdmin || isAdmin) && localStorage.getItem("admin_can_add") === "1";
-  const canDelete =
-    (isSuperAdmin || isAdmin) &&
-    localStorage.getItem("admin_can_delete") === "1";
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);

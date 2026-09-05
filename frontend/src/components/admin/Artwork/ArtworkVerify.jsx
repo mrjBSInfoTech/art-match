@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -25,17 +25,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 function ArtworkVerify({ open, handleClose, onSubmit, selectedArt }) {
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Enter" && open) {
-        event.preventDefault();
-        handleVerify();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -49,13 +39,37 @@ function ArtworkVerify({ open, handleClose, onSubmit, selectedArt }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  const handleVerify = () => {
-    onSubmit(selectedArt);
-    handleClose();
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Enter" && open) {
+        event.preventDefault();
+        handleVerify();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  const handleVerify = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      await onSubmit(selectedArt);
+      handleClose();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} TransitionComponent={Transition} keepMounted>
+    <Dialog
+      open={open}
+      onClose={loading ? undefined : handleClose}
+      TransitionComponent={Transition}
+      keepMounted
+    >
       <DialogTitle sx={{ fontWeight: "bold" }}>Verify Arts</DialogTitle>
       <DialogContent dividers>
         <Typography>
@@ -63,11 +77,16 @@ function ArtworkVerify({ open, handleClose, onSubmit, selectedArt }) {
         </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose} color="secondary">
+        <Button onClick={handleClose} color="secondary" disabled={loading}>
           Cancel
         </Button>
-        <Button onClick={handleVerify} color="primary" variant="contained">
-          Verify
+        <Button
+          onClick={handleVerify}
+          color="primary"
+          variant="contained"
+          disabled={loading}
+        >
+          {loading ? "Verifying..." : "Verify"}
         </Button>
       </DialogActions>
     </Dialog>
