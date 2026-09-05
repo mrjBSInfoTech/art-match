@@ -5,7 +5,9 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Chip,
   Slide,
+  Stack,
   Box,
   Typography,
 } from "@mui/material";
@@ -26,30 +28,28 @@ function ArtworkInfo({ open, handleClose, selectedArtwork }) {
     }
   }, [selectedArtwork, open]);
 
-  const formatAndCapitalize = (data) => {
-    if (!data) return "N/A";
+  const formatList = (value) => {
+    if (!value) return "N/A";
 
-    let list = data;
-    if (typeof data === "string") {
+    let list = value;
+    if (typeof value === "string") {
       try {
-        const parsed = JSON.parse(data);
-        list = Array.isArray(parsed) ? parsed : data.split(",");
+        const parsed = JSON.parse(value);
+        list = Array.isArray(parsed) ? parsed : value.split(",");
       } catch {
-        list = data.split(",");
+        list = value.split(",");
       }
     }
     if (!Array.isArray(list)) list = [list];
 
-    if (list.length === 0) return "N/A";
-
     const formatted = list
       .map((item) => {
         if (typeof item !== "string") return "";
-        const trimmed = item.trim();
-        if (!trimmed) return "";
 
-        // Capitalize the first letter of each word (e.g., "vibrant colors" -> "Vibrant Colors")
-        return trimmed
+        return item
+          .trim()
+          .replace(/_/g, " ")
+          .replace(/\s+/g, " ")
           .split(" ")
           .map(
             (word) =>
@@ -57,10 +57,36 @@ function ArtworkInfo({ open, handleClose, selectedArtwork }) {
           )
           .join(" ");
       })
-      .filter(Boolean); // Remove empty strings
+      .filter(Boolean);
 
     return formatted.length > 0 ? formatted.join(", ") : "N/A";
   };
+
+  const toColorList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map(String).map((item) => item.trim()).filter(Boolean);
+    } catch {
+      // Scanned colors are usually comma-separated values.
+    }
+    return String(value).split(",").map((item) => item.trim()).filter(Boolean);
+  };
+
+  const isHexColor = (value) => /^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(value);
+
+  const getChipTextColor = (value) => {
+    if (!isHexColor(value)) return "text.primary";
+    const hex = value.replace("#", "");
+    const expanded = hex.length === 3 ? hex.split("").map((part) => part + part).join("") : hex;
+    const red = parseInt(expanded.slice(0, 2), 16);
+    const green = parseInt(expanded.slice(2, 4), 16);
+    const blue = parseInt(expanded.slice(4, 6), 16);
+    return (red * 299 + green * 587 + blue * 114) / 1000 > 150 ? "#111" : "#fff";
+  };
+
+  const colors = artwork ? toColorList(artwork.color_used || artwork.colors_used) : [];
   return (
     <Dialog
       open={open}
@@ -99,19 +125,38 @@ function ArtworkInfo({ open, handleClose, selectedArtwork }) {
               <strong>Description:</strong> {artwork.description || "N/A"}
             </Typography>
 
-            <Typography variant="body2" color="text.secondary">
-              <strong>Colors Used:</strong>{" "}
-              {artwork.color_used || artwork.colors_used || "N/A"}
-            </Typography>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Colors Used:</strong>
+              </Typography>
+              {colors.length > 0 ? (
+                <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1, mb: 1 }}>
+                  {colors.map((color, index) => (
+                    <Chip
+                      key={`${color}-${index}`}
+                      label={formatList(color)}
+                      size="small"
+                      sx={{
+                        backgroundColor: isHexColor(color) ? color : "action.hover",
+                        color: getChipTextColor(color),
+                        fontWeight: "bold",
+                      }}
+                    />
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">N/A</Typography>
+              )}
+            </Box>
 
             <Typography variant="body2" color="text.secondary">
               <strong>Features:</strong>{" "}
-              {formatAndCapitalize(artwork.feature_scanned || artwork.features)}
+              {formatList(artwork.feature_scanned || artwork.features)}
             </Typography>
 
             <Typography variant="body2" color="text.secondary">
               <strong>Mediums Used:</strong>{" "}
-              {formatAndCapitalize(artwork.mediums_used || artwork.mediums)}
+              {formatList(artwork.mediums_used || artwork.mediums)}
             </Typography>
 
             <Typography variant="body2" color="text.secondary">

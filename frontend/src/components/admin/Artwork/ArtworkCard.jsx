@@ -51,14 +51,17 @@ export default function ArtworkCard({ artworks, onVerify }) {
   const isVerified = (artwork) =>
     String(getRequestStatus(artwork)).toLowerCase() === "verified";
 
-  const currentRole = localStorage.getItem("admin_role");
+  const currentRole = (localStorage.getItem("admin_role") || "")
+    .toLowerCase()
+    .trim();
   const isSuperAdmin = currentRole === "super admin";
-  const isAdmin = currentRole === "admin";
   const canEdit =
-    (isSuperAdmin || isAdmin) && localStorage.getItem("admin_can_edit") === "1";
-  const canDelete =
-    (isSuperAdmin || isAdmin) &&
-    localStorage.getItem("admin_can_delete") === "1";
+    isSuperAdmin ||
+    ["admin", "moderator"].includes(currentRole) ||
+    (currentRole === "customize" &&
+      ["1", "true"].includes(
+        String(localStorage.getItem("admin_can_edit")).toLowerCase(),
+      ));
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -163,19 +166,18 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 spacing={1}
                 sx={{ mt: "auto" }}
               >
-                {canEdit ||
-                  (!isVerified(artwork) && (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      color="success"
-                      fullWidth
-                      sx={{ color: "#fff" }}
-                      onClick={() => handleVerifyOpen(artwork)}
-                    >
-                      Verify
-                    </Button>
-                  ))}
+                {!isVerified(artwork) && canEdit && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    color="success"
+                    fullWidth
+                    sx={{ color: "#fff" }}
+                    onClick={() => handleVerifyOpen(artwork)}
+                  >
+                    Verify
+                  </Button>
+                )}
               </Stack>
             </CardContent>
           </Card>
