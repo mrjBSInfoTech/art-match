@@ -2,8 +2,10 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { AppProvider } from "@toolpad/core";
 import Backdrop from "@mui/material/Backdrop";
+import Badge from "@mui/material/Badge";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
 import { DashboardLayout as MuiDashboardLayout } from "@toolpad/core";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -18,7 +20,17 @@ import MenuItem from "@mui/material/MenuItem";
 import { clearAuthData } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { Stack, Avatar, Typography, Divider, IconButton } from "@mui/material";
+import {
+  Stack,
+  Avatar,
+  Typography,
+  Divider,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
 import { ThemeProvider, CssBaseline, useMediaQuery } from "@mui/material";
 import { lightTheme, darkTheme } from "../theme/customTheme";
 import Nexus from "../assets/Nexus.png";
@@ -33,6 +45,8 @@ import PaletteIcon from "@mui/icons-material/Palette";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -67,6 +81,8 @@ export default function SellerLayout({ children }) {
   const [profileImage, setProfileImage] = useState();
 
   const [anchorEl, setAnchorEl] = useState(null);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
@@ -207,19 +223,19 @@ export default function SellerLayout({ children }) {
         <img
           src={Nexus}
           alt="logo"
-          style={{ width: 30, height: 30, position: "relative", bottom: 2 }}
+          style={{ width: 30, height: 50, position: "relative", bottom: 2 }}
         />
       </Box>
     ),
     title: (
       <Typography
         sx={{
-          color: "#ffffff",
+          color: "text.primary",
           fontWeight: "bold",
           fontSize: 22,
         }}
       >
-        ArtMatch
+        Red <spam style={{ color: "#ff0000" }}>Nexus</spam>
       </Typography>
     ),
     homeUrl: "/seller/dashboard",
@@ -269,17 +285,71 @@ export default function SellerLayout({ children }) {
     </Stack>
   );
 
-  // Custom header with logout button on the right
+  // Custom header matching the admin layout
   const CustomHeader = () => (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        width: "100%",
-        px: 1,
-      }}
-    ></Box>
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent="flex-end"
+      width="100%"
+      spacing={1.5}
+      sx={{ pr: 1 }}
+    >
+      <IconButton
+        onClick={() => setNotificationDrawerOpen(true)}
+        aria-label="Open notifications"
+        sx={{ color: "#6b7280" }}
+      >
+        <Badge variant="dot" color="error">
+          <NotificationsNoneIcon sx={{ fontSize: 22 }} />
+        </Badge>
+      </IconButton>
+
+      <Divider
+        orientation="vertical"
+        flexItem
+        sx={{ mx: 0.5, height: 40, my: "auto" }}
+      />
+
+      <Box
+        onClick={() => setProfileDrawerOpen(true)}
+        role="button"
+        tabIndex={0}
+        aria-label="Open seller profile"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            setProfileDrawerOpen(true);
+          }
+        }}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          backgroundColor: "#f0f2f5",
+          borderRadius: "24px",
+          px: 2,
+          py: 0.5,
+          cursor: "pointer",
+          transition: "background-color 0.2s",
+          "&:hover": { backgroundColor: "#e4e6ea" },
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, color: "#1c1e21" }}>
+          {firstName || "Seller"}
+        </Typography>
+        <Avatar
+          src={
+            profileImage
+              ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
+              : "http://localhost:5000/uploads/profile.jpg"
+          }
+          alt={firstName || "Seller"}
+          sx={{ width: 32, height: 32, bgcolor: "#232b38" }}
+        >
+          {firstName ? firstName.charAt(0).toUpperCase() : "S"}
+        </Avatar>
+      </Box>
+    </Stack>
   );
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
@@ -327,6 +397,100 @@ export default function SellerLayout({ children }) {
             </Button>
           </DialogActions>
         </Dialog>
+        <Drawer
+          anchor="right"
+          open={profileDrawerOpen}
+          onClose={() => setProfileDrawerOpen(false)}
+          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+        >
+          <Stack sx={{ height: "100%", mt: 9 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ p: 2 }}
+            >
+              <Avatar
+                src={
+                  profileImage
+                    ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
+                    : "http://localhost:5000/uploads/profile.jpg"
+                }
+                alt={firstName || "Seller"}
+                sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
+              >
+                {firstName ? firstName.charAt(0).toUpperCase() : "S"}
+              </Avatar>
+              <Stack>
+                <Typography sx={{ fontWeight: 700 }}>
+                  {firstName} {lastName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Seller
+                </Typography>
+              </Stack>
+            </Stack>
+            <Divider />
+            <List>
+              <ListItemButton
+                onClick={() => {
+                  setProfileDrawerOpen(false);
+                  navigate("/seller/profile");
+                }}
+              >
+                <ListItemIcon>
+                  <AccountCircleIcon />
+                </ListItemIcon>
+                <ListItemText primary="Profile" />
+              </ListItemButton>
+              <ListItemButton
+                onClick={() => {
+                  setProfileDrawerOpen(false);
+                  navigate("/seller/settings");
+                }}
+              >
+                <ListItemIcon>
+                  <SettingsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Settings" />
+              </ListItemButton>
+              <Divider sx={{ my: 1 }} />
+              <ListItemButton
+                onClick={() => {
+                  setProfileDrawerOpen(false);
+                  handleOpen();
+                }}
+                sx={{ color: "error.main" }}
+              >
+                <ListItemIcon sx={{ color: "inherit" }}>
+                  <ExitToAppIcon />
+                </ListItemIcon>
+                <ListItemText primary="Logout" />
+              </ListItemButton>
+            </List>
+          </Stack>
+        </Drawer>
+        <Drawer
+          anchor="right"
+          open={notificationDrawerOpen}
+          onClose={() => setNotificationDrawerOpen(false)}
+          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+        >
+          <Stack sx={{ height: "100%", mt: 9 }}>
+            <Stack
+              alignItems="center"
+              justifyContent="center"
+              sx={{ flex: 1, p: 3 }}
+            >
+              <NotificationsNoneIcon
+                sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
+              />
+              <Typography color="text.secondary">
+                No new notifications
+              </Typography>
+            </Stack>
+          </Stack>
+        </Drawer>
         <MuiDashboardLayout
           slots={{
             toolbarAccount: CustomHeader,
@@ -338,12 +502,18 @@ export default function SellerLayout({ children }) {
               backgroundColor: theme.palette.background.sidebar,
               color: theme.palette.text.sidebar,
               borderRight: "none",
+              borderTopRightRadius: 50,
+              overflow: "hidden",
+            },
+            "& .MuiDrawer-docked .MuiDrawer-paper": {
+              borderRadius: "0 50px 0 0",
+              overflow: "hidden",
             },
             "& .MuiAppBar-root .MuiIconButton-root": {
-              color: "#ffffff",
+              color: "#6b7280",
             },
             "& .MuiAppBar-root .MuiSvgIcon-root": {
-              color: "#ffffff",
+              color: "#6b7280",
             },
             "& .MuiDrawer-paper .MuiPaper-root": {
               backgroundColor: theme.palette.background.sidebar,
@@ -367,12 +537,16 @@ export default function SellerLayout({ children }) {
               backgroundColor: "rgba(255,255,255,0.15)",
             },
             "& .Mui-selected": {
-              backgroundColor: "rgba(255,255,255,0.25) !important",
+              backgroundColor: "rgba(255,255,255,0.25) ",
             },
             // Header
             "& .MuiAppBar-root": {
               backgroundColor: theme.palette.background.header,
               boxShadow: "none",
+              borderBottom: "none",
+            },
+            "& .MuiAppBar-root .MuiToolbar-root": {
+              borderBottom: "none",
             },
 
             "& .MuiListItemButton-root": {

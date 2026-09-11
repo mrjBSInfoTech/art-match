@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import {
-  Box,
-  Card,
-  CardContent,
-  Paper,
-  Typography,
-} from "@mui/material";
+import { Box, Card, CardContent, Paper, Typography } from "@mui/material";
 import {
   Area,
   AreaChart,
@@ -67,7 +61,10 @@ export default function Dashboard() {
 
   const artworkCount = artworks.length;
   const totalRevenue = salesData.reduce((sum, entry) => sum + entry.sales, 0);
-  const soldCount = salesData.reduce((sum, entry) => sum + Math.round(entry.sales / 200), 0);
+  const soldCount = salesData.reduce(
+    (sum, entry) => sum + Math.round(entry.sales / 200),
+    0,
+  );
   const salesCount = formatCurrency(totalRevenue);
 
   return (
@@ -94,24 +91,73 @@ export default function Dashboard() {
           justifyContent: "center",
         }}
       >
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 240px",
-            maxWidth: 320,
-            minHeight: 150,
-            borderRadius: 3,
-          }}
-        >
-          <CardContent>
-            <Typography gutterBottom variant="h6" sx={{ fontWeight: 700, color: "#b73636" }}>
-              Total Artworks
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2 }}>
-              <ColorLensRoundedIcon color="error" sx={{ fontSize: 28 }} />
-              <Typography sx={{ fontWeight: 800, fontSize: 30, color: "#b73636" }}>
-                {loading ? "..." : artworkCount}
-              </Typography>
+          <Card
+            variant="outlined"
+            sx={{
+              flex: "1 1 350px",
+              maxWidth: 600,
+              minHeight: 142,
+              borderRadius: 2.5,
+              bgcolor: "background.paper",
+              borderColor: "#e5eaf0",
+              boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
+            }}
+          >
+            <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
+              <Box
+                sx={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 94,
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
+                <Typography
+                  sx={{
+                    color: "#64748b",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.7,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Total Artworks
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    color: "#172033",
+                    fontSize: 30,
+                    fontWeight: 800,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {loading ? "..." : artworkCount}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
+                  Your artwork catalog
+                </Typography>
+              </Box>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 44,
+                    height: 44,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    bgcolor: "#fff1f2",
+                    color: "#b73636",
+                  }}
+                >
+                  <ColorLensRoundedIcon />
+                </Box>
             </Box>
           </CardContent>
         </Card>
@@ -119,21 +165,70 @@ export default function Dashboard() {
         <Card
           variant="outlined"
           sx={{
-            flex: "1 1 240px",
-            maxWidth: 320,
-            minHeight: 150,
-            borderRadius: 3,
+            flex: "1 1 350px",
+            maxWidth: 600,
+            minHeight: 142,
+            borderRadius: 2.5,
+            bgcolor: "background.paper",
+            borderColor: "#e5eaf0",
+            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
           }}
         >
-          <CardContent>
-            <Typography gutterBottom variant="h6" sx={{ fontWeight: 700, color: "#b73636" }}>
-              Orders Sold
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2 }}>
-              <SellRoundedIcon color="error" sx={{ fontSize: 28 }} />
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#b73636" }}>
-                {soldCount}
-              </Typography>
+          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
+            <Box
+              sx={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 94,
+                gap: 2,
+              }}
+            >
+              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
+                <Typography
+                  sx={{
+                    color: "#64748b",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.7,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Orders Sold
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    color: "#172033",
+                    fontSize: 30,
+                    fontWeight: 800,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {soldCount}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
+                  Completed purchases
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 44,
+                  height: 44,
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: 2,
+                  bgcolor: "#fff1f2",
+                  color: "#b73636",
+                }}
+              >
+                <SellRoundedIcon />
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -141,21 +236,70 @@ export default function Dashboard() {
         <Card
           variant="outlined"
           sx={{
-            flex: "1 1 240px",
-            maxWidth: 320,
-            minHeight: 150,
-            borderRadius: 3,
+            flex: "1 1 350px",
+            maxWidth: 600,
+            minHeight: 142,
+            borderRadius: 2.5,
+            bgcolor: "background.paper",
+            borderColor: "#e5eaf0",
+            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
           }}
         >
-          <CardContent>
-            <Typography gutterBottom variant="h6" sx={{ fontWeight: 700, color: "#b73636" }}>
-              Total Sales
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2 }}>
-              <CreditScoreIcon color="error" sx={{ fontSize: 28 }} />
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#b73636" }}>
-                {salesCount}
-              </Typography>
+          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
+            <Box
+              sx={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 94,
+                gap: 2,
+              }}
+            >
+              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
+                <Typography
+                  sx={{
+                    color: "#64748b",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 0.7,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Total Sales
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    color: "#172033",
+                    fontSize: 30,
+                    fontWeight: 800,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {salesCount}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
+                  Total revenue generated
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 44,
+                  height: 44,
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: 2,
+                  bgcolor: "#fff1f2",
+                  color: "#b73636",
+                }}
+              >
+                <CreditScoreIcon />
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -180,7 +324,13 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={salesData}>
               <defs>
-                <linearGradient id="dashboardSalesFill" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient
+                  id="dashboardSalesFill"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
                   <stop offset="5%" stopColor="#b73636" stopOpacity={0.4} />
                   <stop offset="95%" stopColor="#b73636" stopOpacity={0.05} />
                 </linearGradient>
@@ -188,7 +338,9 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [formatCurrency(value), "Sales"]} />
+              <Tooltip
+                formatter={(value) => [formatCurrency(value), "Sales"]}
+              />
               <Area
                 type="monotone"
                 dataKey="sales"

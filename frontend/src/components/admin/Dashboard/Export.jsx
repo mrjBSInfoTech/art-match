@@ -37,7 +37,7 @@ function Export({ open, handleClose, onExportExcel, onExportCSV }) {
       maxWidth="xs"
       fullWidth
     >
-      <DialogTitle>Export Data</DialogTitle>
+      <DialogTitle sx={{  fontWeight: "bold" }}>Export Data</DialogTitle>
 
       <DialogContent dividers sx={{ pt: 3 }}>
         <Stack spacing={2} mt={1}>

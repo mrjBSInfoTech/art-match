@@ -2,6 +2,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { AppProvider } from "@toolpad/core";
 import Backdrop from "@mui/material/Backdrop";
+import Badge from "@mui/material/Badge";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import { DashboardLayout as MuiDashboardLayout } from "@toolpad/core";
@@ -10,13 +11,21 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
+import Drawer from "@mui/material/Drawer";
 import Fade from "@mui/material/Fade";
 import Slide from "@mui/material/Slide";
-import Modal from "@mui/material/Modal";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { Stack, Avatar, Typography, Divider, IconButton } from "@mui/material";
+import {
+  Stack,
+  Avatar,
+  Typography,
+  Divider,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
 import { ThemeProvider, CssBaseline, useMediaQuery } from "@mui/material";
 import { lightTheme, darkTheme } from "../theme/customTheme";
 import Nexus from "../assets/Nexus.png";
@@ -27,9 +36,11 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import HourglassBottomRoundedIcon from "@mui/icons-material/HourglassBottomRounded";
 import LocalMallIcon from "@mui/icons-material/LocalMall";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
+import CloseIcon from "@mui/icons-material/Close";
 import KeyIcon from "@mui/icons-material/Key";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
@@ -70,7 +81,6 @@ export default function AdminLayout({ children }) {
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
 
-  const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedAdmin, setSelectedAdmin] = useState(null);
@@ -78,7 +88,8 @@ export default function AdminLayout({ children }) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
-  const openMenu = Boolean(anchorEl);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
 
   useEffect(() => {
     const loadAdminProfile = () => {
@@ -123,14 +134,6 @@ export default function AdminLayout({ children }) {
     };
   }, []);
 
-  // Open/Close option handlers
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
   // Simulated router (for Toolpad)
   const router = {
     pathname: location.pathname.replace(/^\/admin/, "") || "/",
@@ -153,6 +156,10 @@ export default function AdminLayout({ children }) {
         window.history.pushState(null, null, window.location.href);
       };
     }, 150);
+  };
+
+  const handleNotificationClick = () => {
+    setNotificationDrawerOpen(true);
   };
 
   // Check if user has permissions to manage admins (can add or edit)
@@ -252,79 +259,78 @@ export default function AdminLayout({ children }) {
         <img
           src={Nexus}
           alt="logo"
-          style={{ width: 30, height: 30, position: "relative", bottom: 2 }}
+          style={{ width: 30, height: 50, position: "relative", bottom: 2 }}
         />
       </Box>
     ),
     title: (
       <Typography
         sx={{
-          color: "#ffffff",
+          color: "text.primary",
           fontWeight: "bold",
           fontSize: 22,
         }}
       >
-        ArtMatch
+        Red <spam style={{ color: "#ff0000" }}>Nexus</spam>
       </Typography>
     ),
     homeUrl: "/admin/dashboard",
   };
 
-  const SidebarFooter = ({ mini }) => (
-    <Stack
-      direction="row"
-      alignItems="center"
-      justifyContent={mini ? "center" : "space-between"}
-      spacing={mini ? 0 : 1.5}
-      sx={{
-        p: 1.5,
-        borderTop: "1px solid",
-        borderColor: "divider",
-        backgroundColor: theme.palette.background.sidebar,
-        color: theme.palette.text.sidebar,
-        // Force it down if the parent allows flex growth
-        mt: "auto",
-      }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center">
+
+  const CustomHeader = () => (
+    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pr: 1 }}>
+      <IconButton
+        onClick={handleNotificationClick}
+        aria-label="Open notifications"
+        sx={{ color: "text.secondary" }}
+      >
+        <Badge variant="dot" color="error">
+          <NotificationsNoneIcon sx={{ fontSize: 22 }} />
+        </Badge>
+      </IconButton>
+      
+      <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 40, my: "auto" }} />
+
+      <Box
+        onClick={() => setProfileDrawerOpen(true)}
+        role="button"
+        tabIndex={0}
+        aria-label="Open profile menu"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            setProfileDrawerOpen(true);
+          }
+        }}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          backgroundColor: "#f0f2f5",
+          borderRadius: "24px",
+          px: 2,
+          py: 0.5,
+          cursor: "pointer",
+          transition: "background-color 0.2s",
+          "&:hover": { backgroundColor: "#e4e6ea" },
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, color: "#1c1e21" }}>
+          {firstName || "Admin"}
+        </Typography>
         <Avatar
           src={
-            localStorage.getItem("admin_image")
-              ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
-              : "http://localhost:5000/uploads/profile.jpg"
+            image
+              ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
+              : undefined
           }
-          alt="ArtMatch"
-          sx={{ width: 40, height: 40 }}
-        />
-        {!mini && (
-          <Stack direction="column">
-            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: 16 }}>
-              {firstName} {lastName}
-            </Typography>
-            <Typography variant="caption">Administrator</Typography>
-          </Stack>
-        )}
-      </Stack>
-
-      {!mini && (
-        <IconButton size="small" onClick={handleOpen}>
-          <ExitToAppIcon fontSize="small" />
-        </IconButton>
-      )}
+          alt={firstName}
+          sx={{ width: 32, height: 32, bgcolor: "#232b38", fontSize: "14px", fontWeight: 600 }}
+        >
+          {firstName ? firstName.charAt(0).toUpperCase() : "A"}
+        </Avatar>
+      </Box>
     </Stack>
-  );
-
-  // Custom header with logout button on the right
-  const CustomHeader = () => (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        width: "100%",
-        px: 1,
-      }}
-    ></Box>
   );
 
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
@@ -372,10 +378,85 @@ export default function AdminLayout({ children }) {
             </Button>
           </DialogActions>
         </Dialog>
+        <Drawer
+          anchor="right"
+          open={profileDrawerOpen}
+          onClose={() => setProfileDrawerOpen(false)}
+          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+        >
+          <Stack sx={{ height: "100%",mt: 9 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ p: 2 }}>
+              <Avatar
+                src={
+                  image
+                    ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
+                    : "http://localhost:5000/uploads/profile.jpg"
+                }
+                alt={firstName}
+                sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
+              >
+                {firstName ? firstName.charAt(0).toUpperCase() : "A"}
+              </Avatar>
+              <Stack>
+                <Typography sx={{ fontWeight: 700 }}>
+                  {firstName} {lastName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Administrator
+                </Typography>
+              </Stack>
+            </Stack>
+            <Divider />
+            <List>
+              <ListItemButton
+                onClick={() => {
+                  setProfileDrawerOpen(false);
+                  navigate("/admin/profile");
+                }}
+              >
+                <ListItemIcon><AccountCircleIcon /></ListItemIcon>
+                <ListItemText primary="Profile" />
+              </ListItemButton>
+              <ListItemButton
+                onClick={() => {
+                  setProfileDrawerOpen(false);
+                  navigate("/admin/settings");
+                }}
+              >
+                <ListItemIcon><SettingsIcon /></ListItemIcon>
+                <ListItemText primary="Settings" />
+              </ListItemButton>
+              <Divider sx={{ my: 1 }} />
+              <ListItemButton
+                onClick={() => {
+                  setProfileDrawerOpen(false);
+                  handleOpen();
+                }}
+                sx={{ color: "error.main" }}
+              >
+                <ListItemIcon sx={{ color: "inherit" }}><ExitToAppIcon /></ListItemIcon>
+                <ListItemText primary="Logout" />
+              </ListItemButton>
+            </List>
+          </Stack>
+        </Drawer>
+        <Drawer
+          anchor="right"
+          open={notificationDrawerOpen}
+          onClose={() => setNotificationDrawerOpen(false)}
+          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+        >
+          <Stack sx={{ height: "100%",mt:9 }}>
+            <Stack alignItems="center" justifyContent="center" sx={{ flex: 1, p: 3 }}>
+              <NotificationsNoneIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1 }} />
+              <Typography color="text.secondary">No new notifications</Typography>
+            </Stack>
+          </Stack>
+        </Drawer>
         <MuiDashboardLayout
           slots={{
             toolbarAccount: CustomHeader,
-            sidebarFooter: SidebarFooter,
+  
           }}
           sx={{
             backgroundColor: theme.palette.background.default,
@@ -383,12 +464,18 @@ export default function AdminLayout({ children }) {
               backgroundColor: theme.palette.background.sidebar,
               color: theme.palette.text.sidebar,
               borderRight: "none",
+              borderTopRightRadius: 50,
+              overflow: "hidden",
+            },
+            "& .MuiDrawer-docked .MuiDrawer-paper": {
+              borderRadius: "0 50px 0 0",
+              overflow: "hidden",
             },
             "& .MuiAppBar-root .MuiIconButton-root": {
-              color: "#ffffff",
+              color: "#6b7280",
             },
             "& .MuiAppBar-root .MuiSvgIcon-root": {
-              color: "#ffffff",
+              color: "#6b7280",
             },
             "& .MuiDrawer-paper .MuiPaper-root": {
               backgroundColor: theme.palette.background.sidebar,
@@ -418,6 +505,10 @@ export default function AdminLayout({ children }) {
             "& .MuiAppBar-root": {
               backgroundColor: theme.palette.background.header,
               boxShadow: "none",
+              borderBottom: "none",
+            },
+            "& .MuiAppBar-root .MuiToolbar-root": {
+              borderBottom: "none",
             },
 
             "& .MuiListItemButton-root": {
