@@ -383,6 +383,7 @@ export default function ArtworkDetail() {
                       key={`feature-${formatAndCapitalize(f)}`}
                       label={formatAndCapitalize(f)}
                       size="small"
+                      variant="outlined"
                       sx={{
                         borderRadius: 999,
                         fontSize: "0.75rem",
