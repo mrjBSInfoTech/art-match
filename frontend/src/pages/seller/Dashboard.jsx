@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createElement } from "react";
 import { Helmet } from "react-helmet-async";
 import { Box, Card, CardContent, Paper, Typography } from "@mui/material";
 import {
@@ -85,224 +85,102 @@ export default function Dashboard() {
       <Box
         sx={{
           mt: 3,
-          display: "flex",
-          gap: 3,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+          gap: 2,
         }}
       >
+        {[
+          {
+            label: "TOTAL ARTWORKS",
+            value: loading ? "..." : artworkCount,
+            caption: "Your artwork catalog",
+            icon: ColorLensRoundedIcon,
+          },
+          {
+            label: "ORDERS SOLD",
+            value: soldCount,
+            caption: "Completed purchases",
+            icon: SellRoundedIcon,
+          },
+          {
+            label: "TOTAL SALES",
+            value: salesCount,
+            caption: "Total revenue generated",
+            icon: CreditScoreIcon,
+          },
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
           <Card
+            key={label}
             variant="outlined"
             sx={{
-              flex: "1 1 350px",
-              maxWidth: 600,
-              minHeight: 142,
               borderRadius: 2.5,
               bgcolor: "background.paper",
-              borderColor: "#e5eaf0",
-              boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
+              borderColor: "divider",
+              boxShadow: "none",
             }}
           >
-            <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
               <Box
                 sx={{
-                  position: "relative",
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 94,
                   gap: 2,
                 }}
               >
-                <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
-                <Typography
-                  sx={{
-                    color: "#64748b",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    letterSpacing: 0.7,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Total Artworks
-                </Typography>
-                <Typography
-                  sx={{
-                    mt: 0.5,
-                    color: "#172033",
-                    fontSize: 30,
-                    fontWeight: 800,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {loading ? "..." : artworkCount}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-                  Your artwork catalog
-                </Typography>
-              </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: "text.primary",
+                      fontSize: 30,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: "text.secondary",
+                      fontSize: 12,
+                    }}
+                  >
+                    {caption}
+                  </Typography>
+                </Box>
                 <Box
                   sx={{
-                    position: "absolute",
-                    right: 0,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: 44,
-                    height: 44,
+                    width: 54,
+                    height: 54,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,
-                    bgcolor: "#fff1f2",
-                    color: "#b73636",
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: "error.main",
                   }}
                 >
-                  <ColorLensRoundedIcon />
+                  {createElement(MetricIcon)}
                 </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            minHeight: 142,
-            borderRadius: 2.5,
-            bgcolor: "background.paper",
-            borderColor: "#e5eaf0",
-            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
-          }}
-        >
-          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
-            <Box
-              sx={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 94,
-                gap: 2,
-              }}
-            >
-              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
-                <Typography
-                  sx={{
-                    color: "#64748b",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    letterSpacing: 0.7,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Orders Sold
-                </Typography>
-                <Typography
-                  sx={{
-                    mt: 0.5,
-                    color: "#172033",
-                    fontSize: 30,
-                    fontWeight: 800,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {soldCount}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-                  Completed purchases
-                </Typography>
               </Box>
-              <Box
-                sx={{
-                  position: "absolute",
-                  right: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: 44,
-                  height: 44,
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: 2,
-                  bgcolor: "#fff1f2",
-                  color: "#b73636",
-                }}
-              >
-                <SellRoundedIcon />
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            minHeight: 142,
-            borderRadius: 2.5,
-            bgcolor: "background.paper",
-            borderColor: "#e5eaf0",
-            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
-          }}
-        >
-          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
-            <Box
-              sx={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 94,
-                gap: 2,
-              }}
-            >
-              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
-                <Typography
-                  sx={{
-                    color: "#64748b",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    letterSpacing: 0.7,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Total Sales
-                </Typography>
-                <Typography
-                  sx={{
-                    mt: 0.5,
-                    color: "#172033",
-                    fontSize: 30,
-                    fontWeight: 800,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {salesCount}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-                  Total revenue generated
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  position: "absolute",
-                  right: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: 44,
-                  height: 44,
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: 2,
-                  bgcolor: "#fff1f2",
-                  color: "#b73636",
-                }}
-              >
-                <CreditScoreIcon />
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </Box>
 
       <Paper

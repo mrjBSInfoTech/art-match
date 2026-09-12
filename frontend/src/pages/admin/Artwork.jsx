@@ -8,7 +8,6 @@ import {
   CircularProgress,
   FormControl,
   InputAdornment,
-  InputLabel,
   MenuItem,
   Paper,
   Select,
@@ -19,6 +18,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
@@ -32,6 +32,7 @@ function SlideTransition(props) {
 }
 
 export default function Artwork() {
+  const theme = useTheme();
   const [artworks, setArtworks] = useState([]);
   const [allArtworks, setAllArtworks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -151,8 +152,8 @@ export default function Artwork() {
       sx={{
         p: { xs: 1.5, sm: 2.5 },
         minHeight: "100vh",
-        backgroundColor: "#0f172a",
-        color: "#f8fafc",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
@@ -175,11 +176,18 @@ export default function Artwork() {
               fontSize: { xs: 28, sm: 38 },
               fontWeight: 800,
               lineHeight: 1.1,
+              color: theme.palette.text.primary,
             }}
           >
             Art Verification
           </Typography>
-          <Typography sx={{ mt: 0.75, color: "#94a3b8", fontSize: 13 }}>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
             Review and manage the artwork catalog
           </Typography>
         </Box>
@@ -187,10 +195,11 @@ export default function Artwork() {
           sx={{
             px: 1.5,
             py: 0.75,
-            border: "1px solid #475569",
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 1.5,
-            color: "#cbd5e1",
+            color: theme.palette.text.secondary,
             fontSize: 12,
+            backgroundColor: theme.palette.background.paper,
           }}
         >
           {statusCount} artworks shown
@@ -228,8 +237,8 @@ export default function Artwork() {
           <Card
             key={label}
             sx={{
-              backgroundColor: "#1e293b",
-              border: "1px solid #cbd5e1",
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2.5,
               boxShadow: "none",
             }}
@@ -246,7 +255,7 @@ export default function Artwork() {
                 <Box>
                   <Typography
                     sx={{
-                      color: "#94a3b8",
+                      color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1,
@@ -257,7 +266,7 @@ export default function Artwork() {
                   <Typography
                     sx={{
                       mt: 0.5,
-                      color: "#f8fafc",
+                      color: theme.palette.text.primary,
                       fontSize: 30,
                       fontWeight: 800,
                       lineHeight: 1,
@@ -265,7 +274,13 @@ export default function Artwork() {
                   >
                     {value}
                   </Typography>
-                  <Typography sx={{ mt: 1, color: "#a9bad0", fontSize: 12 }}>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: theme.palette.text.secondary,
+                      fontSize: 12,
+                    }}
+                  >
                     {caption}
                   </Typography>
                 </Box>
@@ -276,8 +291,11 @@ export default function Artwork() {
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,
-                    backgroundColor: "#fff5f5",
-                    color: "#ef3340",
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: theme.palette.error.main,
                   }}
                 >
                   {createElement(MetricIcon)}
@@ -290,10 +308,10 @@ export default function Artwork() {
 
       <Paper
         sx={{
-          p: { xs: 1, sm: 1.25 },
+          p: 3,
           borderRadius: 2,
-          backgroundColor: "#1e293b",
-          borderColor: "#cbd5e1",
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
         }}
         variant="outlined"
       >
@@ -313,12 +331,13 @@ export default function Artwork() {
             sx={{
               width: { xs: "100%", lg: 255 },
               "& .MuiOutlinedInput-root": {
-                color: "#f8fafc",
-                "& fieldset": { borderColor: "#64748b" },
-                "&:hover fieldset": { borderColor: "#cbd5e1" },
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
               },
               "& .MuiInputBase-input::placeholder": {
-                color: "#94a3b8",
+                color: theme.palette.text.secondary,
                 opacity: 1,
               },
             }}
@@ -343,7 +362,7 @@ export default function Artwork() {
           >
             <Typography
               variant="caption"
-              sx={{ color: "#94a3b8", whiteSpace: "nowrap" }}
+              sx={{ color: theme.palette.text.secondary, whiteSpace: "nowrap" }}
             >
               Status: <strong>{statusCount}</strong>
             </Typography>
@@ -357,16 +376,17 @@ export default function Artwork() {
                   px: 1,
                   py: 0.5,
                   fontSize: 11,
-                  color: "#cbd5e1",
-                  borderColor: "#64748b",
+                  color: theme.palette.text.secondary,
+                  borderColor: theme.palette.divider,
+                  backgroundColor: theme.palette.background.default,
                 },
                 "& .MuiToggleButton-root.Mui-selected": {
-                  color: "#fff",
-                  backgroundColor: "#ef3340",
-                  borderColor: "#ef3340",
+                  color: theme.palette.primary.contrastText,
+                  backgroundColor: theme.palette.primary.main,
+                  borderColor: theme.palette.primary.main,
                 },
                 "& .MuiToggleButton-root.Mui-selected:hover": {
-                  backgroundColor: "#d92d39",
+                  backgroundColor: theme.palette.primary.dark,
                 },
               }}
             >
@@ -386,9 +406,10 @@ export default function Artwork() {
                 }
                 sx={{
                   fontSize: 12,
-                  color: "#f8fafc",
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#64748b",
+                    borderColor: theme.palette.divider,
                   },
                 }}
               >
@@ -402,11 +423,11 @@ export default function Artwork() {
 
       <Paper
         sx={{
-          p: { xs: 0, sm: 0.5 },
+          p: 3,
           mt: 2,
           borderRadius: 2,
-          backgroundColor: "#1e293b",
-          borderColor: "#cbd5e1",
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
         }}
         variant="outlined"
       >

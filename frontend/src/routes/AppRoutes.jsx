@@ -104,10 +104,7 @@ export default function AppRoutes() {
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
-                <Route
-                  path="profile"
-                  element={<Navigate to="dashboard" replace />}
-                />
+                <Route path="profile" element={<AdminProfile />} />
                 <Route path="artwork" element={<AdminArtwork />} />
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
@@ -122,10 +119,7 @@ export default function AppRoutes() {
                   element={<AdminStudentVerify />}
                 />
                 <Route path="sales" element={<AdminSales />} />
-                <Route
-                  path="settings"
-                  element={<Navigate to="dashboard" replace />}
-                />
+                <Route path="settings" element={<AdminSettings />} />
                 <Route path="audit-logs" element={<AdminAuditLogs />} />
                 <Route path="admin" element={<AdminControl />} />
               </Route>

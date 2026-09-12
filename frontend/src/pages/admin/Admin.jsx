@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import AdminCard from "../../components/admin/Admin/AdminCard";
 import AdminForm from "../../components/admin/Admin/AdminForm";
@@ -34,6 +35,7 @@ function SlideTransition(props) {
 }
 
 export default function Admin() {
+  const theme = useTheme();
   const [admins, setAdmins] = useState([]);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [openAdminForm, setOpenAdminForm] = useState(false);
@@ -178,7 +180,14 @@ export default function Admin() {
     localStorage.getItem("admin_role") === "super admin";
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Admin Accounts</title>
       </Helmet>
@@ -193,9 +202,27 @@ export default function Admin() {
           mb: 2,
         }}
       >
-        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-          Admin Accounts
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Admin Accounts
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Monitor and manage the admin accounts of the platform
+          </Typography>
+        </Box>
         {canAddAdmin && (
           <Button variant="contained" color="error" onClick={handleOpenAdd}>
             Add Admin Account
@@ -204,29 +231,42 @@ export default function Admin() {
       </Box>
 
       {/* Filter Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Filter
-        </Typography>
+      <Paper
+        sx={{
+          p: 3,
+          mt: 3,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            alignItems: { xs: "stretch", lg: "center" },
+            gap: 1.25,
           }}
         >
           <TextField
             variant="outlined"
+            placeholder="Search username, name, email, or role..."
             size="small"
             sx={{
-              width: { xs: "100%", md: 250 },
-              minWidth: { xs: "100%", md: 250 },
+              width: { xs: "100%", lg: 320 },
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
             }}
-            placeholder="Search username, name, email, or role..."
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             InputProps={{
@@ -237,20 +277,38 @@ export default function Admin() {
               ),
             }}
           />
-          <FormControl size="small" sx={{ width: { xs: "100%", lg: 180 } }}>
-            <InputLabel>Roles</InputLabel>
-            <Select
-              value={roleFilter}
-              label="Type"
-              onChange={(event) => setRoleFilter(event.target.value)}
-            >
-              <MenuItem value="all">All</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="super admin">Super Admin</MenuItem>
-              <MenuItem value="moderator">Moderator</MenuItem>
-              <MenuItem value="customize">Customize</MenuItem>
-            </Select>
-          </FormControl>
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Roles</InputLabel>
+              <Select
+                value={roleFilter}
+                label="Roles"
+                onChange={(event) => setRoleFilter(event.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="super admin">Super Admin</MenuItem>
+                <MenuItem value="moderator">Moderator</MenuItem>
+                <MenuItem value="customize">Customize</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Paper>
 

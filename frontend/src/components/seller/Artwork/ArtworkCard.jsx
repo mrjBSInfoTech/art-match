@@ -11,10 +11,10 @@ import {
   Menu,
   MenuItem,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ArtworkInfo from "./ArtworkInfo";
 // Icons
-import VerifiedUserRoundedIcon from '@mui/icons-material/VerifiedUserRounded';
-import HourglassBottomRoundedIcon from '@mui/icons-material/HourglassBottomRounded';
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -25,6 +25,7 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
   const open = Boolean(anchorEl);
+  const theme = useTheme();
 
   const handleMenuOpen = (event, artwork) => {
     setAnchorEl(event.currentTarget);
@@ -70,9 +71,9 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
           <Box
             sx={{
               width: "100%",
-              height: 300,
+              aspectRatio: "4 / 3",
               position: "relative",
-              backgroundColor: "#f5f5f5",
+              backgroundColor: theme.palette.background.default,
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
@@ -100,33 +101,62 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
               }}
               alt={artwork.title}
             />
+            <Chip
+              label={isVerified(artwork) ? "APPROVED" : "PENDING"}
+              size="small"
+              sx={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                height: 22,
+                borderRadius: 2,
+                backgroundColor: theme.palette.background.paper,
+                color: isVerified(artwork)
+                  ? theme.palette.success.main
+                  : theme.palette.warning.main,
+                fontSize: 10,
+                fontWeight: 700,
+                boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
+              }}
+            />
           </Box>
-          <CardContent sx={{ flex: 1, overflow: "auto" }}>
+          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 }, flex: 1 }}>
             <Box
               sx={{
                 display: "flex",
                 alignItems: "flex-start",
                 justifyContent: "space-between",
-                mb: 2,
+                mb: 1.5,
               }}
             >
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    fontWeight: 700,
+                    lineHeight: 1.25,
+                  }}
+                  noWrap
+                >
                   {artwork.title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  {artwork.art_size || "No size available."}
-                </Typography>
-                <Chip
-                  icon={isVerified(artwork) ? <VerifiedUserRoundedIcon /> : <HourglassBottomRoundedIcon />}
-                  label={getRequestStatus(artwork) ? getRequestStatus(artwork) : "Pending"}
-                  color={isVerified(artwork) ? "success" : "warning"}
-                  size="small"
+                <Box
                   sx={{
-                    color: "white",
-                    mt: 1,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    mt: 1.25,
                   }}
-                />
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "#ff5a5f", fontWeight: 700 }}
+                    noWrap
+                  >
+                    ₱{Number(artwork.price || 0).toLocaleString()}
+                  </Typography>
+                </Box>
               </Box>
               <IconButton
                 size="small"
@@ -142,16 +172,30 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
               </IconButton>
             </Box>
 
-            {/* Info Button */}
+            {/* Details Button */}
             <Button
-              variant="outlined"
+              variant="contained"
               size="small"
               fullWidth
-              startIcon={<InfoIcon />}
+              startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
               onClick={() => handleInfoOpen(artwork)}
-              sx={{ mb: 2 }}
+              sx={{
+                mt: 0.5,
+                py: 0.65,
+                backgroundColor: "#eef2f7",
+                color: "#172033",
+                border: "1px solid #cbd5e1",
+                boxShadow: "none",
+                fontSize: 11,
+                "& .MuiButton-startIcon": { color: "#172033" },
+                "&:hover": {
+                  backgroundColor: "#ffffff",
+                  borderColor: "#94a3b8",
+                  boxShadow: "none",
+                },
+              }}
             >
-              View Info
+              View Details
             </Button>
 
             {/* Options Menu */}

@@ -17,11 +17,7 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
-// Icons
-import SearchIcon from "@mui/icons-material/Search";
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import { useTheme } from "@mui/material/styles";
 import StudentPendingCard from "../../components/admin/Student/StudentPendingCard";
 import StudentBulkVerify from "../../components/admin/Student/StudentBulkVerify";
 import StudentBulkDeny from "../../components/admin/Student/StudentBulkDeny";
@@ -32,6 +28,12 @@ import {
   bulkUpdateStudents,
   bulkDenyStudents,
 } from "../../api/admin/studentAPI";
+// Icons
+import SearchIcon from "@mui/icons-material/Search";
+import HomeIcon from "@mui/icons-material/Home";
+import PersonIcon from "@mui/icons-material/Person";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -39,6 +41,7 @@ function SlideTransition(props) {
 }
 
 export default function StudentPending() {
+  const theme = useTheme();
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openStudentBulkVerify, setOpenStudentBulkVerify] = useState(false);
@@ -176,28 +179,68 @@ export default function StudentPending() {
   }, [students, searchQuery, typeFilter]);
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Student Pending</title>
       </Helmet>
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
-          Student Pending
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Student Pending
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Monitor and manage the student accounts of the platform
+          </Typography>
+        </Box>
       </Box>
 
       {/* Filter Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>Filter</Typography>
+      <Paper
+        sx={{
+          p: 3,
+          mt: 3,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            alignItems: { xs: "stretch", lg: "center" },
+            gap: 1.25,
           }}
         >
           <TextField
@@ -205,8 +248,17 @@ export default function StudentPending() {
             placeholder="Search students..."
             size="small"
             sx={{
-              width: { xs: "100%", md: 250 },
-              minWidth: { xs: "100%", md: 250 },
+              width: { xs: "100%", lg: 280 },
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
             }}
             InputProps={{
               startAdornment: (
@@ -215,28 +267,36 @@ export default function StudentPending() {
                 </InputAdornment>
               ),
             }}
+            value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
             }}
           >
-            <FormControl size="small" sx={{ width: { xs: "100%", lg: 180 } }}>
-              <InputLabel>Course</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Course</InputLabel>
               <Select
-                //value={typeFilter}
-                label="Type"
+                value={typeFilter}
+                label="Course"
                 onChange={(e) => setTypeFilter(e.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="BSA">Bachelor of Science in Arts</MenuItem>
-                <MenuItem value="BSCS">
-                  Bachelor of Science in Computer Science
-                </MenuItem>
+                <MenuItem value="BSCS">Bachelor of Science in Computer Science</MenuItem>
               </Select>
             </FormControl>
           </Box>

@@ -19,10 +19,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import { fetchAccountAccess } from "../../api/admin/accountAccessAPI";
 
 export default function AccountAccess() {
+  const theme = useTheme();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -87,25 +89,68 @@ export default function AccountAccess() {
   const hasPermission = (key) =>
     ["1", "true"].includes(String(localStorage.getItem(key)).toLowerCase());
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Account List</title>
       </Helmet>
-      <Typography variant="h4" sx={{ fontWeight: "bold", mb: 1 }}>
-        Account List
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Account List
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Monitor and manage the accounts students and customers of the platform
+          </Typography>
+        </Box>
+      </Box>
       {/* Filter Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6">Filter</Typography>
+      {/* Filter Section */}
+      <Paper
+        sx={{
+          p: 3,
+          mt: 3,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            alignItems: { xs: "stretch", lg: "center" },
+            gap: 1.25,
           }}
         >
           <TextField
@@ -113,7 +158,17 @@ export default function AccountAccess() {
             placeholder="Search accounts..."
             size="small"
             sx={{
-              width: { xs: "100%", sm: 300 },
+              width: { xs: "100%", lg: 280 },
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
             }}
             InputProps={{
               startAdornment: (
@@ -125,33 +180,51 @@ export default function AccountAccess() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
             }}
           >
-            <FormControl size="small" sx={{ width: { xs: "100%", md: 180 } }}>
-              <InputLabel>Sort</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Sort</InputLabel>
               <Select
                 name="sort"
                 label="Sort"
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ width: { xs: "100%", md: 180 } }}>
-              <InputLabel>Role</InputLabel>
+
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Role</InputLabel>
               <Select
                 name="role"
                 label="Role"
                 value={roleOption}
                 onChange={(e) => setRoleOption(e.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="">Default</MenuItem>
                 <MenuItem value="buyer">Buyer</MenuItem>
@@ -161,6 +234,7 @@ export default function AccountAccess() {
           </Box>
         </Box>
       </Paper>
+      
       {/* Table Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         {loading ? (

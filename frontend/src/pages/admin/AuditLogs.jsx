@@ -21,6 +21,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -28,6 +29,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 
 export default function AuditLogs() {
+  const theme = useTheme(); 
   const [search, setSearch] = useState("");
   const [date, setDate] = useState(null);
   const [period, setPeriod] = useState("all");
@@ -82,44 +84,88 @@ export default function AuditLogs() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Audit Logs</title>
       </Helmet>
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
           flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: 2,
           mb: 2,
         }}
       >
-        <Typography
-          variant="h4"
-          gutterBottom
-          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
-        >
-          Audit Logs
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Audit Logs
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Monitor the actions and activities performed by users on the platform
+          </Typography>
+        </Box>
       </Box>
 
       {/* Filter Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{fontWeight: "bold"}}>Filter</Typography>
+      {/* Filter Section */}
+      <Paper
+        sx={{
+          p: 3,
+          mt: 3,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            alignItems: { xs: "stretch", lg: "center" },
+            gap: 1.25,
           }}
         >
           <TextField
+            variant="outlined"
+            placeholder="Search logs..."
             size="small"
-            label="Search logs"
+            sx={{
+              width: { xs: "100%", lg: 280 },
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
+            }}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             InputProps={{
@@ -130,17 +176,17 @@ export default function AuditLogs() {
               ),
             }}
           />
+
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
             }}
           >
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
-                label="Select Date"
                 value={date}
                 onChange={(newDate) => setDate(newDate)}
                 enableAccessibleFieldDOMStructure={false}
@@ -148,25 +194,36 @@ export default function AuditLogs() {
                 slotProps={{
                   textField: {
                     size: "small",
-                    fullWidth: true,
+                    placeholder: "Select Date",
+                    sx: {
+                      width: { xs: "100%", sm: 160 },
+                      "& .MuiOutlinedInput-root": {
+                        fontSize: 12,
+                        color: theme.palette.text.primary,
+                        backgroundColor: theme.palette.background.default,
+                        "& fieldset": { borderColor: theme.palette.divider },
+                        "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                      },
+                    },
                   },
-                }}
-                sx={{
-                  width: { xs: "100%", sm: 200 },
                 }}
               />
             </LocalizationProvider>
 
-            <FormControl
-              size="small"
-              sx={{ minWidth: { xs: "100%", sm: 160 } }}
-            >
-              <InputLabel id="audit-period-label">Time period</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Time period</InputLabel>
               <Select
-                labelId="audit-period-label"
                 value={period}
                 label="Time period"
                 onChange={(event) => setPeriod(event.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="hour">Last 1 hour</MenuItem>
                 <MenuItem value="day">Last 1 day</MenuItem>

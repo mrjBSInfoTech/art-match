@@ -10,6 +10,8 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControl,
+  InputAdornment,
   MenuItem,
   Paper,
   Select,
@@ -17,6 +19,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import SearchIcon from "@mui/icons-material/Search";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import { createElement } from "react";
 
 const initialOrders = [
   {
@@ -135,6 +145,7 @@ const formatCurrency = (value) =>
   }).format(value);
 
 export default function SellerOrder() {
+  const theme = useTheme();
   const [orders, setOrders] = useState(initialOrders);
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
@@ -169,8 +180,8 @@ export default function SellerOrder() {
   const updateOrderStatus = (orderId, nextStatus) => {
     setOrders((currentOrders) =>
       currentOrders.map((order) =>
-        order.id === orderId ? { ...order, status: nextStatus } : order
-      )
+        order.id === orderId ? { ...order, status: nextStatus } : order,
+      ),
     );
 
     if (selectedOrder && selectedOrder.id === orderId) {
@@ -205,126 +216,209 @@ export default function SellerOrder() {
 
           <Button
             variant="contained"
-            sx={{ borderRadius: 999, px: 3, textTransform: "none" }}
+            color="error"
+            sx={{
+              width: { xs: "100%", sm: 150 },
+              height: { xs: 35, sm: 45 },
+              minWidth: { xs: 45, sm: 50 },
+              fontSize: { xs: 12, sm: 16 },
+              padding: 0,
+            }}
             onClick={() => setSelectedStatus("All")}
           >
             Reset filters
           </Button>
         </Box>
 
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          sx={{ flexWrap: "wrap" }}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(4, 1fr)",
+            },
+            gap: 2,
+          }}
         >
-          <Paper
-            elevation={0}
-            sx={{
-              flex: 1,
-              p: 2.5,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 3,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Total orders
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>
-              {summary.totalOrders}
-            </Typography>
-          </Paper>
-
-          <Paper
-            elevation={0}
-            sx={{
-              flex: 1,
-              p: 2.5,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 3,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Gross revenue
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>
-              {formatCurrency(summary.revenue)}
-            </Typography>
-          </Paper>
-
-          <Paper
-            elevation={0}
-            sx={{
-              flex: 1,
-              p: 2.5,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 3,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Pending
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>
-              {summary.pending}
-            </Typography>
-          </Paper>
-
-          <Paper
-            elevation={0}
-            sx={{
-              flex: 1,
-              p: 2.5,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 3,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              In transit
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>
-              {summary.shipped}
-            </Typography>
-          </Paper>
-        </Stack>
+          {[
+            {
+              label: "TOTAL ORDERS",
+              value: summary.totalOrders,
+              caption: "All registered orders",
+              icon: ShoppingCartOutlinedIcon,
+            },
+            {
+              label: "GROSS REVENUE",
+              value: formatCurrency(summary.revenue),
+              caption: "Active orders total",
+              icon: PaymentsOutlinedIcon,
+            },
+            {
+              label: "PENDING",
+              value: summary.pending,
+              caption: "Awaiting fulfillment",
+              icon: PendingActionsOutlinedIcon,
+            },
+            {
+              label: "IN TRANSIT",
+              value: summary.shipped,
+              caption: "Out for delivery",
+              icon: LocalShippingOutlinedIcon,
+            },
+          ].map(({ label, value, caption, icon: MetricIcon }) => (
+            <Paper
+              key={label}
+              elevation={0}
+              sx={{
+                p: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2.5,
+                backgroundColor: (theme) => theme.palette.background.paper,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      color: (theme) => theme.palette.text.secondary,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: (theme) => theme.palette.text.primary,
+                      fontSize: 24,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: (theme) => theme.palette.text.secondary,
+                      fontSize: 12,
+                    }}
+                  >
+                    {caption}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: (theme) => theme.palette.error.main,
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
 
         <Paper
           elevation={0}
           sx={{
-            p: 2,
+            p: 3,
             border: "1px solid",
             borderColor: "divider",
-            borderRadius: 3,
+            borderRadius: 2,
+            backgroundColor: theme.palette.background.paper,
           }}
+          variant="outlined"
         >
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            sx={{ alignItems: "center" }}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", lg: "row" },
+              justifyContent: "space-between",
+              alignItems: { xs: "stretch", lg: "center" },
+              gap: 1.25,
+            }}
           >
             <TextField
-              fullWidth
+              variant="outlined"
+              placeholder="Search by order, customer, or artwork..."
               size="small"
-              label="Search by order, customer, or artwork"
+              sx={{
+                width: { xs: "100%", lg: 320 },
+                "& .MuiOutlinedInput-root": {
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  "& fieldset": { borderColor: theme.palette.divider },
+                  "&:hover fieldset": {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                },
+                "& .MuiInputBase-input::placeholder": {
+                  color: theme.palette.text.secondary,
+                  opacity: 1,
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
 
-            <Select
-              value={selectedStatus}
-              size="small"
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              sx={{ minWidth: 180 }}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flexWrap: "wrap",
+              }}
             >
-              {orderStatuses.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
-            </Select>
-          </Stack>
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <Select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  sx={{
+                    fontSize: 12,
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.background.default,
+                    ".MuiOutlinedInput-notchedOutline": {
+                      borderColor: theme.palette.divider,
+                    },
+                  }}
+                >
+                  {orderStatuses.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
         </Paper>
 
         <Stack spacing={2}>
@@ -509,45 +603,74 @@ export default function SellerOrder() {
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "repeat(2, minmax(0, 1fr))",
+                    },
                     gap: 2,
                   }}
                 >
                   <Paper
                     elevation={0}
-                    sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                    sx={{
+                      p: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 2,
+                    }}
                   >
                     <Typography variant="caption" color="text.secondary">
                       Order date
                     </Typography>
-                    <Typography sx={{ fontWeight: 700 }}>{selectedOrder.date}</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {selectedOrder.date}
+                    </Typography>
                   </Paper>
 
                   <Paper
                     elevation={0}
-                    sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                    sx={{
+                      p: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 2,
+                    }}
                   >
                     <Typography variant="caption" color="text.secondary">
                       Payment method
                     </Typography>
-                    <Typography sx={{ fontWeight: 700 }}>{selectedOrder.payment}</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {selectedOrder.payment}
+                    </Typography>
                   </Paper>
                 </Box>
 
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 800, mb: 1 }}
+                  >
                     Shipping address
                   </Typography>
-                  <Typography variant="body2">{selectedOrder.address}</Typography>
+                  <Typography variant="body2">
+                    {selectedOrder.address}
+                  </Typography>
                   {selectedOrder.note && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1 }}
+                    >
                       Note: {selectedOrder.note}
                     </Typography>
                   )}
                 </Box>
 
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 800, mb: 1 }}
+                  >
                     Items
                   </Typography>
                   <Stack spacing={1.5}>
@@ -565,7 +688,9 @@ export default function SellerOrder() {
                         }}
                       >
                         <Box>
-                          <Typography sx={{ fontWeight: 700 }}>{item.title}</Typography>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            {item.title}
+                          </Typography>
                           <Typography variant="caption" color="text.secondary">
                             Qty {item.qty}
                           </Typography>

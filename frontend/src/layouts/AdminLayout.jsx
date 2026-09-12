@@ -142,6 +142,16 @@ export default function AdminLayout({ children }) {
     },
   };
 
+  const handleNotificationClick = () => {
+    setNotificationDrawerOpen(true);
+    setProfileDrawerOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    setNotificationDrawerOpen(false);
+    setProfileDrawerOpen(true);
+  };
+
   const handleLogout = async () => {
     setOpen(false);
     await recordLogout();
@@ -156,10 +166,6 @@ export default function AdminLayout({ children }) {
         window.history.pushState(null, null, window.location.href);
       };
     }, 150);
-  };
-
-  const handleNotificationClick = () => {
-    setNotificationDrawerOpen(true);
   };
 
   // Check if user has permissions to manage admins (can add or edit)
@@ -280,7 +286,10 @@ export default function AdminLayout({ children }) {
   const CustomHeader = () => (
     <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pr: 1 }}>
       <IconButton
-        onClick={handleNotificationClick}
+        onClick={() => {
+          setNotificationDrawerOpen(true);
+          setProfileDrawerOpen(false);
+        }}
         aria-label="Open notifications"
         sx={{ color: "text.secondary" }}
       >
@@ -296,7 +305,10 @@ export default function AdminLayout({ children }) {
       />
 
       <Box
-        onClick={() => setProfileDrawerOpen(true)}
+        onClick={() => {
+          setProfileDrawerOpen(true);
+          setNotificationDrawerOpen(false);
+        }}
         role="button"
         tabIndex={0}
         aria-label="Open profile menu"
@@ -391,7 +403,15 @@ export default function AdminLayout({ children }) {
           anchor="right"
           open={profileDrawerOpen}
           onClose={() => setProfileDrawerOpen(false)}
-          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+          slotProps={{
+            paper: {
+              sx: {
+                width: { xs: "min(320px, 88vw)", sm: 340 },
+                backgroundColor: theme.palette.background.header,
+                color: theme.palette.text.primary,
+              },
+            },
+          }}
         >
           <Stack sx={{ height: "100%", mt: 9 }}>
             <Stack
@@ -464,7 +484,15 @@ export default function AdminLayout({ children }) {
           anchor="right"
           open={notificationDrawerOpen}
           onClose={() => setNotificationDrawerOpen(false)}
-          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+          slotProps={{
+            paper: {
+              sx: {
+                width: { xs: "min(320px, 88vw)", sm: 340 },
+                backgroundColor: theme.palette.background.header,
+                color: theme.palette.text.primary,
+              },
+            },
+          }}
         >
           <Stack sx={{ height: "100%", mt: 9 }}>
             <Stack
@@ -487,14 +515,20 @@ export default function AdminLayout({ children }) {
           }}
           sx={{
             backgroundColor: theme.palette.background.default,
-            "& .MuiDrawer-paper": {
+            "& .MuiDrawer-paperAnchorLeft": {
               backgroundColor: theme.palette.background.sidebar,
               color: theme.palette.text.sidebar,
               borderRight: "none",
               borderTopRightRadius: 50,
               overflow: "hidden",
             },
-            "& .MuiDrawer-docked .MuiDrawer-paper": {
+            "& .MuiDrawer-paperAnchorRight": {
+              backgroundColor: theme.palette.background.header,
+              color: theme.palette.text.primary,
+              borderLeft: `1px solid ${theme.palette.divider}`,
+              overflow: "hidden",
+            },
+            "& .MuiDrawer-docked .MuiDrawer-paperAnchorLeft": {
               borderRadius: "0 50px 0 0",
               overflow: "hidden",
             },
@@ -504,23 +538,20 @@ export default function AdminLayout({ children }) {
             "& .MuiAppBar-root .MuiSvgIcon-root": {
               color: "#6b7280",
             },
-            "& .MuiDrawer-paper .MuiPaper-root": {
-              backgroundColor: theme.palette.background.sidebar,
-            },
             // Selected text
             "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
-              color: "#980404",
+              color: theme.palette.text.sidebar,
             },
             "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
-              color: "#980404",
+              color: theme.palette.text.sidebar,
             },
             // Selected icon
             "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
-              color: "#980404",
+              color: theme.palette.text.sidebar,
             },
             // Sidebar icons color
             "& .MuiDrawer-paper .MuiSvgIcon-root": {
-              color: "#ffffff",
+              color: theme.palette.text.sidebar,
             },
             "& .MuiListItemButton-root:hover": {
               backgroundColor: "rgba(255,255,255,0.15)",
