@@ -277,7 +277,6 @@ export default function AdminLayout({ children }) {
     homeUrl: "/admin/dashboard",
   };
 
-
   const CustomHeader = () => (
     <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pr: 1 }}>
       <IconButton
@@ -289,8 +288,12 @@ export default function AdminLayout({ children }) {
           <NotificationsNoneIcon sx={{ fontSize: 22 }} />
         </Badge>
       </IconButton>
-      
-      <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 40, my: "auto" }} />
+
+      <Divider
+        orientation="vertical"
+        flexItem
+        sx={{ mx: 0.5, height: 40, my: "auto" }}
+      />
 
       <Box
         onClick={() => setProfileDrawerOpen(true)}
@@ -325,7 +328,13 @@ export default function AdminLayout({ children }) {
               : undefined
           }
           alt={firstName}
-          sx={{ width: 32, height: 32, bgcolor: "#232b38", fontSize: "14px", fontWeight: 600 }}
+          sx={{
+            width: 32,
+            height: 32,
+            bgcolor: "#232b38",
+            fontSize: "14px",
+            fontWeight: 600,
+          }}
         >
           {firstName ? firstName.charAt(0).toUpperCase() : "A"}
         </Avatar>
@@ -384,8 +393,13 @@ export default function AdminLayout({ children }) {
           onClose={() => setProfileDrawerOpen(false)}
           PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
         >
-          <Stack sx={{ height: "100%",mt: 9 }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ p: 2 }}>
+          <Stack sx={{ height: "100%", mt: 9 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ p: 2 }}
+            >
               <Avatar
                 src={
                   image
@@ -414,7 +428,9 @@ export default function AdminLayout({ children }) {
                   navigate("/admin/profile");
                 }}
               >
-                <ListItemIcon><AccountCircleIcon /></ListItemIcon>
+                <ListItemIcon>
+                  <AccountCircleIcon />
+                </ListItemIcon>
                 <ListItemText primary="Profile" />
               </ListItemButton>
               <ListItemButton
@@ -423,7 +439,9 @@ export default function AdminLayout({ children }) {
                   navigate("/admin/settings");
                 }}
               >
-                <ListItemIcon><SettingsIcon /></ListItemIcon>
+                <ListItemIcon>
+                  <SettingsIcon />
+                </ListItemIcon>
                 <ListItemText primary="Settings" />
               </ListItemButton>
               <Divider sx={{ my: 1 }} />
@@ -434,7 +452,9 @@ export default function AdminLayout({ children }) {
                 }}
                 sx={{ color: "error.main" }}
               >
-                <ListItemIcon sx={{ color: "inherit" }}><ExitToAppIcon /></ListItemIcon>
+                <ListItemIcon sx={{ color: "inherit" }}>
+                  <ExitToAppIcon />
+                </ListItemIcon>
                 <ListItemText primary="Logout" />
               </ListItemButton>
             </List>
@@ -446,17 +466,24 @@ export default function AdminLayout({ children }) {
           onClose={() => setNotificationDrawerOpen(false)}
           PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
         >
-          <Stack sx={{ height: "100%",mt:9 }}>
-            <Stack alignItems="center" justifyContent="center" sx={{ flex: 1, p: 3 }}>
-              <NotificationsNoneIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1 }} />
-              <Typography color="text.secondary">No new notifications</Typography>
+          <Stack sx={{ height: "100%", mt: 9 }}>
+            <Stack
+              alignItems="center"
+              justifyContent="center"
+              sx={{ flex: 1, p: 3 }}
+            >
+              <NotificationsNoneIcon
+                sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
+              />
+              <Typography color="text.secondary">
+                No new notifications
+              </Typography>
             </Stack>
           </Stack>
         </Drawer>
         <MuiDashboardLayout
           slots={{
             toolbarAccount: CustomHeader,
-  
           }}
           sx={{
             backgroundColor: theme.palette.background.default,

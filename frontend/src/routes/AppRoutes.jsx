@@ -81,7 +81,10 @@ export default function AppRoutes() {
                 <Route path="cart" element={<BuyerCart />} />
                 <Route path="checkout" element={<BuyerCheckout />} />
                 <Route path="messages" element={<BuyerMessage />} />
-                <Route path="message" element={<Navigate to="../messages" replace />} />
+                <Route
+                  path="message"
+                  element={<Navigate to="../messages" replace />}
+                />
 
                 {/* Account Center */}
                 <Route path="profile" element={<ProfileLayout />}>
@@ -101,7 +104,10 @@ export default function AppRoutes() {
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="profile" element={<AdminProfile />} />
+                <Route
+                  path="profile"
+                  element={<Navigate to="dashboard" replace />}
+                />
                 <Route path="artwork" element={<AdminArtwork />} />
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
@@ -116,7 +122,10 @@ export default function AppRoutes() {
                   element={<AdminStudentVerify />}
                 />
                 <Route path="sales" element={<AdminSales />} />
-                <Route path="settings" element={<AdminSettings />} />
+                <Route
+                  path="settings"
+                  element={<Navigate to="dashboard" replace />}
+                />
                 <Route path="audit-logs" element={<AdminAuditLogs />} />
                 <Route path="admin" element={<AdminControl />} />
               </Route>
