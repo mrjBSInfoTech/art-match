@@ -8,11 +8,13 @@ import {
   Chip,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ArtworkInfo from "../../admin/Artwork/ArtworkInfo";
 // Icons
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 export default function ArtworkCard({ artworks, onVerify }) {
+  const theme = useTheme();
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
   const pendingArtworks = Array.isArray(artworks) ? artworks : [];
@@ -123,14 +125,14 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 <Box>
                   <Typography
                     variant="subtitle2"
-                    sx={{ color: "#f8fafc", fontWeight: 700, lineHeight: 1.25 }}
+                    sx={{ color: theme.palette.text.primary, fontWeight: 700, lineHeight: 1.25 }}
                     noWrap
                   >
                     {artwork.title}
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{ color: "#cbd5e1", display: "block", mt: 0.5 }}
+                    sx={{ color: theme.palette.text.secondary, display: "block", mt: 0.5 }}
                     noWrap
                   >
                     By {artwork.first_name || "Unknown"}{" "}
@@ -146,7 +148,7 @@ export default function ArtworkCard({ artworks, onVerify }) {
                   >
                     <Typography
                       variant="caption"
-                      sx={{ color: "#cbd5e1" }}
+                      sx={{ color: theme.palette.text.secondary }}
                       noWrap
                     >
                       Size: {artwork.art_size || "N/A"}

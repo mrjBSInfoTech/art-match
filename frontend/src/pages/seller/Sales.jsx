@@ -2,6 +2,8 @@ import { Helmet } from "react-helmet-async";
 import {
   Avatar,
   Box,
+  Card,
+  CardContent,
   Chip,
   Divider,
   Grid,
@@ -18,6 +20,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import { createElement } from "react";
 
 const salesData = [
   { month: "Jan", sales: 1600 },
@@ -71,35 +80,111 @@ export default function Sales() {
           </Typography>
         </Box>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-              <Typography variant="caption" color="text.secondary">Total revenue</Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>{formatCurrency(totalRevenue)}</Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-              <Typography variant="caption" color="text.secondary">This month</Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>{formatCurrency(salesData[salesData.length - 1].sales)}</Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-              <Typography variant="caption" color="text.secondary">Orders sold</Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>42</Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-              <Typography variant="caption" color="text.secondary">Avg. order</Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5 }}>{formatCurrency(averageOrder)}</Typography>
-            </Paper>
-          </Grid>
-        </Grid>
+        <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+          gap: 2,
+          mb: 2.5,
+        }}
+      >
+        {[
+          {
+            label: "TOTAL REVENUE",
+            value: formatCurrency(totalRevenue),
+            caption: "Overall sales earnings",
+            icon: TrendingUpOutlinedIcon,
+          },
+          {
+            label: "THIS MONTH",
+            value: formatCurrency(salesData[salesData.length - 1].sales),
+            caption: "Latest recorded month",
+            icon: CalendarMonthOutlinedIcon,
+          },
+          {
+            label: "ORDERS SOLD",
+            value: "42",
+            caption: "Completed purchases",
+            icon: ShoppingBagOutlinedIcon,
+          },
+          {
+            label: "AVG. ORDER",
+            value: formatCurrency(averageOrder),
+            caption: "Average order value",
+            icon: ReceiptLongOutlinedIcon,
+          },
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
+          <Card
+            key={label}
+            sx={{
+              backgroundColor: (theme) => theme.palette.background.paper,
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+              borderRadius: 2.5,
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      color: (theme) => theme.palette.text.secondary,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: (theme) => theme.palette.text.primary,
+                      fontSize: 24,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: (theme) => theme.palette.text.secondary,
+                      fontSize: 12,
+                    }}
+                  >
+                    {caption}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: (theme) => theme.palette.error.main,
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
 
         <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Revenue trend</Typography>
@@ -123,7 +208,7 @@ export default function Sales() {
         </Paper>
 
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} sx={{ width: { md: "calc(50% - 8px)" } }}>
             <Paper elevation={0} sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Best sellers</Typography>
               <Stack spacing={2}>
@@ -146,7 +231,7 @@ export default function Sales() {
             </Paper>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={6} sx={{ width: { md: "calc(50% - 8px)" } }}>
             <Paper elevation={0} sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Recent sales</Typography>
               <Stack spacing={2}>

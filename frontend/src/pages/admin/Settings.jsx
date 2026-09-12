@@ -17,6 +17,7 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ChangePassword from "../../components/admin/Settings/ChangePassword";
 import ChangeInfoProfile from "../../components/admin/Settings/ChangeInfoProfile";
 import ChangeProfileImage from "../../components/admin/Settings/ChangeProfileImage";
@@ -39,6 +40,7 @@ function SlideTransition(props) {
 }
 
 export default function Settings() {
+  const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -166,16 +168,17 @@ export default function Settings() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
-          Settings
-        </Typography>
-      </Box>
-
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         <Box
           sx={{
@@ -303,6 +306,7 @@ export default function Settings() {
             onClick={handleSaveAccountInformation}
             disabled={savingAccountInformation}
             sx={{
+              color: "#fff",
               mt: 3,
               bgcolor: "#1e1f87",
               textTransform: "none",
@@ -350,6 +354,7 @@ export default function Settings() {
             variant="contained"
             onClick={handleOpenPasswordEdit}
             sx={{
+              color: "#fff",
               bgcolor: "#1e1f87",
               textTransform: "none",
               fontWeight: "bold",

@@ -17,6 +17,7 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
@@ -28,6 +29,7 @@ function SlideTransition(props) {
 }
 
 export default function Sales() {
+  const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -57,14 +59,39 @@ export default function Sales() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Sales</title>
       </Helmet>
       <Box>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
-          Sales
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Sales
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Monitor the overall sales of students
+          </Typography>
+        </Box>
       </Box>
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined"></Paper>
       {/* Snackbar Notification */}

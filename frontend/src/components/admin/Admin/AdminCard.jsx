@@ -18,6 +18,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AdminInfo from "./AdminInfo";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 export default function AdminCard({
   admins,
@@ -143,7 +144,7 @@ export default function AdminCard({
                   size="small"
                   label={admin.role}
                   color={admin.role === "super admin" ? "error" : "primary"}
-                  sx={{ mt: 1, textTransform: "capitalize" }}
+                  sx={{ mt: 1, textTransform: "capitalize", color: "white" }}
                 />
               </Box>
 
@@ -168,14 +169,28 @@ export default function AdminCard({
 
             {/* Info Button */}
             <Button
-              variant="outlined"
+              variant="contained"
               size="small"
               fullWidth
-              startIcon={<InfoIcon />}
+              startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
               onClick={() => handleInfoOpen(admin)}
-              sx={{ mb: 2 }}
+              sx={{
+                mt: 0.5,
+                py: 0.65,
+                backgroundColor: "#eef2f7",
+                color: "#172033",
+                border: "1px solid #cbd5e1",
+                boxShadow: "none",
+                fontSize: 11,
+                "& .MuiButton-startIcon": { color: "#172033" },
+                "&:hover": {
+                  backgroundColor: "#ffffff",
+                  borderColor: "#94a3b8",
+                  boxShadow: "none",
+                },
+              }}
             >
-              View Info
+              View Details
             </Button>
 
             {/* Options Menu */}

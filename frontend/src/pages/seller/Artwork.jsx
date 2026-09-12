@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { createElement, useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -19,6 +19,7 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ArtworkCard from "../../components/seller/Artwork/ArtworkCard";
 import ArtworkForm from "../../components/seller/Artwork/ArtworkForm";
 import ArtworkDelete from "../../components/seller/Artwork/ArtworkDelete";
@@ -31,8 +32,10 @@ import {
 } from "../../api/seller/artworkAPI";
 // Icons
 import SearchIcon from "@mui/icons-material/Search";
-import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
-import HourglassBottomRoundedIcon from "@mui/icons-material/HourglassBottomRounded";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -40,6 +43,7 @@ function SlideTransition(props) {
 }
 
 export default function Artwork() {
+  const theme = useTheme();
   const [artworks, setArtworks] = useState([]);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openArtworkDelete, setOpenArtworkDelete] = useState(false);
@@ -240,18 +244,34 @@ export default function Artwork() {
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
-          mb: 2,
+          alignItems: { xs: "flex-start", sm: "center" },
+          gap: 2,
+          mb: 2.5,
+          flexWrap: "wrap",
         }}
       >
-        <Typography
-          variant="h4"
-          gutterBottom
-          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
-        >
-          Artwork
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Artwork
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Manage the artwork 
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           color="error"
@@ -269,86 +289,116 @@ export default function Artwork() {
       </Box>
       <Box
         sx={{
-          mt: 3,
-          display: "flex",
-          gap: 3,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gap: 2,
+          mb: 2.5,
         }}
       >
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            height: 150,
-            padding: 2,
-            borderRadius: 2,
-            bgcolor: "background.paper",
-          }}
-        >
-          <CardContent>
-            <Typography
-              gutterBottom
-              variant="h5"
-              sx={{ fontWeight: "bold", color: "#b73636" }}
-            >
-              Pending Arts
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <HourglassBottomRoundedIcon color="error" sx={{ fontSize: 30 }} />
-              <Typography
-                sx={{ fontWeight: "bold", color: "#b73636", fontSize: 30 }}
+        {[
+          {
+            label: "TOTAL ARTWORKS",
+            value: artworks.length,
+            caption: "Complete catalog",
+            icon: PaletteOutlinedIcon,
+          },
+          {
+            label: "PENDING REVIEW",
+            value: totalPending,
+            caption: "Awaiting verification",
+            icon: PendingActionsOutlinedIcon,
+          },
+          {
+            label: "APPROVED",
+            value: totalVerified,
+            caption: "Verified artworks",
+            icon: VerifiedOutlinedIcon,
+          },
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
+          <Card
+            key={label}
+            sx={{
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2.5,
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
               >
-                {totalPending}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            height: 150,
-            padding: 2,
-            borderRadius: 2,
-            bgcolor: "background.paper",
-          }}
-        >
-          <CardContent>
-            <Typography
-              gutterBottom
-              variant="h5"
-              sx={{ fontWeight: "bold", color: "#b73636" }}
-            >
-              Verified Arts
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <VerifiedUserRoundedIcon color="error" sx={{ fontSize: 30 }} />
-              <Typography
-                variant="h4"
-                sx={{ fontWeight: "bold", color: "#b73636" }}
-              >
-                {totalVerified}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
+                <Box>
+                  <Typography
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: theme.palette.text.primary,
+                      fontSize: 30,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography
+                    sx={{ mt: 1, color: theme.palette.text.secondary, fontSize: 12 }}
+                  >
+                    {caption}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: theme.palette.error.main,
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
       </Box>
       {/* Filter Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6">Filter</Typography>
+      <Paper
+        sx={{
+          p: 3,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            alignItems: { xs: "stretch", lg: "center" },
+            gap: 1.25,
           }}
         >
           <TextField
@@ -356,7 +406,19 @@ export default function Artwork() {
             placeholder="Search artworks..."
             size="small"
             sx={{
-              width: { xs: "100%", sm: 300 },
+              width: { xs: "100%", lg: 255 },
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
             }}
             InputProps={{
               startAdornment: (
@@ -371,30 +433,45 @@ export default function Artwork() {
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
             }}
           >
-            <FormControl size="small" sx={{ width: { xs: "100%", md: 180 } }}>
-              <InputLabel>Sort</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 130 }}>
               <Select
                 name="sort"
-                label="Sort"
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
+                startAdornment={
+                  <SwapVertIcon sx={{ mr: 0.5, fontSize: 17, color: theme.palette.text.secondary }} />
+                }
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ width: { xs: "100%", md: 180 } }}>
-              <InputLabel>Price</InputLabel>
+            <FormControl size="small" sx={{ minWidth: 130 }}>
               <Select
                 name="price"
-                label="Price"
                 value={priceOption}
                 onChange={(e) => setPriceOption(e.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="">Default</MenuItem>
                 <MenuItem value="lthPrice">Lowest to Highest</MenuItem>
@@ -405,7 +482,16 @@ export default function Artwork() {
         </Box>
       </Paper>
       {/* Artwork Display */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+      <Paper
+        sx={{
+          p: 3,
+          mt: 2,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />

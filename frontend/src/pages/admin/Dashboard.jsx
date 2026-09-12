@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -33,6 +33,7 @@ import {
   Pie,
   PieChart,
 } from "recharts";
+import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/admin/artworkAPI";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import { fetchStudents } from "../../api/admin/studentAPI";
@@ -54,6 +55,7 @@ function SlideTransition(props) {
 }
 
 export default function Dashboard() {
+  const theme = useTheme();
   const navigate = useNavigate();
   const [artworks, setArtworks] = useState([]);
   const [students, setStudents] = useState([]);
@@ -332,7 +334,14 @@ export default function Dashboard() {
     datetime ? dayjs(datetime).format("M/D/YYYY") : "-";
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Dashboard</title>
       </Helmet>
@@ -344,13 +353,28 @@ export default function Dashboard() {
           mb: 2,
         }}
       >
-        <Typography
-          variant="h4"
-          gutterBottom
-          sx={{ fontWeight: "bold", fontSize: { xs: 24, sm: 32 } }}
-        >
-          Dashboard
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Dashboard
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Monitor the overall performance of the platform
+          </Typography>
+        </Box>
+        
         <Button
           variant="contained"
           color="error"
@@ -369,107 +393,102 @@ export default function Dashboard() {
       <Box
         sx={{
           mt: 3,
-          display: "flex",
-          gap: 3,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+          gap: 2,
         }}
       >
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            minHeight: 142,
-            borderRadius: 2.5,
-            bgcolor: "background.paper",
-            borderColor: "#e5eaf0",
-            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
-          }}
-        >
-          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
-            <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 94 }}>
-              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 11, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>
-                  Total Artworks
-                </Typography>
-                <Typography sx={{ mt: 0.5, color: "#172033", fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
-                  {artworkCount}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-                  {pendingArtworks.length} pending review
-                </Typography>
+        {[
+          {
+            label: "TOTAL ARTWORKS",
+            value: artworkCount,
+            caption: `${pendingArtworks.length} pending review`,
+            icon: ColorLensRoundedIcon,
+          },
+          {
+            label: "SOLD",
+            value: soldCount,
+            caption: "Completed purchases",
+            icon: SellRoundedIcon,
+          },
+          {
+            label: "TOTAL SALES",
+            value: `₱${Number(salesCount).toLocaleString()}`,
+            caption: "Total revenue generated",
+            icon: CreditScoreIcon,
+          },
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
+          <Card
+            key={label}
+            variant="outlined"
+            sx={{
+              borderRadius: 2.5,
+              bgcolor: "background.paper",
+              borderColor: "divider",
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: "text.primary",
+                      fontSize: 30,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: "text.secondary",
+                      fontSize: 12,
+                    }}
+                  >
+                    {caption}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: "error.main",
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
               </Box>
-              <Box sx={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 2, bgcolor: "#fff1f2", color: "#b73636" }}>
-                <ColorLensRoundedIcon />
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            minHeight: 142,
-            borderRadius: 2.5,
-            bgcolor: "background.paper",
-            borderColor: "#e5eaf0",
-            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
-          }}
-        >
-          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
-            <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 94 }}>
-              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 11, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>
-                  Sold
-                </Typography>
-                <Typography sx={{ mt: 0.5, color: "#172033", fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
-                  {soldCount}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-                  Completed purchases
-                </Typography>
-              </Box>
-              <Box sx={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 2, bgcolor: "#fff1f2", color: "#b73636" }}>
-                <SellRoundedIcon />
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            minHeight: 142,
-            borderRadius: 2.5,
-            bgcolor: "background.paper",
-            borderColor: "#e5eaf0",
-            boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)",
-          }}
-        >
-          <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
-            <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 94 }}>
-              <Box sx={{ position: "absolute", left: 0, textAlign: "left" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 11, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>
-                  Total Sales
-                </Typography>
-                <Typography sx={{ mt: 0.5, color: "#172033", fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
-                  ₱{Number(salesCount).toLocaleString()}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "#94a3b8" }}>
-                  Total revenue generated
-                </Typography>
-              </Box>
-              <Box sx={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, display: "grid", placeItems: "center", borderRadius: 2, bgcolor: "#fff1f2", color: "#b73636" }}>
-                <CreditScoreIcon />
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </Box>
 
       <Paper

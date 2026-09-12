@@ -231,11 +231,6 @@ export default function Settings() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
-          Settings
-        </Typography>
-      </Box>
 
       {/* Profile Picture Section */}
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
@@ -368,6 +363,7 @@ export default function Settings() {
             disabled={savingAccountInformation}
             sx={{
               mt: 3,
+              color: "#fff",
               bgcolor: "#1e1f87",
               textTransform: "none",
               fontWeight: "bold",
@@ -415,6 +411,7 @@ export default function Settings() {
           <Button
             variant="contained"
             sx={{
+              color: "#fff",
               bgcolor: "#1e1f87",
               textTransform: "none",
               fontWeight: "bold",
@@ -579,16 +576,22 @@ export default function Settings() {
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             <Button
               variant="contained"
-              sx={{ borderRadius: 999, px: 3, textTransform: "none" }}
+              sx={{
+                color: "#fff",
+                bgcolor: "#1e1f87",
+                textTransform: "none",
+                fontWeight: "bold",
+                boxShadow: "none",
+                "&:hover": { bgcolor: "#151663" },
+              }}
               onClick={saveSettings}
             >
               Save changes
             </Button>
 
             <Button
-              variant="outlined"
-              color="secondary"
-              sx={{ borderRadius: 999, px: 3, textTransform: "none" }}
+              color="text.secondary"
+              sx={{  px: 3, textTransform: "none" }}
               onClick={resetSettings}
             >
               Reset

@@ -149,6 +149,16 @@ export default function SellerLayout({ children }) {
     },
   };
 
+  const handleNotificationClick = () => {
+    setNotificationDrawerOpen(true);
+    setProfileDrawerOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    setNotificationDrawerOpen(false);
+    setProfileDrawerOpen(true);
+  };
+
   const handleLogout = async () => {
     setOpen(false);
     await recordLogout();
@@ -296,7 +306,10 @@ export default function SellerLayout({ children }) {
       sx={{ pr: 1 }}
     >
       <IconButton
-        onClick={() => setNotificationDrawerOpen(true)}
+        onClick={() => {
+          setNotificationDrawerOpen(true);
+          setProfileDrawerOpen(false);
+        }}
         aria-label="Open notifications"
         sx={{ color: "#6b7280" }}
       >
@@ -312,7 +325,10 @@ export default function SellerLayout({ children }) {
       />
 
       <Box
-        onClick={() => setProfileDrawerOpen(true)}
+        onClick={() => {
+          setProfileDrawerOpen(true);
+          setNotificationDrawerOpen(false);
+        }}
         role="button"
         tabIndex={0}
         aria-label="Open seller profile"
@@ -401,7 +417,13 @@ export default function SellerLayout({ children }) {
           anchor="right"
           open={profileDrawerOpen}
           onClose={() => setProfileDrawerOpen(false)}
-          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+          PaperProps={{
+            sx: {
+              width: { xs: "min(320px, 88vw)", sm: 340 },
+              backgroundColor: theme.palette.background.drawer,
+              color: theme.palette.text.primary,
+            },
+          }}
         >
           <Stack sx={{ height: "100%", mt: 9 }}>
             <Stack
@@ -474,7 +496,13 @@ export default function SellerLayout({ children }) {
           anchor="right"
           open={notificationDrawerOpen}
           onClose={() => setNotificationDrawerOpen(false)}
-          PaperProps={{ sx: { width: { xs: "min(320px, 88vw)", sm: 340 } } }}
+          PaperProps={{
+            sx: {
+              width: { xs: "min(320px, 88vw)", sm: 340 },
+              backgroundColor: theme.palette.background.drawer,
+              color: theme.palette.text.primary,
+            },
+          }}
         >
           <Stack sx={{ height: "100%", mt: 9 }}>
             <Stack
@@ -520,24 +548,24 @@ export default function SellerLayout({ children }) {
             },
             // Selected text
             "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
-              color: "#980404",
+              color: theme.palette.text.sidebar,
+            },
+            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
+              color: theme.palette.text.sidebar,
             },
             // Selected icon
             "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
-              color: "#980404",
-            },
-            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
-              color: "#980404",
+              color: theme.palette.text.sidebar,
             },
             // Sidebar icons color
             "& .MuiDrawer-paper .MuiSvgIcon-root": {
-              color: "#ffffff",
+              color: theme.palette.text.sidebar,
             },
             "& .MuiListItemButton-root:hover": {
               backgroundColor: "rgba(255,255,255,0.15)",
             },
             "& .Mui-selected": {
-              backgroundColor: "rgba(255,255,255,0.25) ",
+              backgroundColor: "rgba(255,255,255,0.25) !important",
             },
             // Header
             "& .MuiAppBar-root": {

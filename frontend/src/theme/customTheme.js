@@ -7,7 +7,7 @@ export const lightTheme = createTheme({
       main: "#2563eb",
       light: "#60a5fa",
       dark: "#1d4ed8",
-      contrastText: "#ffffff",
+      contrastText: "#0f172a",
     },
     success: {
       main: "#22c55e",
@@ -26,6 +26,7 @@ export const lightTheme = createTheme({
       sidebar: "#AF4F4F",
       header: "#f5f5f5",
       footer: "#AF4F4F",
+      drawer: "#f5f5f5",
     },
     text: {
       primary: "#0f172a",
@@ -108,12 +109,13 @@ export const darkTheme = createTheme({
       sidebar: "#AF4F4F",
       header: "#0f172a",
       footer: "#AF4F4F",
+      drawer: "#0f172a",
     },
     text: {
       primary: "#f8fafc",
       secondary: "#94a3b8",
       disabled: "#64748b",
-      sidebar: "#000000",
+      sidebar: "#ffffff",
     },
     divider: "#334155",
   },
