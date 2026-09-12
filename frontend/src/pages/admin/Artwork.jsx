@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { createElement, useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -16,13 +16,16 @@ import {
   Typography,
   Snackbar,
   Slide,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
 import { fetchArtworks, verifyArtwork } from "../../api/admin/artworkAPI";
-// Icons
-import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
-import HourglassBottomRoundedIcon from "@mui/icons-material/HourglassBottomRounded";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -32,7 +35,8 @@ export default function Artwork() {
   const [artworks, setArtworks] = useState([]);
   const [allArtworks, setAllArtworks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("verified");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortOption, setSortOption] = useState("newest");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -42,7 +46,8 @@ export default function Artwork() {
   const loadArtworks = async () => {
     try {
       setLoading(true);
-      const data = await fetchArtworks(statusFilter);
+      const apiStatus = statusFilter === "approved" ? "verified" : statusFilter;
+      const data = await fetchArtworks(apiStatus === "all" ? "" : apiStatus);
       setArtworks(Array.isArray(data) ? data : []);
       // Also fetch all artworks to compute totals across statuses
       const all = await fetchArtworks();
@@ -60,7 +65,8 @@ export default function Artwork() {
     loadArtworks();
   }, [statusFilter]);
 
-  const normalizeStatus = (artwork) => String(artwork.request_status || artwork.status || "").toLowerCase();
+  const normalizeStatus = (artwork) =>
+    String(artwork.request_status || artwork.status || "").toLowerCase();
   const totalPending = allArtworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
     return s === "pending" || s === "pending";
@@ -72,9 +78,8 @@ export default function Artwork() {
 
   const filteredArtworks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return artworks;
-
-    return artworks.filter((artwork) => {
+    const filtered = artworks.filter((artwork) => {
+      if (statusFilter === "rejected") return false;
       const searchableFields = [
         artwork.title,
         artwork.genre,
@@ -91,7 +96,23 @@ export default function Artwork() {
           .includes(query),
       );
     });
-  }, [artworks, searchQuery]);
+
+    return [...filtered].sort((first, second) => {
+      if (sortOption === "oldest") {
+        return Number(first.artwork_id || 0) - Number(second.artwork_id || 0);
+      }
+      return Number(second.artwork_id || 0) - Number(first.artwork_id || 0);
+    });
+  }, [artworks, searchQuery, sortOption, statusFilter]);
+
+  const statusCount =
+    statusFilter === "pending"
+      ? totalPending
+      : statusFilter === "approved"
+        ? totalVerified
+        : statusFilter === "rejected"
+          ? 0
+          : allArtworks.length;
 
   const handleVerify = async (artwork) => {
     try {
@@ -126,7 +147,14 @@ export default function Artwork() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: "#0f172a",
+        color: "#f8fafc",
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Artwork</title>
       </Helmet>
@@ -135,107 +163,165 @@ export default function Artwork() {
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          mb: 2,
+          alignItems: { xs: "flex-start", sm: "center" },
           gap: 2,
+          mb: 2.5,
           flexWrap: "wrap",
         }}
       >
-        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-          Art Verification
-        </Typography>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+            }}
+          >
+            Art Verification
+          </Typography>
+          <Typography sx={{ mt: 0.75, color: "#94a3b8", fontSize: 13 }}>
+            Review and manage the artwork catalog
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            px: 1.5,
+            py: 0.75,
+            border: "1px solid #475569",
+            borderRadius: 1.5,
+            color: "#cbd5e1",
+            fontSize: 12,
+          }}
+        >
+          {statusCount} artworks shown
+        </Box>
       </Box>
+
       <Box
         sx={{
-          mt: 3,
-          display: "flex",
-          gap: 3,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gap: 2,
+          mb: 2.5,
         }}
       >
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            height: 150,
-            padding: 2,
-            borderRadius: 2,
-            bgcolor: "background.paper",
-          }}
-        >
-          <CardContent>
-            <Typography
-              gutterBottom
-              variant="h5"
-              sx={{ fontWeight: "bold", color: "#b73636" }}
-            >
-              Pending Arts
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <HourglassBottomRoundedIcon color="error" sx={{ fontSize: 30 }} />
-              <Typography
-                sx={{ fontWeight: "bold", color: "#b73636", fontSize: 30 }}
+        {[
+          {
+            label: "TOTAL ARTWORKS",
+            value: allArtworks.length,
+            caption: "Complete catalog",
+            icon: PaletteOutlinedIcon,
+          },
+          {
+            label: "PENDING REVIEW",
+            value: totalPending,
+            caption: "Awaiting verification",
+            icon: PendingActionsOutlinedIcon,
+          },
+          {
+            label: "APPROVED",
+            value: totalVerified,
+            caption: "Verified artworks",
+            icon: VerifiedOutlinedIcon,
+          },
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
+          <Card
+            key={label}
+            sx={{
+              backgroundColor: "#1e293b",
+              border: "1px solid #cbd5e1",
+              borderRadius: 2.5,
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
               >
-                {totalPending}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card
-          variant="outlined"
-          sx={{
-            flex: "1 1 350px",
-            maxWidth: 600,
-            height: 150,
-            padding: 2,
-            borderRadius: 2,
-            bgcolor: "background.paper",
-          }}
-        >
-          <CardContent>
-            <Typography
-              gutterBottom
-              variant="h5"
-              sx={{ fontWeight: "bold", color: "#b73636" }}
-            >
-              Verified Arts
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
-              <VerifiedUserRoundedIcon color="error" sx={{ fontSize: 30 }} />
-              <Typography
-                variant="h4"
-                sx={{ fontWeight: "bold", color: "#b73636" }}
-              >
-                {totalVerified}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
+                <Box>
+                  <Typography
+                    sx={{
+                      color: "#94a3b8",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: "#f8fafc",
+                      fontSize: 30,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography sx={{ mt: 1, color: "#a9bad0", fontSize: 12 }}>
+                    {caption}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor: "#fff5f5",
+                    color: "#ef3340",
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
       </Box>
 
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Filter
-        </Typography>
+      <Paper
+        sx={{
+          p: { xs: 1, sm: 1.25 },
+          borderRadius: 2,
+          backgroundColor: "#1e293b",
+          borderColor: "#cbd5e1",
+        }}
+        variant="outlined"
+      >
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            alignItems: { xs: "stretch", lg: "center" },
+            gap: 1.25,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search artworks..."
             size="small"
-            sx={{ width: { xs: "100%", md: 300 } }}
+            sx={{
+              width: { xs: "100%", lg: 255 },
+              "& .MuiOutlinedInput-root": {
+                color: "#f8fafc",
+                "& fieldset": { borderColor: "#64748b" },
+                "&:hover fieldset": { borderColor: "#cbd5e1" },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: "#94a3b8",
+                opacity: 1,
+              },
+            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -247,21 +333,83 @@ export default function Artwork() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
 
-          <FormControl size="small" sx={{ width: { xs: "100%", md: 200 } }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: "#94a3b8", whiteSpace: "nowrap" }}
             >
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="verified">Verified</MenuItem>
-            </Select>
-          </FormControl>
+              Status: <strong>{statusCount}</strong>
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={statusFilter}
+              onChange={(_, value) => value && setStatusFilter(value)}
+              sx={{
+                "& .MuiToggleButton-root": {
+                  px: 1,
+                  py: 0.5,
+                  fontSize: 11,
+                  color: "#cbd5e1",
+                  borderColor: "#64748b",
+                },
+                "& .MuiToggleButton-root.Mui-selected": {
+                  color: "#fff",
+                  backgroundColor: "#ef3340",
+                  borderColor: "#ef3340",
+                },
+                "& .MuiToggleButton-root.Mui-selected:hover": {
+                  backgroundColor: "#d92d39",
+                },
+              }}
+            >
+              <ToggleButton value="pending">Pending</ToggleButton>
+              <ToggleButton value="rejected">Rejected</ToggleButton>
+              <ToggleButton value="approved">Approved</ToggleButton>
+              <ToggleButton value="all">All</ToggleButton>
+            </ToggleButtonGroup>
+            <FormControl size="small" sx={{ minWidth: 130 }}>
+              <Select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                startAdornment={
+                  <SwapVertIcon
+                    sx={{ mr: 0.5, fontSize: 17, color: "#94a3b8" }}
+                  />
+                }
+                sx={{
+                  fontSize: 12,
+                  color: "#f8fafc",
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#64748b",
+                  },
+                }}
+              >
+                <MenuItem value="newest">Newest First</MenuItem>
+                <MenuItem value="oldest">Oldest First</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+      <Paper
+        sx={{
+          p: { xs: 0, sm: 0.5 },
+          mt: 2,
+          borderRadius: 2,
+          backgroundColor: "#1e293b",
+          borderColor: "#cbd5e1",
+        }}
+        variant="outlined"
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />

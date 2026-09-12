@@ -7,22 +7,14 @@ import {
   CardContent,
   Chip,
   Typography,
-  IconButton,
-  Stack,
 } from "@mui/material";
 import ArtworkInfo from "../../admin/Artwork/ArtworkInfo";
-import ArtworkVerify from "./ArtworkVerify";
 // Icons
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import PendingIcon from "@mui/icons-material/Pending";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import InfoIcon from "@mui/icons-material/Info";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
 export default function ArtworkCard({ artworks, onVerify }) {
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
-  const [openVerifyDialog, setOpenVerifyDialog] = useState(false);
   const pendingArtworks = Array.isArray(artworks) ? artworks : [];
 
   const handleInfoOpen = (artwork) => {
@@ -32,15 +24,6 @@ export default function ArtworkCard({ artworks, onVerify }) {
 
   const handleInfoClose = () => {
     setOpenInfoDialog(false);
-  };
-
-  const handleVerifyOpen = (artwork) => {
-    setSelectedArtwork(artwork);
-    setOpenVerifyDialog(true);
-  };
-
-  const handleVerifyClose = () => {
-    setOpenVerifyDialog(false);
   };
 
   const getRequestStatus = (artwork) => {
@@ -68,21 +51,23 @@ export default function ArtworkCard({ artworks, onVerify }) {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 2,
+          gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+          gap: { xs: 1.5, sm: 2 },
         }}
       >
         {pendingArtworks.map((artwork) => (
-          <Card key={artwork.artwork_id}>
+          <Card
+            key={artwork.artwork_id}
+            sx={{
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <Box
               sx={{
                 width: "100%",
-                height: 300,
+                aspectRatio: "4 / 3",
                 position: "relative",
                 backgroundColor: "#f5f5f5",
                 overflow: "hidden",
@@ -112,73 +97,95 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 }}
                 alt={artwork.title}
               />
+              <Chip
+                label={isVerified(artwork) ? "APPROVED" : "PENDING"}
+                size="small"
+                sx={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  height: 22,
+                  borderRadius: 2,
+                  backgroundColor: "#fff",
+                  color: isVerified(artwork) ? "#15803d" : "#d97706",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
+                }}
+              />
             </Box>
-            <CardContent sx={{ flex: 1, overflow: "auto" }}>
+            <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 }, flex: 1 }}>
               <Box
                 sx={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  mb: 2,
+                  minHeight: 82,
                 }}
               >
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ color: "#f8fafc", fontWeight: 700, lineHeight: 1.25 }}
+                    noWrap
+                  >
                     {artwork.title}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    {artwork.art_size || "No size available."}
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "#cbd5e1", display: "block", mt: 0.5 }}
+                    noWrap
+                  >
+                    By {artwork.first_name || "Unknown"}{" "}
+                    {artwork.last_name || "Artist"}
                   </Typography>
-                  <Chip
-                    icon={
-                      isVerified(artwork) ? (
-                        <CheckCircleIcon />
-                      ) : (
-                        <PendingIcon />
-                      )
-                    }
-                    label={isVerified(artwork) ? "Verified" : "Pending"}
-                    color={isVerified(artwork) ? "success" : "warning"}
-                    size="small"
+                  <Box
                     sx={{
-                      backdropFilter: "blur(4px)",
-                      boxShadow: 2,
-                      color: "white",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 1,
+                      mt: 1.25,
                     }}
-                  />
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#cbd5e1" }}
+                      noWrap
+                    >
+                      Size: {artwork.art_size || "N/A"}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "#ff5a5f", fontWeight: 700 }}
+                      noWrap
+                    >
+                      ₱{Number(artwork.price || 0).toLocaleString()}
+                    </Typography>
+                  </Box>
                 </Box>
-                <IconButton
-                  size="small"
-                  onClick={() => handleInfoOpen(artwork)}
-                  sx={{
-                    ml: "auto",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                >
-                  <InfoOutlinedIcon fontSize="small" />
-                </IconButton>
               </Box>
 
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{ mt: "auto" }}
+              <Button
+                variant="contained"
+                size="small"
+                fullWidth
+                startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
+                onClick={() => handleInfoOpen(artwork)}
+                sx={{
+                  mt: 0.5,
+                  py: 0.65,
+                  backgroundColor: "#eef2f7",
+                  color: "#172033",
+                  border: "1px solid #cbd5e1",
+                  boxShadow: "none",
+                  fontSize: 11,
+                  "& .MuiButton-startIcon": { color: "#172033" },
+                  "&:hover": {
+                    backgroundColor: "#ffffff",
+                    borderColor: "#94a3b8",
+                    boxShadow: "none",
+                  },
+                }}
               >
-                {!isVerified(artwork) && canEdit && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    color="success"
-                    fullWidth
-                    sx={{ color: "#fff" }}
-                    onClick={() => handleVerifyOpen(artwork)}
-                  >
-                    Verify
-                  </Button>
-                )}
-              </Stack>
+                View Details
+              </Button>
             </CardContent>
           </Card>
         ))}
@@ -188,13 +195,8 @@ export default function ArtworkCard({ artworks, onVerify }) {
         open={openInfoDialog}
         handleClose={handleInfoClose}
         selectedArtwork={selectedArtwork}
-      />
-
-      <ArtworkVerify
-        open={openVerifyDialog}
-        handleClose={handleVerifyClose}
-        onSubmit={onVerify}
-        selectedArt={selectedArtwork}
+        onVerify={onVerify}
+        canEdit={canEdit}
       />
     </Box>
   );
