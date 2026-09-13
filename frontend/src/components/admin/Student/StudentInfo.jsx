@@ -135,22 +135,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                   objectFit: "cover",
                 }}
               />
-              <Chip
-                label={String(status).toUpperCase()}
-                size="small"
-                sx={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  height: 22,
-                  backgroundColor: "#fff",
-                  color:
-                    status.toLowerCase() === "verified" ? "#15803d" : "#d97706",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.16)",
-                }}
-              />
+              
             </Box>
 
             <Box
@@ -219,12 +204,6 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                 <Typography sx={detailLabelSx}>Registered</Typography>
                 <Typography sx={detailValueSx}>
                   {formatDate(student.registered_date)}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography sx={detailLabelSx}>Approved</Typography>
-                <Typography sx={detailValueSx}>
-                  {formatDate(student.approved_date)}
                 </Typography>
               </Box>
             </Box>

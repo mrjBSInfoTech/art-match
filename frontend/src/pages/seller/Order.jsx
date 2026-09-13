@@ -397,7 +397,7 @@ export default function SellerOrder() {
                 flexWrap: "wrap",
               }}
             >
-              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 } }}>
                 <Select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}

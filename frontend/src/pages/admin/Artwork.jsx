@@ -290,7 +290,7 @@ export default function Artwork() {
               <ToggleButton value="approved">Approved</ToggleButton>
               <ToggleButton value="all">All</ToggleButton>
             </ToggleButtonGroup>
-            <FormControl size="small" sx={{ minWidth: 130 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
               <Select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}

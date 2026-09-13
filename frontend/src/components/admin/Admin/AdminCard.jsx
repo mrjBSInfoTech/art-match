@@ -88,11 +88,11 @@ export default function AdminCard({
       sx={{
         display: "grid",
         gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(2, 1fr)",
-          md: "repeat(3, 1fr)",
-          lg: "repeat(auto-fill, minmax(160px, 180px))",
-        },
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
+          },
         gap: { xs: 1.5, sm: 2 },
       }}
     >
@@ -118,8 +118,11 @@ export default function AdminCard({
           <Box
             sx={{
               width: "100%",
-              height: 66,
-              backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f8fafc",
+              height: 170,
+              aspectRatio: "1.35 / 1",
+              position: "relative",
+              backgroundColor:
+                theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
@@ -128,7 +131,12 @@ export default function AdminCard({
           >
             <CardMedia
               component="img"
-              sx={{ width: 52, height: 52, objectFit: "cover", borderRadius: 1.5 }}
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "center",
+              }}
               image={
                 admin.image
                   ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
@@ -136,8 +144,7 @@ export default function AdminCard({
               }
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src =
-                  "http://localhost:5000/uploads/profile.jpg";
+                e.target.src = "http://localhost:5000/uploads/profile.jpg";
               }}
               alt={admin.first_name}
             />
@@ -168,7 +175,10 @@ export default function AdminCard({
                 >
                   {admin.first_name} {admin.last_name}
                 </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.25 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary", display: "block", mt: 0.25 }}
+                >
                   @{admin.username}
                 </Typography>
                 <Chip
@@ -182,8 +192,18 @@ export default function AdminCard({
                     fontSize: 9,
                     fontWeight: 700,
                     borderRadius: 1,
-                    color: admin.role === "super admin" ? theme.palette.error.main : theme.palette.success.main,
-                    backgroundColor: admin.role === "super admin" ? (theme.palette.mode === "dark" ? "rgba(239, 68, 68, 0.16)" : "#fef2f2") : (theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.16)" : "#dcfce7"),
+                    color:
+                      admin.role === "super admin"
+                        ? theme.palette.error.main
+                        : theme.palette.success.main,
+                    backgroundColor:
+                      admin.role === "super admin"
+                        ? theme.palette.mode === "dark"
+                          ? "rgba(239, 68, 68, 0.16)"
+                          : "#fef2f2"
+                        : theme.palette.mode === "dark"
+                          ? "rgba(34, 197, 94, 0.16)"
+                          : "#dcfce7",
                   }}
                 />
               </Box>
@@ -217,7 +237,8 @@ export default function AdminCard({
               sx={{
                 mt: "auto",
                 py: 0.45,
-                backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                backgroundColor:
+                  theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                 color: theme.palette.text.primary,
                 border: "1px solid",
                 borderColor: "divider",

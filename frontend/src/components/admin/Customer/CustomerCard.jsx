@@ -139,9 +139,9 @@ export default function CustomerCard({
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(auto-fill, minmax(160px, 180px))",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
           },
           gap: { xs: 1.5, sm: 2 },
         }}
@@ -170,8 +170,11 @@ export default function CustomerCard({
               <Box
                 sx={{
                   width: "100%",
-                  height: 66,
-                  backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f8fafc",
+                  height: 170,
+                  aspectRatio: "1.35 / 1",
+                  position: "relative",
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
@@ -180,7 +183,12 @@ export default function CustomerCard({
               >
                 <CardMedia
                   component="img"
-                  sx={{ width: 52, height: 52, objectFit: "cover", borderRadius: 1.5 }}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                  }}
                   image={
                     customer.image
                       ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(customer.image)}`
@@ -189,7 +197,8 @@ export default function CustomerCard({
                   alt={getName(customer)}
                   onError={(event) => {
                     event.target.onerror = null;
-                    event.target.src = "http://localhost:5000/uploads/profile.jpg";
+                    event.target.src =
+                      "http://localhost:5000/uploads/profile.jpg";
                   }}
                 />
               </Box>
@@ -220,7 +229,11 @@ export default function CustomerCard({
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "text.secondary", display: "block", mt: 0.25 }}
+                      sx={{
+                        color: "text.secondary",
+                        display: "block",
+                        mt: 0.25,
+                      }}
                     >
                       @{customer.username || "customer"}
                     </Typography>
@@ -235,7 +248,10 @@ export default function CustomerCard({
                         fontWeight: 700,
                         borderRadius: 1,
                         color: theme.palette.primary.main,
-                        backgroundColor: theme.palette.mode === "dark" ? "rgba(59, 130, 246, 0.16)" : "#eff6ff",
+                        backgroundColor:
+                          theme.palette.mode === "dark"
+                            ? "rgba(59, 130, 246, 0.16)"
+                            : "#eff6ff",
                       }}
                     />
                   </Box>
@@ -264,13 +280,16 @@ export default function CustomerCard({
                   sx={{
                     mt: "auto",
                     py: 0.45,
-                    backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                    backgroundColor:
+                      theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                     color: theme.palette.text.primary,
                     border: "1px solid",
                     borderColor: "divider",
                     boxShadow: "none",
                     fontSize: 10,
-                    "& .MuiButton-startIcon": { color: theme.palette.error.main },
+                    "& .MuiButton-startIcon": {
+                      color: theme.palette.error.main,
+                    },
                     "&:hover": {
                       backgroundColor: theme.palette.action.hover,
                       borderColor: theme.palette.text.secondary,
