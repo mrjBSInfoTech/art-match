@@ -147,12 +147,29 @@ export default function CustomerCard({
         {customers.map((customer) => {
           const id = getId(customer);
           return (
-            <Card key={id}>
+            <Card
+              key={id}
+              sx={{
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 390,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2.5,
+                boxShadow: "none",
+                transition: "border-color 0.2s, box-shadow 0.2s",
+                "&:hover": {
+                  borderColor: "text.secondary",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                },
+              }}
+            >
               <Box
                 sx={{
                   width: "100%",
-                  height: 250,
-                  backgroundColor: "#f5f5f5",
+                  aspectRatio: "5 / 4",
+                  backgroundColor: "#f1f5f9",
                   overflow: "hidden",
                 }}
               >
@@ -172,17 +189,30 @@ export default function CustomerCard({
                   }}
                 />
               </Box>
-              <CardContent sx={{ flex: 1, overflow: "auto" }}>
+              <CardContent
+                sx={{
+                  p: 2,
+                  "&:last-child": { pb: 2 },
+                  flex: 1,
+                  minHeight: 150,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "space-between",
-                    mb: 2,
+                    mb: 1,
                   }}
                 >
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 700, lineHeight: 1.25 }}
+                      noWrap
+                    >
                       {getName(customer)}
                     </Typography>
                     <Typography
@@ -195,7 +225,12 @@ export default function CustomerCard({
                       size="small"
                       label="Customer"
                       color="primary"
-                      sx={{ mt: 1, color: "white" }}
+                      sx={{
+                        mt: 0.75,
+                        height: 22,
+                        fontSize: 10,
+                        fontWeight: 700,
+                      }}
                     />
                   </Box>
                   {(canEdit || canDelete) && (
@@ -221,7 +256,7 @@ export default function CustomerCard({
                     setOpenInfoDialog(true);
                   }}
                   sx={{
-                    mt: 0.5,
+                    mt: "auto",
                     py: 0.65,
                     backgroundColor: "#eef2f7",
                     color: "#172033",

@@ -5,22 +5,20 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Chip,
   Slide,
   Box,
   Typography,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
-function StudentInfo({
-  open,
-  handleClose,
-  selectedStudent,
-}) {
-
+function StudentInfo({ open, handleClose, selectedStudent }) {
   const [student, setStudent] = useState(null);
 
   useEffect(() => {
@@ -31,6 +29,36 @@ function StudentInfo({
     }
   }, [selectedStudent, open]);
 
+  const detailLabelSx = {
+    display: "block",
+    color: "#475569",
+    fontSize: 11,
+    lineHeight: 1.2,
+    mb: 0.35,
+  };
+
+  const detailValueSx = {
+    color: "#0f172a",
+    fontSize: 12,
+    fontWeight: 600,
+    lineHeight: 1.35,
+  };
+
+  const formatDate = (value) =>
+    value
+      ? new Date(value).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "N/A";
+
+  const imageUrl = student?.image
+    ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(student.image)}`
+    : "http://localhost:5000/uploads/profile.jpg";
+
+  const status = student?.register_status || "Pending";
+
   return (
     <Dialog
       open={open}
@@ -38,87 +66,188 @@ function StudentInfo({
       TransitionComponent={Transition}
       keepMounted
       PaperProps={{
-        sx: { minWidth: "350px" },
+        sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
+          borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: "#fff",
+        },
       }}
     >
-      <DialogTitle sx={{fontWeight: "bold"}}>Student Information</DialogTitle>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: "#0f172a",
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: "1px solid #e2e8f0",
+        }}
+      >
+        <SchoolOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
+        Student Information
+        <Button
+          aria-label="Close student information"
+          onClick={handleClose}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: "#64748b",
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
+      </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ p: 2.5, backgroundColor: "#fff" }}>
         {student ? (
-          <Box sx={{ mt: 1 }}>
+          <Box>
+            <Box
+              sx={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "16 / 7",
+                overflow: "hidden",
+                borderRadius: 2,
+                border: "1px solid #cbd5e1",
+                backgroundColor: "#f1f5f9",
+              }}
+            >
+              <Box
+                component="img"
+                src={imageUrl}
+                alt={`${student.first_name || "Student"} profile`}
+                onError={(event) => {
+                  event.currentTarget.src =
+                    "http://localhost:5000/uploads/profile.jpg";
+                }}
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                }}
+              />
+              <Chip
+                label={String(status).toUpperCase()}
+                size="small"
+                sx={{
+                  position: "absolute",
+                  top: 10,
+                  right: 10,
+                  height: 22,
+                  backgroundColor: "#fff",
+                  color:
+                    status.toLowerCase() === "verified" ? "#15803d" : "#d97706",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.16)",
+                }}
+              />
+            </Box>
 
-            <Typography variant="body2" color="text.secondary">
-              <strong>First Name:</strong> {student.first_name}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Middle Name:</strong> {student.middle_name || "Not provided"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Last Name:</strong> {student.last_name}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Email:</strong> {student.email || "Not provided"}
-            </Typography>
-            
-            <Typography variant="body2" color="text.secondary">
-              <strong>Address:</strong> {student.address || "Not provided"}
-            </Typography>
-            
-            <Typography variant="body2" color="text.secondary">
-              <strong>Phone Number:</strong> {student.phone_number || "Not provided"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Student Number:</strong> {student.student_number || "Not provided"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Course:</strong> {student.course || "Not provided"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Year Level:</strong> {student.year_level || "Not provided"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Birthdate:</strong>{" "}
-              {student.birthdate ? new Date(student.birthdate).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              }) : "Not provided"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Register Status:</strong> {student.register_status ? student.register_status.toUpperCase(0).charAt(0) + student.register_status.slice(1) : "Pending"}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary">
-              <strong>Register Date:</strong> {student.registered_date ? new Date(student.registered_date).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              }) : "Not provided"}
-            </Typography>
-    
-            <Typography variant="body2" color="text.secondary">
-              <strong>Approved Date:</strong> {student.approved_date ? new Date(student.approved_date).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              }) : "Not provided"}
-            </Typography>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 1.5,
+                mt: 1.75,
+                p: 1.5,
+                border: "1px solid #e2e8f0",
+                borderRadius: 2,
+                backgroundColor: "#f8fafc",
+              }}
+            >
+              <Box>
+                <Typography sx={detailLabelSx}>Name</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.first_name || "N/A"}{" "}
+                  {student.middle_name ? `${student.middle_name} ` : ""}
+                  {student.last_name || ""}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Student Number</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.student_number || "N/A"}
+                </Typography>
+              </Box>
+              <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                <Typography sx={detailLabelSx}>Email</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.email || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Course</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.course || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Year Level</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.year_level || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Phone Number</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.phone_number || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Birthdate</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatDate(student.birthdate)}
+                </Typography>
+              </Box>
+              <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                <Typography sx={detailLabelSx}>Address</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.address || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Registered</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatDate(student.registered_date)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Approved</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatDate(student.approved_date)}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
         ) : (
-          <Typography>No student selected.</Typography>
+          <Typography color="text.secondary">No student selected.</Typography>
         )}
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={handleClose} color="secondary">
+      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: "1px solid #e2e8f0" }}>
+        <Button
+          onClick={handleClose}
+          sx={{
+            ml: "auto",
+            backgroundColor: "#eef2f7",
+            color: "#172033",
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            "&:hover": { backgroundColor: "#e2e8f7" },
+          }}
+        >
           Close
         </Button>
       </DialogActions>
