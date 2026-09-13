@@ -5,7 +5,10 @@ import Backdrop from "@mui/material/Backdrop";
 import Badge from "@mui/material/Badge";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
-import { DashboardLayout as MuiDashboardLayout } from "@toolpad/core";
+import {
+  DashboardLayout as MuiDashboardLayout,
+  DashboardSidebarPageItem,
+} from "@toolpad/core";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -90,6 +93,7 @@ export default function AdminLayout({ children }) {
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [manageUsersExpanded, setManageUsersExpanded] = useState(true);
 
   useEffect(() => {
     const loadAdminProfile = () => {
@@ -174,11 +178,6 @@ export default function AdminLayout({ children }) {
   // Sidebar menu items
   const navigation = [
     {
-      segment: "profile",
-      title: "Profile",
-      icon: <AccountCircleIcon />,
-    },
-    {
       segment: "dashboard",
       title: "Dashboard",
       icon: <DashboardIcon />,
@@ -225,31 +224,9 @@ export default function AdminLayout({ children }) {
       ],
     },
     {
-      segment: "verify",
-      title: "Student Verification",
-      icon: <VerifiedRoundedIcon />,
-      children: [
-        {
-          segment: "pending",
-          title: "Pending",
-          icon: <HourglassBottomRoundedIcon />,
-        },
-        {
-          segment: "verified",
-          title: "Verified",
-          icon: <VerifiedUserRoundedIcon />,
-        },
-      ],
-    },
-    {
       segment: "audit-logs",
       title: "Audit Logs",
       icon: <HistoryIcon />,
-    },
-    {
-      segment: "settings",
-      title: "Settings",
-      icon: <SettingsIcon />,
     },
   ];
 
@@ -512,6 +489,19 @@ export default function AdminLayout({ children }) {
         <MuiDashboardLayout
           slots={{
             toolbarAccount: CustomHeader,
+          }}
+          renderPageItem={(item) => {
+            if (item.segment !== "manage") {
+              return <DashboardSidebarPageItem item={item} />;
+            }
+
+            return (
+              <DashboardSidebarPageItem
+                item={item}
+                expanded={manageUsersExpanded}
+                onClick={() => setManageUsersExpanded((expanded) => !expanded)}
+              />
+            );
           }}
           sx={{
             backgroundColor: theme.palette.background.default,

@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
+  Chip,
   CircularProgress,
   FormControl,
   InputAdornment,
@@ -83,7 +84,9 @@ export default function AccountAccess() {
     localStorage.getItem("admin_role") ||
     localStorage.getItem("admin_account_type") ||
     ""
-  ).trim().toLowerCase();
+  )
+    .trim()
+    .toLowerCase();
   const isSuperAdmin = currentRole === "super admin";
   const isAdmin = currentRole === "admin";
   const hasPermission = (key) =>
@@ -128,7 +131,8 @@ export default function AccountAccess() {
               fontSize: 13,
             }}
           >
-            Monitor and manage the accounts students and customers of the platform
+            Monitor and manage the accounts students and customers of the
+            platform
           </Typography>
         </Box>
       </Box>
@@ -136,9 +140,9 @@ export default function AccountAccess() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: 3,
-          mt: 3,
-          borderRadius: 2,
+          p: { xs: 2, md: 2.5 },
+          mt: 2.5,
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -163,7 +167,9 @@ export default function AccountAccess() {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
                 "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
@@ -190,7 +196,11 @@ export default function AccountAccess() {
             }}
           >
             <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Sort</InputLabel>
+              <InputLabel
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Sort
+              </InputLabel>
               <Select
                 name="sort"
                 label="Sort"
@@ -211,7 +221,11 @@ export default function AccountAccess() {
             </FormControl>
 
             <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Role</InputLabel>
+              <InputLabel
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Role
+              </InputLabel>
               <Select
                 name="role"
                 label="Role"
@@ -234,9 +248,12 @@ export default function AccountAccess() {
           </Box>
         </Box>
       </Paper>
-      
+
       {/* Table Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+      <Paper
+        sx={{ p: { xs: 1, md: 1.5 }, mt: 2.5, borderRadius: 2.5 }}
+        variant="outlined"
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -251,30 +268,63 @@ export default function AccountAccess() {
           </Typography>
         ) : (
           <TableContainer>
-            <Table>
-              <TableHead sx={{ backgroundColor: "background.table" }}>
+            <Table size="small">
+              <TableHead sx={{ backgroundColor: "#f8fafc" }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Account</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Strikes</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+                  {["Role", "Account", "Email", "Strikes", "Status"].map(
+                    (heading) => (
+                      <TableCell
+                        key={heading}
+                        sx={{
+                          py: 1.5,
+                          color: "text.secondary",
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: 0.8,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {heading}
+                      </TableCell>
+                    ),
+                  )}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredAccounts.map((account) => (
                   <TableRow
                     key={`${account.role}-${account.account_id}`}
-                    sx={{ "&:hover": { backgroundColor: "background.table" } }}
+                    sx={{
+                      "&:hover": { backgroundColor: "#f8fafc" },
+                      "&:last-child td": { borderBottom: 0 },
+                    }}
                   >
-                    <TableCell sx={{ textTransform: "capitalize" }}>
+                    <TableCell
+                      sx={{ textTransform: "capitalize", fontWeight: 700 }}
+                    >
                       {account.role}
                     </TableCell>
-                    <TableCell>{account.username}</TableCell>
-                    <TableCell>{account.email}</TableCell>
-                    <TableCell>{account.strikes} / 3</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      {account.username}
+                    </TableCell>
+                    <TableCell sx={{ color: "text.secondary" }}>
+                      {account.email}
+                    </TableCell>
                     <TableCell>
-                      {account.is_banned ? "Banned" : "Active"}
+                      <Chip
+                        size="small"
+                        label={`${account.strikes} / 3`}
+                        color={account.strikes > 0 ? "warning" : "default"}
+                        sx={{ fontWeight: 700, fontSize: 11 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={account.is_banned ? "Banned" : "Active"}
+                        color={account.is_banned ? "error" : "success"}
+                        sx={{ fontWeight: 700, fontSize: 11 }}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

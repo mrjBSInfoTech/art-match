@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Box, CircularProgress, FormControl, InputAdornment, InputLabel, MenuItem, Paper, Select, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import StudentCard from "../../components/admin/Student/StudentCard";
 import {
@@ -54,8 +65,14 @@ export default function Student() {
         student.student_number,
         student.email,
         student.course,
-      ].some((value) => String(value || "").toLowerCase().includes(search));
-      const matchesCourse = courseFilter === "all" || String(student.course || "").includes(courseFilter);
+      ].some((value) =>
+        String(value || "")
+          .toLowerCase()
+          .includes(search),
+      );
+      const matchesCourse =
+        courseFilter === "all" ||
+        String(student.course || "").includes(courseFilter);
       return matchesSearch && matchesCourse;
     });
   }, [courseFilter, searchQuery, students]);
@@ -100,16 +117,16 @@ export default function Student() {
               fontSize: 13,
             }}
           >
-            Monitor and manage the student   accounts of the platform
+            Monitor and manage the student accounts of the platform
           </Typography>
         </Box>
       </Box>
 
       <Paper
         sx={{
-          p: 3,
-          mt: 3,
-          borderRadius: 2,
+          p: { xs: 2, md: 2.5 },
+          mt: 2.5,
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -134,7 +151,9 @@ export default function Student() {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
                 "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
@@ -152,7 +171,11 @@ export default function Student() {
             onChange={(event) => setSearchQuery(event.target.value)}
           />
           <FormControl size="small" sx={{ minWidth: 220 }}>
-            <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Course</InputLabel>
+            <InputLabel
+              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+            >
+              Course
+            </InputLabel>
             <Select
               value={courseFilter}
               label="Course"
@@ -168,19 +191,30 @@ export default function Student() {
             >
               <MenuItem value="all">All Courses</MenuItem>
               <MenuItem value="BSA">Bachelor of Science in Arts</MenuItem>
-              <MenuItem value="BSCS">Bachelor of Science in Computer Science</MenuItem>
+              <MenuItem value="BSCS">
+                Bachelor of Science in Computer Science
+              </MenuItem>
             </Select>
           </FormControl>
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+      <Paper
+        sx={{ p: { xs: 2, md: 2.5 }, mt: 2.5, borderRadius: 2.5 }}
+        variant="outlined"
+      >
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
         ) : error ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>{error}</Typography>
+          <Typography align="center" color="error" sx={{ py: 3 }}>
+            {error}
+          </Typography>
         ) : filteredStudents.length === 0 ? (
-          <Typography align="center" color="text.secondary" sx={{ py: 3 }}>No student records found.</Typography>
+          <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
+            No student records found.
+          </Typography>
         ) : (
           <StudentCard
             students={filteredStudents}

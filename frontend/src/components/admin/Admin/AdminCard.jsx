@@ -95,12 +95,29 @@ export default function AdminCard({
       }}
     >
       {admins.map((admin) => (
-        <Card key={admin.admin_id}>
+        <Card
+          key={admin.admin_id}
+          sx={{
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 390,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 2.5,
+            boxShadow: "none",
+            transition: "border-color 0.2s, box-shadow 0.2s",
+            "&:hover": {
+              borderColor: "text.secondary",
+              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+            },
+          }}
+        >
           <Box
             sx={{
               width: "100%",
-              height: 250,
-              backgroundColor: "#f5f5f5",
+              aspectRatio: "5 / 4",
+              backgroundColor: "#f1f5f9",
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
@@ -124,17 +141,30 @@ export default function AdminCard({
             />
           </Box>
 
-          <CardContent sx={{ flex: 1, overflow: "auto" }}>
+          <CardContent
+            sx={{
+              p: 2,
+              "&:last-child": { pb: 2 },
+              flex: 1,
+              minHeight: 150,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <Box
               sx={{
                 display: "flex",
                 alignItems: "flex-start",
                 justifyContent: "space-between",
-                mb: 2,
+                mb: 1,
               }}
             >
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ fontWeight: 700, lineHeight: 1.25 }}
+                  noWrap
+                >
                   {admin.first_name} {admin.last_name}
                 </Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -144,7 +174,13 @@ export default function AdminCard({
                   size="small"
                   label={admin.role}
                   color={admin.role === "super admin" ? "error" : "primary"}
-                  sx={{ mt: 1, textTransform: "capitalize", color: "white" }}
+                  sx={{
+                    mt: 0.75,
+                    height: 22,
+                    textTransform: "capitalize",
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
                 />
               </Box>
 
@@ -175,7 +211,7 @@ export default function AdminCard({
               startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
               onClick={() => handleInfoOpen(admin)}
               sx={{
-                mt: 0.5,
+                mt: "auto",
                 py: 0.65,
                 backgroundColor: "#eef2f7",
                 color: "#172033",

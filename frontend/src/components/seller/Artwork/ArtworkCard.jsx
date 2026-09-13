@@ -67,11 +67,28 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
       }}
     >
       {artworks.map((artwork) => (
-        <Card key={artwork.artwork_id}>
+        <Card
+          key={artwork.artwork_id}
+          sx={{
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 390,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 2.5,
+            boxShadow: "none",
+            transition: "border-color 0.2s, box-shadow 0.2s",
+            "&:hover": {
+              borderColor: "text.secondary",
+              boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+            },
+          }}
+        >
           <Box
             sx={{
               width: "100%",
-              aspectRatio: "4 / 3",
+              aspectRatio: "5 / 4",
               position: "relative",
               backgroundColor: theme.palette.background.default,
               overflow: "hidden",
@@ -120,13 +137,22 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
               }}
             />
           </Box>
-          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 }, flex: 1 }}>
+          <CardContent
+            sx={{
+              p: 2,
+              "&:last-child": { pb: 2 },
+              flex: 1,
+              minHeight: 150,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <Box
               sx={{
                 display: "flex",
                 alignItems: "flex-start",
                 justifyContent: "space-between",
-                mb: 1.5,
+                mb: 1,
               }}
             >
               <Box>
@@ -180,7 +206,7 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
               startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
               onClick={() => handleInfoOpen(artwork)}
               sx={{
-                mt: 0.5,
+                mt: "auto",
                 py: 0.65,
                 backgroundColor: "#eef2f7",
                 color: "#172033",

@@ -23,7 +23,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import AccessReason from "./Access/AccessReason";
-import { addAccountStrike, setAccountBan } from "../../api/admin/accountAccessAPI";
+import {
+  addAccountStrike,
+  setAccountBan,
+} from "../../api/admin/accountAccessAPI";
 
 const emptyValue = "Not provided";
 
@@ -88,7 +91,11 @@ export default function UserManagementPanel({
     try {
       setOperationError("");
       if (accessAction === "strike") {
-        await addAccountStrike(type === "student" ? "seller" : "buyer", getId(selectedUser), reason);
+        await addAccountStrike(
+          type === "student" ? "seller" : "buyer",
+          getId(selectedUser),
+          reason,
+        );
       } else {
         await setAccountBan(
           type === "student" ? "seller" : "buyer",
@@ -219,14 +226,30 @@ export default function UserManagementPanel({
                     ? "error"
                     : "warning";
           return (
-            <Card key={userId}>
+            <Card
+              key={userId}
+              sx={{
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2.5,
+                boxShadow: "none",
+                transition: "border-color 0.2s, box-shadow 0.2s",
+                "&:hover": {
+                  borderColor: "text.secondary",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                },
+              }}
+            >
               {/* Media Container */}
               <Box
                 sx={{
                   width: "100%",
-                  height: 300,
+                  aspectRatio: "4 / 3",
                   position: "relative",
-                  backgroundColor: "#f5f5f5",
+                  backgroundColor: "#f1f5f9",
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
@@ -256,17 +279,27 @@ export default function UserManagementPanel({
               </Box>
 
               {/* Card Content */}
-              <CardContent sx={{ flex: 1, overflow: "auto" }}>
+              <CardContent
+                sx={{
+                  p: 1.5,
+                  "&:last-child": { pb: 1.5 },
+                  flex: 1,
+                }}
+              >
                 <Box
                   sx={{
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "space-between",
-                    mb: 1.5,
+                    mb: 1,
                   }}
                 >
                   <Box sx={{ flex: 1, pr: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 700, lineHeight: 1.25 }}
+                      noWrap
+                    >
                       {getName(user)}
                     </Typography>
                     <Chip
@@ -276,24 +309,26 @@ export default function UserManagementPanel({
                       }
                       color={chipColor}
                       sx={{
-                        mt: 0.5,
+                        mt: 0.75,
+                        height: 22,
                         textTransform: "capitalize",
-                        color: "white",
+                        fontSize: 10,
+                        fontWeight: 700,
                       }}
                     />
                   </Box>
                   <IconButton
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, user)}
-                      sx={{
-                        ml: "auto",
-                        "&:hover": {
-                          backgroundColor: "action.hover",
-                        },
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
+                    size="small"
+                    onClick={(e) => handleMenuOpen(e, user)}
+                    sx={{
+                      ml: "auto",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
+                      },
+                    }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
                 </Box>
 
                 {/* View Info Button */}
@@ -303,7 +338,20 @@ export default function UserManagementPanel({
                   fullWidth
                   startIcon={<InfoIcon />}
                   onClick={() => openDialog(user, "view")}
-                  sx={{ mb: 1 }}
+                  sx={{
+                    mt: 1,
+                    py: 0.65,
+                    color: "#172033",
+                    borderColor: "#cbd5e1",
+                    fontSize: 11,
+                    boxShadow: "none",
+                    "& .MuiButton-startIcon": { color: "#172033" },
+                    "&:hover": {
+                      borderColor: "#94a3b8",
+                      backgroundColor: "#f8fafc",
+                      boxShadow: "none",
+                    },
+                  }}
                 >
                   View Info
                 </Button>
@@ -347,16 +395,29 @@ export default function UserManagementPanel({
                     </MenuItem>
                   )}
                   {canEdit && !selectedUser?.is_banned && (
-                    <MenuItem onClick={() => openAccessAction("strike")} sx={{ color: "warning.main" }}>
+                    <MenuItem
+                      onClick={() => openAccessAction("strike")}
+                      sx={{ color: "warning.main" }}
+                    >
                       Add strike
                     </MenuItem>
                   )}
                   {canEdit && (
                     <MenuItem
-                      onClick={() => openAccessAction(selectedUser?.is_banned ? "unban" : "ban")}
-                      sx={{ color: selectedUser?.is_banned ? "success.main" : "error.main" }}
+                      onClick={() =>
+                        openAccessAction(
+                          selectedUser?.is_banned ? "unban" : "ban",
+                        )
+                      }
+                      sx={{
+                        color: selectedUser?.is_banned
+                          ? "success.main"
+                          : "error.main",
+                      }}
                     >
-                      {selectedUser?.is_banned ? "Unban account" : "Ban account"}
+                      {selectedUser?.is_banned
+                        ? "Unban account"
+                        : "Ban account"}
                     </MenuItem>
                   )}
                 </Menu>
@@ -413,12 +474,17 @@ export default function UserManagementPanel({
       <AccessReason
         open={Boolean(accessAction)}
         handleClose={() => setAccessAction("")}
-        selectedAccount={selectedUser && {
-          ...selectedUser,
-          role: type === "student" ? "seller" : "buyer",
-          account_id: getId(selectedUser),
-          username: type === "student" ? selectedUser.student_number : selectedUser.username,
-        }}
+        selectedAccount={
+          selectedUser && {
+            ...selectedUser,
+            role: type === "student" ? "seller" : "buyer",
+            account_id: getId(selectedUser),
+            username:
+              type === "student"
+                ? selectedUser.student_number
+                : selectedUser.username,
+          }
+        }
         action={accessAction}
         submitAction={submitAccessAction}
       />

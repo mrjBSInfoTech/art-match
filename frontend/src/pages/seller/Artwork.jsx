@@ -210,7 +210,7 @@ export default function Artwork() {
   }).length;
 
   const accountStatus = String(
-    localStorage.getItem("seller_register_status") 
+    localStorage.getItem("seller_register_status"),
   ).toLowerCase();
   const isVerified = accountStatus === "verified" || accountStatus === "";
 
@@ -237,7 +237,14 @@ export default function Artwork() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Artwork</title>
       </Helmet>
@@ -269,7 +276,7 @@ export default function Artwork() {
               fontSize: 13,
             }}
           >
-            Manage the artwork 
+            Manage the artwork
           </Typography>
         </Box>
         <Button
@@ -278,10 +285,13 @@ export default function Artwork() {
           onClick={handleOpenArtworkAdd}
           sx={{
             width: { xs: "100%", sm: 150 },
-            height: { xs: 35, sm: 45 },
+            height: { xs: 38, sm: 44 },
             minWidth: { xs: 45, sm: 50 },
             fontSize: { xs: 12, sm: 16 },
             padding: 0,
+            borderRadius: 1.5,
+            textTransform: "none",
+            fontWeight: 700,
           }}
         >
           Add Artwork
@@ -356,7 +366,11 @@ export default function Artwork() {
                     {value}
                   </Typography>
                   <Typography
-                    sx={{ mt: 1, color: theme.palette.text.secondary, fontSize: 12 }}
+                    sx={{
+                      mt: 1,
+                      color: theme.palette.text.secondary,
+                      fontSize: 12,
+                    }}
                   >
                     {caption}
                   </Typography>
@@ -385,8 +399,8 @@ export default function Artwork() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: 3,
-          borderRadius: 2,
+          p: { xs: 2, md: 2.5 },
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -444,7 +458,13 @@ export default function Artwork() {
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
                 startAdornment={
-                  <SwapVertIcon sx={{ mr: 0.5, fontSize: 17, color: theme.palette.text.secondary }} />
+                  <SwapVertIcon
+                    sx={{
+                      mr: 0.5,
+                      fontSize: 17,
+                      color: theme.palette.text.secondary,
+                    }}
+                  />
                 }
                 sx={{
                   fontSize: 12,
@@ -484,9 +504,9 @@ export default function Artwork() {
       {/* Artwork Display */}
       <Paper
         sx={{
-          p: 3,
-          mt: 2,
-          borderRadius: 2,
+          p: { xs: 2, md: 2.5 },
+          mt: 2.5,
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}

@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Box, CircularProgress, InputAdornment, Paper, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  InputAdornment,
+  Paper,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CustomerCard from "../../components/admin/Customer/CustomerCard";
-import { deleteCustomer, fetchCustomers, updateCustomer } from "../../api/admin/customerAPI";
+import {
+  deleteCustomer,
+  fetchCustomers,
+  updateCustomer,
+} from "../../api/admin/customerAPI";
 import SearchIcon from "@mui/icons-material/Search";
 
 export default function Customer() {
@@ -104,9 +115,9 @@ export default function Customer() {
 
       <Paper
         sx={{
-          p: 3,
-          mt: 3,
-          borderRadius: 2,
+          p: { xs: 2, md: 2.5 },
+          mt: 2.5,
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -131,7 +142,9 @@ export default function Customer() {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
                 "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
@@ -151,7 +164,10 @@ export default function Customer() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+      <Paper
+        sx={{ p: { xs: 2, md: 2.5 }, mt: 2.5, borderRadius: 2.5 }}
+        variant="outlined"
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />

@@ -224,7 +224,12 @@ export default function Admin() {
           </Typography>
         </Box>
         {canAddAdmin && (
-          <Button variant="contained" color="error" onClick={handleOpenAdd}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleOpenAdd}
+            sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
+          >
             Add Admin Account
           </Button>
         )}
@@ -233,9 +238,9 @@ export default function Admin() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: 3,
-          mt: 3,
-          borderRadius: 2,
+          p: { xs: 2, md: 2.5 },
+          mt: 2.5,
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -260,7 +265,9 @@ export default function Admin() {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
                 "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
@@ -287,7 +294,11 @@ export default function Admin() {
             }}
           >
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Roles</InputLabel>
+              <InputLabel
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Roles
+              </InputLabel>
               <Select
                 value={roleFilter}
                 label="Roles"
@@ -312,7 +323,10 @@ export default function Admin() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+      <Paper
+        sx={{ p: { xs: 2, md: 2.5 }, mt: 2.5, borderRadius: 2.5 }}
+        variant="outlined"
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
