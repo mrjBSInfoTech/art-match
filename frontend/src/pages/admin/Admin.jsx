@@ -43,6 +43,7 @@ export default function Admin() {
   const [adminErrorMessage, setAdminErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [sortOption, setSortOption] = useState("az");
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -69,7 +70,7 @@ export default function Admin() {
   const filteredAdmins = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const currentAdminId = String(localStorage.getItem("admin_id") || "");
-    return admins.filter((admin) => {
+    const filtered = admins.filter((admin) => {
       if (String(admin.admin_id) === currentAdminId) return false;
       const normalizedRole = String(admin.role || "").toLowerCase();
       const matchesRole = roleFilter === "all" || normalizedRole === roleFilter;
@@ -86,7 +87,12 @@ export default function Admin() {
       );
       return matchesRole && (query === "" || matchesSearch);
     });
-  }, [admins, searchQuery, roleFilter]);
+    return [...filtered].sort((first, second) => {
+      const firstName = `${first.first_name || ""} ${first.last_name || ""}`.trim().toLowerCase();
+      const secondName = `${second.first_name || ""} ${second.last_name || ""}`.trim().toLowerCase();
+      return sortOption === "za" ? secondName.localeCompare(firstName) : firstName.localeCompare(secondName);
+    });
+  }, [admins, searchQuery, roleFilter, sortOption]);
 
   const handleOpenAdd = () => {
     setSelectedAdmin(null);
@@ -205,7 +211,7 @@ export default function Admin() {
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 28, sm: 38 },
+              fontSize: { xs: 28, sm: 34 },
               fontWeight: 800,
               lineHeight: 1.1,
               color: theme.palette.text.primary,
@@ -238,9 +244,9 @@ export default function Admin() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
-          mt: 2.5,
-          borderRadius: 2.5,
+          p: { xs: 1.25, sm: 1.5 },
+          mt: 2,
+          borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -260,7 +266,7 @@ export default function Admin() {
             placeholder="Search username, name, email, or role..."
             size="small"
             sx={{
-              width: { xs: "100%", lg: 320 },
+              width: { xs: "100%", sm: 200 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -293,6 +299,18 @@ export default function Admin() {
               flexWrap: "wrap",
             }}
           >
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 11 }}>Sort</InputLabel>
+              <Select
+                value={sortOption}
+                label="Sort"
+                onChange={(event) => setSortOption(event.target.value)}
+                sx={{ fontSize: 11, color: theme.palette.text.primary, backgroundColor: theme.palette.background.default, ".MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.divider } }}
+              >
+                <MenuItem value="az">A to Z</MenuItem>
+                <MenuItem value="za">Z to A</MenuItem>
+              </Select>
+            </FormControl>
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
@@ -312,7 +330,7 @@ export default function Admin() {
                   },
                 }}
               >
-                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="all">All Roles</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
                 <MenuItem value="super admin">Super Admin</MenuItem>
                 <MenuItem value="moderator">Moderator</MenuItem>
@@ -324,7 +342,7 @@ export default function Admin() {
       </Paper>
 
       <Paper
-        sx={{ p: { xs: 2, md: 2.5 }, mt: 2.5, borderRadius: 2.5 }}
+        sx={{ p: { xs: 1.5, sm: 2 }, mt: 2, borderRadius: 2 }}
         variant="outlined"
       >
         {loading ? (

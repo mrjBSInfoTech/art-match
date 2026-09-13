@@ -93,7 +93,7 @@ export default function Customer() {
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 28, sm: 38 },
+              fontSize: { xs: 28, sm: 34 },
               fontWeight: 800,
               lineHeight: 1.1,
               color: theme.palette.text.primary,
@@ -115,9 +115,9 @@ export default function Customer() {
 
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
-          mt: 2.5,
-          borderRadius: 2.5,
+          p: { xs: 1.25, sm: 1.5 },
+          mt: 2,
+          borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
         }}
@@ -137,7 +137,7 @@ export default function Customer() {
             placeholder="Search customers..."
             size="small"
             sx={{
-              width: { xs: "100%", lg: 280 },
+              width: { xs: "100%", sm: 275 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -165,7 +165,7 @@ export default function Customer() {
       </Paper>
 
       <Paper
-        sx={{ p: { xs: 2, md: 2.5 }, mt: 2.5, borderRadius: 2.5 }}
+        sx={{ p: { xs: 1.5, sm: 2 }, mt: 2, borderRadius: 2 }}
         variant="outlined"
       >
         {loading ? (

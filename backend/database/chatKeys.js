@@ -61,3 +61,14 @@ export const saveChatPublicKey = (accountType, accountId, publicKey, callback) =
     callback,
   );
 };
+
+export const getChatPublicKey = (accountType, accountId, callback) => {
+  db.query(
+    `SELECT public_key
+     FROM chat_public_keys
+     WHERE account_type = ? AND account_id = ?
+     LIMIT 1`,
+    [accountType, accountId],
+    callback,
+  );
+};

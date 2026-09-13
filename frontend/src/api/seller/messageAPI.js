@@ -70,3 +70,12 @@ export const sendSellerMessage = async (buyerId, formData) => {
     handleError(error);
   }
 };
+
+export const registerSellerChatKey = async (publicKey) => {
+  await api.post("/seller/keys", { publicKey });
+};
+
+export const fetchBuyerChatKey = async (buyerId) => {
+  const res = await api.get(`/seller/keys/${buyerId}`);
+  return res.data.publicKey;
+};

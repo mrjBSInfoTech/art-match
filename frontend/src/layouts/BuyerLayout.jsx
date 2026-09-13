@@ -37,6 +37,9 @@ import SearchIcon from "@mui/icons-material/Search";
 import ChatIcon from "@mui/icons-material/Chat";
 import Settings from "@mui/icons-material/Settings";
 import Logout from "@mui/icons-material/Logout";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import { useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -65,6 +68,8 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 function BuyerLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, mode, setMode } = useThemeMode();
+  const toggleTheme = () => setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
 
   const menuItems = [
     { label: "Home", path: "/buyer/main" },
@@ -207,7 +212,7 @@ function BuyerLayout({ children }) {
       <AppBar
         position="sticky"
         sx={{
-          backgroundColor: "#AF4F4F",
+          backgroundColor: theme.palette.mode === "dark" ? "#0f172a" : "#AF4F4F",
           padding: { xs: "4px 10px", lg: "8px 20px" },
         }}
         elevation={0}
@@ -311,6 +316,13 @@ function BuyerLayout({ children }) {
               ml: 1,
             }}
           >
+            <IconButton
+              onClick={toggleTheme}
+              aria-label="Toggle light and dark mode"
+              sx={{ color: "white" }}
+            >
+              {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+            </IconButton>
             <IconButton
               sx={{ color: "white" }}
               onClick={() => {
@@ -456,7 +468,7 @@ function BuyerLayout({ children }) {
           <Box
             sx={{
               p: 2,
-              backgroundColor: "#1e1f87",
+              backgroundColor: theme.palette.mode === "dark" ? "#0f172a" : "#1e1f87",
               borderTop: "1px solid rgba(255,255,255,0.1)",
             }}
           >

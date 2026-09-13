@@ -31,8 +31,6 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { ThemeProvider, CssBaseline, useMediaQuery } from "@mui/material";
-import { lightTheme, darkTheme } from "../theme/customTheme";
 import Nexus from "../assets/Nexus.png";
 
 //Icons
@@ -47,6 +45,9 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import { useThemeMode } from "../theme/ThemeModeProvider";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -296,6 +297,10 @@ export default function SellerLayout({ children }) {
   );
 
   // Custom header matching the admin layout
+  const { theme, mode, setMode } = useThemeMode();
+  const toggleTheme = () =>
+    setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
+
   const CustomHeader = () => (
     <Stack
       direction="row"
@@ -305,6 +310,14 @@ export default function SellerLayout({ children }) {
       spacing={1.5}
       sx={{ pr: 1 }}
     >
+      <IconButton
+        onClick={toggleTheme}
+        aria-label="Toggle light and dark mode"
+        sx={{ color: "text.secondary" }}
+      >
+        {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+      </IconButton>
+
       <IconButton
         onClick={() => {
           setNotificationDrawerOpen(true);
@@ -368,12 +381,8 @@ export default function SellerLayout({ children }) {
     </Stack>
   );
 
-  const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-  const theme = prefersDarkMode ? darkTheme : lightTheme;
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AppProvider
+    <AppProvider
         navigation={navigation}
         branding={branding}
         router={router}
@@ -588,6 +597,5 @@ export default function SellerLayout({ children }) {
           </div>
         </MuiDashboardLayout>
       </AppProvider>
-    </ThemeProvider>
   );
 }

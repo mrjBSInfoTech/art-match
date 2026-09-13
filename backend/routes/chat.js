@@ -6,6 +6,7 @@ import multer from "multer";
 import db from "../database/db.js";
 import { authenticateBuyer } from "../middleware/buyerAuthMiddleware.js";
 import { authenticateSeller } from "../middleware/sellerAuthMiddleware.js";
+import { getChatPublicKey, saveChatPublicKey } from "../database/chatKeys.js";
 
 const router = express.Router();
 
@@ -23,13 +24,18 @@ const chatUpload = multer({
       cb(null, `${Date.now()}-${safeBase}${ext}`);
     },
   }),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype && file.mimetype.startsWith("image/")) {
+    if (
+      file.mimetype &&
+      (file.mimetype.startsWith("image/") ||
+        file.mimetype.startsWith("video/") ||
+        file.mimetype === "application/octet-stream")
+    ) {
       cb(null, true);
       return;
     }
-    cb(new Error("Only image files are allowed"), false);
+    cb(new Error("Only image and video files are allowed"), false);
   },
 });
 
@@ -84,7 +90,7 @@ const fetchConversationList = (role, userId) =>
         ${isBuyer ? "s.student_id AS other_id" : "cu.customer_id AS other_id"},
         ${isBuyer ? "CONCAT(s.first_name, ' ', s.last_name) AS other_name" : "CONCAT(cu.first_name, ' ', cu.last_name) AS other_name"},
         ${isBuyer ? "s.profile_image AS other_avatar" : "cu.profile_image AS other_avatar"},
-        m.message_data AS last_message,
+        CASE WHEN m.encryption_iv IS NULL THEN m.message_data ELSE '[Encrypted message]' END AS last_message,
         m.image AS last_image,
         m.date_created AS last_message_time
       FROM conversation c
@@ -105,6 +111,68 @@ const fetchConversationList = (role, userId) =>
       resolve(rows);
     });
   });
+
+const parsePublicKey = (value) => {
+  if (typeof value !== "string" || value.length < 20 || value.length > 5000) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed.kty !== "EC" || parsed.crv !== "P-256" || !parsed.x || !parsed.y) {
+      return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+};
+
+const registerPublicKey = (accountType, accountId, value, res) => {
+  const publicKey = parsePublicKey(value);
+  if (!publicKey) {
+    res.status(400).json({ message: "Invalid chat public key" });
+    return;
+  }
+  saveChatPublicKey(accountType, accountId, publicKey, (error) => {
+    if (error) {
+      console.error("Chat public key save failed:", error);
+      res.status(500).json({ message: "Unable to save chat public key" });
+      return;
+    }
+    res.status(204).end();
+  });
+};
+
+const fetchPublicKey = (accountType, accountId, res) => {
+  getChatPublicKey(accountType, accountId, (error, rows) => {
+    if (error) {
+      console.error("Chat public key fetch failed:", error);
+      res.status(500).json({ message: "Unable to load chat public key" });
+      return;
+    }
+    if (!rows.length) {
+      res.status(404).json({ message: "The other account has not enabled secure messaging yet" });
+      return;
+    }
+    res.json({ publicKey: rows[0].public_key });
+  });
+};
+
+router.post("/buyer/keys", authenticateBuyer, (req, res) => {
+  registerPublicKey("buyer", req.user.customer_id || req.user.id, req.body.publicKey, res);
+});
+
+router.get("/buyer/keys/:sellerId", authenticateBuyer, (req, res) => {
+  fetchPublicKey("seller", Number(req.params.sellerId), res);
+});
+
+router.post("/seller/keys", authenticateSeller, (req, res) => {
+  registerPublicKey("seller", req.user.student_id || req.user.id, req.body.publicKey, res);
+});
+
+router.get("/seller/keys/:buyerId", authenticateSeller, (req, res) => {
+  fetchPublicKey("buyer", Number(req.params.buyerId), res);
+});
 
 router.get("/buyer/conversations", authenticateBuyer, (req, res) => {
   const buyerId = req.user.customer_id || req.user.id;
@@ -245,7 +313,7 @@ router.get("/buyer/conversations/:conversationId/messages", authenticateBuyer, (
     }
 
     const sql = `
-      SELECT message_id, conversation_id, sender_type, message_data, image, date_created
+      SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
       ORDER BY date_created ASC
@@ -288,7 +356,7 @@ router.get("/seller/conversations/:conversationId/messages", authenticateSeller,
     }
 
     const sql = `
-      SELECT message_id, conversation_id, sender_type, message_data, image, date_created
+      SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
       ORDER BY date_created ASC
@@ -309,13 +377,17 @@ router.post("/buyer/conversations/:sellerId/messages", authenticateBuyer, chatUp
   const buyerId = req.user.customer_id || req.user.id;
   const sellerId = Number(req.params.sellerId);
   const messageText = typeof req.body.message === "string" ? req.body.message : "";
-  const savedImage = req.file ? `/uploads/chat/${req.file.filename}` : null;
+  const savedMedia = req.file ? `http://localhost:5000/uploads/chat/${req.file.filename}` : null;
+  const mediaType = req.body.media_type || req.file?.mimetype || "";
+  const senderPublicKey = parsePublicKey(req.body.sender_public_key);
+  const encryptionIv = req.body.encryption_iv || null;
+  const attachmentIv = req.body.attachment_iv || null;
 
   if (!sellerId) {
     return res.status(400).json({ message: "Invalid seller id" });
   }
 
-  if (!messageText.trim() && !savedImage) {
+  if (!messageText.trim() && !savedMedia) {
     return res.status(400).json({ message: "Message cannot be empty" });
   }
 
@@ -323,11 +395,11 @@ router.post("/buyer/conversations/:sellerId/messages", authenticateBuyer, chatUp
     const conversationId = await getOrCreateConversation(sellerId, buyerId);
 
     const insertSql = `
-      INSERT INTO message (conversation_id, sender_type, message_data, image)
-      VALUES (?, 'buyer', ?, ?)
+        INSERT INTO message (conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type)
+      VALUES (?, 'buyer', ?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(insertSql, [conversationId, messageText.trim() || "", savedImage], (insertErr, result) => {
+    db.query(insertSql, [conversationId, messageText.trim() || "", savedMedia, senderPublicKey, encryptionIv, attachmentIv, mediaType], (insertErr, result) => {
       if (insertErr) {
         console.error("Buyer message insert failed:", insertErr);
         return res.status(500).json({ message: "Unable to send message" });
@@ -338,7 +410,11 @@ router.post("/buyer/conversations/:sellerId/messages", authenticateBuyer, chatUp
         conversation_id: conversationId,
         sender_type: "buyer",
         message_data: messageText.trim() || "",
-        image: savedImage,
+        image: savedMedia,
+        sender_public_key: senderPublicKey,
+        encryption_iv: encryptionIv,
+        attachment_iv: attachmentIv,
+        media_type: mediaType,
       });
     });
   } catch (error) {
@@ -351,13 +427,17 @@ router.post("/seller/conversations/:buyerId/messages", authenticateSeller, chatU
   const sellerId = req.user.student_id || req.user.id;
   const buyerId = Number(req.params.buyerId);
   const messageText = typeof req.body.message === "string" ? req.body.message : "";
-  const savedImage = req.file ? `/uploads/chat/${req.file.filename}` : null;
+  const savedMedia = req.file ? `http://localhost:5000/uploads/chat/${req.file.filename}` : null;
+  const mediaType = req.body.media_type || req.file?.mimetype || "";
+  const senderPublicKey = parsePublicKey(req.body.sender_public_key);
+  const encryptionIv = req.body.encryption_iv || null;
+  const attachmentIv = req.body.attachment_iv || null;
 
   if (!buyerId) {
     return res.status(400).json({ message: "Invalid buyer id" });
   }
 
-  if (!messageText.trim() && !savedImage) {
+  if (!messageText.trim() && !savedMedia) {
     return res.status(400).json({ message: "Message cannot be empty" });
   }
 
@@ -365,11 +445,11 @@ router.post("/seller/conversations/:buyerId/messages", authenticateSeller, chatU
     const conversationId = await getOrCreateConversation(sellerId, buyerId);
 
     const insertSql = `
-      INSERT INTO message (conversation_id, sender_type, message_data, image)
-      VALUES (?, 'seller', ?, ?)
+        INSERT INTO message (conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type)
+      VALUES (?, 'seller', ?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(insertSql, [conversationId, messageText.trim() || "", savedImage], (insertErr, result) => {
+    db.query(insertSql, [conversationId, messageText.trim() || "", savedMedia, senderPublicKey, encryptionIv, attachmentIv, mediaType], (insertErr, result) => {
       if (insertErr) {
         console.error("Seller message insert failed:", insertErr);
         return res.status(500).json({ message: "Unable to send message" });
@@ -380,7 +460,11 @@ router.post("/seller/conversations/:buyerId/messages", authenticateSeller, chatU
         conversation_id: conversationId,
         sender_type: "seller",
         message_data: messageText.trim() || "",
-        image: savedImage,
+        image: savedMedia,
+        sender_public_key: senderPublicKey,
+        encryption_iv: encryptionIv,
+        attachment_iv: attachmentIv,
+        media_type: mediaType,
       });
     });
   } catch (error) {

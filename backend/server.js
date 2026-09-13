@@ -16,6 +16,8 @@ import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import adminAdminRoutes from "./routes/admin/admin.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
+import { ensureChatPublicKeysTable } from "./database/chatKeys.js";
+import { ensureMessageSenderNameColumn } from "./database/message.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -97,4 +99,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 createAuditLogsTable().catch(() => {});
 ensureAccountAccessTable();
+ensureChatPublicKeysTable();
+ensureMessageSenderNameColumn();
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));

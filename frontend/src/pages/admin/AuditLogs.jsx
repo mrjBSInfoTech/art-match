@@ -7,7 +7,6 @@ import {
   CircularProgress,
   FormControl,
   InputAdornment,
-  InputLabel,
   MenuItem,
   Paper,
   Select,
@@ -108,7 +107,7 @@ export default function AuditLogs() {
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 28, sm: 38 },
+              fontSize: { xs: 28, sm: 34 },
               fontWeight: 800,
               lineHeight: 1.1,
               color: theme.palette.text.primary,
@@ -128,12 +127,10 @@ export default function AuditLogs() {
         </Box>
       </Box>
 
-      {/* Filter Section */}
-      {/* Filter Section */}
       <Paper
         sx={{
-          p: 3,
-          mt: 3,
+          p: { xs: 1.25, sm: 1.5 },
+          mt: 2,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -146,7 +143,7 @@ export default function AuditLogs() {
             flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
             alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            gap: 1,
           }}
         >
           <TextField
@@ -154,7 +151,7 @@ export default function AuditLogs() {
             placeholder="Search logs..."
             size="small"
             sx={{
-              width: { xs: "100%", lg: 280 },
+              width: { xs: "100%", sm: 200 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -210,14 +207,12 @@ export default function AuditLogs() {
               />
             </LocalizationProvider>
 
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>Time period</InputLabel>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 120 } }}>
               <Select
                 value={period}
-                label="Time period"
                 onChange={(event) => setPeriod(event.target.value)}
                 sx={{
-                  fontSize: 12,
+                  fontSize: 11,
                   color: theme.palette.text.primary,
                   backgroundColor: theme.palette.background.default,
                   ".MuiOutlinedInput-notchedOutline": {
@@ -238,10 +233,36 @@ export default function AuditLogs() {
       </Paper>
 
       {/* Table Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
-          Audit Log List
-        </Typography>
+      <Paper
+        sx={{
+          mt: 2,
+          borderRadius: 2,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+        }}
+        variant="outlined"
+      >
+        <Box
+          sx={{
+            px: { xs: 1.5, sm: 2 },
+            py: 1.25,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 1,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography sx={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase" }}>
+            Audit Log List
+          </Typography>
+          {!loading && !logsErrorMessage && (
+            <Typography sx={{ color: theme.palette.text.secondary, fontSize: 10 }}>
+              Showing {Math.min(visibleCount, logs.length)} of {logs.length} entries
+            </Typography>
+          )}
+        </Box>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -255,35 +276,67 @@ export default function AuditLogs() {
             No audit logs found
           </Typography>
         ) : (
-          <TableContainer>
-            <Table>
-              <TableHead sx={{ backgroundColor: "background.table" }}>
+          <TableContainer sx={{ overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 760 }}>
+              <TableHead sx={{ backgroundColor: theme.palette.mode === "dark" ? "background.table" : "#f8fafc" }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: "bold" }}>Datetime</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Actor</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>Information</TableCell>
+                  {[
+                    "Datetime",
+                    "Action",
+                    "Actor",
+                    "Role",
+                    "Status",
+                    "Information",
+                  ].map((heading) => (
+                    <TableCell
+                      key={heading}
+                      sx={{
+                        py: 1,
+                        color: theme.palette.text.secondary,
+                        fontSize: 9,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {heading}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {logs.slice(0, visibleCount).map((log) => (
                   <TableRow
                     key={log.audit_id}
-                    sx={{ "&:hover": { backgroundColor: "background.table" } }}
+                    sx={{
+                      "&:hover": { backgroundColor: "action.hover" },
+                      "&:last-child td": { borderBottom: 0 },
+                    }}
                   >
-                    <TableCell>
+                    <TableCell sx={{ fontSize: 10, whiteSpace: "nowrap", color: theme.palette.text.secondary }}>
                       {new Date(log.datetime).toLocaleString()}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
                       {String(log.action)
                         .replace(/_/g, " ")
                         .toLowerCase()
                         .replace(/\b\w/g, (letter) => letter.toUpperCase())}
                     </TableCell>
-                    <TableCell>{log.actor}</TableCell>
-                    <TableCell>{formatAndCapitalize(log.role)}</TableCell>
+                    <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>{log.actor}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={formatAndCapitalize(log.role)}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.mode === "dark" ? "#334155" : "#f1f5f9",
+                          color: theme.palette.text.secondary,
+                          fontSize: 9,
+                          fontWeight: 700,
+                        }}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={
@@ -291,7 +344,23 @@ export default function AuditLogs() {
                           String(log.status).slice(1).toLowerCase()
                         }
                         size="small"
-                        sx={{ fontWeight: 600, color: "white", width: 75 }}
+                        sx={{
+                          height: 20,
+                          minWidth: 58,
+                          borderRadius: 1,
+                          fontWeight: 700,
+                          fontSize: 9,
+                          color:
+                            ["success", "logged in", "online"].includes(String(log.status).toLowerCase())
+                              ? "#15803d"
+                              : ["failed", "error"].includes(String(log.status).toLowerCase())
+                                ? theme.palette.error.main
+                                : theme.palette.text.secondary,
+                          backgroundColor:
+                            ["success", "logged in", "online"].includes(String(log.status).toLowerCase())
+                              ? theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.16)" : "#dcfce7"
+                              : theme.palette.mode === "dark" ? "rgba(148, 163, 184, 0.16)" : "#f1f5f9",
+                        }}
                         color={
                           String(log.status).toLowerCase() === "success" ||
                           String(log.status).toLowerCase() === "logged in" ||
@@ -304,7 +373,9 @@ export default function AuditLogs() {
                         }
                       />
                     </TableCell>
-                    <TableCell>{log.information || "-"}</TableCell>
+                    <TableCell sx={{ fontSize: 10, color: theme.palette.text.secondary, whiteSpace: "nowrap" }}>
+                      {log.information || "-"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -1,10 +1,8 @@
-import { createElement, useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
-  Card,
-  CardContent,
   CircularProgress,
   FormControl,
   InputAdornment,
@@ -21,9 +19,6 @@ import {
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
-import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
-import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
-import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
 import { fetchArtworks, verifyArtwork } from "../../api/admin/artworkAPI";
 
@@ -206,109 +201,9 @@ export default function Artwork() {
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
-          gap: 2,
-          mb: 2.5,
-        }}
-      >
-        {[
-          {
-            label: "TOTAL ARTWORKS",
-            value: allArtworks.length,
-            caption: "Complete catalog",
-            icon: PaletteOutlinedIcon,
-          },
-          {
-            label: "PENDING REVIEW",
-            value: totalPending,
-            caption: "Awaiting verification",
-            icon: PendingActionsOutlinedIcon,
-          },
-          {
-            label: "APPROVED",
-            value: totalVerified,
-            caption: "Verified artworks",
-            icon: VerifiedOutlinedIcon,
-          },
-        ].map(({ label, value, caption, icon: MetricIcon }) => (
-          <Card
-            key={label}
-            sx={{
-              backgroundColor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2.5,
-              boxShadow: "none",
-            }}
-          >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                <Box>
-                  <Typography
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: 1,
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 0.5,
-                      color: theme.palette.text.primary,
-                      fontSize: 30,
-                      fontWeight: 800,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {value}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 1,
-                      color: theme.palette.text.secondary,
-                      fontSize: 12,
-                    }}
-                  >
-                    {caption}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: 54,
-                    height: 54,
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: 2,
-                    backgroundColor:
-                      theme.palette.mode === "dark"
-                        ? "rgba(239, 68, 68, 0.14)"
-                        : "#fff5f5",
-                    color: theme.palette.error.main,
-                  }}
-                >
-                  {createElement(MetricIcon)}
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
-
       <Paper
         sx={{
-          p: 3,
+          p: { xs: 1.5, sm: 2 },
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -423,7 +318,7 @@ export default function Artwork() {
 
       <Paper
         sx={{
-          p: 3,
+          p: { xs: 1.5, sm: 2 },
           mt: 2,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
