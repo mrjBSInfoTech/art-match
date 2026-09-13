@@ -53,7 +53,12 @@ export default function ArtworkCard({ artworks, onVerify }) {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
+          },
           gap: { xs: 1.5, sm: 2 },
         }}
       >
@@ -64,14 +69,16 @@ export default function ArtworkCard({ artworks, onVerify }) {
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
+              borderRadius: 1.5,
+              boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
             }}
           >
             <Box
               sx={{
                 width: "100%",
-                aspectRatio: "4 / 3",
+                aspectRatio: "1.35 / 1",
                 position: "relative",
-                backgroundColor: "#f5f5f5",
+                backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                 overflow: "hidden",
                 display: "flex",
                 alignItems: "center",
@@ -116,10 +123,10 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 }}
               />
             </Box>
-            <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 }, flex: 1 }}>
+            <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 }, flex: 1 }}>
               <Box
                 sx={{
-                  minHeight: 82,
+                  minHeight: 78,
                 }}
               >
                 <Box>
@@ -171,17 +178,17 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
                 onClick={() => handleInfoOpen(artwork)}
                 sx={{
-                  mt: 0.5,
-                  py: 0.65,
-                  backgroundColor: "#eef2f7",
-                  color: "#172033",
-                  border: "1px solid #cbd5e1",
+                  mt: 0.75,
+                  py: 0.55,
+                  backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
                   boxShadow: "none",
                   fontSize: 11,
-                  "& .MuiButton-startIcon": { color: "#172033" },
+                  "& .MuiButton-startIcon": { color: theme.palette.error.main },
                   "&:hover": {
-                    backgroundColor: "#ffffff",
-                    borderColor: "#94a3b8",
+                    backgroundColor: theme.palette.action.hover,
+                    borderColor: theme.palette.text.secondary,
                     boxShadow: "none",
                   },
                 }}

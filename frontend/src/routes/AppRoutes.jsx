@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { CssBaseline } from "@mui/material";
+import { ThemeModeProvider } from "../theme/ThemeModeProvider";
 
 // Layouts
 import AdminLayout from "../layouts/AdminLayout";
@@ -53,13 +54,10 @@ import BuyerOrder from "../pages/buyer/Order";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
 
-const theme = createTheme();
-
 export default function AppRoutes() {
   return (
     <HelmetProvider>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <ThemeModeProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/buyer/main" replace />} />
 
@@ -146,7 +144,7 @@ export default function AppRoutes() {
 
           <Route path="*" element={<Navigate to="/buyer/main" replace />} />
         </Routes>
-      </ThemeProvider>
+      </ThemeModeProvider>
     </HelmetProvider>
   );
 }

@@ -64,3 +64,12 @@ export const sendBuyerMessage = async (sellerId, formData) => {
     handleError(error);
   }
 };
+
+export const registerBuyerChatKey = async (publicKey) => {
+  await api.post("/buyer/keys", { publicKey });
+};
+
+export const fetchSellerChatKey = async (sellerId) => {
+  const res = await api.get(`/buyer/keys/${sellerId}`);
+  return res.data.publicKey;
+};

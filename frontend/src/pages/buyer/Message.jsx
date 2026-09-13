@@ -35,7 +35,14 @@ import {
   fetchBuyerNotifications,
   startBuyerConversation,
   sendBuyerMessage,
+  registerBuyerChatKey,
+  fetchSellerChatKey,
 } from "../../api/buyer/messageAPI";
+import {
+  decryptChatMessage,
+  encryptChatMessage,
+  ensureChatKeyPair,
+} from "../../utils/chatEncryption";
 
 const formatMessageTime = (dateString) => {
   if (!dateString) return "";
@@ -44,6 +51,13 @@ const formatMessageTime = (dateString) => {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+};
+
+const toAbsoluteMediaUrl = (url) => {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return `http://localhost:5000${url}`;
+  return `http://localhost:5000/${url}`;
 };
 
 export default function Messages() {
@@ -61,8 +75,28 @@ export default function Messages() {
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [encryptionReady, setEncryptionReady] = useState(false);
 
   const fileInputRef = useRef(null);
+  const privateKeyRef = useRef(null);
+  const publicKeyJwkRef = useRef("");
+
+  useEffect(() => {
+    const initializeEncryption = async () => {
+      try {
+        const accountId = localStorage.getItem("buyer_customer_id") || "current";
+        const keyPair = await ensureChatKeyPair(`buyer_chat_key_pair_${accountId}`);
+        privateKeyRef.current = keyPair.privateKey;
+        publicKeyJwkRef.current = keyPair.publicKeyJwk;
+        await registerBuyerChatKey(keyPair.publicKeyJwk);
+        setEncryptionReady(true);
+      } catch (err) {
+        setError(err.message || "Secure messaging could not be initialized");
+      }
+    };
+
+    initializeEncryption();
+  }, []);
 
   const activeChat = useMemo(
     () => conversations.find((chat) => chat.conversation_id === selectedConversationId) || null,
@@ -113,7 +147,7 @@ export default function Messages() {
   }, []);
 
   useEffect(() => {
-    if (!selectedConversationId) {
+    if (!selectedConversationId || !encryptionReady) {
       setMessages([]);
       return;
     }
@@ -121,13 +155,46 @@ export default function Messages() {
     const loadMessages = async () => {
       try {
         const data = await fetchBuyerMessages(selectedConversationId);
-        setMessages((data || []).map((msg) => ({
-          id: msg.message_id,
-          sender: msg.sender_type,
-          text: msg.message_data || "",
-          image: msg.image || null,
-          time: formatMessageTime(msg.date_created),
-        })));
+        let recipientPublicKey = null;
+        try {
+          recipientPublicKey = await fetchSellerChatKey(activeChat?.other_id);
+        } catch {
+        }
+        const decryptedMessages = await Promise.all(
+          (data || []).map(async (msg) => {
+            try {
+              const decrypted = msg.encryption_iv
+                ? await decryptChatMessage({
+                    privateKey: privateKeyRef.current,
+                    message: msg,
+                    attachmentUrl: toAbsoluteMediaUrl(msg.image),
+                    keyAgreementPublicKey:
+                      msg.sender_type === "buyer"
+                        ? recipientPublicKey
+                        : msg.sender_public_key,
+                  })
+                : { text: msg.message_data || "", image: toAbsoluteMediaUrl(msg.image) };
+              return {
+                id: msg.message_id,
+                sender: msg.sender_type,
+                text: decrypted.text,
+                image: decrypted.image,
+                mediaType: msg.media_type || "",
+                time: formatMessageTime(msg.date_created),
+              };
+            } catch {
+              return {
+                id: msg.message_id,
+                sender: msg.sender_type,
+                text: "Unable to decrypt this message on this device.",
+                image: null,
+                mediaType: "",
+                time: formatMessageTime(msg.date_created),
+              };
+            }
+          }),
+        );
+        setMessages(decryptedMessages);
       } catch (err) {
         setError(err.message || "Unable to load messages");
       }
@@ -137,7 +204,7 @@ export default function Messages() {
     const intervalId = window.setInterval(loadMessages, 3000);
 
     return () => window.clearInterval(intervalId);
-  }, [selectedConversationId]);
+  }, [selectedConversationId, encryptionReady]);
 
   const filteredConversations = conversations.filter((chat) =>
     (chat.other_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -167,8 +234,8 @@ export default function Messages() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setAttachedPreview(imageUrl);
+      const previewUrl = URL.createObjectURL(file);
+      setAttachedPreview(previewUrl);
       setAttachedFile(file);
     }
   };
@@ -194,14 +261,28 @@ export default function Messages() {
     }
 
     try {
-      const sent = await sendBuyerMessage(activeChat.other_id, formData);
+      const recipientPublicKey = await fetchSellerChatKey(activeChat.other_id);
+      const encrypted = await encryptChatMessage({
+        privateKey: privateKeyRef.current,
+        recipientPublicKeyJwk: recipientPublicKey,
+        text: inputMessage.trim(),
+        file: attachedFile,
+      });
+      formData.set("message", encrypted.encryptedText);
+      if (encrypted.encryptedFile) formData.set("image", encrypted.encryptedFile);
+      formData.append("sender_public_key", publicKeyJwkRef.current);
+      formData.append("encryption_iv", encrypted.encryptionIv);
+      formData.append("attachment_iv", encrypted.attachmentIv);
+      formData.append("media_type", encrypted.mediaType);
+      await sendBuyerMessage(activeChat.other_id, formData);
       setMessages((prev) => [
         ...prev,
         {
-          id: sent.message_id,
-          sender: sent.sender_type,
-          text: sent.message_data || "",
-          image: sent.image || null,
+          id: `local-${Date.now()}`,
+          sender: "buyer",
+          text: inputMessage.trim(),
+          image: attachedPreview,
+          mediaType: attachedFile?.type || "",
           time: formatMessageTime(new Date().toISOString()),
         },
       ]);
@@ -422,7 +503,17 @@ export default function Messages() {
                         }}
                       >
                         {msg.image && (
-                          <Box component="img" src={msg.image} alt="Attachment" sx={{ width: "100%", maxHeight: 250, objectFit: "cover", borderRadius: 2, mb: msg.text ? 1 : 0, display: "block" }} />
+                          msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
+                            <Box sx={{ width: "100%", maxHeight: 250, borderRadius: 2, overflow: "hidden", mb: msg.text ? 1 : 0 }}>
+                              <video
+                                src={msg.image}
+                                controls
+                                style={{ display: "block", width: "100%", maxHeight: 250, objectFit: "cover", background: "#000" }}
+                              />
+                            </Box>
+                          ) : (
+                            <Box component="img" src={msg.image} alt="Attachment" sx={{ width: "100%", maxHeight: 250, objectFit: "cover", borderRadius: 2, mb: msg.text ? 1 : 0, display: "block" }} />
+                          )
                         )}
                         {msg.text && <Typography variant="body2" sx={{ lineHeight: 1.4, px: msg.image ? 1 : 0 }}>{msg.text}</Typography>}
                       </Paper>
@@ -438,7 +529,11 @@ export default function Messages() {
             {activeChat && attachedPreview && (
               <Box sx={{ px: 2, pt: 1.5, display: "flex", alignItems: "center", borderTop: "1px solid", borderColor: "divider" }}>
                 <Box sx={{ position: "relative", display: "inline-block" }}>
-                  <Box component="img" src={attachedPreview} alt="Preview" sx={{ width: 60, height: 60, borderRadius: 2, objectFit: "cover" }} />
+                  {attachedFile?.type?.startsWith("video/") ? (
+                    <video src={attachedPreview} controls style={{ width: 80, height: 80, borderRadius: 8, objectFit: "cover", display: "block", background: "#000" }} />
+                  ) : (
+                    <Box component="img" src={attachedPreview} alt="Preview" sx={{ width: 60, height: 60, borderRadius: 2, objectFit: "cover" }} />
+                  )}
                   <IconButton size="small" onClick={handleRemoveImage} sx={{ position: "absolute", top: -8, right: -8, bgcolor: "error.main", color: "#fff", "&:hover": { bgcolor: "error.dark" }, p: 0.3 }}>
                     <CloseIcon sx={{ fontSize: 14 }} />
                   </IconButton>
@@ -448,7 +543,7 @@ export default function Messages() {
 
             {activeChat ? <Box sx={{ p: 2, borderTop: attachedPreview ? "none" : "1px solid", borderColor: "divider" }}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
+                <input type="file" accept="image/*,video/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
                 <IconButton onClick={() => fileInputRef.current?.click()}>
                   <AttachFileIcon />
                 </IconButton>

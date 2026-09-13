@@ -18,6 +18,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -48,6 +49,7 @@ export default function StudentCard({
   onDelete,
   onAccessChange,
 }) {
+  const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
@@ -144,9 +146,9 @@ export default function StudentCard({
             xs: "1fr",
             sm: "repeat(2, 1fr)",
             md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
+            lg: "repeat(auto-fill, minmax(160px, 180px))",
           },
-          gap: 2,
+          gap: { xs: 1.5, sm: 2 },
         }}
       >
         {students.map((student) => {
@@ -161,29 +163,32 @@ export default function StudentCard({
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
-                minHeight: 390,
+                minHeight: 0,
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 2.5,
+                borderRadius: 1.5,
                 boxShadow: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 "&:hover": {
                   borderColor: "text.secondary",
-                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                  boxShadow: "0 5px 14px rgba(15, 23, 42, 0.1)",
                 },
               }}
             >
               <Box
                 sx={{
                   width: "100%",
-                  aspectRatio: "5 / 4",
-                  backgroundColor: "#f1f5f9",
+                  height: 66,
+                  backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f8fafc",
                   overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <CardMedia
                   component="img"
-                  sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  sx={{ width: 52, height: 52, objectFit: "cover", borderRadius: 1.5 }}
                   image={
                     student.image
                       ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(student.image)}`
@@ -192,17 +197,15 @@ export default function StudentCard({
                   alt={getName(student)}
                   onError={(event) => {
                     event.target.onerror = null;
-                    event.target.src =
-                      "https://via.placeholder.com/250x150?text=No+Profile";
+                    event.target.src = "http://localhost:5000/uploads/profile.jpg";
                   }}
                 />
               </Box>
               <CardContent
                 sx={{
-                  p: 2,
-                  "&:last-child": { pb: 2 },
+                  p: 1.25,
+                  "&:last-child": { pb: 1.25 },
                   flex: 1,
-                  minHeight: 150,
                   display: "flex",
                   flexDirection: "column",
                 }}
@@ -212,20 +215,20 @@ export default function StudentCard({
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "space-between",
-                    mb: 1,
+                    mb: 0.75,
                   }}
                 >
                   <Box sx={{ flex: 1 }}>
                     <Typography
                       variant="subtitle2"
-                      sx={{ fontWeight: 700, lineHeight: 1.25 }}
+                      sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: 12 }}
                       noWrap
                     >
                       {getName(student)}
                     </Typography>
                     <Typography
-                      variant="body2"
-                      sx={{ color: "text.secondary" }}
+                      variant="caption"
+                      sx={{ color: "text.secondary", display: "block", mt: 0.25 }}
                     >
                       {student.student_number || "No student number"}
                     </Typography>
@@ -238,11 +241,20 @@ export default function StudentCard({
                           : "primary"
                       }
                       sx={{
-                        mt: 0.75,
-                        height: 22,
+                        mt: 0.5,
+                        height: 18,
                         textTransform: "capitalize",
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: 700,
+                        borderRadius: 1,
+                        backgroundColor:
+                          status === "verified" || status === "approved"
+                            ? theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.16)" : "#dcfce7"
+                            : theme.palette.mode === "dark" ? "rgba(245, 158, 11, 0.16)" : "#fef3c7",
+                        color:
+                          status === "verified" || status === "approved"
+                            ? "#15803d"
+                            : "#b45309",
                       }}
                     />
                   </Box>
@@ -269,16 +281,17 @@ export default function StudentCard({
                   }}
                   sx={{
                     mt: "auto",
-                    py: 0.65,
-                    backgroundColor: "#eef2f7",
-                    color: "#172033",
-                    border: "1px solid #cbd5e1",
+                    py: 0.45,
+                    backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                    color: theme.palette.text.primary,
+                    border: "1px solid",
+                    borderColor: "divider",
                     boxShadow: "none",
-                    fontSize: 11,
-                    "& .MuiButton-startIcon": { color: "#172033" },
+                    fontSize: 10,
+                    "& .MuiButton-startIcon": { color: theme.palette.error.main },
                     "&:hover": {
-                      backgroundColor: "#ffffff",
-                      borderColor: "#94a3b8",
+                      backgroundColor: theme.palette.action.hover,
+                      borderColor: theme.palette.text.secondary,
                       boxShadow: "none",
                     },
                   }}
