@@ -56,7 +56,7 @@ export default function Artwork() {
   const [openArtworkForm, setOpenArtworkForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("az");
-  const [priceOption, setPriceOption] = useState("");
+  const [priceOption, setPriceOption] = useState("lthPrice");
 
   const filteredArtworks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -452,7 +452,7 @@ export default function Artwork() {
               flexWrap: "wrap",
             }}
           >
-            <FormControl size="small" sx={{ minWidth: 130 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
               <Select
                 name="sort"
                 value={sortOption}
@@ -479,7 +479,7 @@ export default function Artwork() {
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 130 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
               <Select
                 name="price"
                 value={priceOption}
@@ -493,7 +493,6 @@ export default function Artwork() {
                   },
                 }}
               >
-                <MenuItem value="">Default</MenuItem>
                 <MenuItem value="lthPrice">Lowest to Highest</MenuItem>
                 <MenuItem value="htlPrice">Highest to Lowest</MenuItem>
               </Select>

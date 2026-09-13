@@ -259,6 +259,7 @@ export default function Admin() {
             justifyContent: "space-between",
             alignItems: { xs: "stretch", lg: "center" },
             gap: 1.25,
+            width: "100%",
           }}
         >
           <TextField
@@ -266,10 +267,13 @@ export default function Admin() {
             placeholder="Search username, name, email, or role..."
             size="small"
             sx={{
-              width: { xs: "100%", sm: 200 },
+              width: { xs: "100%", sm: "100%", lg: 260 },
+              maxWidth: { lg: 320 },
+              flex: { lg: 1 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
+                borderRadius: 1.5,
                 "& fieldset": { borderColor: theme.palette.divider },
                 "&:hover fieldset": {
                   borderColor: theme.palette.text.secondary,
@@ -297,21 +301,47 @@ export default function Admin() {
               alignItems: "center",
               gap: 1,
               flexWrap: "wrap",
+              justifyContent: { xs: "stretch", lg: "flex-end" },
+              width: { xs: "100%", lg: "auto" },
             }}
           >
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
-              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 11 }}>Sort</InputLabel>
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: "calc(50% - 4px)", sm: 110 },
+                flex: { xs: 1, sm: "0 0 auto" },
+              }}
+            >
+              <InputLabel
+                sx={{ color: theme.palette.text.secondary, fontSize: 11 }}
+              >
+                Sort
+              </InputLabel>
               <Select
                 value={sortOption}
                 label="Sort"
                 onChange={(event) => setSortOption(event.target.value)}
-                sx={{ fontSize: 11, color: theme.palette.text.primary, backgroundColor: theme.palette.background.default, ".MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.divider } }}
+                sx={{
+                  fontSize: 11,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: "calc(50% - 4px)", sm: 140 },
+                flex: { xs: 1, sm: "0 0 auto" },
+              }}
+            >
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -325,6 +355,7 @@ export default function Admin() {
                   fontSize: 12,
                   color: theme.palette.text.primary,
                   backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
                   ".MuiOutlinedInput-notchedOutline": {
                     borderColor: theme.palette.divider,
                   },

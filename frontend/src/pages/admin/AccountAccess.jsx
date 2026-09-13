@@ -195,7 +195,7 @@ export default function AccountAccess() {
               flexWrap: "wrap",
             }}
           >
-            <FormControl size="small" sx={{ minWidth: 140 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 140 } }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -220,7 +220,7 @@ export default function AccountAccess() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 140 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 140 } }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >

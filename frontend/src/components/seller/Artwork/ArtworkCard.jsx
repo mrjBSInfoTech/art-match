@@ -58,11 +58,11 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
       sx={{
         display: "grid",
         gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(2, 1fr)",
-          md: "repeat(3, 1fr)",
-          lg: "repeat(4, 1fr)",
-        },
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
+          },
         gap: 2,
       }}
     >
@@ -73,7 +73,6 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            minHeight: 390,
             border: "1px solid",
             borderColor: "divider",
             borderRadius: 2.5,

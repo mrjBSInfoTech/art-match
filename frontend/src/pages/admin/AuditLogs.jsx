@@ -143,7 +143,8 @@ export default function AuditLogs() {
             flexDirection: { xs: "column", lg: "row" },
             justifyContent: "space-between",
             alignItems: { xs: "stretch", lg: "center" },
-            gap: 1,
+            gap: 1.25,
+            width: "100%",
           }}
         >
           <TextField
@@ -151,10 +152,13 @@ export default function AuditLogs() {
             placeholder="Search logs..."
             size="small"
             sx={{
-              width: { xs: "100%", sm: 200 },
+              width: { xs: "100%", lg: 260 },
+              maxWidth: { lg: 300 },
+              flex: { lg: 1 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
+                borderRadius: 1.5,
                 "& fieldset": { borderColor: theme.palette.divider },
                 "&:hover fieldset": { borderColor: theme.palette.text.secondary },
               },
@@ -180,6 +184,8 @@ export default function AuditLogs() {
               alignItems: "center",
               gap: 1,
               flexWrap: "wrap",
+              justifyContent: { xs: "stretch", lg: "flex-end" },
+              width: { xs: "100%", lg: "auto" },
             }}
           >
             <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -193,11 +199,13 @@ export default function AuditLogs() {
                     size: "small",
                     placeholder: "Select Date",
                     sx: {
-                      width: { xs: "100%", sm: 160 },
+                      width: { xs: "100%", sm: 180 },
+                      minWidth: { xs: "100%", sm: 180 },
                       "& .MuiOutlinedInput-root": {
                         fontSize: 12,
                         color: theme.palette.text.primary,
                         backgroundColor: theme.palette.background.default,
+                        borderRadius: 1.5,
                         "& fieldset": { borderColor: theme.palette.divider },
                         "&:hover fieldset": { borderColor: theme.palette.text.secondary },
                       },
@@ -207,7 +215,13 @@ export default function AuditLogs() {
               />
             </LocalizationProvider>
 
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 120 } }}>
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: "100%", sm: 150 },
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
               <Select
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
@@ -215,6 +229,7 @@ export default function AuditLogs() {
                   fontSize: 11,
                   color: theme.palette.text.primary,
                   backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
                   ".MuiOutlinedInput-notchedOutline": {
                     borderColor: theme.palette.divider,
                   },

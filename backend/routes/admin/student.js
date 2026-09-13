@@ -1,4 +1,5 @@
 import express from "express";
+import bcrypt from "bcryptjs";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
@@ -80,6 +81,50 @@ router.get("/:id", authenticateAdmin, (req, res) => {
     res.json(results[0]);
   });
 });
+
+// ➕ Bulk Add Students from Excel/CSV
+router.post(
+  "/bulk",
+  authenticateAdmin,
+  requireAdminPermission("can_add"),
+  (req, res) => {
+    const students = Array.isArray(req.body?.students) ? req.body.students : [];
+
+    if (students.length === 0) {
+      return res.status(400).json({ message: "No students provided" });
+    }
+
+    const adminId = req.user?.admin_id || null;
+    let createdCount = 0;
+
+    const processStudent = (index) => {
+      if (index >= students.length) {
+        return res.status(201).json({
+          message: `Successfully added ${createdCount} student(s)`,
+          added: createdCount,
+        });
+      }
+
+      createStudentRecord(
+        {
+          ...students[index],
+          password: students[index].password || "Admin123456",
+        },
+        adminId,
+        (err) => {
+          if (err) {
+            return res.status(err.status || 500).json({ message: err.message });
+          }
+
+          createdCount += 1;
+          processStudent(index + 1);
+        },
+      );
+    };
+
+    processStudent(0);
+  },
+);
 
 // ✏️ Update student profile and registration status
 router.put(
@@ -183,79 +228,151 @@ router.put(
     );
   },
 );
+const formatDateTime = () =>
+  new Date().toISOString().slice(0, 19).replace("T", " ");
 
-// ✅ Bulk verify student registrations
-router.put(
-  "/bulk/verify",
-  authenticateAdmin,
-  requireAdminPermission("can_edit"),
-  (req, res) => {
-    const { ids } = req.body;
-    const adminId = req.user?.admin_id || req.user?.id || null;
+const createStudentRecord = (studentData, adminId, callback) => {
+  const requiredFields = [
+    "first_name",
+    "last_name",
+    "birthdate",
+    "email",
+    "address",
+    "phone_number",
+    "year_level",
+    "course",
+    "student_number",
+  ];
 
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "An array of student IDs is required." });
-    }
+  const missingField = requiredFields.find(
+    (field) => studentData[field] === undefined || studentData[field] === null || studentData[field] === "",
+  );
 
-    const approvedDate = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
+  if (missingField) {
+    return callback(
+      {
+        status: 400,
+        message: `Missing required student field: ${missingField}`,
+      },
+      null,
+    );
+  }
 
-    const accSql = `
-    UPDATE accregistration 
-    SET register_status = 'verified', approved_date = ?, admin_id = ? 
-    WHERE student_id IN (?)
+  const now = formatDateTime();
+  const password = studentData.password || "Admin123456";
+  const passwordHash = bcrypt.hashSync(password, 10);
+
+  const studentSql = `
+    INSERT INTO student (
+      first_name,
+      middle_name,
+      last_name,
+      birthdate,
+      email,
+      address,
+      phone_number,
+      cor,
+      year_level,
+      course,
+      student_number,
+      password
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-    db.query(accSql, [approvedDate, adminId, ids], (err, result) => {
+  db.query(
+    studentSql,
+    [
+      studentData.first_name,
+      studentData.middle_name || null,
+      studentData.last_name,
+      studentData.birthdate,
+      studentData.email,
+      studentData.address,
+      studentData.phone_number,
+      studentData.cor || null,
+      studentData.year_level,
+      studentData.course,
+      studentData.student_number,
+      passwordHash,
+    ],
+    (err, result) => {
       if (err) {
-        console.error("Bulk AccRegistration update DB error:", err);
-        return res.status(500).json({ error: err.message });
+        if (err.code === "ER_DUP_ENTRY") {
+          return callback(
+            {
+              status: 409,
+              message: "Email or student number already exists",
+            },
+            null,
+          );
+        }
+
+        return callback(
+          {
+            status: 500,
+            message: err.message,
+          },
+          null,
+        );
       }
 
-      res.json({
-        message: `${result.affectedRows} student(s) verified successfully.`,
+      const studentId = result.insertId;
+      const registrationSql = `
+        INSERT INTO accregistration (
+          student_id,
+          registered_date,
+          register_status,
+          approved_date,
+          admin_id
+        ) VALUES (?, ?, 'verified', ?, ?)
+      `;
+
+      db.query(
+        registrationSql,
+        [studentId, now, now, adminId || null],
+        (registrationErr) => {
+          if (registrationErr) {
+            return callback(
+              {
+                status: 500,
+                message: registrationErr.message,
+              },
+              null,
+            );
+          }
+
+          return callback(null, {
+            student_id: studentId,
+            register_status: "verified",
+            registered_date: now,
+            approved_date: now,
+            admin_id: adminId || null,
+          });
+        },
+      );
+    },
+  );
+};
+
+router.post(
+  "/",
+  authenticateAdmin,
+  requireAdminPermission("can_add"),
+  (req, res) => {
+    const studentData = req.body || {};
+
+    createStudentRecord(studentData, req.user?.admin_id, (err, result) => {
+      if (err) {
+        return res.status(err.status || 500).json({ message: err.message });
+      }
+
+      return res.status(201).json({
+        message: "Student added successfully",
+        student: result,
       });
     });
   },
 );
-
-/* // For future or possible use
-// ❌ Bulk deny student registrations by deleting them
-router.post("/bulk/deny", authenticateAdmin, requireAdminPermission("can_delete"), (req, res) => {
-  const { ids } = req.body;
-
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "An array of student IDs is required." });
-  }
-
-  const sql = `DELETE FROM student WHERE student_id IN (?)`;
-  db.query(sql, [ids], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({
-      message: `${result.affectedRows} student(s) denied successfully.`,
-    });
-  });
-});
-
-// ❌ Deny single student registration by deleting it
-router.delete("/:id", authenticateAdmin, requireAdminPermission("can_delete"), (req, res) => {
-  const { id } = req.params;
-  const sql = `DELETE FROM student WHERE student_id = ?`;
-
-  db.query(sql, [id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (result.affectedRows === 0)
-      return res.status(404).json({ error: "Student not found" });
-    res.json({ message: "Student denied successfully" });
-  });
-});
-*/
 
 router.delete(
   "/:id",

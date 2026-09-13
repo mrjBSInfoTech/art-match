@@ -130,6 +130,7 @@ export default function Customer() {
             justifyContent: "space-between",
             alignItems: { xs: "stretch", lg: "center" },
             gap: 1.25,
+            width: "100%",
           }}
         >
           <TextField
@@ -137,10 +138,13 @@ export default function Customer() {
             placeholder="Search customers..."
             size="small"
             sx={{
-              width: { xs: "100%", sm: 275 },
+              width: { xs: "100%", lg: 320 },
+              maxWidth: { lg: 360 },
+              flex: { lg: 1 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
+                borderRadius: 1.5,
                 "& fieldset": { borderColor: theme.palette.divider },
                 "&:hover fieldset": {
                   borderColor: theme.palette.text.secondary,

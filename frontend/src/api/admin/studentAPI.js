@@ -39,22 +39,31 @@ export const fetchStudents = async (register_status = "") => {
     handleError(error);
   }
 };
-
-// Update student status
-export const updateStudent = async (studentId, data) => {
+// Add new student
+export const addStudents = async (studentData) => {
   try {
-    const payload = typeof data === "string" ? { register_status: data } : data;
-    const res = await api.put(`/${studentId}`, payload);
+    const res = await api.post("/", studentData);
     return res.data;
   } catch (error) {
     handleError(error);
   }
 };
 
-// Bulk update students'status
-export const bulkUpdateStudents = async (studentIds) => {
+// Bulk Add Students
+export const bulkAddStudents = async (students) => {
   try {
-    const res = await api.put("/bulk/verify", { ids: studentIds });
+    const res = await api.post("/bulk", { students });
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+// Update student status
+export const updateStudent = async (studentId, data) => {
+  try {
+    const payload = typeof data === "string" ? { register_status: data } : data;
+    const res = await api.put(`/${studentId}`, payload);
     return res.data;
   } catch (error) {
     handleError(error);
@@ -71,14 +80,4 @@ export const deleteStudent = async (studentId) => {
   }
 };
 
-export const denyStudent = deleteStudent;
 
-// Bulk deny students
-export const bulkDenyStudents = async (ids) => {
-  try {
-    const res = await api.post("/bulk/deny", { ids });
-    return res.data;
-  } catch (error) {
-    handleError(error);
-  }
-};

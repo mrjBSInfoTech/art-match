@@ -57,7 +57,7 @@ export default function ArtworkCard({ artworks, onVerify }) {
             xs: "1fr",
             sm: "repeat(2, minmax(0, 1fr))",
             md: "repeat(3, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
           },
           gap: { xs: 1.5, sm: 2 },
         }}
@@ -71,6 +71,11 @@ export default function ArtworkCard({ artworks, onVerify }) {
               flexDirection: "column",
               borderRadius: 1.5,
               boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
+              transition: "border-color 0.2s, box-shadow 0.2s",
+              "&:hover": {
+                borderColor: "text.secondary",
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+              },
             }}
           >
             <Box
@@ -78,7 +83,8 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 width: "100%",
                 aspectRatio: "1.35 / 1",
                 position: "relative",
-                backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                backgroundColor:
+                  theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                 overflow: "hidden",
                 display: "flex",
                 alignItems: "center",
@@ -123,7 +129,9 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 }}
               />
             </Box>
-            <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 }, flex: 1 }}>
+            <CardContent
+              sx={{ p: 1.25, "&:last-child": { pb: 1.25 }, flex: 1 }}
+            >
               <Box
                 sx={{
                   minHeight: 78,
@@ -132,14 +140,22 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 <Box>
                   <Typography
                     variant="subtitle2"
-                    sx={{ color: theme.palette.text.primary, fontWeight: 700, lineHeight: 1.25 }}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 700,
+                      lineHeight: 1.25,
+                    }}
                     noWrap
                   >
                     {artwork.title}
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{ color: theme.palette.text.secondary, display: "block", mt: 0.5 }}
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      display: "block",
+                      mt: 0.5,
+                    }}
                     noWrap
                   >
                     By {artwork.first_name || "Unknown"}{" "}
@@ -180,7 +196,8 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 sx={{
                   mt: 0.75,
                   py: 0.55,
-                  backgroundColor: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                   color: theme.palette.text.primary,
                   border: `1px solid ${theme.palette.divider}`,
                   boxShadow: "none",
