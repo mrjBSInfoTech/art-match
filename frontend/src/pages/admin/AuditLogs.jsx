@@ -28,7 +28,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 
 export default function AuditLogs() {
-  const theme = useTheme(); 
+  const theme = useTheme();
   const [search, setSearch] = useState("");
   const [date, setDate] = useState(null);
   const [period, setPeriod] = useState("all");
@@ -107,7 +107,7 @@ export default function AuditLogs() {
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 28, sm: 34 },
+              fontSize: { xs: 28, sm: 38 },
               fontWeight: 800,
               lineHeight: 1.1,
               color: theme.palette.text.primary,
@@ -122,15 +122,16 @@ export default function AuditLogs() {
               fontSize: 13,
             }}
           >
-            Monitor the actions and activities performed by users on the platform
+            Monitor the actions and activities performed by users on the
+            platform
           </Typography>
         </Box>
       </Box>
 
       <Paper
         sx={{
-          p: { xs: 1.25, sm: 1.5 },
-          mt: 2,
+          p: { xs: 1.5, sm: 2 },
+          mt: 2.5,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -152,7 +153,7 @@ export default function AuditLogs() {
             placeholder="Search logs..."
             size="small"
             sx={{
-              width: { xs: "100%", lg: 260 },
+              width: { xs: "100%", lg: 280 },
               maxWidth: { lg: 300 },
               flex: { lg: 1 },
               "& .MuiOutlinedInput-root": {
@@ -160,7 +161,9 @@ export default function AuditLogs() {
                 backgroundColor: theme.palette.background.default,
                 borderRadius: 1.5,
                 "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
@@ -202,12 +205,14 @@ export default function AuditLogs() {
                       width: { xs: "100%", sm: 180 },
                       minWidth: { xs: "100%", sm: 180 },
                       "& .MuiOutlinedInput-root": {
-                        fontSize: 12,
+                        fontSize: 13,
                         color: theme.palette.text.primary,
                         backgroundColor: theme.palette.background.default,
                         borderRadius: 1.5,
                         "& fieldset": { borderColor: theme.palette.divider },
-                        "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                        "&:hover fieldset": {
+                          borderColor: theme.palette.text.secondary,
+                        },
                       },
                     },
                   },
@@ -226,7 +231,7 @@ export default function AuditLogs() {
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
                 sx={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: theme.palette.text.primary,
                   backgroundColor: theme.palette.background.default,
                   borderRadius: 1.5,
@@ -261,7 +266,7 @@ export default function AuditLogs() {
         <Box
           sx={{
             px: { xs: 1.5, sm: 2 },
-            py: 1.25,
+            py: 1.5,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -269,12 +274,17 @@ export default function AuditLogs() {
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Typography sx={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase" }}>
+          <Typography
+            sx={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}
+          >
             Audit Log List
           </Typography>
           {!loading && !logsErrorMessage && (
-            <Typography sx={{ color: theme.palette.text.secondary, fontSize: 10 }}>
-              Showing {Math.min(visibleCount, logs.length)} of {logs.length} entries
+            <Typography
+              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+            >
+              Showing {Math.min(visibleCount, logs.length)} of {logs.length}{" "}
+              entries
             </Typography>
           )}
         </Box>
@@ -293,7 +303,14 @@ export default function AuditLogs() {
         ) : (
           <TableContainer sx={{ overflowX: "auto" }}>
             <Table size="small" sx={{ minWidth: 760 }}>
-              <TableHead sx={{ backgroundColor: theme.palette.mode === "dark" ? "background.table" : "#f8fafc" }}>
+              <TableHead
+                sx={{
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "background.table"
+                      : "#f8fafc",
+                }}
+              >
                 <TableRow>
                   {[
                     "Datetime",
@@ -306,9 +323,9 @@ export default function AuditLogs() {
                     <TableCell
                       key={heading}
                       sx={{
-                        py: 1,
+                        py: 1.5,
                         color: theme.palette.text.secondary,
-                        fontSize: 9,
+                        fontSize: 10,
                         fontWeight: 800,
                         textTransform: "uppercase",
                         whiteSpace: "nowrap",
@@ -328,16 +345,30 @@ export default function AuditLogs() {
                       "&:last-child td": { borderBottom: 0 },
                     }}
                   >
-                    <TableCell sx={{ fontSize: 10, whiteSpace: "nowrap", color: theme.palette.text.secondary }}>
+                    <TableCell
+                      sx={{
+                        fontSize: 10,
+                        whiteSpace: "nowrap",
+                        color: theme.palette.text.secondary,
+                      }}
+                    >
                       {new Date(log.datetime).toLocaleString()}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    <TableCell
+                      sx={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {String(log.action)
                         .replace(/_/g, " ")
                         .toLowerCase()
                         .replace(/\b\w/g, (letter) => letter.toUpperCase())}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>{log.actor}</TableCell>
+                    <TableCell sx={{ fontSize: 11, whiteSpace: "nowrap" }}>
+                      {log.actor}
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={formatAndCapitalize(log.role)}
@@ -345,7 +376,10 @@ export default function AuditLogs() {
                         sx={{
                           height: 20,
                           borderRadius: 1,
-                          backgroundColor: theme.palette.mode === "dark" ? "#334155" : "#f1f5f9",
+                          backgroundColor:
+                            theme.palette.mode === "dark"
+                              ? "#334155"
+                              : "#f1f5f9",
                           color: theme.palette.text.secondary,
                           fontSize: 9,
                           fontWeight: 700,
@@ -365,16 +399,26 @@ export default function AuditLogs() {
                           borderRadius: 1,
                           fontWeight: 700,
                           fontSize: 9,
-                          color:
-                            ["success", "logged in", "online"].includes(String(log.status).toLowerCase())
-                              ? "#15803d"
-                              : ["failed", "error"].includes(String(log.status).toLowerCase())
-                                ? theme.palette.error.main
-                                : theme.palette.text.secondary,
-                          backgroundColor:
-                            ["success", "logged in", "online"].includes(String(log.status).toLowerCase())
-                              ? theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.16)" : "#dcfce7"
-                              : theme.palette.mode === "dark" ? "rgba(148, 163, 184, 0.16)" : "#f1f5f9",
+                          color: ["success", "logged in", "online"].includes(
+                            String(log.status).toLowerCase(),
+                          )
+                            ? "#15803d"
+                            : ["failed", "error"].includes(
+                                  String(log.status).toLowerCase(),
+                                )
+                              ? theme.palette.error.main
+                              : theme.palette.text.secondary,
+                          backgroundColor: [
+                            "success",
+                            "logged in",
+                            "online",
+                          ].includes(String(log.status).toLowerCase())
+                            ? theme.palette.mode === "dark"
+                              ? "rgba(34, 197, 94, 0.16)"
+                              : "#dcfce7"
+                            : theme.palette.mode === "dark"
+                              ? "rgba(148, 163, 184, 0.16)"
+                              : "#f1f5f9",
                         }}
                         color={
                           String(log.status).toLowerCase() === "success" ||
@@ -388,7 +432,13 @@ export default function AuditLogs() {
                         }
                       />
                     </TableCell>
-                    <TableCell sx={{ fontSize: 10, color: theme.palette.text.secondary, whiteSpace: "nowrap" }}>
+                    <TableCell
+                      sx={{
+                        fontSize: 10,
+                        color: theme.palette.text.secondary,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {log.information || "-"}
                     </TableCell>
                   </TableRow>

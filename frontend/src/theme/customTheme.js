@@ -23,7 +23,8 @@ export const lightTheme = createTheme({
       default: "#f3f4f6",
       paper: "#ffffff",
       table: "#ffffff",
-      sidebar: "#eef2ff",
+      sidebar: "#fff5f5",
+      sidebarAccent: "#ffe8eb",
       header: "#ffffff",
       footer: "#f9fafb",
       drawer: "#ffffff",
@@ -65,7 +66,7 @@ export const lightTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          textTransform: "none",
           borderRadius: 8,
           fontWeight: 500,
         },
@@ -75,8 +76,8 @@ export const lightTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1)",
         },
       },
     },
@@ -106,7 +107,8 @@ export const darkTheme = createTheme({
       default: "#020817",
       paper: "#111827",
       table: "#0f172a",
-      sidebar: "#0f172a",
+      sidebar: "#211016",
+      sidebarAccent: "#35131c",
       header: "#111827",
       footer: "#0f172a",
       drawer: "#111827",
@@ -148,7 +150,7 @@ export const darkTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none',
+          textTransform: "none",
           borderRadius: 8,
           fontWeight: 500,
         },
@@ -158,9 +160,9 @@ export const darkTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          border: '1px solid #334155',
-          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.3)',
-          background: '#1e293b',
+          border: "1px solid #334155",
+          boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.3)",
+          background: "#1e293b",
         },
       },
     },

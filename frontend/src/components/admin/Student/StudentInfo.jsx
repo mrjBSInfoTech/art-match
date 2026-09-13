@@ -10,6 +10,7 @@ import {
   Box,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
@@ -19,6 +20,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 function StudentInfo({ open, handleClose, selectedStudent }) {
+  const theme = useTheme();
   const [student, setStudent] = useState(null);
 
   useEffect(() => {
@@ -31,14 +33,14 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
 
   const detailLabelSx = {
     display: "block",
-    color: "#475569",
+    color: theme.palette.text.secondary,
     fontSize: 11,
     lineHeight: 1.2,
     mb: 0.35,
   };
 
   const detailValueSx = {
-    color: "#0f172a",
+    color: theme.palette.text.primary,
     fontSize: 12,
     fontWeight: 600,
     lineHeight: 1.35,
@@ -71,7 +73,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
           maxWidth: "470px",
           borderRadius: 3,
           overflow: "hidden",
-          backgroundColor: "#fff",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
@@ -82,10 +84,10 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
           gap: 0.75,
           px: 2.5,
           py: 1.75,
-          color: "#0f172a",
+          color: theme.palette.text.primary,
           fontSize: 16,
           fontWeight: 700,
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         <SchoolOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
@@ -99,14 +101,16 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
             height: 28,
             ml: "auto",
             p: 0,
-            color: "#64748b",
+            color: theme.palette.text.secondary,
           }}
         >
           <CloseIcon sx={{ fontSize: 18 }} />
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5, backgroundColor: "#fff" }}>
+      <DialogContent
+        sx={{ p: 2.5, backgroundColor: theme.palette.background.paper }}
+      >
         {student ? (
           <Box>
             <Box
@@ -116,8 +120,8 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                 aspectRatio: "16 / 7",
                 overflow: "hidden",
                 borderRadius: 2,
-                border: "1px solid #cbd5e1",
-                backgroundColor: "#f1f5f9",
+                border: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.default,
               }}
             >
               <Box
@@ -135,7 +139,6 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                   objectFit: "cover",
                 }}
               />
-              
             </Box>
 
             <Box
@@ -145,9 +148,9 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                 gap: 1.5,
                 mt: 1.75,
                 p: 1.5,
-                border: "1px solid #e2e8f0",
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
-                backgroundColor: "#f8fafc",
+                backgroundColor: theme.palette.background.default,
               }}
             >
               <Box>
@@ -213,18 +216,24 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: "1px solid #e2e8f0" }}>
+      <DialogActions
+        sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${theme.palette.divider}`,
+        }}
+      >
         <Button
           onClick={handleClose}
           sx={{
             ml: "auto",
-            backgroundColor: "#eef2f7",
-            color: "#172033",
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
             borderRadius: 1.5,
             px: 2.5,
             textTransform: "none",
             fontWeight: 700,
-            "&:hover": { backgroundColor: "#e2e8f7" },
+            "&:hover": { backgroundColor: theme.palette.action.selected },
           }}
         >
           Close

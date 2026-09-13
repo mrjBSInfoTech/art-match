@@ -11,6 +11,7 @@ import {
   Box,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
@@ -27,6 +28,7 @@ function ArtworkInfo({
   onVerify,
   canEdit,
 }) {
+  const theme = useTheme();
   const [artwork, setArtwork] = useState(null);
 
   useEffect(() => {
@@ -129,14 +131,14 @@ function ArtworkInfo({
 
   const detailLabelSx = {
     display: "block",
-    color: "#475569",
+    color: theme.palette.text.secondary,
     fontSize: 11,
     lineHeight: 1.2,
     mb: 0.35,
   };
 
   const detailValueSx = {
-    color: "#0f172a",
+    color: theme.palette.text.primary,
     fontSize: 12,
     fontWeight: 600,
     lineHeight: 1.35,
@@ -154,7 +156,7 @@ function ArtworkInfo({
           maxWidth: "470px",
           borderRadius: 3,
           overflow: "hidden",
-          backgroundColor: "#fff",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
@@ -165,10 +167,10 @@ function ArtworkInfo({
           gap: 0.75,
           px: 2.5,
           py: 1.75,
-          color: "#0f172a",
+          color: theme.palette.text.primary,
           fontSize: 16,
           fontWeight: 700,
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         <PaletteOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
@@ -182,14 +184,16 @@ function ArtworkInfo({
             height: 28,
             ml: "auto",
             p: 0,
-            color: "#64748b",
+            color: theme.palette.text.secondary,
           }}
         >
           <CloseIcon sx={{ fontSize: 18 }} />
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5, backgroundColor: "#fff" }}>
+      <DialogContent
+        sx={{ p: 2.5, backgroundColor: theme.palette.background.paper }}
+      >
         {artwork ? (
           <Box>
             <Box
@@ -199,8 +203,8 @@ function ArtworkInfo({
                 aspectRatio: "16 / 7",
                 overflow: "hidden",
                 borderRadius: 2,
-                border: "1px solid #cbd5e1",
-                backgroundColor: "#f1f5f9",
+                border: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.default,
               }}
             >
               <Box
@@ -226,7 +230,7 @@ function ArtworkInfo({
                   top: 10,
                   right: 10,
                   height: 22,
-                  backgroundColor: "#fff",
+                  backgroundColor: theme.palette.background.paper,
                   color: isVerified ? "#15803d" : "#d97706",
                   fontSize: 10,
                   fontWeight: 700,
@@ -242,9 +246,9 @@ function ArtworkInfo({
                 gap: 1.5,
                 mt: 1.75,
                 p: 1.5,
-                border: "1px solid #e2e8f0",
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
-                backgroundColor: "#f8fafc",
+                backgroundColor: theme.palette.background.default,
               }}
             >
               <Box>
@@ -303,9 +307,11 @@ function ArtworkInfo({
                         size="small"
                         sx={{
                           height: 20,
-                          backgroundColor: isHexColor(color) ? color : "#fff",
+                          backgroundColor: isHexColor(color)
+                            ? color
+                            : theme.palette.background.paper,
                           color: getChipTextColor(color),
-                          border: "1px solid #cbd5e1",
+                          border: `1px solid ${theme.palette.divider}`,
                           fontSize: 10,
                         }}
                       />
@@ -360,7 +366,7 @@ function ArtworkInfo({
           gap: 1,
           px: 2.5,
           py: 1.5,
-          borderTop: "1px solid #e2e8f0",
+          borderTop: `1px solid ${theme.palette.divider}`,
         }}
       >
         {!isVerified && canEdit && (
@@ -385,11 +391,11 @@ function ArtworkInfo({
         <Button
           onClick={handleClose}
           sx={{
-            backgroundColor: "#e8eef5",
-            color: "#172033",
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
             fontSize: 11,
             fontWeight: 600,
-            "&:hover": { backgroundColor: "#dbe4ee" },
+            "&:hover": { backgroundColor: theme.palette.action.selected },
           }}
         >
           Close

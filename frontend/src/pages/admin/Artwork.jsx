@@ -161,14 +161,14 @@ export default function Artwork() {
           justifyContent: "space-between",
           alignItems: { xs: "flex-start", sm: "center" },
           gap: 2,
-          mb: 2.5,
+          mb: 2,
           flexWrap: "wrap",
         }}
       >
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 28, sm: 38 },
+              fontSize: { xs: 28, sm: 34 },
               fontWeight: 800,
               lineHeight: 1.1,
               color: theme.palette.text.primary,
@@ -203,7 +203,7 @@ export default function Artwork() {
 
       <Paper
         sx={{
-          p: { xs: 1.5, sm: 2 },
+          p: { xs: 1.25, sm: 1.5 },
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -229,7 +229,9 @@ export default function Artwork() {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
                 "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
