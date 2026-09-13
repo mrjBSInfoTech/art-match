@@ -47,6 +47,7 @@ import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import { alpha } from "@mui/material/styles";
 import { useThemeMode } from "../theme/ThemeModeProvider";
 
 // Animation transition
@@ -383,219 +384,235 @@ export default function SellerLayout({ children }) {
 
   return (
     <AppProvider
-        navigation={navigation}
-        branding={branding}
-        router={router}
-        session={{
-          user: {
-            name: `${firstName} ${lastName}`,
-            position: "Seller",
+      navigation={navigation}
+      branding={branding}
+      router={router}
+      session={{
+        user: {
+          name: `${firstName} ${lastName}`,
+          position: "Seller",
+        },
+      }}
+      theme={theme}
+      disableCollapsibleSidebar={true}
+    >
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        TransitionComponent={Transition}
+        keepMounted
+        slots={{ backdrop: Backdrop }}
+        slotProps={{
+          backdrop: {
+            timeout: 500,
           },
         }}
-        theme={theme}
-        disableCollapsibleSidebar={true}
       >
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          TransitionComponent={Transition}
-          keepMounted
-          slots={{ backdrop: Backdrop }}
-          slotProps={{
-            backdrop: {
-              timeout: 500,
-            },
-          }}
-        >
-          <DialogTitle sx={{ fontWeight: "bold" }}>Log out</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to log out?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose} color="secondary">
-              Cancel
-            </Button>
-            <Button onClick={handleLogout} variant="contained" color="primary">
-              Logout
-            </Button>
-          </DialogActions>
-        </Dialog>
-        <Drawer
-          anchor="right"
-          open={profileDrawerOpen}
-          onClose={() => setProfileDrawerOpen(false)}
-          PaperProps={{
-            sx: {
-              width: { xs: "min(320px, 88vw)", sm: 340 },
-              backgroundColor: theme.palette.background.drawer,
-              color: theme.palette.text.primary,
-            },
-          }}
-        >
-          <Stack sx={{ height: "100%", mt: 9 }}>
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              sx={{ p: 2 }}
+        <DialogTitle sx={{ fontWeight: "bold" }}>Log out</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to log out?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleLogout} variant="contained" color="primary">
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Drawer
+        anchor="right"
+        open={profileDrawerOpen}
+        onClose={() => setProfileDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: "min(320px, 88vw)", sm: 340 },
+            backgroundColor: theme.palette.background.drawer,
+            color: theme.palette.text.primary,
+          },
+        }}
+      >
+        <Stack sx={{ height: "100%", mt: 9 }}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            sx={{ p: 2 }}
+          >
+            <Avatar
+              src={
+                profileImage
+                  ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
+                  : "http://localhost:5000/uploads/profile.jpg"
+              }
+              alt={firstName || "Seller"}
+              sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
             >
-              <Avatar
-                src={
-                  profileImage
-                    ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
-                    : "http://localhost:5000/uploads/profile.jpg"
-                }
-                alt={firstName || "Seller"}
-                sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
-              >
-                {firstName ? firstName.charAt(0).toUpperCase() : "S"}
-              </Avatar>
-              <Stack>
-                <Typography sx={{ fontWeight: 700 }}>
-                  {firstName} {lastName}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Seller
-                </Typography>
-              </Stack>
-            </Stack>
-            <Divider />
-            <List>
-              <ListItemButton
-                onClick={() => {
-                  setProfileDrawerOpen(false);
-                  navigate("/seller/profile");
-                }}
-              >
-                <ListItemIcon>
-                  <AccountCircleIcon />
-                </ListItemIcon>
-                <ListItemText primary="Profile" />
-              </ListItemButton>
-              <ListItemButton
-                onClick={() => {
-                  setProfileDrawerOpen(false);
-                  navigate("/seller/settings");
-                }}
-              >
-                <ListItemIcon>
-                  <SettingsIcon />
-                </ListItemIcon>
-                <ListItemText primary="Settings" />
-              </ListItemButton>
-              <Divider sx={{ my: 1 }} />
-              <ListItemButton
-                onClick={() => {
-                  setProfileDrawerOpen(false);
-                  handleOpen();
-                }}
-                sx={{ color: "error.main" }}
-              >
-                <ListItemIcon sx={{ color: "inherit" }}>
-                  <ExitToAppIcon />
-                </ListItemIcon>
-                <ListItemText primary="Logout" />
-              </ListItemButton>
-            </List>
-          </Stack>
-        </Drawer>
-        <Drawer
-          anchor="right"
-          open={notificationDrawerOpen}
-          onClose={() => setNotificationDrawerOpen(false)}
-          PaperProps={{
-            sx: {
-              width: { xs: "min(320px, 88vw)", sm: 340 },
-              backgroundColor: theme.palette.background.drawer,
-              color: theme.palette.text.primary,
-            },
-          }}
-        >
-          <Stack sx={{ height: "100%", mt: 9 }}>
-            <Stack
-              alignItems="center"
-              justifyContent="center"
-              sx={{ flex: 1, p: 3 }}
-            >
-              <NotificationsNoneIcon
-                sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
-              />
-              <Typography color="text.secondary">
-                No new notifications
+              {firstName ? firstName.charAt(0).toUpperCase() : "S"}
+            </Avatar>
+            <Stack>
+              <Typography sx={{ fontWeight: 700 }}>
+                {firstName} {lastName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Seller
               </Typography>
             </Stack>
           </Stack>
-        </Drawer>
-        <MuiDashboardLayout
-          slots={{
-            toolbarAccount: CustomHeader,
-            sidebarFooter: SidebarFooter,
-          }}
-          sx={{
-            backgroundColor: theme.palette.background.default,
-            "& .MuiDrawer-paper": {
-              backgroundColor: theme.palette.background.sidebar,
-              color: theme.palette.text.sidebar,
-              borderRight: "none",
-              borderTopRightRadius: 50,
-              overflow: "hidden",
-            },
-            "& .MuiDrawer-docked .MuiDrawer-paper": {
-              borderRadius: "0 50px 0 0",
-              overflow: "hidden",
-            },
-            "& .MuiAppBar-root .MuiIconButton-root": {
-              color: "#6b7280",
-            },
-            "& .MuiAppBar-root .MuiSvgIcon-root": {
-              color: "#6b7280",
-            },
-            "& .MuiDrawer-paper .MuiPaper-root": {
-              backgroundColor: theme.palette.background.sidebar,
-            },
-            // Selected text
-            "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
-              color: theme.palette.text.sidebar,
-            },
-            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
-              color: theme.palette.text.sidebar,
-            },
-            // Selected icon
-            "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
-              color: theme.palette.text.sidebar,
-            },
-            // Sidebar icons color
-            "& .MuiDrawer-paper .MuiSvgIcon-root": {
-              color: theme.palette.text.sidebar,
-            },
-            "& .MuiListItemButton-root:hover": {
-              backgroundColor: "rgba(255,255,255,0.15)",
-            },
-            "& .Mui-selected": {
-              backgroundColor: "rgba(255,255,255,0.25) !important",
-            },
-            // Header
-            "& .MuiAppBar-root": {
-              backgroundColor: theme.palette.background.header,
-              boxShadow: "none",
-              borderBottom: "none",
-            },
-            "& .MuiAppBar-root .MuiToolbar-root": {
-              borderBottom: "none",
-            },
+          <Divider />
+          <List>
+            <ListItemButton
+              onClick={() => {
+                setProfileDrawerOpen(false);
+                navigate("/seller/profile");
+              }}
+            >
+              <ListItemIcon>
+                <AccountCircleIcon />
+              </ListItemIcon>
+              <ListItemText primary="Profile" />
+            </ListItemButton>
+            <ListItemButton
+              onClick={() => {
+                setProfileDrawerOpen(false);
+                navigate("/seller/settings");
+              }}
+            >
+              <ListItemIcon>
+                <SettingsIcon />
+              </ListItemIcon>
+              <ListItemText primary="Settings" />
+            </ListItemButton>
+            <Divider sx={{ my: 1 }} />
+            <ListItemButton
+              onClick={() => {
+                setProfileDrawerOpen(false);
+                handleOpen();
+              }}
+              sx={{ color: "error.main" }}
+            >
+              <ListItemIcon sx={{ color: "inherit" }}>
+                <ExitToAppIcon />
+              </ListItemIcon>
+              <ListItemText primary="Logout" />
+            </ListItemButton>
+          </List>
+        </Stack>
+      </Drawer>
+      <Drawer
+        anchor="right"
+        open={notificationDrawerOpen}
+        onClose={() => setNotificationDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: "min(320px, 88vw)", sm: 340 },
+            backgroundColor: theme.palette.background.drawer,
+            color: theme.palette.text.primary,
+          },
+        }}
+      >
+        <Stack sx={{ height: "100%", mt: 9 }}>
+          <Stack
+            alignItems="center"
+            justifyContent="center"
+            sx={{ flex: 1, p: 3 }}
+          >
+            <NotificationsNoneIcon
+              sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
+            />
+            <Typography color="text.secondary">No new notifications</Typography>
+          </Stack>
+        </Stack>
+      </Drawer>
+      <MuiDashboardLayout
+        slots={{
+          toolbarAccount: CustomHeader,
+          sidebarFooter: SidebarFooter,
+        }}
+        sx={{
+          backgroundColor: theme.palette.background.default,
+          "& .MuiDrawer-paper": {
+            background: `linear-gradient(180deg, ${theme.palette.background.sidebar} 0%, ${theme.palette.background.sidebarAccent} 100%)`,
+            color: theme.palette.text.sidebar,
+            borderRight:
+              theme.palette.mode === "light"
+                ? "1px solid rgba(185, 28, 28, 0.28)"
+                : "1px solid rgba(248, 113, 113, 0.42)",
+            boxShadow:
+              theme.palette.mode === "light"
+                ? "4px 0 14px rgba(185, 28, 28, 0.08)"
+                : "4px 0 16px rgba(127, 29, 29, 0.24)",
+            borderTopRightRadius: 50,
+            overflow: "hidden",
+          },
+          "& .MuiDrawer-docked .MuiDrawer-paper": {
+            borderRadius: "0 50px 0 0",
+            overflow: "hidden",
+          },
+          "& .MuiAppBar-root .MuiIconButton-root": {
+            color: "#6b7280",
+          },
+          "& .MuiAppBar-root .MuiSvgIcon-root": {
+            color: "#6b7280",
+          },
+          "& .MuiDrawer-paper .MuiPaper-root": {
+            backgroundColor: theme.palette.background.sidebar,
+          },
+          "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
+            color: theme.palette.text.sidebar,
+          },
+          // Sidebar icons color
+          "& .MuiDrawer-paper .MuiSvgIcon-root": {
+            color: theme.palette.text.sidebar,
+          },
+          "& .MuiListItemButton-root:hover": {
+            backgroundColor: alpha(theme.palette.error.main, 0.1),
+          },
+          "& .Mui-selected": {
+            backgroundColor: `${theme.palette.error.main} !important`,
+            color: `${theme.palette.error.contrastText} !important`,
+            boxShadow: `inset 4px 0 0 ${theme.palette.error.light}`,
+          },
+          "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
+            color: `${theme.palette.error.contrastText} !important`,
+          },
+          "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
+            color: `${theme.palette.error.contrastText} !important`,
+          },
+          // Header
+          "& .MuiAppBar-root": {
+            backgroundColor: theme.palette.background.header,
+            boxShadow:
+              theme.palette.mode === "light"
+                ? "0 2px 10px rgba(185, 28, 28, 0.08)"
+                : "0 2px 12px rgba(127, 29, 29, 0.22)",
+            borderBottom:
+              theme.palette.mode === "light"
+                ? "1px solid rgba(185, 28, 28, 0.28)"
+                : "1px solid rgba(248, 113, 113, 0.42)",
+          },
+          "& .MuiAppBar-root .MuiToolbar-root": {
+            borderBottom: "none",
+          },
 
-            "& .MuiListItemButton-root": {
-              marginTop: "5px",
-              marginBottom: "5px",
-            },
+          "& .MuiListItemButton-root": {
+            marginTop: "5px",
+            marginBottom: "5px",
+          },
+        }}
+      >
+        <Box
+          sx={{
+            p: "clamp(20px, 2vw, 28px)",
+            zoom: { xs: 1, md: 1.15, lg: 1.18 },
           }}
         >
-          <div style={{ padding: "20px" }}>
-            <Outlet />
-          </div>
-        </MuiDashboardLayout>
-      </AppProvider>
+          <Outlet />
+        </Box>
+      </MuiDashboardLayout>
+    </AppProvider>
   );
 }

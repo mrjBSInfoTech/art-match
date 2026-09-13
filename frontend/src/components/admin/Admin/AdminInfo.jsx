@@ -10,6 +10,7 @@ import {
   Box,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 
@@ -19,6 +20,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 function AdminInfo({ open, handleClose, selectedAdmin }) {
+  const theme = useTheme();
   const [admin, setAdmin] = useState(null);
 
   useEffect(() => {
@@ -51,14 +53,14 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
 
   const detailLabelSx = {
     display: "block",
-    color: "#475569",
+    color: theme.palette.text.secondary,
     fontSize: 11,
     lineHeight: 1.2,
     mb: 0.35,
   };
 
   const detailValueSx = {
-    color: "#0f172a",
+    color: theme.palette.text.primary,
     fontSize: 12,
     fontWeight: 600,
     lineHeight: 1.35,
@@ -74,8 +76,12 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
       size="small"
       sx={{
         height: 21,
-        color: value ? "#15803d" : "#64748b",
-        backgroundColor: value ? "#dcfce7" : "#f1f5f9",
+        color: value
+          ? theme.palette.success.light
+          : theme.palette.text.secondary,
+        backgroundColor: value
+          ? theme.palette.success.dark
+          : theme.palette.action.hover,
         fontSize: 10,
         fontWeight: 700,
       }}
@@ -94,7 +100,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
           maxWidth: "470px",
           borderRadius: 3,
           overflow: "hidden",
-          backgroundColor: "#fff",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
@@ -105,10 +111,10 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
           gap: 0.75,
           px: 2.5,
           py: 1.75,
-          color: "#0f172a",
+          color: theme.palette.text.primary,
           fontSize: 16,
           fontWeight: 700,
-          borderBottom: "1px solid #e2e8f0",
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         <AdminPanelSettingsOutlinedIcon
@@ -124,14 +130,16 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
             height: 28,
             ml: "auto",
             p: 0,
-            color: "#64748b",
+            color: theme.palette.text.secondary,
           }}
         >
           <CloseIcon sx={{ fontSize: 18 }} />
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 2.5, backgroundColor: "#fff" }}>
+      <DialogContent
+        sx={{ p: 2.5, backgroundColor: theme.palette.background.paper }}
+      >
         {admin ? (
           <Box>
             <Box
@@ -141,8 +149,8 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
                 aspectRatio: "16 / 7",
                 overflow: "hidden",
                 borderRadius: 2,
-                border: "1px solid #cbd5e1",
-                backgroundColor: "#f1f5f9",
+                border: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.default,
               }}
             >
               <Box
@@ -168,7 +176,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
                   top: 10,
                   right: 10,
                   height: 22,
-                  backgroundColor: "#fff",
+                  backgroundColor: theme.palette.background.paper,
                   color: "#1d4ed8",
                   fontSize: 10,
                   fontWeight: 700,
@@ -184,9 +192,9 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
                 gap: 1.5,
                 mt: 1.75,
                 p: 1.5,
-                border: "1px solid #e2e8f0",
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
-                backgroundColor: "#f8fafc",
+                backgroundColor: theme.palette.background.default,
               }}
             >
               <Box>
@@ -242,18 +250,24 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
         ) : null}
       </DialogContent>
 
-      <DialogActions sx={{ px: 2.5, py: 1.5, borderTop: "1px solid #e2e8f0" }}>
+      <DialogActions
+        sx={{
+          px: 2.5,
+          py: 1.5,
+          borderTop: `1px solid ${theme.palette.divider}`,
+        }}
+      >
         <Button
           onClick={handleClose}
           sx={{
             ml: "auto",
-            backgroundColor: "#eef2f7",
-            color: "#172033",
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
             borderRadius: 1.5,
             px: 2.5,
             textTransform: "none",
             fontWeight: 700,
-            "&:hover": { backgroundColor: "#e2e8f7" },
+            "&:hover": { backgroundColor: theme.palette.action.selected },
           }}
         >
           Close

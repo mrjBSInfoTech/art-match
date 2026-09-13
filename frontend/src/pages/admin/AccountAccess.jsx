@@ -195,7 +195,10 @@ export default function AccountAccess() {
               flexWrap: "wrap",
             }}
           >
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 140 } }}>
+            <FormControl
+              size="small"
+              sx={{ minWidth: { xs: "100%", sm: 140 } }}
+            >
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -220,7 +223,10 @@ export default function AccountAccess() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 140 } }}>
+            <FormControl
+              size="small"
+              sx={{ minWidth: { xs: "100%", sm: 140 } }}
+            >
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -269,7 +275,9 @@ export default function AccountAccess() {
         ) : (
           <TableContainer>
             <Table size="small">
-              <TableHead sx={{ backgroundColor: "#f8fafc" }}>
+              <TableHead
+                sx={{ backgroundColor: theme.palette.background.default }}
+              >
                 <TableRow>
                   {["Role", "Account", "Email", "Strikes", "Status"].map(
                     (heading) => (
@@ -295,7 +303,9 @@ export default function AccountAccess() {
                   <TableRow
                     key={`${account.role}-${account.account_id}`}
                     sx={{
-                      "&:hover": { backgroundColor: "#f8fafc" },
+                      "&:hover": {
+                        backgroundColor: theme.palette.action.hover,
+                      },
                       "&:last-child td": { borderBottom: 0 },
                     }}
                   >

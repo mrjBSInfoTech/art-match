@@ -374,7 +374,7 @@ export default function Dashboard() {
             Monitor the overall performance of the platform
           </Typography>
         </Box>
-        
+
         <Button
           variant="contained"
           color="error"
@@ -394,7 +394,11 @@ export default function Dashboard() {
         sx={{
           mt: 3,
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+          },
           gap: 2,
         }}
       >
@@ -741,15 +745,31 @@ export default function Dashboard() {
                 gap: 1,
                 alignItems: "flex-start",
                 p: 1.4,
-                border: "1px solid #bbf7d0",
-                bgcolor: "#f0fdf4",
+                border: `1px solid ${
+                  theme.palette.mode === "dark"
+                    ? "rgba(74, 222, 128, 0.45)"
+                    : "#bbf7d0"
+                }`,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "rgba(22, 101, 52, 0.28)"
+                    : "#f0fdf4",
                 borderRadius: 1.5,
               }}
             >
               <InfoOutlinedIcon
-                sx={{ color: "#16a34a", fontSize: 18, mt: 0.1 }}
+                sx={{
+                  color: theme.palette.mode === "dark" ? "#4ade80" : "#16a34a",
+                  fontSize: 18,
+                  mt: 0.1,
+                }}
               />
-              <Typography variant="caption" color="#166534">
+              <Typography
+                variant="caption"
+                sx={{
+                  color: theme.palette.mode === "dark" ? "#bbf7d0" : "#166534",
+                }}
+              >
                 <strong>100% Student Artist Proceeds (0% Platform Fee):</strong>{" "}
                 RED NEXUS does not take any cut or commission from artist
                 transactions. Every peso generated from art sales directly
