@@ -8,6 +8,10 @@ import {
   Slide,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import CloseIcon from "@mui/icons-material/Close";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -25,12 +29,8 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function CustomerDelete({
-  open,
-  handleClose,
-  onSubmit,
-  selectedCustomer,
-}) {
+function CustomerDelete({ open, handleClose, onSubmit, selectedCustomer }) {
+  const theme = useTheme();
   // Handle Enter key for delete
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -64,7 +64,13 @@ function CustomerDelete({
   }, [open]);
 
   const handleDelete = () => {
-    onSubmit(selectedArtwork?.artwork_id || selectedArtwork?.id || selectedArtwork);
+    const customerId =
+      selectedCustomer?.customer_id ?? selectedCustomer?.id ?? selectedCustomer;
+
+    if (customerId) {
+      onSubmit(customerId);
+    }
+
     handleClose();
   };
 
@@ -76,24 +82,68 @@ function CustomerDelete({
       keepMounted
       PaperProps={{
         sx: {
-          minWidth: { xs: "92%", sm: "720px" },
-          width: "100%",
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
       <>
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          Delete Artwork
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            px: 2.5,
+            py: 1.75,
+            color: theme.palette.text.primary,
+            fontSize: 16,
+            fontWeight: 700,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <PersonOutlineOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
+          Delete customer
+          <Button
+            aria-label="Close customer information"
+            onClick={handleClose}
+            sx={{
+              minWidth: 28,
+              width: 28,
+              height: 28,
+              ml: "auto",
+              p: 0,
+              color: theme.palette.text.secondary,
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </Button>
         </DialogTitle>
         <DialogContent dividers>
           <Typography>
-            Are you sure you want to delete this? This action cannot be undone.
+            Are you sure you want to delete this customer account? This action
+            cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleDelete} color="error" variant="contained">
+          <Button onClick={handleClose} color="text.secondary" >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDelete}
+            color="error"
+            variant="contained"
+            sx={{
+              color: theme.palette.text.primary,
+              borderRadius: 1.5,
+              px: 2.5,
+              textTransform: "none",
+              fontWeight: 700,
+              color: "#fff",
+            }}
+          >
             Delete
           </Button>
         </DialogActions>

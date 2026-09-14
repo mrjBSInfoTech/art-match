@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
+  Alert,
   Box,
   CircularProgress,
   InputAdornment,
   Paper,
+  Slide,
+  Snackbar,
   TextField,
   Typography,
 } from "@mui/material";
@@ -16,6 +19,11 @@ import {
   updateCustomer,
 } from "../../api/admin/customerAPI";
 import SearchIcon from "@mui/icons-material/Search";
+import CustomerDelete from "../../components/admin/Customer/CustomerDelete";
+
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
 
 export default function Customer() {
   const theme = useTheme();
@@ -23,6 +31,11 @@ export default function Customer() {
   const [loading, setLoading] = useState(true);
   const [customerErrorMessage, setCustomerErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [openCustomerDelete, setOpenCustomerDelete] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
   const loadCustomers = async () => {
     try {
@@ -36,18 +49,58 @@ export default function Customer() {
     }
   };
 
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
+    }
+  };
+
   useEffect(() => {
     loadCustomers();
   }, []);
 
   const saveCustomer = async (id, data) => {
-    await updateCustomer(id, data);
-    await loadCustomers();
+    try {
+      await updateCustomer(id, data);
+      await loadCustomers();
+      showSnackbar("Customer updated successfully.", "success");
+    } catch (err) {
+      showSnackbar(err.message || "Failed to update customer.", "error");
+      throw err;
+    }
   };
 
-  const removeCustomer = async (id) => {
-    await deleteCustomer(id);
-    await loadCustomers();
+  const handleOpenDelete = (customer) => {
+    setSelectedCustomer(customer);
+    setOpenCustomerDelete(true);
+  };
+
+  const handleDeleteCustomer = async (id) => {
+    try {
+      await deleteCustomer(id);
+      await loadCustomers();
+      setOpenCustomerDelete(false);
+      setSelectedCustomer(null);
+      showSnackbar("Customer deleted successfully.", "success");
+    } catch (err) {
+      showSnackbar(err.message || "Failed to delete customer.", "error");
+    }
   };
 
   const filteredCustomers = useMemo(() => {
@@ -188,11 +241,47 @@ export default function Customer() {
           <CustomerCard
             customers={filteredCustomers}
             onSave={saveCustomer}
-            onDelete={removeCustomer}
+            onDelete={handleOpenDelete}
             onAccessChange={loadCustomers}
           />
         )}
       </Paper>
+
+      <CustomerDelete
+        open={openCustomerDelete}
+        handleClose={() => {
+          setOpenCustomerDelete(false);
+          setSelectedCustomer(null);
+        }}
+        onSubmit={handleDeleteCustomer}
+        selectedCustomer={selectedCustomer}
+      />
+
+      {/* Snackbar Notification */}
+      <Snackbar
+        open={snackbarOpen}
+        severity={snackbarSeverity}
+        variant="filled"
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+            },
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

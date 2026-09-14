@@ -44,9 +44,11 @@ function AddressCard({ addresses, onEdit, onDelete }) {
               display: "flex",
               flexDirection: "column",
               borderRadius: 3,
-              borderColor: "error.main",
+              borderColor: isCurrent ? "error.main" : "divider",
               borderWidth: 1.5,
-              backgroundColor: isCurrent ? "rgba(175, 79, 79, 0.02)" : "#fff",
+              backgroundColor: isCurrent
+                ? "rgba(175, 79, 79, 0.16)"
+                : "background.paper",
               boxShadow: isCurrent
                 ? "0 4px 20px -2px rgba(175, 79, 79, 0.12)"
                 : "none",
@@ -54,7 +56,9 @@ function AddressCard({ addresses, onEdit, onDelete }) {
               "&:hover": {
                 transform: "translateY(-3px)",
                 borderColor: "error.dark",
-                backgroundColor: "rgba(175, 79, 79, 0.06)",
+                backgroundColor: isCurrent
+                  ? "rgba(175, 79, 79, 0.2)"
+                  : "action.hover",
                 boxShadow: "0 8px 24px -4px rgba(175, 79, 79, 0.24)",
               },
             }}

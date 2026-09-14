@@ -18,6 +18,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -50,6 +54,7 @@ export default function AdminForm({
   onSubmit,
   selectedAdmin,
 }) {
+  const theme = useTheme();
   const isEditMode = Boolean(selectedAdmin);
   const [formData, setFormData] = useState(emptyForm);
   const [error, setError] = useState("");
@@ -178,14 +183,50 @@ export default function AdminForm({
   return (
     <Dialog
       open={open}
-      onClose={loading ? undefined : handleClose}
+      onClose={handleClose}
       TransitionComponent={Transition}
       keepMounted
-      maxWidth="sm"
-      fullWidth
+      PaperProps={{
+        sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
+          borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
+        },
+      }}
     >
-      <DialogTitle sx={{ fontWeight: "bold" }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <AdminPanelSettingsOutlinedIcon
+          sx={{ color: "#ef3340", fontSize: 20 }}
+        />
         {isEditMode ? "Manage Admin Access" : "Create Admin Account"}
+        <Button
+          aria-label="Close admin information"
+          onClick={handleClose}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>

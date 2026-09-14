@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
@@ -34,6 +35,7 @@ const formatCurrency = (value) =>
   }).format(value);
 
 export default function Dashboard() {
+  const theme = useTheme();
   const [artworks, setArtworks] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +70,14 @@ export default function Dashboard() {
   const salesCount = formatCurrency(totalRevenue);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <Box
+          sx={{
+            p: { xs: 1.5, sm: 2.5 },
+            minHeight: "100vh",
+            backgroundColor: theme.palette.background.default,
+            color: theme.palette.text.primary,
+          }}
+        >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Dashboard</title>
       </Helmet>

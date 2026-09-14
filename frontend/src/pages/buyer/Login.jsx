@@ -16,7 +16,6 @@ import {
   Typography,
   Alert,
   Slide,
-  useTheme,
   useMediaQuery,
 } from "@mui/material";
 import {
@@ -29,6 +28,7 @@ import {
 import Nexus from "../../assets/Nexus.png";
 import { loginUser } from "../../api/buyer/buyerAuthenticationAPI";
 import { hasValidToken, setToken } from "../../../utils/auth";
+import { useThemeMode } from "../../theme/ThemeModeProvider";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -42,7 +42,7 @@ export default function Login() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const navigate = useNavigate();
-  const theme = useTheme();
+  const { theme } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
@@ -306,7 +306,19 @@ export default function Login() {
           onClose={closeSnackbar}
           severity={snackbarSeverity}
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{
+            width: "100%",
+            color: "#ffffff",
+            "& .MuiAlert-message": {
+              color: "#ffffff",
+            },
+            "& .MuiAlert-icon": {
+              color: "#ffffff",
+            },
+            "& .MuiAlert-action": {
+              color: "#ffffff",
+            },
+          }}
         >
           {snackbarMessage}
         </Alert>

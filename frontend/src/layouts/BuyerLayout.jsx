@@ -212,7 +212,7 @@ function BuyerLayout({ children }) {
       <AppBar
         position="sticky"
         sx={{
-          backgroundColor: theme.palette.mode === "dark" ? "#0f172a" : "#AF4F4F",
+          backgroundColor: "#AF4F4F",
           padding: { xs: "4px 10px", lg: "8px 20px" },
         }}
         elevation={0}
@@ -289,7 +289,7 @@ function BuyerLayout({ children }) {
                 alignItems: "center",
                 width: 500,
                 maxWidth: "100%",
-                backgroundColor: "#eaeaea",
+                 backgroundColor: theme.palette.background.paper,
                 borderRadius: "6px",
                 px: 1.5,
               }}
@@ -481,7 +481,7 @@ function BuyerLayout({ children }) {
                 alignItems: "center",
                 width: 500,
                 maxWidth: "100%",
-                backgroundColor: "#eaeaea",
+                backgroundColor: theme.palette.background.paper,
                 borderRadius: "6px",
                 px: 1.5,
               }}
@@ -492,7 +492,7 @@ function BuyerLayout({ children }) {
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{ py: 0.5, fontSize: "0.9rem" }}
+                sx={{ py: 0.5, fontSize: "0.9rem", color: theme.palette.text.primary }}
               />
               <IconButton type="submit" size="small" sx={{ p: 1 }}>
                 <SearchIcon />

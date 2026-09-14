@@ -72,8 +72,18 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   };
 
   return (
-    <Box sx={{ bgcolor: "#f7f7f7", minHeight: "100vh" }}>
-      <Box sx={{ borderBottom: "1px solid rgba(0,0,0,0.08)", bgcolor: "#fff" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+      }}
+    >
+      <Box
+        sx={{
+          borderBottom: "1px solid rgba(0,0,0,0.08)",
+          bgcolor:
+            theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
+        }}
+      >
         <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
           <Stack
             direction="row"
@@ -125,7 +135,8 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
             >
               <Box
                 sx={{
-                  bgcolor: "#fff",
+                  bgcolor:
+                    theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
                   borderRadius: 3,
                   p: 2,
                   boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
@@ -152,7 +163,14 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                         key={item.path}
                         selected={isActive}
                         onClick={() => handleNavigate(item.path)}
-                        sx={{ borderRadius: 2, mb: 0.5 }}
+                        sx={{
+                          borderRadius: 2,
+                          mb: 0.5,
+                          backgroundColor:
+                            isActive && theme.palette.mode === "dark"
+                              ? "rgba(96, 165, 250, 0.22)"
+                              : undefined,
+                        }}
                       >
                         <ListItemText primary={item.label} />
                       </ListItemButton>
@@ -188,7 +206,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                   onChange={(event) => handleNavigate(event.target.value)}
                   sx={{
                     borderRadius: 3,
-                    bgcolor: "#fff",
+                    bgcolor: "background.paper",
                     "& .MuiOutlinedInput-notchedOutline": {
                       borderColor: "rgba(0,0,0,0.12)",
                     },
@@ -205,7 +223,8 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
 
             <Box
               sx={{
-                bgcolor: "#fff",
+                bgcolor:
+                  theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
                 borderRadius: 3,
                 p: { xs: 2, md: 4 },
                 boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
@@ -268,7 +287,14 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                 <ListItemButton
                   selected={isActive}
                   onClick={() => handleNavigate(item.path)}
-                  sx={{ borderRadius: 2, mb: 0.5 }}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    backgroundColor:
+                      isActive && theme.palette.mode === "dark"
+                        ? "rgba(96, 165, 250, 0.22)"
+                        : undefined,
+                  }}
                 >
                   <ListItemText primary={item.label} />
                 </ListItemButton>

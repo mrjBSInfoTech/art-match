@@ -16,6 +16,7 @@ import {
   Typography,
   Snackbar,
   Slide,
+  useTheme,
 } from "@mui/material";
 import { fetchAddresses, addAddress, updateAddress, deleteAddress } from "../../api/buyer/addressAPI"; 
 import AddressCard from "../../components/buyer/Address/AddressCard";
@@ -32,6 +33,7 @@ function SlideTransition(props) {
 }
 
 export default function Address() {
+  const theme = useTheme();
   const [addresses, setAddresses] = useState([]);
   const [openAddressForm, setOpenAddressForm] = useState(false);
   const [openAddressDelete, setOpenAddressDelete] = useState(false);
@@ -142,7 +144,13 @@ export default function Address() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: 3,
+        backgroundColor: theme.palette.background.default,
+        minHeight: "100vh",
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Address</title>
       </Helmet>

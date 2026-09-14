@@ -7,15 +7,9 @@ import {
   CardContent,
   CardMedia,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Menu,
   MenuItem,
-  Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -25,7 +19,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import CustomerInfo from "./CustomerInfo";
+import CustomerForm from "./CustomerForm";
 import AccessReason from "../Access/AccessReason";
+import BlockIcon from '@mui/icons-material/Block';
+import GavelIcon from '@mui/icons-material/Gavel';
 import {
   addAccountStrike,
   setAccountBan,
@@ -52,11 +49,9 @@ export default function CustomerCard({
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState(null);
   const [formData, setFormData] = useState({});
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [accessAction, setAccessAction] = useState("");
   const [operationError, setOperationError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const role = (localStorage.getItem("admin_role") || "").toLowerCase();
   const canEdit =
@@ -90,18 +85,6 @@ export default function CustomerCard({
       setOperationError(error.message || "Unable to update customer.");
     } finally {
       setSaving(false);
-    }
-  };
-  const remove = async () => {
-    try {
-      setDeleting(true);
-      setOperationError("");
-      await onDelete(getId(deleteTarget));
-      setDeleteTarget(null);
-    } catch (error) {
-      setOperationError(error.message || "Unable to delete customer.");
-    } finally {
-      setDeleting(false);
     }
   };
   const submitAccessAction = async (reason) => {
@@ -319,7 +302,7 @@ export default function CustomerCard({
                   {canDelete && (
                     <MenuItem
                       onClick={() => {
-                        setDeleteTarget(selectedCustomer);
+                        onDelete?.(selectedCustomer);
                         setAnchorEl(null);
                       }}
                       sx={{ color: "error.main" }}
@@ -336,6 +319,7 @@ export default function CustomerCard({
                       }}
                       sx={{ color: "warning.main" }}
                     >
+                      <GavelIcon sx={{ mr: 1, fontSize: 20 }} />
                       Add strike
                     </MenuItem>
                   )}
@@ -353,6 +337,7 @@ export default function CustomerCard({
                           : "error.main",
                       }}
                     >
+                      <BlockIcon sx={{ mr: 1, fontSize: 20 }} />
                       {selectedCustomer?.is_banned
                         ? "Unban account"
                         : "Ban account"}
@@ -369,36 +354,15 @@ export default function CustomerCard({
         handleClose={() => setOpenInfoDialog(false)}
         selectedCustomer={selectedCustomer}
       />
-      <Dialog
+      <CustomerForm
         open={dialogMode === "edit"}
-        onClose={() => setDialogMode(null)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>Edit customer</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {fields.map(([key, label]) => (
-              <TextField
-                key={key}
-                label={label}
-                value={formData[key] || ""}
-                onChange={(event) =>
-                  setFormData({ ...formData, [key]: event.target.value })
-                }
-                fullWidth
-                size="small"
-              />
-            ))}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogMode(null)}>Close</Button>
-          <Button variant="contained" onClick={save} disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        handleClose={() => setDialogMode(null)}
+        fields={fields}
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={save}
+        saving={saving}
+      />
       <AccessReason
         open={Boolean(accessAction)}
         handleClose={() => setAccessAction("")}
@@ -413,28 +377,6 @@ export default function CustomerCard({
         action={accessAction}
         submitAction={submitAccessAction}
       />
-      <Dialog
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-      >
-        <DialogTitle>Delete customer?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            This will permanently remove {getName(deleteTarget)}.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={remove}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

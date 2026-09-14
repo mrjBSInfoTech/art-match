@@ -265,11 +265,11 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleClose} color="secondary">
+        <Button onClick={handleClose} color="text.secondary">
           Cancel
         </Button>
 
-        <Button onClick={handleSubmit} variant="contained" color="primary">
+        <Button onClick={handleSubmit} variant="contained" color="primary" sx={{ color: "#fff"  }}>
           {selectedAddress ? "Update" : "Add Address"}
         </Button>
       </DialogActions>

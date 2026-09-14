@@ -21,6 +21,7 @@ import {
   Typography,
   Snackbar,
   Slide,
+  useTheme,
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
@@ -44,6 +45,7 @@ export default function Main() {
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+  const theme = useTheme();
 
   const loadArtworks = async () => {
     try {
@@ -82,8 +84,6 @@ export default function Main() {
   return (
     <Box
       sx={{
-        p: 3,
-        backgroundColor: "#f5f5f5",
         minHeight: "100vh",
         overflowX: "hidden",
       }}
@@ -167,6 +167,7 @@ export default function Main() {
                     borderRadius: 999,
                     fontSize: 10,
                     fontWeight: 600,
+                    color: "white",
                   }}
                 >
                   Search
@@ -183,7 +184,7 @@ export default function Main() {
                   component={RouterLink}
                   to="/buyer/artwork"
                   endIcon={<ArrowForwardIcon />}
-                  sx={{ borderRadius: 99999 }}
+                  sx={{ borderRadius: 99999, color: "white" }}
                 >
                   Shop Now
                 </Button>
@@ -245,7 +246,7 @@ export default function Main() {
                 fontWeight: "bold",
                 borderColor: "divider",
                 color: "text.primary",
-                backgroundColor: "#fff",
+                backgroundColor: theme.palette.background.paper,
                 transition: "all 180ms ease",
                 "&:hover": {
                   borderColor: "error.main",

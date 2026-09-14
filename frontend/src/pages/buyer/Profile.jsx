@@ -43,7 +43,6 @@ export default function Profile() {
       sx={{
         minHeight: "100%",
         p: { xs: 2, sm: 3, md: 4 },
-        backgroundColor: "#fafafa",
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">

@@ -43,6 +43,7 @@ import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
 import CloseIcon from "@mui/icons-material/Close";
 import KeyIcon from "@mui/icons-material/Key";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
@@ -211,7 +212,7 @@ export default function AdminLayout({ children }) {
         {
           segment: "students",
           title: "Students",
-          icon: <HourglassBottomRoundedIcon />,
+          icon: <SchoolOutlinedIcon />,
         },
         {
           segment: "customers",
@@ -378,10 +379,10 @@ export default function AdminLayout({ children }) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary">
+          <Button onClick={handleClose} color="text.secondary">
             Cancel
           </Button>
-          <Button onClick={handleLogout} variant="contained" color="primary">
+          <Button onClick={handleLogout} variant="contained" color="error" sx={{ color: "#fff" }}>
             Logout
           </Button>
         </DialogActions>
@@ -512,79 +513,63 @@ export default function AdminLayout({ children }) {
           );
         }}
         sx={{
-          backgroundColor: theme.palette.background.default,
-          "& .MuiDrawer-paperAnchorLeft": {
-            background: `linear-gradient(180deg, ${theme.palette.background.sidebar} 0%, ${theme.palette.background.sidebarAccent} 100%)`,
-            color: theme.palette.text.sidebar,
-            borderRight:
-              theme.palette.mode === "light"
-                ? "1px solid rgba(185, 28, 28, 0.28)"
-                : "1px solid rgba(248, 113, 113, 0.42)",
-            boxShadow:
-              theme.palette.mode === "light"
-                ? "4px 0 14px rgba(185, 28, 28, 0.08)"
-                : "4px 0 16px rgba(127, 29, 29, 0.24)",
-            borderTopRightRadius: 50,
-            overflow: "hidden",
-          },
-          "& .MuiDrawer-paperAnchorRight": {
-            backgroundColor: theme.palette.background.header,
-            color: theme.palette.text.primary,
-            borderLeft: `1px solid ${theme.palette.divider}`,
-            overflow: "hidden",
-          },
-          "& .MuiDrawer-docked .MuiDrawer-paperAnchorLeft": {
-            borderRadius: "0 50px 0 0",
-            overflow: "hidden",
-          },
-          "& .MuiAppBar-root .MuiIconButton-root": {
-            color: "#6b7280",
-          },
-          "& .MuiAppBar-root .MuiSvgIcon-root": {
-            color: "#6b7280",
-          },
-          "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
-            color: theme.palette.text.sidebar,
-          },
-          // Sidebar icons color
-          "& .MuiDrawer-paper .MuiSvgIcon-root": {
-            color: theme.palette.text.sidebar,
-          },
-          "& .MuiListItemButton-root:hover": {
-            backgroundColor: alpha(theme.palette.error.main, 0.1),
-          },
-          "& .Mui-selected": {
-            backgroundColor: `${theme.palette.error.main} !important`,
-            color: `${theme.palette.error.contrastText} !important`,
-            boxShadow: `inset 4px 0 0 ${theme.palette.error.light}`,
-          },
-          "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
-            color: `${theme.palette.error.contrastText} !important`,
-          },
-          "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
-            color: `${theme.palette.error.contrastText} !important`,
-          },
-          // Header
-          "& .MuiAppBar-root": {
-            backgroundColor: theme.palette.background.header,
-            boxShadow:
-              theme.palette.mode === "light"
-                ? "0 2px 10px rgba(185, 28, 28, 0.08)"
-                : "0 2px 12px rgba(127, 29, 29, 0.22)",
-            borderBottom:
-              theme.palette.mode === "light"
-                ? "1px solid rgba(185, 28, 28, 0.28)"
-                : "1px solid rgba(248, 113, 113, 0.42)",
-          },
-          "& .MuiAppBar-root .MuiToolbar-root": {
-            borderBottom: "none",
-          },
+            backgroundColor: theme.palette.background.default,
+            "& .MuiDrawer-paper": {
+              backgroundColor: theme.palette.background.sidebar,
+              color: theme.palette.text.sidebar,
+              borderRight: "none",
+              borderTopRightRadius: 50,
+              overflow: "hidden",
+            },
+            "& .MuiDrawer-docked .MuiDrawer-paper": {
+              borderRadius: "0 50px 0 0",
+              overflow: "hidden",
+            },
+            "& .MuiAppBar-root .MuiIconButton-root": {
+              color: "#6b7280",
+            },
+            "& .MuiAppBar-root .MuiSvgIcon-root": {
+              color: "#6b7280",
+            },
+            "& .MuiDrawer-paper .MuiPaper-root": {
+              backgroundColor: theme.palette.background.sidebar,
+            },
+            // Selected text
+            "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
+              color: "#980404",
+            },
+            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
+              color: "#980404",
+            },
+            // Selected icon
+            "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
+              color: "#980404",
+            },
+            // Sidebar icons color
+            "& .MuiDrawer-paper .MuiSvgIcon-root": {
+              color: "#ffffff",
+            },
+            "& .MuiListItemButton-root:hover": {
+              backgroundColor: "rgba(255,255,255,0.15)",
+            },
+            "& .Mui-selected": {
+              backgroundColor: "rgba(255,255,255,0.25) !important",
+            },
+            // Header
+            "& .MuiAppBar-root": {
+              backgroundColor: theme.palette.background.header,
+              boxShadow: "none",
+              borderBottom: "none",
+            },
+            "& .MuiAppBar-root .MuiToolbar-root": {
+              borderBottom: "none",
+            },
 
-          "& .MuiListItemButton-root": {
-            marginTop: "5px",
-            marginBottom: "5px",
-          },
-        }}
+            "& .MuiListItemButton-root": {
+              marginTop: "5px",
+              marginBottom: "5px",
+            },
+          }}
       >
         <Box
           sx={{

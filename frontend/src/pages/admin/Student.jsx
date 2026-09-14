@@ -21,6 +21,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import StudentCard from "../../components/admin/Student/StudentCard";
 import StudentForm from "../../components/admin/Student/StudentForm";
 import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
+import StudentDelete from "../../components/admin/Student/StudentDelete";
 import {
   addStudents,
   deleteStudent,
@@ -38,6 +39,7 @@ export default function Student() {
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openStudentForm, setOpenStudentForm] = useState(false);
+  const [openStudentDelete, setOpenStudentDelete] = useState(false);
   const [openBulkAdd, setOpenBulkAdd] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -83,6 +85,11 @@ export default function Student() {
     setOpenStudentForm(true);
   };
 
+  const handleOpenDelete = (student) => {
+    setSelectedStudent(student);
+    setOpenStudentDelete(true);
+  };
+
   const handleCloseForm = () => {
     setOpenStudentForm(false);
     setSelectedStudent(null);
@@ -111,6 +118,8 @@ export default function Student() {
       await deleteStudent(id);
       await loadStudents();
       showSnackbar("Student deleted successfully.", "success");
+      setOpenStudentDelete(false);
+      setSelectedStudent(null);
     } catch (err) {
       showSnackbar(err.message || "Unable to delete student.", "error");
     }
@@ -356,7 +365,7 @@ export default function Student() {
           <StudentCard
             students={filteredStudents}
             onEdit={handleOpenEdit}
-            onDelete={handleDeleteStudent}
+            onDelete={handleOpenDelete}
           />
         )}
       </Paper>
@@ -373,6 +382,16 @@ export default function Student() {
         handleClose={() => setOpenBulkAdd(false)}
         onSuccess={handleBulkSuccess}
         showSnackbar={showSnackbar}
+      />
+
+      <StudentDelete
+        open={openStudentDelete}
+        handleClose={() => {
+          setOpenStudentDelete(false);
+          setSelectedStudent(null);
+        }}
+        onSubmit={handleDeleteStudent}
+        selectedStudent={selectedStudent}
       />
       {/* Snackbar Notification */}
       <Snackbar

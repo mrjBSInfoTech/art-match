@@ -15,6 +15,10 @@ import {
   Typography,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import CloseIcon from "@mui/icons-material/Close";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -75,6 +79,7 @@ export default function StudentForm({
   onSubmit,
   selectedStudent = null,
 }) {
+  const theme = useTheme();
   const [formData, setFormData] = useState(initialFormData);
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
@@ -199,14 +204,43 @@ export default function StudentForm({
       keepMounted
       PaperProps={{
         sx: {
-          minWidth: { xs: "92%", sm: "760px" },
-          width: "100%",
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
-      <DialogTitle sx={{ fontWeight: 700 }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <SchoolOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
         {selectedStudent ? "Edit Student" : "Add Student"}
+        <Button
+          aria-label="Close student information"
+          onClick={handleClose}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
       </DialogTitle>
       <DialogContent dividers>
         {error && (
@@ -297,7 +331,7 @@ export default function StudentForm({
               <MenuItem value="Third Year">Third Year</MenuItem>
               <MenuItem value="Fourth Year">Fourth Year</MenuItem>
             </TextField>
-            
+
             <TextField
               select
               label="Course"
@@ -385,13 +419,25 @@ export default function StudentForm({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleClose} disabled={isSubmitting}>
+        <Button
+          onClick={handleClose}
+          color="text.secondary"
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={isSubmitting}
+          sx={{
+            color: theme.palette.text.primary,
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
         >
           {isSubmitting && (
             <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
