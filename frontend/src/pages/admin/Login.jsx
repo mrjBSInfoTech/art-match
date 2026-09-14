@@ -347,6 +347,7 @@ const Login = () => {
               fontSize: "16px",
               backgroundColor: "#af4f4f",
               borderRadius: "10px",
+              color: "#fff",
               mt: 1.5,
               "&:hover": {
                 backgroundColor: "#8a3d3d",

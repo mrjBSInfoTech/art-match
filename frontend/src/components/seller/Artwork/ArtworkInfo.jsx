@@ -191,9 +191,7 @@ function ArtworkInfo({
         </Button>
       </DialogTitle>
 
-      <DialogContent
-        sx={{ p: 2.5, backgroundColor: theme.palette.background.paper }}
-      >
+      <DialogContent dividers>
         {artwork ? (
           <Box>
             <Box
@@ -205,6 +203,7 @@ function ArtworkInfo({
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.divider}`,
                 backgroundColor: theme.palette.background.default,
+                mt: 1.5,
               }}
             >
               <Box

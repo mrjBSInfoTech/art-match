@@ -205,6 +205,7 @@ function ArtworkInfo({
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.divider}`,
                 backgroundColor: theme.palette.background.default,
+                mt: 1.5,
               }}
             >
               <Box

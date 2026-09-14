@@ -138,7 +138,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
       </DialogTitle>
 
       <DialogContent
-        sx={{ p: 2.5, backgroundColor: theme.palette.background.paper }}
+        sx={{ p: 2.5 }}
       >
         {admin ? (
           <Box>
@@ -151,6 +151,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.divider}`,
                 backgroundColor: theme.palette.background.default,
+                mt: 1.5,
               }}
             >
               <Box

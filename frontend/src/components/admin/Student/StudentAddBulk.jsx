@@ -14,12 +14,22 @@ import {
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import * as XLSX from "xlsx";
 import { bulkAddStudents } from "../../../api/admin/studentAPI";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import CloseIcon from "@mui/icons-material/Close";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
-export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnackbar }) {
+export default function StudentBulkAdd({
+  open,
+  handleClose,
+  onSuccess,
+  showSnackbar,
+}) {
+  const theme = useTheme();
   const fileInputRef = useRef(null);
   const [parsedData, setParsedData] = useState([]);
   const [fileName, setFileName] = useState("");
@@ -59,7 +69,9 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnack
 
         setParsedData(formattedData);
       } catch (err) {
-        setError("Failed to parse the file. Ensure it is a valid Excel or CSV file.");
+        setError(
+          "Failed to parse the file. Ensure it is a valid Excel or CSV file.",
+        );
       }
     };
     reader.readAsBinaryString(file);
@@ -74,7 +86,10 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnack
     setIsSubmitting(true);
     try {
       await bulkAddStudents(parsedData);
-      showSnackbar(`Successfully imported ${parsedData.length} students`, "success");
+      showSnackbar(
+        `Successfully imported ${parsedData.length} students`,
+        "success",
+      );
       onSuccess();
       handleCloseDialog();
     } catch (err) {
@@ -99,11 +114,11 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnack
         "Middle Name": "Rizal",
         "Last Name": "Dela Cruz",
         "Date of Birth": "2001-01-15",
-        "Email": "juan@example.com",
-        "Address": "123 Sampaguita St",
+        Email: "juan@example.com",
+        Address: "123 Sampaguita St",
         "Phone Number": "09123456789",
         "Year Level": "2nd Year",
-        "Course": "BS Computer Science",
+        Course: "BS Computer Science",
         "Student Number": "2021-12345",
         "COR Image": "",
         "Profile Picture": "",
@@ -118,21 +133,67 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnack
   return (
     <Dialog
       open={open}
-      onClose={handleCloseDialog}
+      onClose={handleClose}
       TransitionComponent={Transition}
-      fullWidth
-      maxWidth="sm"
+      keepMounted
+      PaperProps={{
+        sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
+          borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
+        },
+      }}
     >
-      <DialogTitle sx={{ fontWeight: "bold" }}>Bulk Import Students</DialogTitle>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <SchoolOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
+        Bulk Import Students
+        <Button
+          aria-label="Close student information"
+          onClick={handleClose}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
+      </DialogTitle>
       <DialogContent dividers>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         <Typography variant="body2" color="textSecondary" paragraph>
-          Upload an Excel (.xlsx, .xls) or CSV file to add multiple students at once.
-          Ensure your column headers match the required format.
+          Upload an Excel (.xlsx, .xls) or CSV file to add multiple students at
+          once. Ensure your column headers match the required format.
         </Typography>
 
-        <Button variant="text" size="small" onClick={downloadTemplate} sx={{ mb: 3 }}>
+        <Button
+          variant="text"
+          size="small"
+          onClick={downloadTemplate}
+          sx={{ mb: 3 }}
+        >
           Download Template
         </Button>
 
@@ -153,10 +214,11 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnack
             {fileName ? fileName : "Click to select a file"}
           </Typography>
           <Typography variant="body2" color="textSecondary">
-            {parsedData.length > 0 && `${parsedData.length} students ready to import`}
+            {parsedData.length > 0 &&
+              `${parsedData.length} students ready to import`}
           </Typography>
         </Box>
-        
+
         <input
           type="file"
           accept=".xlsx, .xls, .csv"
@@ -166,14 +228,25 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess, showSnack
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleCloseDialog} color="secondary" disabled={isSubmitting}>
+        <Button
+          onClick={handleCloseDialog}
+          color="text.secondary"
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
-          color="primary" 
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          color="primary"
           disabled={parsedData.length === 0 || isSubmitting}
+          sx={{
+            color: theme.palette.text.primary,
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+          }}
         >
           {isSubmitting ? <CircularProgress size={24} /> : "Import Data"}
         </Button>

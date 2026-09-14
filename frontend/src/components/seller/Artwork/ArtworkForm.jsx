@@ -17,7 +17,11 @@ import {
   Stack,
   CircularProgress,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { styled } from "@mui/material/styles";
+// Icons
+import CloseIcon from "@mui/icons-material/Close";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive" && prop !== "hasError",
@@ -71,6 +75,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
     file: null,
     date_posted: "",
   });
+  const theme = useTheme();
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -119,7 +124,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      setUploadError(`File size exceeds 2MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      setUploadError(
+        `File size exceeds 2MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      );
       setImagePreview(null);
       setFormData((prev) => ({ ...prev, image: "", file: null }));
       return;
@@ -209,14 +216,43 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
       keepMounted
       PaperProps={{
         sx: {
-          minWidth: { xs: "92%", sm: "720px" },
-          width: "100%",
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
-      <DialogTitle sx={{ fontWeight: 700 }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <PaletteOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
         {selectedArtwork ? "Edit Artwork" : "Add Artwork"}
+        <Button
+          aria-label="Close artwork information"
+          onClick={handleClose}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
       </DialogTitle>
       <DialogContent dividers>
         {error && (
@@ -248,25 +284,63 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
             onDragOver={(event) => event.preventDefault()}
           >
             {imagePreview ? (
-              <Box component="img" src={imagePreview} alt="Preview" sx={{ maxWidth: "100%", maxHeight: 160, objectFit: "contain" }} />
+              <Box
+                component="img"
+                src={imagePreview}
+                alt="Preview"
+                sx={{ maxWidth: "100%", maxHeight: 160, objectFit: "contain" }}
+              />
             ) : (
               <>
-                <Typography variant="h6" fontWeight={700}>Upload artwork image</Typography>
-                <Typography color="text.secondary">PNG, JPG, or WEBP up to 2MB</Typography>
+                <Typography variant="h6" fontWeight={700}>
+                  Upload artwork image
+                </Typography>
+                <Typography color="text.secondary">
+                  PNG, JPG, or WEBP up to 2MB
+                </Typography>
               </>
             )}
           </DropZone>
           <Button variant="outlined" component="label" sx={{ width: "100%" }}>
             Choose file
-            <input hidden accept="image/*" type="file" onChange={handleFileChange} />
+            <input
+              hidden
+              accept="image/*"
+              type="file"
+              onChange={handleFileChange}
+            />
           </Button>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-            <TextField label="Artwork title" name="title" value={formData.title} onChange={handleChange} fullWidth autoFocus />
-            <TextField label="Art size" name="art_size" value={formData.art_size} onChange={handleChange} fullWidth />
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2,
+            }}
+          >
+            <TextField
+              label="Artwork title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label="Art size"
+              name="art_size"
+              value={formData.art_size}
+              onChange={handleChange}
+              fullWidth
+            />
             <FormControl fullWidth>
               <InputLabel>Genre</InputLabel>
-              <Select label="Genre" name="genre" value={formData.genre} onChange={handleChange}>
+              <Select
+                label="Genre"
+                name="genre"
+                value={formData.genre}
+                onChange={handleChange}
+              >
                 <MenuItem value="Abstract">Abstract</MenuItem>
                 <MenuItem value="Realism">Realism</MenuItem>
                 <MenuItem value="Surrealism">Surrealism</MenuItem>
@@ -275,17 +349,47 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
                 <MenuItem value="Landscape">Landscape</MenuItem>
               </Select>
             </FormControl>
-            <TextField label="Price" name="price" type="number" value={formData.price} onChange={handleChange} fullWidth />
-            <TextField label="Description" name="description" value={formData.description} onChange={handleChange} fullWidth multiline rows={3} sx={{ gridColumn: { xs: "auto", md: "1 / -1" } }} />
+            <TextField
+              label="Price"
+              name="price"
+              type="number"
+              value={formData.price}
+              onChange={handleChange}
+              fullWidth
+            />
+            <TextField
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              fullWidth
+              multiline
+              rows={3}
+              sx={{ gridColumn: { xs: "auto", md: "1 / -1" } }}
+            />
           </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleClose} disabled={isSubmitting}>
+        <Button onClick={handleClose} disabled={isSubmitting} color="text.secondary">
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={isSubmitting}>
-          {isSubmitting && <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />}
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          sx={{
+            color: theme.palette.text.primary,
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
+        >
+          {isSubmitting && (
+            <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
+          )}
           {isSubmitting
             ? selectedArtwork
               ? "Updating"

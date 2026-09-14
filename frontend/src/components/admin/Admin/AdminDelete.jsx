@@ -8,6 +8,10 @@ import {
   Slide,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+// Icons
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -25,12 +29,8 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function ArtworkDelete({
-  open,
-  handleClose,
-  onSubmit,
-  selectedAdmin,
-}) {
+function ArtworkDelete({ open, handleClose, onSubmit, selectedAdmin }) {
+  const theme = useTheme();
   // Handle Enter key for delete
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -76,19 +76,51 @@ function ArtworkDelete({
       keepMounted
       PaperProps={{
         sx: {
-          minWidth: { xs: "92%", sm: "720px" },
-          width: "100%",
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
       <>
-        <DialogTitle sx={{ fontWeight: 700 }}>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            px: 2.5,
+            py: 1.75,
+            color: theme.palette.text.primary,
+            fontSize: 16,
+            fontWeight: 700,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <AdminPanelSettingsOutlinedIcon
+            sx={{ color: "#ef3340", fontSize: 20 }}
+          />
           Delete Account
+          <Button
+            aria-label="Close admin information"
+            onClick={handleClose}
+            sx={{
+              minWidth: 28,
+              width: 28,
+              height: 28,
+              ml: "auto",
+              p: 0,
+              color: theme.palette.text.secondary,
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </Button>
         </DialogTitle>
         <DialogContent dividers>
           <Typography>
-            Are you sure you want to delete this account? This action cannot be undone.
+            Are you sure you want to delete this account? This action cannot be
+            undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

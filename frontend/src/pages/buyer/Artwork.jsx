@@ -14,12 +14,14 @@ import {
   Stack,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import artGenres from "../../data/artGenres";
 
 export default function Artwork() {
+  const theme = useTheme();
   const { genre } = useParams();
   const [searchParams] = useSearchParams();
   const searchQuery = (searchParams.get("q") || "").toLowerCase().trim();
@@ -152,7 +154,11 @@ export default function Artwork() {
   }, [artworks, filterGenre, keyword, maxPrice, mediumFilter, minPrice, sortDirection, sortField, statusFilter]);
 
   return (
-    <Box sx={{ p: 3, backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Artwork</title>
       </Helmet>
@@ -293,7 +299,7 @@ export default function Artwork() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "repeat(2, 1fr)",
+            xs: "repeat(1, 1fr)",
             sm: "repeat(3, 1fr)",
             md: "repeat(4, 1fr)",
             lg: "repeat(4, 1fr)",

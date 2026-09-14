@@ -500,8 +500,15 @@ export default function Dashboard() {
           p: { xs: 2, md: 3 },
           mt: 3,
           borderRadius: 2,
-          borderColor: "#e2e8f0",
-          boxShadow: "0 2px 8px rgba(15, 23, 42, 0.04)",
+          borderColor: "divider",
+          backgroundColor: "background.paper",
+          boxShadow:
+            theme.palette.mode === "dark"
+              ? "0 2px 14px rgba(15, 23, 42, 0.22)"
+              : "0 2px 8px rgba(15, 23, 42, 0.04)",
+          overflowX: "hidden",
+          width: "100%",
+          maxWidth: "100%",
         }}
         variant="outlined"
       >
@@ -511,11 +518,19 @@ export default function Dashboard() {
             alignItems: { xs: "flex-start", sm: "center" },
             justifyContent: "space-between",
             flexDirection: { xs: "column", sm: "row" },
-            gap: 1,
+            gap: 1.5,
             mb: 2,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              minWidth: 0,
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             <Box
               sx={{
                 width: 30,
@@ -523,13 +538,17 @@ export default function Dashboard() {
                 borderRadius: 1.5,
                 display: "grid",
                 placeItems: "center",
-                bgcolor: "#fff1f2",
-                color: "#ef2028",
+                flexShrink: 0,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "rgba(239, 68, 68, 0.14)"
+                    : "#fff1f2",
+                color: "error.main",
               }}
             >
               <SchoolRoundedIcon sx={{ fontSize: 18 }} />
             </Box>
-            <Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
               <Box
                 sx={{
                   display: "flex",
@@ -538,7 +557,13 @@ export default function Dashboard() {
                   flexWrap: "wrap",
                 }}
               >
-                <Typography sx={{ fontWeight: 800, fontSize: 15 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: 14, sm: 15 },
+                    lineHeight: 1.2,
+                  }}
+                >
                   CAFA Program Distribution
                 </Typography>
                 <Typography
@@ -547,32 +572,60 @@ export default function Dashboard() {
                     px: 1,
                     py: 0.4,
                     borderRadius: 1,
-                    bgcolor: "#ffe4e6",
-                    color: "#e11d48",
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(225, 29, 72, 0.16)"
+                        : "#ffe4e6",
+                    color: "error.main",
                     fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
                   }}
                 >
                   COLLEGE OF ARCHITECTURE & FINE ARTS
                 </Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: "block",
+                  mt: 0.5,
+                  lineHeight: 1.4,
+                }}
+              >
                 Departmental breakdown of student artists & artwork catalog
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: "flex", gap: 0.75 }}>
+
+          <Box
+            sx={{
+              display: "flex",
+              gap: 0.75,
+              width: { xs: "100%", sm: "auto" },
+              flexWrap: "wrap",
+              justifyContent: { xs: "stretch", sm: "flex-end" },
+            }}
+          >
             <Button
               size="small"
               variant="contained"
               sx={{
                 minWidth: 0,
                 px: 1.5,
+                flex: { xs: 1, sm: "0 0 auto" },
                 textTransform: "none",
-                bgcolor: "#f8fafc",
-                color: "#172033",
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "rgba(148, 163, 184, 0.14)"
+                    : "#f8fafc",
+                color: "text.primary",
                 boxShadow: "none",
-                border: "1px solid #edf1f5",
+                border: "1px solid",
+                borderColor: "divider",
                 fontSize: 11,
+                borderRadius: 1.5,
               }}
             >
               By Artists ({enrolledArtists})
@@ -583,9 +636,11 @@ export default function Dashboard() {
               sx={{
                 minWidth: 0,
                 px: 1.5,
+                flex: { xs: 1, sm: "0 0 auto" },
                 textTransform: "none",
                 color: "text.secondary",
                 fontSize: 11,
+                borderRadius: 1.5,
               }}
             >
               By Artworks ({artworkDistributionCount})
@@ -598,13 +653,24 @@ export default function Dashboard() {
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              md: "minmax(260px, 0.8fr) minmax(380px, 1.2fr)",
+              md: "minmax(0, 0.82fr) minmax(0, 1.18fr)",
             },
             gap: { xs: 2, md: 3 },
             alignItems: "center",
+            width: "100%",
+            maxWidth: "100%",
           }}
         >
-          <Box sx={{ height: { xs: 250, md: 280 }, position: "relative" }}>
+          <Box
+            sx={{
+              height: { xs: 220, sm: 250, md: 280 },
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              minWidth: 0,
+            }}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -616,7 +682,7 @@ export default function Dashboard() {
                   innerRadius="45%"
                   outerRadius="72%"
                   paddingAngle={1}
-                  stroke="#ffffff"
+                  stroke={theme.palette.background.paper}
                   strokeWidth={2}
                 >
                   {chartData.map((entry) => (
@@ -636,27 +702,53 @@ export default function Dashboard() {
                 transform: "translate(-50%, -50%)",
                 textAlign: "center",
                 pointerEvents: "none",
+                px: 1,
               }}
             >
               <Typography
                 variant="caption"
-                sx={{ display: "block", color: "#ef2028", fontWeight: 700 }}
+                sx={{
+                  display: "block",
+                  color: "error.main",
+                  fontWeight: 700,
+                  fontSize: { xs: 11, sm: 12 },
+                }}
               >
                 CAFA
               </Typography>
               <Typography
-                sx={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1 }}
+                sx={{
+                  fontSize: { xs: 18, sm: 20 },
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                }}
               >
                 {enrolledArtists}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  fontSize: { xs: 10, sm: 12 },
+                  display: "block",
+                  maxWidth: { xs: 70, sm: 90, md: 100 },
+                  lineHeight: 1.2,
+                  mx: "auto",
+                  whiteSpace: "normal",
+                }}
+              >
                 Enrolled Artists
               </Typography>
             </Box>
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ display: "block", textAlign: "center", mt: -1 }}
+              sx={{
+                display: "block",
+                textAlign: "center",
+                mt: -1,
+                fontSize: { xs: 10, sm: 12 },
+              }}
             >
               Hover or tap any sector to view program share
             </Typography>
@@ -665,8 +757,13 @@ export default function Dashboard() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
               gap: 1,
+              minWidth: 0,
+              width: "100%",
             }}
           >
             {programData.map((program) => {
@@ -677,20 +774,33 @@ export default function Dashboard() {
                 <Box
                   key={program.name}
                   sx={{
-                    border: "1px solid #e8edf2",
+                    border: "1px solid",
+                    borderColor: "divider",
                     borderRadius: 1.5,
                     p: 1.2,
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(148, 163, 184, 0.04)"
+                        : "#f8fafc",
+                    minWidth: 0,
                   }}
                 >
                   <Box
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
+                      alignItems: "flex-start",
                       gap: 1,
                     }}
                   >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography noWrap sx={{ fontSize: 12, fontWeight: 700 }}>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        noWrap
+                        sx={{
+                          fontSize: { xs: 11, sm: 12 },
+                          fontWeight: 700,
+                        }}
+                      >
                         <Box
                           component="span"
                           sx={{
@@ -700,16 +810,24 @@ export default function Dashboard() {
                             borderRadius: "50%",
                             bgcolor: program.color,
                             mr: 0.75,
+                            verticalAlign: "middle",
                           }}
                         />
                         {program.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", mt: 0.25 }}
+                      >
                         {program.students}{" "}
                         {program.students === 1 ? "student" : "students"}
                       </Typography>
                     </Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: 700, flexShrink: 0 }}
+                    >
                       {percentage}%
                     </Typography>
                   </Box>
@@ -720,7 +838,10 @@ export default function Dashboard() {
                       mt: 0.8,
                       height: 4,
                       borderRadius: 2,
-                      bgcolor: "#edf2f5",
+                      bgcolor:
+                        theme.palette.mode === "dark"
+                          ? "rgba(148, 163, 184, 0.16)"
+                          : "#edf2f5",
                       "& .MuiLinearProgress-bar": {
                         bgcolor: program.color,
                         borderRadius: 2,
@@ -730,7 +851,12 @@ export default function Dashboard() {
                   <Typography
                     variant="caption"
                     color="text.secondary"
-                    sx={{ display: "block", textAlign: "right", mt: 0.35 }}
+                    sx={{
+                      display: "block",
+                      textAlign: "right",
+                      mt: 0.35,
+                      lineHeight: 1.3,
+                    }}
                   >
                     {program.artworks} {program.artworks === 1 ? "art" : "arts"}{" "}
                     listed
@@ -755,6 +881,7 @@ export default function Dashboard() {
                     ? "rgba(22, 101, 52, 0.28)"
                     : "#f0fdf4",
                 borderRadius: 1.5,
+                minWidth: 0,
               }}
             >
               <InfoOutlinedIcon
@@ -762,12 +889,15 @@ export default function Dashboard() {
                   color: theme.palette.mode === "dark" ? "#4ade80" : "#16a34a",
                   fontSize: 18,
                   mt: 0.1,
+                  flexShrink: 0,
                 }}
               />
               <Typography
                 variant="caption"
                 sx={{
                   color: theme.palette.mode === "dark" ? "#bbf7d0" : "#166534",
+                  lineHeight: 1.5,
+                  fontSize: { xs: 11, sm: 12 },
                 }}
               >
                 <strong>100% Student Artist Proceeds (0% Platform Fee):</strong>{" "}

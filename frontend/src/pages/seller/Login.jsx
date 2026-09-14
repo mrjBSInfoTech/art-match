@@ -348,6 +348,7 @@ const Login = () => {
               fontSize: "16px",
               backgroundColor: "#af4f4f",
               borderRadius: "10px",
+              color: "#fff",
               mt: 1.5,
               "&:hover": {
                 backgroundColor: "#8a3d3d",
@@ -360,20 +361,6 @@ const Login = () => {
           >
             Login
           </Button>
-
-          <Divider />
-
-          <Typography variant="body2" align="center">
-            Don&apos;t have an account?{" "}
-            <Link
-              component={RouterLink}
-              to="/seller/register"
-              underline="hover"
-              sx={{ fontWeight: 700 }}
-            >
-              Create one
-            </Link>
-          </Typography>
         </Stack>
       </Paper>
       <Snackbar

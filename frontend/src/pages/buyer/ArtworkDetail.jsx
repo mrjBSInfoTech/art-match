@@ -236,6 +236,7 @@ export default function ArtworkDetail() {
                     borderRadius: 999,
                     fontSize: 10,
                     fontWeight: 600,
+                    color: "white",
                   }}
                 >
                   {addingToCart ? "Adding..." : cartMessage || "Add to cart"}
@@ -251,7 +252,7 @@ export default function ArtworkDetail() {
             p: 3,
             borderRadius: 3,
             borderColor: "divider",
-            backgroundColor: "#fafafa",
+            backgroundColor: "background.paper",
           }}
         >
           <Stack spacing={2.5} divider={<Divider flexItem />}>
@@ -303,7 +304,7 @@ export default function ArtworkDetail() {
                       sx={{
                         borderRadius: 999,
                         fontSize: "0.75rem",
-                        backgroundColor: "#fff",
+                        backgroundColor: "theme.palette.background.chip",
                         fontWeight: "bold",
                       }}
                     />
@@ -345,7 +346,7 @@ export default function ArtworkDetail() {
                       sx={{
                         borderRadius: 999,
                         fontSize: "0.75rem",
-                        backgroundColor: "#fff",
+                        backgroundColor: "theme.palette.background.chip",
                         fontWeight: "bold",
                       }}
                     />
@@ -387,7 +388,7 @@ export default function ArtworkDetail() {
                       sx={{
                         borderRadius: 999,
                         fontSize: "0.75rem",
-                        backgroundColor: "#fff",
+                        backgroundColor: "theme.palette.background.chip",
                         fontWeight: "bold",
                       }}
                     />

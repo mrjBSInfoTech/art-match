@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+// Icons
 import CloseIcon from "@mui/icons-material/Close";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
@@ -102,7 +103,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
       </DialogTitle>
 
       <DialogContent
-        sx={{ p: 2.5, backgroundColor: theme.palette.background.paper }}
+        sx={{ p: 2.5 }}
       >
         {customer ? (
           <Box>
@@ -115,6 +116,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.divider}`,
                 backgroundColor: theme.palette.background.default,
+                mt: 1.5,
               }}
             >
               <Box
