@@ -147,7 +147,10 @@ export default function SellerLayout({ children }) {
   const router = {
     pathname: location.pathname.replace(/^\/seller/, "") || "/",
     navigate: (path) => {
-      navigate(`/seller/${path.replace(/^\/+/, "")}`);
+      const targetPath = path.startsWith("/seller/")
+        ? path
+        : `/seller/${path.replace(/^\/+/, "")}`;
+      navigate(targetPath);
     },
   };
 
@@ -235,7 +238,7 @@ export default function SellerLayout({ children }) {
           fontSize: 22,
         }}
       >
-        Red <spam style={{ color: "#ff0000" }}>Nexus</spam>
+        Red <span style={{ color: "#ff0000" }}>Nexus</span>
       </Typography>
     ),
     homeUrl: "/seller/dashboard",

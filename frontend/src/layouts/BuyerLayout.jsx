@@ -25,6 +25,10 @@ import {
   Collapse,
   Autocomplete,
   InputBase,
+  Checkbox,
+  FormControlLabel,
+  Slider,
+  Stack,
   Menu,
   MenuItem,
   Paper,
@@ -44,6 +48,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
+import TuneIcon from "@mui/icons-material/Tune";
 import logo from "../assets/Nexus.png";
 import Footer from "../pages/buyer/Footer";
 import { fetchCart } from "../api/buyer/cartAPI";
@@ -69,7 +74,8 @@ function BuyerLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, mode, setMode } = useThemeMode();
-  const toggleTheme = () => setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
+  const toggleTheme = () =>
+    setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
 
   const menuItems = [
     { label: "Home", path: "/buyer/main" },
@@ -89,6 +95,7 @@ function BuyerLayout({ children }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [openDialog, setOpenDialog] = React.useState(false);
@@ -206,37 +213,93 @@ function BuyerLayout({ children }) {
   }, [activeIndex]);
 
   const badgeCount = 10;
+  const categoryGroups = [
+    {
+      title: "Art Type",
+      options: ["Painting", "Sculpture", "Architecture", "Digital", "Photography", "Print", "Mixed Media"],
+    },
+    {
+      title: "Style",
+      options: ["Modern", "Abstract", "Traditional", "Minimalist", "Pop Art", "Conceptual", "Cute"],
+    },
+    {
+      title: "Materials",
+      options: ["Oil on Canvas", "Acrylic", "Watercolor", "Clay", "Metal"],
+    },
+  ];
+  const paletteColors = ["#f52245", "#ffe3bb", "#1464ed", "#16b978", "#9c332b", "#151632", "#f5f1ea", "#1f1f1f"];
+  const handleCategoryOption = (option) => {
+    setCategoriesOpen(false);
+    navigate(`/buyer/artwork?q=${encodeURIComponent(option)}`);
+  };
 
   return (
     <>
       <AppBar
         position="sticky"
         sx={{
-          backgroundColor: "#AF4F4F",
-          padding: { xs: "4px 10px", lg: "8px 20px" },
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
         elevation={0}
       >
+        <Box
+          sx={{
+            display: { xs: "none", sm: "flex" },
+            minHeight: 36,
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: { sm: 3, lg: 5 },
+            backgroundColor: theme.palette.background.footer,
+            color: "white",
+            fontSize: 13,
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{ color: "inherit", fontSize: "inherit" }}
+          >
+            Special Spring Exhibition: Post-Digital Sculptures by Class of 2026
+            out now.
+          </Typography>
+          <Button
+            size="small"
+            onClick={() => navigate("/buyer/artwork")}
+            sx={{
+              color: "inherit",
+              textTransform: "none",
+              fontSize: "inherit",
+            }}
+          >
+            Explore Collection{" "}
+            <span aria-hidden="true" style={{ marginLeft: 10 }}>
+              ›
+            </span>
+          </Button>
+        </Box>
         <Toolbar
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: { xs: 1, lg: 2 },
+            minHeight: { xs: 64, lg: 68 },
+            px: { xs: 2, sm: 4, lg: 6 },
           }}
         >
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 2,
+              gap: 1,
               flexShrink: 0,
             }}
           >
             <Box
               sx={{
-                width: { xs: 42, sm: 50 },
-                height: { xs: 42, sm: 50 },
+                width: { xs: 38, sm: 42 },
+                height: { xs: 42, sm: 46 },
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
@@ -251,9 +314,9 @@ function BuyerLayout({ children }) {
                 src={logo}
                 alt="logo"
                 style={{
-                  width: "70%",
-                  height: "70%",
-                  objectFit: "cover",
+                  width: "34px",
+                  height: "42px",
+                  objectFit: "contain",
                   display: "block",
                 }}
               />
@@ -263,11 +326,15 @@ function BuyerLayout({ children }) {
               variant="h6"
               sx={{
                 fontWeight: "bold",
-                color: "#fff",
+                color: theme.palette.text.primary,
                 display: { xs: "none", lg: "block" },
+                letterSpacing: "-0.02em",
               }}
             >
-              ArtMatch
+              RED{" "}
+              <Box component="span" sx={{ color: "#f52245" }}>
+                NEXUS
+              </Box>
             </Typography>
           </Box>
 
@@ -287,10 +354,11 @@ function BuyerLayout({ children }) {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                width: 500,
+                width: 750,
                 maxWidth: "100%",
-                 backgroundColor: theme.palette.background.paper,
-                borderRadius: "6px",
+                backgroundColor: theme.palette.background.default,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: "24px",
                 px: 1.5,
               }}
             >
@@ -319,12 +387,16 @@ function BuyerLayout({ children }) {
             <IconButton
               onClick={toggleTheme}
               aria-label="Toggle light and dark mode"
-              sx={{ color: "white" }}
+              sx={{ color: theme.palette.text.primary }}
             >
-              {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+              {mode === "dark" ? (
+                <LightModeRoundedIcon />
+              ) : (
+                <DarkModeRoundedIcon />
+              )}
             </IconButton>
             <IconButton
-              sx={{ color: "white" }}
+              sx={{ color: theme.palette.text.primary }}
               onClick={() => {
                 navigate("/buyer/messages");
               }}
@@ -334,7 +406,7 @@ function BuyerLayout({ children }) {
               </Badge>
             </IconButton>
             <IconButton
-              sx={{ color: "white" }}
+              sx={{ color: theme.palette.text.primary }}
               onClick={() => {
                 navigate("/buyer/cart");
               }}
@@ -348,14 +420,12 @@ function BuyerLayout({ children }) {
               </Badge>
             </IconButton>
             <IconButton
-              sx={{ color: "white", ml: 1 }}
-              onClick={(e) => {
-                if (loggedIn) {
-                  navigate("/buyer/profile");
-                } else {
-                  navigate("/buyer/login");
-                }
-              }}
+              sx={{ color: theme.palette.text.primary, ml: 1 }}
+              onClick={
+                loggedIn
+                  ? () => navigate("/buyer/profile")
+                  : () => navigate("/buyer/login")
+              }
             >
               <AccountCircleIcon />
             </IconButton>
@@ -456,19 +526,99 @@ function BuyerLayout({ children }) {
           >
             <IconButton
               onClick={() => setMobileOpen(!mobileOpen)}
-              sx={{ color: "#fff" }}
+              sx={{ color: theme.palette.text.primary }}
             >
               <MenuIcon />
             </IconButton>
           </Box>
         </Toolbar>
 
+        <Box
+          component="nav"
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: { xs: 0.5, sm: 2 },
+            minHeight: { xs: "auto", sm: 48 },
+            px: { xs: 1, sm: 3, lg: 6 },
+            py: { xs: 0.75, sm: 0 },
+            borderTop: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: { xs: "space-between", sm: "flex-start" },
+              gap: { xs: 0.5, sm: 2, md: 3 },
+              width: { xs: "100%", sm: "auto" },
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              onClick={() => setCategoriesOpen(true)}
+              startIcon={<TuneIcon sx={{ fontSize: 18 }} />}
+              sx={{
+                color: "inherit",
+                minWidth: 0,
+                textTransform: "none",
+                fontWeight: 500,
+                px: { xs: 0.75, sm: 1 },
+                fontSize: { xs: 12, sm: 14 },
+              }}
+            >
+              All Categories
+            </Button>
+            <Button
+              onClick={() => navigate("/buyer/artwork")}
+              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+            >
+              Shop
+            </Button>
+            <Button
+              onClick={() => navigate("/buyer/artwork")}
+              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+            >
+              Artist
+            </Button>
+            <Button
+              onClick={() => navigate("/buyer/artwork")}
+              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+            >
+              Gallery
+            </Button>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: { xs: "space-between", sm: "flex-end" },
+              gap: { xs: 0.5, sm: 2, md: 3 },
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
+            <Button
+              onClick={() => navigate("/buyer/main")}
+              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+            >
+              About Us
+            </Button>
+            <Button
+              onClick={() => navigate("/buyer/messages")}
+              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+            >
+              Help Support
+            </Button>
+          </Box>
+        </Box>
+
         {/* SEARCH DROP-DOWN (For Mobile and Tablet) */}
         <Collapse in={searchOpen}>
           <Box
             sx={{
               p: 2,
-              backgroundColor: theme.palette.mode === "dark" ? "#0f172a" : "#1e1f87",
+              backgroundColor: theme.palette.background.paper,
               borderTop: "1px solid rgba(255,255,255,0.1)",
             }}
           >
@@ -492,7 +642,11 @@ function BuyerLayout({ children }) {
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{ py: 0.5, fontSize: "0.9rem", color: theme.palette.text.primary }}
+                sx={{
+                  py: 0.5,
+                  fontSize: "0.9rem",
+                  color: theme.palette.text.primary,
+                }}
               />
               <IconButton type="submit" size="small" sx={{ p: 1 }}>
                 <SearchIcon />
@@ -502,25 +656,120 @@ function BuyerLayout({ children }) {
         </Collapse>
       </AppBar>
 
+      <Drawer
+        anchor="left"
+        open={categoriesOpen}
+        onClose={() => setCategoriesOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: "min(320px, 88vw)", sm: 300 },
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
+            borderRight: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <Box sx={{ px: 2, py: 2.5, overflowY: "auto" }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              All Categories
+            </Typography>
+            <IconButton onClick={() => setCategoriesOpen(false)} aria-label="Close categories">
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+
+          {categoryGroups.slice(0, 2).map((group) => (
+            <Box key={group.title} sx={{ py: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+              <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700, mb: 0.5 }}>
+                {group.title}
+              </Typography>
+              {group.options.map((option, index) => (
+                <FormControlLabel
+                  key={option}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={index === 0 && group.title === "Art Type"}
+                      onChange={() => handleCategoryOption(option)}
+                      sx={{ py: 0.35, color: theme.palette.divider, "&.Mui-checked": { color: theme.palette.error.main } }}
+                    />
+                  }
+                  label={option}
+                  sx={{ display: "flex", m: 0, minHeight: 25, ".MuiFormControlLabel-label": { fontSize: 12, color: theme.palette.text.secondary } }}
+                />
+              ))}
+            </Box>
+          ))}
+
+          <Box sx={{ py: 1.75, borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700, mb: 1.25 }}>
+              Color Palette
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {paletteColors.map((color) => (
+                <Box
+                  key={color}
+                  onClick={() => handleCategoryOption(color)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Filter by ${color}`}
+                  sx={{ width: 18, height: 18, borderRadius: "50%", backgroundColor: color, border: `1px solid ${theme.palette.divider}`, cursor: "pointer", "&:hover": { transform: "scale(1.15)" } }}
+                />
+              ))}
+            </Stack>
+          </Box>
+
+          <Box sx={{ py: 1.75, borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+              <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700 }}>
+                Price Range
+              </Typography>
+              <Typography variant="caption" color="error.main">₱10,000+</Typography>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">₱100</Typography>
+            <Slider defaultValue={35} size="small" aria-label="Price range" sx={{ color: theme.palette.error.main, mt: 0.5 }} />
+          </Box>
+
+          <Box sx={{ pt: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700, mb: 0.5 }}>
+              Materials
+            </Typography>
+            {categoryGroups[2].options.map((option) => (
+              <FormControlLabel
+                key={option}
+                control={<Checkbox size="small" onChange={() => handleCategoryOption(option)} sx={{ py: 0.35, color: theme.palette.divider, "&.Mui-checked": { color: theme.palette.error.main } }} />}
+                label={option}
+                sx={{ display: "flex", m: 0, minHeight: 25, ".MuiFormControlLabel-label": { fontSize: 12, color: theme.palette.text.secondary } }}
+              />
+            ))}
+          </Box>
+        </Box>
+      </Drawer>
+
       {/* MOBILE DRAWER (Menu only) */}
       <Drawer
         anchor="right"
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
+        PaperProps={{
+          sx: {
+            width: 270,
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
+          },
+        }}
       >
         <Box
           sx={{
-            width: 270,
-            backgroundColor: "#AF4F4F",
             height: "100%",
-            color: "#fff",
           }}
         >
           <List sx={{ p: 2 }}>
             <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
               <IconButton
                 onClick={() => setMobileOpen(false)}
-                sx={{ color: "#fff" }}
+                sx={{ color: theme.palette.text.primary }}
               >
                 <CloseIcon />
               </IconButton>
@@ -531,7 +780,9 @@ function BuyerLayout({ children }) {
                   onClick={() => handleNavigation(item.path)}
                   sx={{
                     backgroundColor:
-                      activeIndex === index ? "#b73636" : "transparent",
+                      activeIndex === index
+                        ? theme.palette.action.selected
+                        : "transparent",
                     borderRadius: 2,
                     mb: 1,
                   }}
@@ -556,15 +807,17 @@ function BuyerLayout({ children }) {
                 <ListItem disablePadding>
                   <ListItemButton
                     onClick={() => {
-                      handleClose();
+                      navigate("/buyer/profile")
                       setMobileOpen(false);
                     }}
                     sx={{ borderRadius: 2 }}
                   >
-                    <ListItemIcon sx={{ color: "#fff", minWidth: 40 }}>
-                      <Settings fontSize="small" />
+                    <ListItemIcon
+                      sx={{ color: theme.palette.text.primary, minWidth: 40 }}
+                    >
+                      <AccountCircleIcon fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText primary="Settings" />
+                    <ListItemText primary="Profile" />
                   </ListItemButton>
                 </ListItem>
 
@@ -574,9 +827,9 @@ function BuyerLayout({ children }) {
                       handleOpenDialog();
                       setMobileOpen(false);
                     }}
-                    sx={{ borderRadius: 2, color: "white" }} // Slight red tint for logout
+                    sx={{ borderRadius: 2, color: theme.palette.error.main }}
                   >
-                    <ListItemIcon sx={{ color: "white", minWidth: 40 }}>
+                    <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
                       <Logout fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary="Logout" />
@@ -600,24 +853,24 @@ function BuyerLayout({ children }) {
       </Drawer>
 
       <Box
-        sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
+        component="main"
+        sx={{
+          flexGrow: 1,
+          width: "100%",
+          display: "flex",
+          alignItems: "flex-start",
+          p: 0,
+          m: 0,
+        }}
       >
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-start",
-            px: { xs: 2, sm: 3, md: 4 },
-            py: { xs: 2, sm: 3 },
-          }}
+        <Container
+          maxWidth={false}
+          disableGutters
+          sx={{ width: "100%", maxWidth: "none", p: 0, m: 0 }}
         >
-          <Container maxWidth="lg" sx={{ width: "100%" }}>
-            <Outlet />
-          </Container>
-        </Box>
-        <Footer />
+          <Outlet />
+          <Footer/>
+        </Container>
       </Box>
     </>
   );
