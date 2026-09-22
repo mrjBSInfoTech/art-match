@@ -12,92 +12,111 @@ import {
 import InstagramIcon from "@mui/icons-material/Instagram";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import FacebookIcon from "@mui/icons-material/Facebook";
-import PinterestIcon from "@mui/icons-material/Pinterest";
+import { useThemeMode } from "../../theme/ThemeModeProvider";
+import logo from "../../assets/Nexus.png";
 
 const Footer = () => {
+  const { theme } = useThemeMode();
+  const footerText = "#fff7f2";
+
   return (
     <Box
       component="footer"
       sx={{
-        borderTop: "1px solid",
-        borderColor: "divider",
-        bgcolor: "background.paper",
-        mt: 8,
+        mt: 0,
+        backgroundColor: theme.palette.background.footer,
+        color: footerText,
       }}
     >
-      <Container maxWidth="lg" sx={{ py: 6 }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 3, sm: 5, lg: 7 }, py: { xs: 5, md: 7 } }}>
         <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={4}
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 4, sm: 5, lg: 10 }}
           sx={{ justifyContent: "space-between" }}
         >
-          <Box sx={{ maxWidth: 320 }}>
-            <Typography
-              variant="h6"
-              sx={{ color: "primary.main", fontWeight: 700, mb: 1 }}
-            >
-              ArtMatch
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              A marketplace for original student artworks. Discover new voices,
-              support emerging artists.
+          <Box sx={{ maxWidth: 330, flex: "1 1 30%" }}>
+            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 2 }}>
+              <Box
+                component="img"
+                src={logo}
+                alt="Red Nexus"
+                sx={{ width: 23, height: 30, objectFit: "contain"}}
+              />
+              <Typography sx={{ color: footerText, fontWeight: 800, fontSize: 16 }}>
+                RED NEXUS
+              </Typography>
+            </Stack>
+            <Typography variant="body2" sx={{ color: footerText, lineHeight: 1.5, maxWidth: 310 }}>
+              An e-commerce marketplace powered by the Central Academy of Fine Arts student community. Curating true creative expressions straight from the studio.
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={6}>
-            <Stack spacing={1}>
-              <Typography variant="subtitle2">Company</Typography>
-              <FooterLink to="/about">About</FooterLink>
-              <FooterLink to="/contact">Contact</FooterLink>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 3, sm: 7, lg: 12 }} sx={{ flex: "1 1 55%" }}>
+            <Stack spacing={1.25} sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" sx={{ color: footerText, fontWeight: 800, mb: 0.5 }}>
+                Acquire Art
+              </Typography>
+              <FooterLink to="/buyer/artwork" color={footerText}>Paintings</FooterLink>
+              <FooterLink to="/buyer/artwork/Sculpture" color={footerText}>Sculptures</FooterLink>
+              <FooterLink to="/buyer/artwork/Photography" color={footerText}>Photography</FooterLink>
             </Stack>
 
-            <Stack spacing={1}>
-              <Typography variant="subtitle2">Legal</Typography>
-              <FooterLink to="/privacy">Privacy Policy</FooterLink>
-              <FooterLink to="/terms">Terms</FooterLink>
+            <Stack spacing={1.25} sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" sx={{ color: footerText, fontWeight: 800, mb: 0.5 }}>
+                Programs
+              </Typography>
+              <FooterLink to="/buyer/artwork/Architecture" color={footerText}>Architecture</FooterLink>
+              <FooterLink to="/buyer/artwork/Interior%20Design" color={footerText}>Interior Design</FooterLink>
+              <FooterLink to="/buyer/artwork/Fine%20Arts" color={footerText}>Fine Arts</FooterLink>
             </Stack>
-          </Stack>
 
-          <Stack spacing={1}>
-            <Typography variant="subtitle2">Follow</Typography>
-            <Stack direction="row">
-              <IconButton size="small" aria-label="Instagram">
-                <InstagramIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" aria-label="Twitter">
-                <TwitterIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" aria-label="Facebook">
-                <FacebookIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" aria-label="Pinterest">
-                <PinterestIcon fontSize="small" />
-              </IconButton>
+            <Stack spacing={1.25} sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" sx={{ color: footerText, fontWeight: 800, mb: 0.5 }}>
+                Academy
+              </Typography>
+              <FooterLink to="/buyer/main" color={footerText}>About CAFA</FooterLink>
+              <FooterLink to="/buyer/main" color={footerText}>Exhibitions Calendar</FooterLink>
+              <FooterLink to="/buyer/messages" color={footerText}>Vocation &amp; Inquiries</FooterLink>
+              <FooterLink to="/buyer/messages" color={footerText}>Support Desk</FooterLink>
             </Stack>
           </Stack>
         </Stack>
 
-        <Divider sx={{ my: 4 }} />
+        <Divider sx={{ my: { xs: 4, md: 5 }, borderColor: "rgba(255,247,242,0.65)" }} />
 
-        <Typography variant="caption" color="text.secondary">
-          © {new Date().getFullYear()} ArtMatch. All rights reserved.
-        </Typography>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
+          <Typography variant="caption" sx={{ color: "white" }}>
+            © {new Date().getFullYear()} CAFArtMart. Powered safely by Central Academy of Fine Arts.
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <IconButton size="small" aria-label="Twitter" sx={{ color: footerText }}>
+              <TwitterIcon fontSize="small" />
+            </IconButton>
+            <IconButton size="small" aria-label="Facebook" sx={{ color: footerText }}>
+              <FacebookIcon fontSize="small" />
+            </IconButton>
+            <IconButton size="small" aria-label="Instagram" sx={{ color: footerText }}>
+              <InstagramIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Stack>
       </Container>
     </Box>
   );
 };
 
-const FooterLink = ({ to, children }) => {
+const FooterLink = ({ to, children, color }) => {
   return (
     <Typography
       component={Link}
       to={to}
       variant="body2"
       sx={{
-        color: "text.secondary",
+        color,
         textDecoration: "none",
         display: "block",
-        "&:hover": { color: "primary.main" },
+        opacity: 0.86,
+        "&:hover": { opacity: 1 },
       }}
     >
       {children}

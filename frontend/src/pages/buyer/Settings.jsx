@@ -16,7 +16,12 @@ import {
   Typography,
   Snackbar,
   Slide,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import { useThemeMode } from "../../theme/ThemeModeProvider";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
@@ -28,6 +33,7 @@ function SlideTransition(props) {
 }
 
 export default function Settings() {
+  const { mode, setMode, theme } = useThemeMode();
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -61,6 +67,39 @@ export default function Settings() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={mode === "dark"}
+              onChange={(event) => setMode(event.target.checked ? "dark" : "light")}
+              color="primary"
+              inputProps={{ "aria-label": "Enable dark mode" }}
+            />
+          }
+          label={
+            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+              {mode === "dark" ? <DarkModeRoundedIcon fontSize="small" /> : <LightModeRoundedIcon fontSize="small" />}
+              {mode === "dark" ? "Dark mode" : "Light mode"}
+            </Box>
+          }
+          sx={{
+            m: 0,
+            width: "100%",
+            justifyContent: "space-between",
+            flexDirection: "row-reverse",
+            ".MuiFormControlLabel-label": { fontWeight: 600, mr: "auto" },
+          }}
+        />
+      </Paper>
       {/* Snackbar Notification */}
       {/* //For Future Use 
       <Snackbar

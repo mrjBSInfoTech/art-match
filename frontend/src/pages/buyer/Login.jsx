@@ -25,6 +25,7 @@ import {
   VisibilityOff,
   Person as PersonIcon,
 } from "@mui/icons-material";
+import { FaFacebookF, FaGoogle } from "react-icons/fa6";
 import Nexus from "../../assets/Nexus.png";
 import { loginUser } from "../../api/buyer/buyerAuthenticationAPI";
 import { hasValidToken, setToken } from "../../../utils/auth";
@@ -96,6 +97,10 @@ export default function Login() {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
     setSnackbarOpen(true);
+  };
+
+  const handleSocialLogin = (provider) => {
+    showSnackbar(`${provider} login is not configured yet.`, "error");
   };
 
   const closeSnackbar = (event, reason) => {
@@ -263,6 +268,43 @@ export default function Login() {
             </Button>
 
             <Divider>or</Divider>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <Button
+                type="button"
+                fullWidth
+                variant="outlined"
+                startIcon={<FaGoogle />}
+                onClick={() => handleSocialLogin("Google")}
+                sx={{
+                  py: 1.1,
+                  borderColor: "divider",
+                  color: "text.primary",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": { borderColor: "text.primary" },
+                }}
+              >
+                Google
+              </Button>
+              <Button
+                type="button"
+                fullWidth
+                variant="outlined"
+                startIcon={<FaFacebookF />}
+                onClick={() => handleSocialLogin("Facebook")}
+                sx={{
+                  py: 1.1,
+                  borderColor: "divider",
+                  color: "text.primary",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  "&:hover": { borderColor: "text.primary" },
+                }}
+              >
+                Facebook
+              </Button>
+            </Stack>
 
             <Typography variant="body2" align="center">
               Dont have an account?{" "}

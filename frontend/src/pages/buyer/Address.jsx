@@ -147,8 +147,6 @@ export default function Address() {
     <Box
       sx={{
         p: 3,
-        backgroundColor: theme.palette.background.default,
-        minHeight: "100vh",
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">

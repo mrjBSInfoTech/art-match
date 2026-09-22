@@ -145,7 +145,10 @@ export default function AdminLayout({ children }) {
   const router = {
     pathname: location.pathname.replace(/^\/admin/, "") || "/",
     navigate: (path) => {
-      navigate(`/admin/${path.replace(/^\/+/, "")}`);
+      const targetPath = path.startsWith("/admin/")
+        ? path
+        : `/admin/${path.replace(/^\/+/, "")}`;
+      navigate(targetPath);
     },
   };
 
@@ -257,7 +260,7 @@ export default function AdminLayout({ children }) {
           fontSize: 22,
         }}
       >
-        Red <spam style={{ color: "#ff0000" }}>Nexus</spam>
+        Red <span style={{ color: "#ff0000" }}>Nexus</span>
       </Typography>
     ),
     homeUrl: "/admin/dashboard",

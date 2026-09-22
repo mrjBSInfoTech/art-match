@@ -296,14 +296,10 @@ export default function Messages() {
   };
 
   return (
-    <Box sx={{ height: { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" }, display: "flex", flexDirection: "column" }}>
+    <Box sx={{ p: 5, height: { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" }, display: "flex", flexDirection: "column" }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Messages</title>
       </Helmet>
-
-      <Typography variant="h4" sx={{ fontWeight: "bold", mb: 2, display: { xs: "none", md: "block" } }}>
-        Messages
-      </Typography>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
