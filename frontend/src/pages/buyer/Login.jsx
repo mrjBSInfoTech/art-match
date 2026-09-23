@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
   Container,
@@ -9,42 +10,35 @@ import {
   IconButton,
   InputAdornment,
   Link,
-  Paper,
+  Slide,
   Snackbar,
   Stack,
   TextField,
   Typography,
-  Alert,
-  Slide,
-  useMediaQuery,
 } from "@mui/material";
 import {
   EmailRounded,
   LockRounded,
   Visibility,
   VisibilityOff,
-  Person as PersonIcon,
 } from "@mui/icons-material";
 import { FaFacebookF, FaGoogle } from "react-icons/fa6";
 import Nexus from "../../assets/Nexus.png";
 import { loginUser } from "../../api/buyer/buyerAuthenticationAPI";
 import { hasValidToken, setToken } from "../../../utils/auth";
-import { useThemeMode } from "../../theme/ThemeModeProvider";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
 }
 
 export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("student@cafa.edu.cn");
+  const [password, setPassword] = useState("********");
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const navigate = useNavigate();
-  const { theme } = useThemeMode();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     const buyerToken = localStorage.getItem("buyer_token");
@@ -75,7 +69,6 @@ export default function Login() {
       const data = await loginUser({ username, password });
       showSnackbar("Login successful!", "success");
 
-      // Store token and user data in localStorage
       setToken("buyer", data.token);
       localStorage.setItem("buyer_customer_id", data.customer_id);
       localStorage.setItem("buyer_username", data.username || "");
@@ -108,181 +101,360 @@ export default function Login() {
     setSnackbarOpen(false);
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light";
-      case "error":
-        return "error.light";
-      default:
-        return "primary.light";
-    }
-  };
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
+    <Container
+      maxWidth={false}
+      disableGutters
+      sx={{
+        minHeight: "100vh",
+        background: "#f2f1ef",
+        px: { xs: 2, md: 4 },
+        py: { xs: 2, md: 3 },
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Login</title>
       </Helmet>
-      <Paper
-        elevation={0}
+
+      <Box
         sx={{
-          borderRadius: 4,
-          overflow: "hidden",
-          border: "1px solid",
-          borderColor: "divider",
+          maxWidth: 1360,
+          minHeight: "calc(100vh - 40px)",
+          mx: "auto",
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1.05fr 0.95fr" },
-          minHeight: 650,
+          gridTemplateColumns: { xs: "1fr", md: "1.08fr 0.92fr" },
+          background: "#f2f1ef",
         }}
       >
         <Box
           sx={{
-            p: { xs: 4, md: 6 },
-            bgcolor: "#af4f4f",
-            color: "white",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
-            gap: 2,
+            justifyContent: "space-between",
+            px: { xs: 2.5, md: 4 },
+            pt: { xs: 2, md: 3 },
+            pb: { xs: 2.5, md: 3 },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Typography variant="h5" fontWeight={700}>
-              Welcome back
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.1 }}>
+            <Box component="img" src={Nexus} alt="Nexus logo" sx={{ width: 26, height: 26 }} />
+            <Typography
+              sx={{
+                fontSize: "1.05rem",
+                fontWeight: 800,
+                letterSpacing: 0.6,
+                color: "#d43e3e",
+                textTransform: "uppercase",
+              }}
+            >
+              Red Nexus
             </Typography>
           </Box>
-          <Typography variant="h3" fontWeight={700} sx={{ maxWidth: 360 }}>
-            Discover curated art that fits your style.
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{ color: "rgba(255,255,255,0.9)", maxWidth: 360 }}
+
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              pt: { xs: 4, md: 2 },
+              pb: { xs: 2, md: 1 },
+            }}
           >
-            Log in to save favorites, follow artists, and check out your next
-            piece.
+            <Box
+              sx={{
+                width: { xs: "100%", sm: 430, md: 420 },
+                background: "#f7f7f5",
+                borderRadius: 2.5,
+                boxShadow: "0 12px 24px rgba(0,0,0,0.08)",
+                border: "1px solid rgba(0,0,0,0.06)",
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                component="img"
+                src="https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=900&q=80"
+                alt="Art card"
+                sx={{
+                  display: "block",
+                  width: "100%",
+                  height: { xs: 280, sm: 310 },
+                  objectFit: "cover",
+                }}
+              />
+
+              <Box sx={{ px: 2.2, py: 1.7, display: "flex", alignItems: "center", gap: 1.8 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "1.05rem",
+                      fontWeight: 700,
+                      color: "#232323",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    Reborn Petals
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      fontSize: "0.82rem",
+                      color: "#6c6c6c",
+                      fontWeight: 500,
+                    }}
+                  >
+                    by Wang Yue (Oil Painting Dept.)
+                  </Typography>
+                </Box>
+
+                <Box sx={{ flex: 0.8 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "1.05rem",
+                      fontWeight: 700,
+                      color: "#232323",
+                      textAlign: "right",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    Structured Silence
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      fontSize: "0.82rem",
+                      color: "#6c6c6c",
+                      textAlign: "right",
+                      fontWeight: 500,
+                    }}
+                  >
+                    by Zhou Jin (Sculpture Dept.)
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+
+          <Typography
+            sx={{
+              fontSize: "0.9rem",
+              color: "#6a6865",
+              fontWeight: 500,
+              px: { xs: 1, md: 0 },
+            }}
+          >
+            Central Academy of Fine Arts (CAFA)
           </Typography>
         </Box>
 
         <Box
-          component="form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleLogin();
-          }}
           sx={{
-            p: { xs: 4, md: 6 },
             display: "flex",
-            flexDirection: "column",
+            alignItems: "center",
             justifyContent: "center",
+            px: { xs: 2.5, md: 5 },
+            py: { xs: 3, md: 4 },
           }}
         >
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
-                Sign in
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Enter your email and password to continue.
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography
-                variant="body1"
-                sx={{
-                  fontWeight: "600",
-                  color: "#444",
-                  mb: 0.75,
-                  ml: 0.5,
-                  fontSize: "0.95rem",
-                }}
-              >
-                Username
-              </Typography>
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                size="small"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PersonIcon
-                        sx={{ color: "#af4f4f", fontSize: "1.25rem" }}
-                      />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Box>
-
-            <Box>
-              <Typography
-                variant="body1"
-                sx={{
-                  fontWeight: "600",
-                  color: "#444",
-                  mb: 0.75,
-                  ml: 0.5,
-                  fontSize: "0.95rem",
-                }}
-              >
-                Password
-              </Typography>
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder="Enter your password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                size="small"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LockRounded
-                        sx={{ color: "#af4f4f", fontSize: "1.25rem" }}
-                      />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Box>
-
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
+          <Box sx={{ width: "100%", maxWidth: 500, pt: { md: 2 } }}>
+            <Typography
+              align="center"
               sx={{
-                py: 1.2,
-                borderRadius: 2,
-                bgcolor: "#af4f4f",
-                color: "white",
-                fontWeight: "600",
-                "&:hover": { bgcolor: "#9a3f3f" },
+                fontSize: { xs: "2.2rem", md: "3.2rem" },
+                fontWeight: 700,
+                color: "#222222",
+                letterSpacing: "-0.06em",
+                mb: 1.5,
               }}
             >
-              Sign in
-            </Button>
+              Sign In
+            </Typography>
 
-            <Divider>or</Divider>
+            <Typography
+              align="center"
+              sx={{
+                fontSize: "0.95rem",
+                color: "#6d6d6d",
+                mb: 3,
+              }}
+            >
+              Welcome back to Red Nexus. Please sign in to your account.
+            </Typography>
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <Box
+              component="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin();
+              }}
+            >
+              <Stack spacing={2.2}>
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: "0.74rem",
+                      letterSpacing: "0.08em",
+                      fontWeight: 700,
+                      color: "#4b4b4b",
+                      textTransform: "uppercase",
+                      mb: 1,
+                    }}
+                  >
+                    Email Address
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    size="small"
+                    placeholder="student@cafa.edu.cn"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailRounded sx={{ color: "#b7b5b1", fontSize: "1.15rem" }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 1.5,
+                        background: "#f4f4f4",
+                        height: 52,
+                        "& fieldset": { borderColor: "rgba(0,0,0,0.14)" },
+                        "&:hover fieldset": { borderColor: "rgba(0,0,0,0.2)" },
+                        "&.Mui-focused fieldset": { borderColor: "#d83c3c" },
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: "0.74rem",
+                        letterSpacing: "0.08em",
+                        fontWeight: 700,
+                        color: "#4b4b4b",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Password
+                    </Typography>
+                    <Link
+                      component={RouterLink}
+                      to="/buyer/forgot-password"
+                      underline="hover"
+                      sx={{
+                        fontSize: "0.76rem",
+                        color: "#d63d3d",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Forgot Password?
+                    </Link>
+                  </Box>
+
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    size="small"
+                    placeholder="••••••••••••"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LockRounded sx={{ color: "#b7b5b1", fontSize: "1.15rem" }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label="toggle password visibility"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            edge="end"
+                            size="small"
+                            sx={{ color: "#6d6d6d" }}
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 1.5,
+                        background: "#f4f4f4",
+                        height: 52,
+                        "& fieldset": { borderColor: "rgba(0,0,0,0.14)" },
+                        "&:hover fieldset": { borderColor: "rgba(0,0,0,0.2)" },
+                        "&.Mui-focused fieldset": { borderColor: "#d83c3c" },
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  sx={{
+                    height: 52,
+                    borderRadius: 2,
+                    bgcolor: "#e94848",
+                    color: "#fff",
+                    textTransform: "none",
+                    fontSize: "1.06rem",
+                    fontWeight: 700,
+                    boxShadow: "none",
+                    "&:hover": { bgcolor: "#d93b3b" },
+                  }}
+                >
+                  Sign In
+                </Button>
+              </Stack>
+            </Box>
+
+            <Box sx={{ display: "flex", alignItems: "center", my: 3 }}>
+              <Divider sx={{ flex: 1, borderColor: "rgba(0,0,0,0.18)" }} />
+              <Typography
+                sx={{
+                  px: 2,
+                  fontSize: "0.72rem",
+                  color: "#6d6d6d",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Or continue with
+              </Typography>
+              <Divider sx={{ flex: 1, borderColor: "rgba(0,0,0,0.18)" }} />
+            </Box>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.4}>
               <Button
                 type="button"
                 fullWidth
                 variant="outlined"
-                startIcon={<FaGoogle />}
                 onClick={() => handleSocialLogin("Google")}
+                startIcon={<FaGoogle />}
                 sx={{
-                  py: 1.1,
-                  borderColor: "divider",
-                  color: "text.primary",
-                  textTransform: "none",
+                  height: 48,
+                  borderRadius: 1.6,
+                  borderColor: "rgba(0,0,0,0.18)",
+                  color: "#222",
+                  background: "#fff",
                   fontWeight: 600,
-                  "&:hover": { borderColor: "text.primary" },
+                  textTransform: "none",
+                  "&:hover": { borderColor: "rgba(0,0,0,0.4)", background: "#fff" },
                 }}
               >
                 Google
@@ -291,57 +463,70 @@ export default function Login() {
                 type="button"
                 fullWidth
                 variant="outlined"
-                startIcon={<FaFacebookF />}
                 onClick={() => handleSocialLogin("Facebook")}
+                startIcon={<FaFacebookF />}
                 sx={{
-                  py: 1.1,
-                  borderColor: "divider",
-                  color: "text.primary",
-                  textTransform: "none",
+                  height: 48,
+                  borderRadius: 1.6,
+                  borderColor: "rgba(0,0,0,0.18)",
+                  color: "#222",
+                  background: "#fff",
                   fontWeight: 600,
-                  "&:hover": { borderColor: "text.primary" },
+                  textTransform: "none",
+                  "&:hover": { borderColor: "rgba(0,0,0,0.4)", background: "#fff" },
                 }}
               >
                 Facebook
               </Button>
             </Stack>
 
-            <Typography variant="body2" align="center">
-              Dont have an account?{" "}
+            <Typography
+              align="center"
+              sx={{
+                mt: 3,
+                fontSize: "0.95rem",
+                color: "#4b4b4b",
+              }}
+            >
+              New here?{" "}
               <Link
                 component={RouterLink}
                 to="/buyer/register"
                 underline="hover"
-                sx={{ fontWeight: 700, color: "#af4f4f" }}
+                sx={{ color: "#dc3b38", fontWeight: 700 }}
               >
-                Register here
+                Create an account (Register)
               </Link>
             </Typography>
 
-            <Typography variant="body2" align="center">
-              Enter as{" "}
-              <Link
-                component={RouterLink}
-                to="/buyer/main"
-                underline="hover"
-                sx={{ fontWeight: 700, color: "#af4f4f" }}
-              >
-                Guest
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 2,
+                mt: 4,
+                fontSize: "0.82rem",
+                color: "#7a7a7a",
+                flexWrap: "wrap",
+              }}
+            >
+              <Link href="#" underline="hover" sx={{ color: "#7a7a7a" }}>
+                Terms of Service
               </Link>
-            </Typography>
-          </Stack>
+              <Link href="#" underline="hover" sx={{ color: "#7a7a7a" }}>
+                Privacy Policy
+              </Link>
+              <Typography sx={{ color: "#7a7a7a" }}>Red Nexus © 2026</Typography>
+            </Box>
+          </Box>
         </Box>
-      </Paper>
+      </Box>
 
-      {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        autoHideDuration={3200}
         onClose={closeSnackbar}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         TransitionComponent={SlideTransition}
       >
         <Alert
@@ -351,15 +536,9 @@ export default function Login() {
           sx={{
             width: "100%",
             color: "#ffffff",
-            "& .MuiAlert-message": {
-              color: "#ffffff",
-            },
-            "& .MuiAlert-icon": {
-              color: "#ffffff",
-            },
-            "& .MuiAlert-action": {
-              color: "#ffffff",
-            },
+            "& .MuiAlert-message": { color: "#ffffff" },
+            "& .MuiAlert-icon": { color: "#ffffff" },
+            "& .MuiAlert-action": { color: "#ffffff" },
           }}
         >
           {snackbarMessage}

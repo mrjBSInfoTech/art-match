@@ -43,6 +43,11 @@ import BuyerMain from "../pages/buyer/Main";
 import BuyerAddress from "../pages/buyer/Address";
 import BuyerArtwork from "../pages/buyer/Artwork";
 import BuyerArtworkDetail from "../pages/buyer/ArtworkDetail";
+import BuyerArtist from "../pages/buyer/Artist";
+import BuyerAboutUs from "../pages/buyer/AboutUs";
+import BuyerHelpSupport from "../pages/buyer/HelpSupport";
+import BuyerProgram from "../pages/buyer/Program";
+import BuyerAcademy from "../pages/buyer/Academy";
 import BuyerCart from "../pages/buyer/Cart";
 import BuyerCheckout from "../pages/buyer/Checkout";
 import BuyerMessage from "../pages/buyer/Message";
@@ -67,6 +72,11 @@ export default function AppRoutes() {
             <Route element={<BuyerLayout />}>
               <Route path="main" element={<BuyerMain />} />
               <Route path="artwork" element={<BuyerArtwork />} />
+              <Route path="artist" element={<BuyerArtist />} />
+              <Route path="about" element={<BuyerAboutUs />} />
+              <Route path="help-support" element={<BuyerHelpSupport />} />
+              <Route path="programs/:program" element={<BuyerProgram />} />
+              <Route path="academy/:section" element={<BuyerAcademy />} />
               <Route path="artwork/view/:id" element={<BuyerArtworkDetail />} />
               <Route path="artwork/:genre" element={<BuyerArtwork />} />
             </Route>
