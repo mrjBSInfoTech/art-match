@@ -71,13 +71,13 @@ export default function Dashboard() {
 
   return (
     <Box
-          sx={{
-            p: { xs: 1.5, sm: 2.5 },
-            minHeight: "100vh",
-            backgroundColor: theme.palette.background.default,
-            color: theme.palette.text.primary,
-          }}
-        >
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Dashboard</title>
       </Helmet>
@@ -95,7 +95,11 @@ export default function Dashboard() {
         sx={{
           mt: 3,
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+          },
           gap: 2,
         }}
       >
@@ -105,31 +109,49 @@ export default function Dashboard() {
             value: loading ? "..." : artworkCount,
             caption: "Your artwork catalog",
             icon: ColorLensRoundedIcon,
+            tint: "rgba(244, 114, 182, 0.15)",
+            accent: "primary.main",
           },
           {
             label: "ORDERS SOLD",
             value: soldCount,
             caption: "Completed purchases",
             icon: SellRoundedIcon,
+            tint: "rgba(34, 197, 94, 0.18)",
+            accent: "success.main",
           },
           {
             label: "TOTAL SALES",
             value: salesCount,
             caption: "Total revenue generated",
             icon: CreditScoreIcon,
+            tint: "rgba(59, 130, 246, 0.18)",
+            accent: "secondary.main",
           },
-        ].map(({ label, value, caption, icon: MetricIcon }) => (
+        ].map(({ label, value, caption, icon: MetricIcon, tint, accent }) => (
           <Card
             key={label}
             variant="outlined"
             sx={{
-              borderRadius: 2.5,
-              bgcolor: "background.paper",
+              borderRadius: 4,
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
+                  : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+              border: "1px solid",
               borderColor: "divider",
-              boxShadow: "none",
+              boxShadow: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "0 20px 38px rgba(2, 6, 23, 0.28)"
+                  : "0 18px 36px rgba(15, 23, 42, 0.08)",
+              overflow: "hidden",
+              transition: "transform 180ms ease, box-shadow 180ms ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+              },
             }}
           >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
               <Box
                 sx={{
                   display: "flex",
@@ -144,14 +166,14 @@ export default function Dashboard() {
                       color: "text.secondary",
                       fontSize: 11,
                       fontWeight: 800,
-                      letterSpacing: 1,
+                      letterSpacing: 1.2,
                     }}
                   >
                     {label}
                   </Typography>
                   <Typography
                     sx={{
-                      mt: 0.5,
+                      mt: 1,
                       color: "text.primary",
                       fontSize: 30,
                       fontWeight: 800,
@@ -172,16 +194,19 @@ export default function Dashboard() {
                 </Box>
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
+                    width: 56,
+                    height: 56,
                     display: "grid",
                     placeItems: "center",
-                    borderRadius: 2,
-                    backgroundColor: (theme) =>
+                    borderRadius: 3,
+                    background: (theme) =>
                       theme.palette.mode === "dark"
-                        ? "rgba(239, 68, 68, 0.14)"
-                        : "#fff5f5",
-                    color: "error.main",
+                        ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
+                        : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
+                    color: accent,
+                    border: (theme) =>
+                      `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)"}`,
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
                   }}
                 >
                   {createElement(MetricIcon)}
@@ -197,9 +222,17 @@ export default function Dashboard() {
         sx={{
           mt: 3,
           p: { xs: 2, md: 3 },
-          borderRadius: 3,
+          borderRadius: 4,
           border: "1px solid",
           borderColor: "divider",
+          background: (theme) =>
+            theme.palette.mode === "dark"
+              ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+              : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+          boxShadow: (theme) =>
+            theme.palette.mode === "dark"
+              ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+              : "0 18px 36px rgba(15, 23, 42, 0.08)",
           width: "100%",
         }}
       >

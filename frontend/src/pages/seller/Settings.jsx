@@ -5,17 +5,7 @@ import {
   Box,
   Button,
   CircularProgress,
-  Divider,
-  FormControl,
-  FormControlLabel,
-  InputLabel,
-  InputAdornment,
-  LinearProgress,
-  MenuItem,
   Paper,
-  Select,
-  Stack,
-  Switch,
   TextField,
   Typography,
   Snackbar,
@@ -42,25 +32,12 @@ function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
 }
 
-const defaultSettings = {
-  shopName: "Nexus Studio",
-  shopStatus: true,
-  autoAcceptOrders: true,
-  orderAlertEmail: true,
-  orderAlertSms: false,
-  payoutMethod: "GCash",
-  shippingDefault: "Standard",
-  pickupEnabled: true,
-  password: "",
-};
-
 export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openPasswordForm, setOpenPasswordForm] = useState(false);
-  const [settings, setSettings] = useState(defaultSettings);
   const [accountInformation, setAccountInformation] = useState({
     first_name: "",
     middle_name: "",
@@ -83,20 +60,6 @@ export default function Settings() {
       last_name: localStorage.getItem("seller_last_name") || "",
       email: localStorage.getItem("seller_email") || "",
     });
-
-    // Load shop settings
-    const savedSettings = localStorage.getItem("seller_settings");
-    if (savedSettings) {
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
-      } catch {
-        setSettings(defaultSettings);
-      }
-    } else {
-      const storedName = localStorage.getItem("seller_shop_name");
-      const parsedName = storedName || defaultSettings.shopName;
-      setSettings((current) => ({ ...current, shopName: parsedName }));
-    }
   }, []);
 
   const handleOpenPasswordEdit = () => {
@@ -185,23 +148,6 @@ export default function Settings() {
     } finally {
       setSavingAccountInformation(false);
     }
-  };
-
-  const saveSettings = () => {
-    localStorage.setItem("seller_settings", JSON.stringify(settings));
-    localStorage.setItem("seller_shop_name", settings.shopName);
-    showSnackbar("Seller settings saved successfully.");
-  };
-
-  const resetSettings = () => {
-    setSettings(defaultSettings);
-    localStorage.removeItem("seller_settings");
-    localStorage.setItem("seller_shop_name", defaultSettings.shopName);
-    showSnackbar("Settings reset to default values.", "info");
-  };
-
-  const handleToggle = (field) => {
-    setSettings((current) => ({ ...current, [field]: !current[field] }));
   };
 
   const showSnackbar = (message, severity = "success") => {
@@ -423,181 +369,6 @@ export default function Settings() {
             Update
           </Button>
         </Box>
-      </Paper>
-
-      {/* Shop Profile Section */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 2, md: 3 },
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 3,
-          mt: 3,
-        }}
-      >
-        <Stack spacing={3}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-              Shop profile
-            </Typography>
-            <TextField
-              fullWidth
-              label="Shop name"
-              value={settings.shopName}
-              onChange={(e) =>
-                setSettings((current) => ({
-                  ...current,
-                  shopName: e.target.value,
-                }))
-              }
-              sx={{ maxWidth: 420 }}
-            />
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Business availability
-            </Typography>
-
-            <Stack spacing={2}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={settings.shopStatus}
-                    onChange={() => handleToggle("shopStatus")}
-                  />
-                }
-                label="Open shop for new orders"
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={settings.autoAcceptOrders}
-                    onChange={() => handleToggle("autoAcceptOrders")}
-                  />
-                }
-                label="Automatically accept incoming orders"
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={settings.pickupEnabled}
-                    onChange={() => handleToggle("pickupEnabled")}
-                  />
-                }
-                label="Enable pickup / meet-up option"
-              />
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Fulfillment settings
-            </Typography>
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <FormControl sx={{ minWidth: 220 }}>
-                <InputLabel>Default payout method</InputLabel>
-                <Select
-                  label="Default payout method"
-                  value={settings.payoutMethod}
-                  onChange={(e) =>
-                    setSettings((current) => ({
-                      ...current,
-                      payoutMethod: e.target.value,
-                    }))
-                  }
-                >
-                  <MenuItem value="GCash">GCash</MenuItem>
-                  <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
-                  <MenuItem value="PayMaya">PayMaya</MenuItem>
-                  <MenuItem value="Cash on Pickup">Cash on Pickup</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl sx={{ minWidth: 220 }}>
-                <InputLabel>Default shipping</InputLabel>
-                <Select
-                  label="Default shipping"
-                  value={settings.shippingDefault}
-                  onChange={(e) =>
-                    setSettings((current) => ({
-                      ...current,
-                      shippingDefault: e.target.value,
-                    }))
-                  }
-                >
-                  <MenuItem value="Standard">Standard</MenuItem>
-                  <MenuItem value="Express">Express</MenuItem>
-                  <MenuItem value="Pickup">Pickup</MenuItem>
-                  <MenuItem value="Same Day">Same Day</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Alerts & notifications
-            </Typography>
-
-            <Stack spacing={2}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={settings.orderAlertEmail}
-                    onChange={() => handleToggle("orderAlertEmail")}
-                  />
-                }
-                label="Send order alerts via email"
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={settings.orderAlertSms}
-                    onChange={() => handleToggle("orderAlertSms")}
-                  />
-                }
-                label="Send order alerts via SMS"
-              />
-            </Stack>
-          </Box>
-
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-            <Button
-              variant="contained"
-              sx={{
-                color: "#fff",
-                bgcolor: "#1e1f87",
-                textTransform: "none",
-                fontWeight: "bold",
-                boxShadow: "none",
-                "&:hover": { bgcolor: "#151663" },
-              }}
-              onClick={saveSettings}
-            >
-              Save changes
-            </Button>
-
-            <Button
-              color="text.secondary"
-              sx={{  px: 3, textTransform: "none" }}
-              onClick={resetSettings}
-            >
-              Reset
-            </Button>
-          </Box>
-        </Stack>
       </Paper>
 
       {/* Profile Image Dialog */}

@@ -30,6 +30,7 @@ import AdminLogin from "../pages/admin/Login";
 // Seller Pages
 import SellerDashboard from "../pages/seller/Dashboard";
 import SellerArtwork from "../pages/seller/Artwork";
+import SellerStorefront from "../pages/seller/Storefront";
 import SellerSales from "../pages/seller/Sales";
 import SellerMessages from "../pages/seller/Messages";
 import SellerOrder from "../pages/seller/Order";
@@ -133,6 +134,7 @@ export default function AppRoutes() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<SellerDashboard />} />
                 <Route path="artwork" element={<SellerArtwork />} />
+                <Route path="storefront" element={<SellerStorefront />} />
                 <Route path="sales" element={<SellerSales />} />
                 <Route path="orders" element={<SellerOrder />} />
                 <Route path="messages" element={<SellerMessages />} />
