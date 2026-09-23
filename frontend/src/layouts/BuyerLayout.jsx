@@ -578,7 +578,7 @@ function BuyerLayout({ children }) {
               Shop
             </Button>
             <Button
-              onClick={() => navigate("/buyer/artwork")}
+              onClick={() => navigate("/buyer/artist")}
               sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
             >
               Artist
@@ -599,13 +599,13 @@ function BuyerLayout({ children }) {
             }}
           >
             <Button
-              onClick={() => navigate("/buyer/main")}
+              onClick={() => navigate("/buyer/about")}
               sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
             >
               About Us
             </Button>
             <Button
-              onClick={() => navigate("/buyer/messages")}
+              onClick={() => navigate("/buyer/help-support")}
               sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
             >
               Help Support

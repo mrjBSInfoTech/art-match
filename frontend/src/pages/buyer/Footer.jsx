@@ -65,19 +65,19 @@ const Footer = () => {
               <Typography variant="subtitle2" sx={{ color: footerText, fontWeight: 800, mb: 0.5 }}>
                 Programs
               </Typography>
-              <FooterLink to="/buyer/artwork/Architecture" color={footerText}>Architecture</FooterLink>
-              <FooterLink to="/buyer/artwork/Interior%20Design" color={footerText}>Interior Design</FooterLink>
-              <FooterLink to="/buyer/artwork/Fine%20Arts" color={footerText}>Fine Arts</FooterLink>
+              <FooterLink to="/buyer/programs/architecture" color={footerText}>Architecture</FooterLink>
+              <FooterLink to="/buyer/programs/interior-design" color={footerText}>Interior Design</FooterLink>
+              <FooterLink to="/buyer/programs/fine-arts" color={footerText}>Fine Arts</FooterLink>
             </Stack>
 
             <Stack spacing={1.25} sx={{ minWidth: 120 }}>
               <Typography variant="subtitle2" sx={{ color: footerText, fontWeight: 800, mb: 0.5 }}>
                 Academy
               </Typography>
-              <FooterLink to="/buyer/main" color={footerText}>About CAFA</FooterLink>
-              <FooterLink to="/buyer/main" color={footerText}>Exhibitions Calendar</FooterLink>
-              <FooterLink to="/buyer/messages" color={footerText}>Vocation &amp; Inquiries</FooterLink>
-              <FooterLink to="/buyer/messages" color={footerText}>Support Desk</FooterLink>
+              <FooterLink to="/buyer/about" color={footerText}>About CAFA</FooterLink>
+              <FooterLink to="/buyer/academy/exhibitions" color={footerText}>Exhibitions Calendar</FooterLink>
+              <FooterLink to="/buyer/academy/inquiries" color={footerText}>Vocation &amp; Inquiries</FooterLink>
+              <FooterLink to="/buyer/help-support" color={footerText}>Support Desk</FooterLink>
             </Stack>
           </Stack>
         </Stack>
