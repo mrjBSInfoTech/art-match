@@ -385,7 +385,12 @@ export default function AdminLayout({ children }) {
           <Button onClick={handleClose} color="text.secondary">
             Cancel
           </Button>
-          <Button onClick={handleLogout} variant="contained" color="error" sx={{ color: "#fff" }}>
+          <Button
+            onClick={handleLogout}
+            variant="contained"
+            color="error"
+            sx={{ color: "#fff" }}
+          >
             Logout
           </Button>
         </DialogActions>
@@ -516,63 +521,63 @@ export default function AdminLayout({ children }) {
           );
         }}
         sx={{
-            backgroundColor: theme.palette.background.default,
-            "& .MuiDrawer-paper": {
-              backgroundColor: theme.palette.background.sidebar,
-              color: theme.palette.text.sidebar,
-              borderRight: "none",
-              borderTopRightRadius: 50,
-              overflow: "hidden",
-            },
-            "& .MuiDrawer-docked .MuiDrawer-paper": {
-              borderRadius: "0 50px 0 0",
-              overflow: "hidden",
-            },
-            "& .MuiAppBar-root .MuiIconButton-root": {
-              color: "#6b7280",
-            },
-            "& .MuiAppBar-root .MuiSvgIcon-root": {
-              color: "#6b7280",
-            },
-            "& .MuiDrawer-paper .MuiPaper-root": {
-              backgroundColor: theme.palette.background.sidebar,
-            },
-            // Selected text
-            "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
-              color: "#980404",
-            },
-            "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
-              color: "#980404",
-            },
-            // Selected icon
-            "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
-              color: "#980404",
-            },
-            // Sidebar icons color
-            "& .MuiDrawer-paper .MuiSvgIcon-root": {
-              color: "#ffffff",
-            },
-            "& .MuiListItemButton-root:hover": {
-              backgroundColor: "rgba(255,255,255,0.15)",
-            },
-            "& .Mui-selected": {
-              backgroundColor: "rgba(255,255,255,0.25) !important",
-            },
-            // Header
-            "& .MuiAppBar-root": {
-              backgroundColor: theme.palette.background.header,
-              boxShadow: "none",
-              borderBottom: "none",
-            },
-            "& .MuiAppBar-root .MuiToolbar-root": {
-              borderBottom: "none",
-            },
+          backgroundColor: theme.palette.background.default,
+          "& .MuiDrawer-paper": {
+            backgroundColor: theme.palette.background.sidebar,
+            color: theme.palette.text.sidebar,
+            borderRight: `1px solid ${theme.palette.divider}`,
+            borderTopRightRadius: "36px !important",
+            overflow: "hidden",
+          },
+          "& .MuiDrawer-docked .MuiDrawer-paper": {
+            borderTopRightRadius: "36px !important",
+            overflow: "hidden",
+          },
+          "& .MuiAppBar-root .MuiIconButton-root": {
+            color: "#6b7280",
+          },
+          "& .MuiAppBar-root .MuiSvgIcon-root": {
+            color: "#6b7280",
+          },
+          "& .MuiDrawer-paper .MuiPaper-root": {
+            backgroundColor: theme.palette.background.sidebar,
+          },
+          // Selected text
+          "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
+            color: theme.palette.error.main,
+          },
+          "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
+            color: theme.palette.error.main,
+          },
+          // Selected icon
+          "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
+            color: theme.palette.error.main,
+          },
+          // Sidebar icons color
+          "& .MuiDrawer-paper .MuiSvgIcon-root": {
+            color: theme.palette.text.sidebar,
+          },
+          "& .MuiListItemButton-root:hover": {
+            backgroundColor: theme.palette.background.sidebarAccent,
+          },
+          "& .Mui-selected": {
+            backgroundColor: `${theme.palette.background.sidebarAccent} !important`,
+          },
+          // Header
+          "& .MuiAppBar-root": {
+            backgroundColor: theme.palette.background.header,
+            boxShadow: "none",
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          },
+          "& .MuiAppBar-root .MuiToolbar-root": {
+            borderBottom: "none",
+          },
 
-            "& .MuiListItemButton-root": {
-              marginTop: "5px",
-              marginBottom: "5px",
-            },
-          }}
+          "& .MuiListItemButton-root": {
+            marginTop: "5px",
+            marginBottom: "5px",
+          },
+        }}
       >
         <Box
           sx={{
