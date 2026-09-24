@@ -18,7 +18,12 @@ router.get("/", (req, res) => {
       a.art_size,
       a.date_created,
       f.mediums_used,
+      s.first_name,
+      s.last_name,
       CONCAT(s.first_name, ' ', s.last_name) AS artist,
+      s.profile_image,
+      s.course,
+      s.year_level,
       COALESCE(ac.register_status, 'available') AS status,
       ac.approved_date
     FROM artwork a
@@ -53,7 +58,12 @@ router.get("/:id", (req, res) => {
       a.art_size,
       f.feature_scanned,
       f.mediums_used,
+      s.first_name,
+      s.last_name,
       CONCAT(s.first_name, ' ', s.last_name) AS artist,
+      s.profile_image,
+      s.course,
+      s.year_level,
       ac.register_status,
       ac.approved_date
     FROM artwork a

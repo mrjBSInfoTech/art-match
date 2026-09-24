@@ -74,6 +74,7 @@ export default function AppRoutes() {
               <Route path="main" element={<BuyerMain />} />
               <Route path="artwork" element={<BuyerArtwork />} />
               <Route path="artist" element={<BuyerArtist />} />
+              <Route path="artist/:id" element={<BuyerArtist />} />
               <Route path="about" element={<BuyerAboutUs />} />
               <Route path="help-support" element={<BuyerHelpSupport />} />
               <Route path="programs/:program" element={<BuyerProgram />} />
