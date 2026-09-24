@@ -1,95 +1,166 @@
-import { useNavigate } from "react-router-dom";
-import { Box, Button, Container, Grid, Stack, Typography } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useTheme } from "@mui/material/styles";
+import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
+import { fetchArtworks } from "../../api/buyer/artworkAPI";
 
-const popularArtists = [
-  {
-    rank: 1,
-    name: "Sheng Yang",
-    department: "Sculpture Dept.",
-    sales: 34,
-    rating: "5.0",
-    image: "https://i.pravatar.cc/100?img=47",
-    bio: "Awarded the Academy Grand Prix for her series 'Reborn Petals'. Her work explores the friction between traditional oil application techniques and pixelated generative representations.",
-    works: "18 works",
-  },
-  {
-    rank: 2,
-    name: "He Ruo",
-    department: "Oil Painting",
-    sales: 28,
-    rating: "4.9",
-    image: "https://i.pravatar.cc/100?img=12",
-    bio: "Known for layered atmospheric landscapes that combine ink wash gestures with contemporary abstraction.",
-    works: "14 works",
-  },
-  {
-    rank: 3,
-    name: "Lin Jinshu",
-    department: "Digital Art Dept.",
-    sales: 27,
-    rating: "4.8",
-    image: "https://i.pravatar.cc/100?img=32",
-    bio: "Blends storytelling, motion, and digital collage into immersive visual experiences for collectors.",
-    works: "22 works",
-  },
-  {
-    rank: 4,
-    name: "Wang Xinyi",
-    department: "Architecture Dept.",
-    sales: 24,
-    rating: "5.0",
-    image: "https://i.pravatar.cc/100?img=44",
-    bio: "Creates spatial studies and meticulous architectural sketches inspired by old Beijing courtyards.",
-    works: "11 works",
-  },
-  {
-    rank: 5,
-    name: "Guo Dan",
-    department: "Ink Wash",
-    sales: 21,
-    rating: "4.7",
-    image: "https://i.pravatar.cc/100?img=49",
-    bio: "Uses ink, texture, and hand-built forms to translate emotion into minimalist compositions.",
-    works: "17 works",
-  },
-  {
-    rank: 6,
-    name: "Zhang Wei",
-    department: "Sculpture Dept.",
-    sales: 19,
-    rating: "4.9",
-    image: "https://i.pravatar.cc/100?img=11",
-    bio: "Fuses classical sculpture language with softened industrial materials and tactile surfaces.",
-    works: "13 works",
-  },
-  {
-    rank: 7,
-    name: "Elena Chen",
-    department: "Digital Art",
-    sales: 18,
-    rating: "4.8",
-    image: "https://i.pravatar.cc/100?img=25",
-    bio: "Explores digital narratives through surreal textures, glowing color fields, and playful compositions.",
-    works: "16 works",
-  },
-  {
-    rank: 8,
-    name: "Li Ran",
-    department: "Photography Dept.",
-    sales: 15,
-    rating: "4.7",
-    image: "https://i.pravatar.cc/100?img=5",
-    bio: "Captures quiet textures and urban stillness, balancing documentary realism with poetic composition.",
-    works: "9 works",
-  },
-];
+const getProfileFallback = (name = "Artist") =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
+
+const getProfileImage = (artist) => {
+  const imageName = artist?.profile_image || artist?.image;
+  if (!imageName) return getProfileFallback(artist?.name || "Artist");
+  if (imageName.startsWith("http")) return imageName;
+  return `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(imageName)}`;
+};
+
+const getArtworkImage = (artwork) => {
+  if (!artwork?.image) return "";
+  return artwork.image.startsWith("http")
+    ? artwork.image
+    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`;
+};
+
+const buildArtistSummaries = (artworks = []) => {
+  const grouped = new Map();
+
+  artworks.forEach((artwork) => {
+    const studentId = artwork.student_id;
+    if (!studentId) return;
+
+    const existing = grouped.get(studentId) || {
+      student_id: studentId,
+      name: artwork.artist || "Unknown Artist",
+      department: artwork.course || artwork.genre || "Independent Artist",
+      image: artwork.profile_image || "",
+      bio: artwork.description || "Contemporary artist practice.",
+      rating: 4.8,
+      works: 0,
+      sales: 0,
+      featuredArtwork: artwork,
+    };
+
+    existing.works += 1;
+    existing.sales = existing.works;
+    existing.image = artwork.profile_image || existing.image || "";
+    existing.department = artwork.course || existing.department;
+    existing.bio = artwork.description || existing.bio;
+    existing.featuredArtwork = existing.featuredArtwork || artwork;
+    grouped.set(studentId, existing);
+  });
+
+  return [...grouped.values()]
+    .map((artist) => ({
+      ...artist,
+      worksLabel: `${artist.works} works`,
+      image: getProfileImage(artist),
+    }))
+    .sort((a, b) => b.works - a.works || a.name.localeCompare(b.name));
+};
 
 export default function Artist() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const theme = useTheme();
-  const featuredArtist = popularArtists[0];
+  const [artists, setArtists] = useState([]);
+  const [artistArtworks, setArtistArtworks] = useState([]);
+  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadArtists = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const response = await fetchArtworks();
+        const list = Array.isArray(response) ? response : response?.data || [];
+        const artistSummaries = buildArtistSummaries(list);
+        setArtists(artistSummaries);
+
+        if (id) {
+          const currentArtist = artistSummaries.find(
+            (artist) => String(artist.student_id) === String(id),
+          );
+          const fallbackArtist = currentArtist || artistSummaries[0] || null;
+          const targetId = fallbackArtist?.student_id;
+          const filteredArtworks = targetId
+            ? list.filter(
+                (artwork) => String(artwork.student_id) === String(targetId),
+              )
+            : [];
+          setSelectedArtist(fallbackArtist);
+          setArtistArtworks(filteredArtworks);
+        } else {
+          const featuredArtist = artistSummaries[0] || null;
+          const featuredArtworks = featuredArtist
+            ? list.filter(
+                (artwork) =>
+                  String(artwork.student_id) ===
+                  String(featuredArtist.student_id),
+              )
+            : [];
+          setSelectedArtist(featuredArtist);
+          setArtistArtworks(featuredArtworks);
+        }
+      } catch (err) {
+        setError(err.message || "Failed to load artist data.");
+        setArtists([]);
+        setArtistArtworks([]);
+        setSelectedArtist(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadArtists();
+  }, [id]);
+
+  const otherArtists = useMemo(() => {
+    if (!selectedArtist) return artists;
+    return artists.filter(
+      (artist) =>
+        String(artist.student_id) !== String(selectedArtist.student_id),
+    );
+  }, [artists, selectedArtist]);
+
+  if (loading) {
+    return (
+      <Container
+        maxWidth="lg"
+        sx={{
+          py: 8,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: 300,
+        }}
+      >
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (error || !selectedArtist) {
+    return (
+      <Container maxWidth="md" sx={{ py: 8 }}>
+        <Alert severity="error">
+          {error || "This artist could not be found."}
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
@@ -102,20 +173,23 @@ export default function Artist() {
             letterSpacing: 1.5,
           }}
         >
-          Popular artists
+          Artist profile
         </Typography>
         <Typography
           variant="h3"
           sx={{ mt: 1, fontWeight: 800, letterSpacing: "-0.04em" }}
         >
-          Top Listed Artists This Month
+          {selectedArtist.name}
         </Typography>
       </Box>
 
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 0.92fr) 1.56fr" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "minmax(260px, 0.92fr) 1.56fr",
+          },
           gap: { xs: 3, md: 5 },
           alignItems: "center",
           p: { xs: 2, sm: 3 },
@@ -123,14 +197,16 @@ export default function Artist() {
           border: `1px solid ${theme.palette.divider}`,
           borderRadius: 3,
           backgroundColor:
-            theme.palette.mode === "light" ? "#fff1d7" : theme.palette.background.paper,
+            theme.palette.mode === "light"
+              ? "#fff1d7"
+              : theme.palette.background.paper,
         }}
       >
         <Box
           sx={{
             height: { xs: 220, md: 260 },
             borderRadius: 2,
-            backgroundImage: `url(${featuredArtist.image})`,
+            backgroundImage: `url(${getArtworkImage(selectedArtist.featuredArtwork) || selectedArtist.image})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             border: `1px solid ${theme.palette.divider}`,
@@ -151,19 +227,19 @@ export default function Artist() {
               fontWeight: 800,
             }}
           >
-            STUDIO CHOICE
+            STUDIO PROFILE
           </Typography>
 
           <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-            {featuredArtist.name}
+            {selectedArtist.name}
           </Typography>
 
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            {featuredArtist.department}, Class of 2026
+            {selectedArtist.department}, Class of 2026
           </Typography>
 
           <Typography color="text.secondary" sx={{ mt: 2, maxWidth: 620 }}>
-            {featuredArtist.bio}
+            {selectedArtist.bio}
           </Typography>
 
           <Stack direction="row" spacing={{ xs: 2, sm: 5 }} sx={{ mt: 2.5 }}>
@@ -171,13 +247,17 @@ export default function Artist() {
               <Typography variant="caption" color="text.secondary">
                 ARTWORKS
               </Typography>
-              <Typography fontWeight={800}>{featuredArtist.works}</Typography>
+              <Typography fontWeight={800}>
+                {selectedArtist.worksLabel}
+              </Typography>
             </Box>
             <Box>
               <Typography variant="caption" color="text.secondary">
-                SALES
+                LISTED
               </Typography>
-              <Typography fontWeight={800}>{featuredArtist.sales} items sold</Typography>
+              <Typography fontWeight={800}>
+                {selectedArtist.sales} pieces
+              </Typography>
             </Box>
             <Box>
               <Typography variant="caption" color="text.secondary">
@@ -187,7 +267,7 @@ export default function Artist() {
                 <Box component="span" sx={{ color: "#eab308" }}>
                   ★
                 </Box>{" "}
-                {featuredArtist.rating}
+                {selectedArtist.rating}
               </Typography>
             </Box>
           </Stack>
@@ -203,78 +283,88 @@ export default function Artist() {
               color: theme.palette.background.paper,
             }}
           >
-            View {featuredArtist.name}'s Gallery
+            View All Artwork
           </Button>
         </Box>
       </Box>
 
-      <Grid container spacing={2}>
-        {popularArtists.slice(1).map((artist) => (
-          <Grid item xs={12} md={4} key={artist.rank}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                minWidth: 0,
-                px: 2,
-                py: 1.25,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                backgroundColor: theme.palette.background.paper,
-                height: "100%",
-              }}
-            >
-              <Box
-                component="img"
-                src={artist.image}
-                alt={artist.name}
-                sx={{
-                  width: 48,
-                  height: 48,
-                  flexShrink: 0,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: `2px solid ${theme.palette.background.default}`,
-                }}
-              />
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="body2" noWrap sx={{ fontWeight: 800 }}>
-                  <Box component="span" sx={{ color: theme.palette.error.main, mr: 0.75 }}>
-                    #{artist.rank}
+      {otherArtists.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+            More artists
+          </Typography>
+          <Grid container spacing={2}>
+            {otherArtists.slice(0, 6).map((artist) => (
+              <Grid item xs={12} md={4} key={artist.student_id}>
+                <Box
+                  onClick={() => navigate(`/buyer/artist/${artist.student_id}`)}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    minWidth: 0,
+                    px: 2,
+                    py: 1.25,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    cursor: "pointer",
+                    height: "100%",
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={artist.image}
+                    alt={artist.name}
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      flexShrink: 0,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                    }}
+                  />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 800 }}>
+                      {artist.name}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                    >
+                      {artist.department}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {artist.worksLabel}
+                    </Typography>
                   </Box>
-                  {artist.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap display="block">
-                  {artist.department}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {artist.sales} sold&nbsp;&nbsp;{" "}
-                  <Box component="span" sx={{ color: "#eab308" }}>
-                    ★
-                  </Box>{" "}
-                  {artist.rating}
-                </Typography>
-              </Box>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => navigate("/buyer/artwork")}
-                sx={{
-                  flexShrink: 0,
-                  minWidth: 70,
-                  borderRadius: 999,
-                  borderColor: theme.palette.text.primary,
-                  color: theme.palette.text.primary,
-                  fontSize: 11,
-                }}
-              >
-                Follow
-              </Button>
-            </Box>
+                </Box>
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
+        </Box>
+      )}
+
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+          {selectedArtist.name}'s artworks
+        </Typography>
+      </Box>
+
+      {artistArtworks.length > 0 ? (
+        <Grid container spacing={3}>
+          {artistArtworks.map((artwork) => (
+            <Grid item xs={12} sm={6} md={4} key={artwork.artwork_id}>
+              <ArtworkCard artwork={artwork} />
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Alert severity="info">
+          This artist has no published artworks yet.
+        </Alert>
+      )}
     </Container>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -38,6 +38,66 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 
+const getProfileFallback = (name = "Artist") =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
+
+const getProfileImage = (artist) => {
+  const imageName = artist?.profile_image || artist?.image;
+
+  if (!imageName) {
+    return getProfileFallback(artist?.name || "Artist");
+  }
+
+  if (imageName.startsWith("http")) {
+    return imageName;
+  }
+
+  return `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(imageName)}`;
+};
+
+const buildArtistSummaries = (artworks = []) => {
+  const artistMap = new Map();
+
+  artworks.forEach((artwork) => {
+    const studentId = artwork.student_id;
+    if (!studentId) return;
+
+    const current = artistMap.get(studentId) || {
+      student_id: studentId,
+      name:
+        artwork.artist ||
+        [artwork.first_name, artwork.last_name].filter(Boolean).join(" ") ||
+        "Unknown Artist",
+      course: artwork.course || artwork.genre || "Independent Artist",
+      image: artwork.profile_image || "",
+      featuredArtwork: artwork,
+      works: 0,
+      sales: 0,
+      rating: 4.8,
+    };
+
+    current.works += 1;
+    current.sales = current.works;
+    current.featuredArtwork = current.featuredArtwork || artwork;
+    current.image = artwork.profile_image || current.image || "";
+    current.course = artwork.course || current.course;
+
+    artistMap.set(studentId, current);
+  });
+
+  return [...artistMap.values()]
+    .map((artist) => ({
+      ...artist,
+      department: artist.course,
+      image: getProfileImage(artist),
+      bio:
+        artist.featuredArtwork?.description ||
+        `Contemporary ${artist.department || "artist"} exploring thoughtful studio practice and original visual narratives.`,
+      worksLabel: `${artist.works} works`,
+    }))
+    .sort((a, b) => b.works - a.works || a.name.localeCompare(b.name));
+};
+
 // Slide Transition for Snackbar
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -71,77 +131,18 @@ export default function Main() {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     loadArtworks();
   }, []);
 
   const genres = artGenres;
-  const popularArtists = [
-    {
-      rank: 1,
-      name: "Sheng Yang",
-      department: "Sculpture Dept.",
-      sales: 34,
-      rating: "5.0",
-      image: "https://i.pravatar.cc/100?img=47",
-    },
-    {
-      rank: 2,
-      name: "He Ruo",
-      department: "Oil Painting",
-      sales: 28,
-      rating: "4.9",
-      image: "https://i.pravatar.cc/100?img=12",
-    },
-    {
-      rank: 3,
-      name: "Lin Jinshu",
-      department: "Digital Art Dept.",
-      sales: 27,
-      rating: "4.8",
-      image: "https://i.pravatar.cc/100?img=32",
-    },
-    {
-      rank: 4,
-      name: "Wang Xinyi",
-      department: "Architecture Dept.",
-      sales: 24,
-      rating: "5.0",
-      image: "https://i.pravatar.cc/100?img=44",
-    },
-    {
-      rank: 5,
-      name: "Guo Dan",
-      department: "Ink Wash",
-      sales: 21,
-      rating: "4.7",
-      image: "https://i.pravatar.cc/100?img=49",
-    },
-    {
-      rank: 6,
-      name: "Zhang Wei",
-      department: "Sculpture Dept.",
-      sales: 19,
-      rating: "4.9",
-      image: "https://i.pravatar.cc/100?img=11",
-    },
-    {
-      rank: 7,
-      name: "Elena Chen",
-      department: "Digital Art",
-      sales: 18,
-      rating: "4.8",
-      image: "https://i.pravatar.cc/100?img=25",
-    },
-    {
-      rank: 8,
-      name: "Li Ran",
-      department: "Photography Dept.",
-      sales: 15,
-      rating: "4.7",
-      image: "https://i.pravatar.cc/100?img=5",
-    },
-  ];
+  const popularArtists = useMemo(
+    () => buildArtistSummaries(artworks),
+    [artworks],
+  );
+  const featuredArtist = popularArtists[0];
+  const galleryArtists = popularArtists.slice(1, 9);
 
   const getArtworkImage = (artwork) => {
     if (!artwork?.image) return "";
@@ -370,7 +371,11 @@ export default function Main() {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(4, 1fr)",
+            },
             gap: { xs: 2.5, md: 3 },
             maxWidth: 1440,
             mx: "auto",
@@ -398,7 +403,12 @@ export default function Main() {
               description: "Your gallery team is here to assist you anytime",
             },
           ].map(({ icon: Icon, title, description }) => (
-            <Stack key={title} direction="row" spacing={1.25} alignItems="flex-start">
+            <Stack
+              key={title}
+              direction="row"
+              spacing={1.25}
+              alignItems="flex-start"
+            >
               <Icon sx={{ color: theme.palette.error.main, mt: 0.25 }} />
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 800 }}>
@@ -482,7 +492,7 @@ export default function Main() {
             sx={{
               height: { xs: 220, md: 240 },
               borderRadius: 2,
-              backgroundImage: `url(${getArtworkImage(artworks[0]) || popularArtists[0].image})`,
+              backgroundImage: `url(${getArtworkImage(featuredArtist?.featuredArtwork || artworks[0]) || featuredArtist?.image})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
               border: `1px solid ${theme.palette.divider}`,
@@ -505,28 +515,32 @@ export default function Main() {
               STUDIO CHOICE
             </Typography>
             <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-              Wang Yue
+              {featuredArtist?.name || "Artist"}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              Oil Painting School, Class of 2026
+              {featuredArtist?.department || "Independent Artist"}, Class of
+              2026
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 2, maxWidth: 620 }}>
-              Awarded the Academy Grand Prix for her series “Reborn Petals”. Her
-              work explores the friction between traditional oil application
-              techniques and pixelated generative representations.
+              {featuredArtist?.bio ||
+                "Live artist profile pulled from the gallery database."}
             </Typography>
             <Stack direction="row" spacing={{ xs: 2, sm: 5 }} sx={{ mt: 2.5 }}>
               <Box>
                 <Typography variant="caption" color="text.secondary">
                   ARTWORKS
                 </Typography>
-                <Typography fontWeight={800}>18 works</Typography>
+                <Typography fontWeight={800}>
+                  {featuredArtist?.worksLabel || "0 works"}
+                </Typography>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  SALES
+                  LISTED
                 </Typography>
-                <Typography fontWeight={800}>42 items sold</Typography>
+                <Typography fontWeight={800}>
+                  {featuredArtist?.sales || 0} pieces
+                </Typography>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">
@@ -536,12 +550,15 @@ export default function Main() {
                   <Box component="span" sx={{ color: "#eab308" }}>
                     ★
                   </Box>{" "}
-                  5.0
+                  {featuredArtist?.rating || "4.8"}
                 </Typography>
               </Box>
             </Stack>
             <Button
-              onClick={() => navigate("/buyer/artwork")}
+              onClick={() =>
+                featuredArtist &&
+                navigate(`/buyer/artist/${featuredArtist.student_id}`)
+              }
               variant="contained"
               endIcon={<ArrowForwardIcon />}
               sx={{
@@ -550,8 +567,9 @@ export default function Main() {
                 backgroundColor: theme.palette.text.primary,
                 color: theme.palette.background.paper,
               }}
+              disabled={!featuredArtist}
             >
-              View Wang's Gallery
+              View {featuredArtist?.name || "Artist"}'s Gallery
             </Button>
           </Box>
         </Box>
@@ -563,9 +581,9 @@ export default function Main() {
             gap: 2,
           }}
         >
-          {popularArtists.slice(1).map((artist) => (
+          {galleryArtists.map((artist, index) => (
             <Box
-              key={artist.rank}
+              key={artist.student_id || index}
               sx={{
                 display: "flex",
                 alignItems: "center",
@@ -597,7 +615,7 @@ export default function Main() {
                     component="span"
                     sx={{ color: theme.palette.error.main, mr: 0.75 }}
                   >
-                    #{artist.rank}
+                    #{index + 2}
                   </Box>
                   {artist.name}
                 </Typography>
@@ -610,7 +628,7 @@ export default function Main() {
                   {artist.department}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {artist.sales} sold&nbsp;&nbsp;{" "}
+                  {artist.works} works&nbsp;&nbsp;{" "}
                   <Box component="span" sx={{ color: "#eab308" }}>
                     ★
                   </Box>{" "}
@@ -620,7 +638,7 @@ export default function Main() {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => navigate("/buyer/artwork")}
+                onClick={() => navigate(`/buyer/artist/${artist.student_id}`)}
                 sx={{
                   flexShrink: 0,
                   minWidth: 70,
@@ -630,7 +648,7 @@ export default function Main() {
                   fontSize: 11,
                 }}
               >
-                Follow
+                Open
               </Button>
             </Box>
           ))}
@@ -684,7 +702,6 @@ export default function Main() {
               ))}
             </Box>
           </Box>
-
         </>
       )}
     </Box>
