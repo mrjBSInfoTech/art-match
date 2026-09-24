@@ -157,6 +157,7 @@ export default function Artwork() {
     <Box
       sx={{
         minHeight: "100vh",
+        mb: 8,
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">

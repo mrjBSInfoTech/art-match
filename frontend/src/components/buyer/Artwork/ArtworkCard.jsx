@@ -56,7 +56,9 @@ export default function ArtworkCard({ artwork, showAddToCart = true, onAddToCart
           image={`http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`}
           sx={{
             display: "block",
-            aspectRatio: "4 / 5",
+            width: "100%",
+            height: 280,
+            objectFit: "cover",
             bgcolor: "#f2f2f2",
           }}
         />

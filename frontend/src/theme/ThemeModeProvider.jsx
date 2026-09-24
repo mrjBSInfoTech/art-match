@@ -6,12 +6,12 @@ const ThemeModeContext = createContext(null);
 
 export const THEME_STORAGE_KEY = "artmatch-ui-theme";
 
-export function getInitialThemeMode() {
+export function getInitialThemeMode(storageKey = THEME_STORAGE_KEY) {
   if (typeof window === "undefined") {
     return "light";
   }
 
-  const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
+  const savedMode = localStorage.getItem(storageKey);
   if (savedMode === "light" || savedMode === "dark") {
     return savedMode;
   }
@@ -21,12 +21,12 @@ export function getInitialThemeMode() {
     : "light";
 }
 
-export function ThemeModeProvider({ children }) {
-  const [mode, setMode] = useState(getInitialThemeMode);
+export function ThemeModeProvider({ children, storageKey = THEME_STORAGE_KEY }) {
+  const [mode, setMode] = useState(() => getInitialThemeMode(storageKey));
 
   useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
-  }, [mode]);
+    localStorage.setItem(storageKey, mode);
+  }, [mode, storageKey]);
 
   const theme = useMemo(
     () => (mode === "dark" ? darkTheme : lightTheme),

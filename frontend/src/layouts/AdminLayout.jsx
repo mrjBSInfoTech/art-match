@@ -52,7 +52,10 @@ import GavelIcon from "@mui/icons-material/Gavel";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { alpha } from "@mui/material/styles";
-import { useThemeMode } from "../theme/ThemeModeProvider";
+import {
+  ThemeModeProvider,
+  useThemeMode,
+} from "../theme/ThemeModeProvider";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -70,7 +73,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-export default function AdminLayout({ children }) {
+function AdminLayoutContent({ children }) {
   //Info
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -589,5 +592,13 @@ export default function AdminLayout({ children }) {
         </Box>
       </MuiDashboardLayout>
     </AppProvider>
+  );
+}
+
+export default function AdminLayout() {
+  return (
+    <ThemeModeProvider storageKey="artmatch-ui-theme-admin">
+      <AdminLayoutContent />
+    </ThemeModeProvider>
   );
 }

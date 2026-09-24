@@ -49,7 +49,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { alpha } from "@mui/material/styles";
-import { useThemeMode } from "../theme/ThemeModeProvider";
+import {
+  ThemeModeProvider,
+  useThemeMode,
+} from "../theme/ThemeModeProvider";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -67,7 +70,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-export default function SellerLayout({ children }) {
+function SellerLayoutContent({ children }) {
   //Seller's Info
   const [firstName, setFirstName] = useState();
   const [lastName, setLastName] = useState();
@@ -559,5 +562,13 @@ export default function SellerLayout({ children }) {
         </Box>
       </MuiDashboardLayout>
     </AppProvider>
+  );
+}
+
+export default function SellerLayout() {
+  return (
+    <ThemeModeProvider storageKey="artmatch-ui-theme-seller">
+      <SellerLayoutContent />
+    </ThemeModeProvider>
   );
 }

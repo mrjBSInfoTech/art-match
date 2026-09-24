@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -7,25 +7,38 @@ import {
   CircularProgress,
   Container,
   Divider,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Grid,
+  IconButton,
   Paper,
+  Slide,
   Stack,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import CloseIcon from "@mui/icons-material/Close";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 
+// Animation transition
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
+
 export default function ArtworkDetail() {
+  const theme = useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [artworks, setArtworks] = useState([]);
   const [artwork, setArtwork] = useState(null);
   const [loading, setLoading] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
   // Fetch artwork detail and also the list for related items
   useEffect(() => {
@@ -172,24 +185,41 @@ export default function ArtworkDetail() {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
-      <Grid container spacing={6} alignItems="stretch">
+      <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
         <Grid item xs={12} md={7}>
           <Box
             component="img"
             src={imageUrl}
             alt={artwork.title}
             sx={{
-              width: 600,
-              height: 500,
-              borderRadius: "24px",
+              width: { xs: "100%", md: 600 },
+              height: { xs: 460, sm: 620, md: 730 },
+              maxWidth: "100%",
+              mx: "auto",
+              borderRadius: 3,
               objectFit: "cover",
               display: "block",
+              cursor: "zoom-in",
+            }}
+            onClick={() => setImageViewerOpen(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                setImageViewerOpen(true);
+              }
             }}
           />
         </Grid>
 
         <Grid item xs={12} md={5}>
-          <Box>
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 520,
+              mx: { xs: "auto", md: 0 },
+            }}
+          >
             <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
               <Chip
                 label={artwork.genre}
@@ -198,19 +228,42 @@ export default function ArtworkDetail() {
                 sx={{ fontWeight: "bold", borderRadius: 2, px: 1 }}
               />
             </Stack>
-            <Typography variant="h3" fontWeight={800} sx={{ mb: 1 }}>
+            <Typography
+              variant="h3"
+              fontWeight={800}
+              sx={{
+                mt: 3,
+                mb: 1,
+                wordSpacing: "0.12em",
+                lineHeight: 1.1,
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
+                overflowWrap: "anywhere",
+              }}
+            >
               {artwork.title}
             </Typography>
             <Typography variant="subtitle2" color="text.secondary">
               By {artwork.artist || "Unknown artist"}
             </Typography>
 
-            <Typography variant="h4" sx={{ mt: 3, mb: 3, fontWeight: 700 }}>
+            <Typography
+              variant="h4"
+              sx={{
+                mt: 3,
+                mb: 3,
+                fontWeight: 700,
+                fontSize: { xs: "1.75rem", sm: "2rem", md: "2.125rem" },
+              }}
+            >
               ₱{Number(artwork.price || 0).toLocaleString()}
             </Typography>
 
             <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
               <Stack spacing={1.5}>
+                <Row
+                  label="Medium"
+                  value={formatAndCapitalize(artwork.mediums_used)}
+                />
                 <Row label="Size" value={artwork.art_size || "Unknown"} />
                 <Row label="Genre" value={artwork.genre || "Unknown"} />
               </Stack>
@@ -218,6 +271,7 @@ export default function ArtworkDetail() {
                 <Button
                   variant="contained"
                   color="primary"
+                  fullWidth
                   disabled={addingToCart}
                   onClick={async () => {
                     try {
@@ -225,7 +279,10 @@ export default function ArtworkDetail() {
                       await addToCart(artwork.artwork_id || artwork.id);
                       setCartMessage("Added to cart");
                     } catch (error) {
-                      setCartMessage(error.message || "Unable to add to cart");
+                      setCartMessage("Unable to add to cart");
+                      setTimeout(() => {
+                        setCartMessage("");
+                      }, 3000);
                     } finally {
                       setAddingToCart(false);
                     }
@@ -245,168 +302,236 @@ export default function ArtworkDetail() {
             </Box>
           </Box>
         </Grid>
-        <Paper
-          variant="outlined"
+        <Grid item xs={12}>
+          <Paper
+            variant="outlined"
+            sx={{
+              mt: 0,
+              p: 3,
+              borderRadius: 3,
+              borderColor: "divider",
+              backgroundColor: "background.paper",
+            }}
+          >
+            <Stack spacing={2.5} divider={<Divider flexItem />}>
+              {/* Description Section */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    display: "block",
+                  }}
+                >
+                  Description
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  sx={{ mt: 0.5, lineHeight: 1.6 }}
+                >
+                  {artwork.description || "No description provided."}
+                </Typography>
+              </Box>
+
+              {/* Colors Section */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    display: "block",
+                  }}
+                >
+                  Colors Used
+                </Typography>
+                {colorsList.length > 0 ? (
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    gap={0.8}
+                    sx={{ mt: 1 }}
+                  >
+                    {colorsList.map((c) => (
+                      <Chip
+                        key={`color-${formatAndCapitalize(c)}`}
+                        label={formatAndCapitalize(c)}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 999,
+                          fontSize: "0.75rem",
+                          backgroundColor: "theme.palette.background.chip",
+                          fontWeight: "bold",
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    N/A
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Mediums Section */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    display: "block",
+                  }}
+                >
+                  Mediums Used
+                </Typography>
+                {mediumsList.length > 0 ? (
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    gap={0.8}
+                    sx={{ mt: 1 }}
+                  >
+                    {mediumsList.map((m) => (
+                      <Chip
+                        key={`medium-${formatAndCapitalize(m)}`}
+                        label={formatAndCapitalize(m)}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 999,
+                          fontSize: "0.75rem",
+                          backgroundColor: "theme.palette.background.chip",
+                          fontWeight: "bold",
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    N/A
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Detected Features Section */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    display: "block",
+                  }}
+                >
+                  Detected Features
+                </Typography>
+                {featuresList.length > 0 ? (
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    gap={0.8}
+                    sx={{ mt: 1 }}
+                  >
+                    {featuresList.map((f) => (
+                      <Chip
+                        key={`feature-${formatAndCapitalize(f)}`}
+                        label={formatAndCapitalize(f)}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderRadius: 999,
+                          fontSize: "0.75rem",
+                          backgroundColor: "theme.palette.background.chip",
+                          fontWeight: "bold",
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    N/A
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Dialog
+        TransitionComponent={Transition}
+        open={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        aria-labelledby="artwork-image-dialog-title"
+      >
+        <DialogTitle
+          id="artwork-image-dialog-title"
           sx={{
-            mt: 3,
-            p: 3,
-            borderRadius: 3,
-            borderColor: "divider",
-            backgroundColor: "background.paper",
+            position: "relative",
+            px: { xs: 2, sm: 3 },
+            py: 2.5,
+            color: "text.primary",
+            fontSize: { xs: 15, sm: 16 },
+            fontWeight: 700,
+  
           }}
         >
-          <Stack spacing={2.5} divider={<Divider flexItem />}>
-            {/* Description Section */}
-            <Box>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color="text.secondary"
-                sx={{
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  display: "block",
-                }}
-              >
-                Description
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.primary"
-                sx={{ mt: 0.5, lineHeight: 1.6 }}
-              >
-                {artwork.description || "No description provided."}
-              </Typography>
-            </Box>
-
-            {/* Colors Section */}
-            <Box>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color="text.secondary"
-                sx={{
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  display: "block",
-                }}
-              >
-                Colors Used
-              </Typography>
-              {colorsList.length > 0 ? (
-                <Stack direction="row" flexWrap="wrap" gap={0.8} sx={{ mt: 1 }}>
-                  {colorsList.map((c, i) => (
-                    <Chip
-                      key={`color-${formatAndCapitalize(c)}`}
-                      label={formatAndCapitalize(c)}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        borderRadius: 999,
-                        fontSize: "0.75rem",
-                        backgroundColor: "theme.palette.background.chip",
-                        fontWeight: "bold",
-                      }}
-                    />
-                  ))}
-                </Stack>
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 0.5 }}
-                >
-                  N/A
-                </Typography>
-              )}
-            </Box>
-
-            {/* Mediums Section */}
-            <Box>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color="text.secondary"
-                sx={{
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  display: "block",
-                }}
-              >
-                Mediums Used
-              </Typography>
-              {mediumsList.length > 0 ? (
-                <Stack direction="row" flexWrap="wrap" gap={0.8} sx={{ mt: 1 }}>
-                  {mediumsList.map((m, i) => (
-                    <Chip
-                      key={`medium-${formatAndCapitalize(m)}`}
-                      label={formatAndCapitalize(m)}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        borderRadius: 999,
-                        fontSize: "0.75rem",
-                        backgroundColor: "theme.palette.background.chip",
-                        fontWeight: "bold",
-                      }}
-                    />
-                  ))}
-                </Stack>
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 0.5 }}
-                >
-                  N/A
-                </Typography>
-              )}
-            </Box>
-
-            {/* Detected Features Section */}
-            <Box>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color="text.secondary"
-                sx={{
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                  display: "block",
-                }}
-              >
-                Detected Features
-              </Typography>
-              {featuresList.length > 0 ? (
-                <Stack direction="row" flexWrap="wrap" gap={0.8} sx={{ mt: 1 }}>
-                  {featuresList.map((f, i) => (
-                    <Chip
-                      key={`feature-${formatAndCapitalize(f)}`}
-                      label={formatAndCapitalize(f)}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        borderRadius: 999,
-                        fontSize: "0.75rem",
-                        backgroundColor: "theme.palette.background.chip",
-                        fontWeight: "bold",
-                      }}
-                    />
-                  ))}
-                </Stack>
-              ) : (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mt: 0.5 }}
-                >
-                  N/A
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-        </Paper>
-      </Grid>
+          <IconButton
+            onClick={() => setImageViewerOpen(false)}
+            aria-label="Close artwork image"
+            sx={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)" }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            p: { xs: 1, sm: 2 },
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            component="img"
+            src={imageUrl}
+            alt={artwork.title}
+            sx={{
+              display: "block",
+              maxWidth: "100%",
+              maxHeight: "calc(100vh - 140px)",
+              objectFit: "contain",
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {related.length > 0 && (
         <Box sx={{ mt: 10 }}>
@@ -453,12 +578,17 @@ export default function ArtworkDetail() {
 
 function Row({ label, value }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center">
-      <Typography variant="body2" color="text.secondary">
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      columnGap={{ xs: 25, sm: 50, md: 25, lg: 45, xl: 45 }}
+    >
+      <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
         {label}
       </Typography>
 
-      <Typography variant="body2" fontWeight={500}>
+      <Typography variant="body2" fontWeight={500} sx={{ textAlign: "right" }}>
         {value || "-"}
       </Typography>
     </Stack>
