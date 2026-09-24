@@ -319,6 +319,7 @@ export default function Login() {
                       "& .MuiOutlinedInput-root": {
                         borderRadius: 1.5,
                         background: "#f4f4f4",
+                        color:"black",
                         height: 52,
                         "& fieldset": { borderColor: "rgba(0,0,0,0.14)" },
                         "&:hover fieldset": { borderColor: "rgba(0,0,0,0.2)" },
@@ -394,6 +395,7 @@ export default function Login() {
                       "& .MuiOutlinedInput-root": {
                         borderRadius: 1.5,
                         background: "#f4f4f4",
+                        color:"black",
                         height: 52,
                         "& fieldset": { borderColor: "rgba(0,0,0,0.14)" },
                         "&:hover fieldset": { borderColor: "rgba(0,0,0,0.2)" },
@@ -496,6 +498,25 @@ export default function Login() {
                 sx={{ color: "#dc3b38", fontWeight: 700 }}
               >
                 Create an account (Register)
+              </Link>
+            </Typography>
+
+            <Typography
+              align="center"
+              sx={{
+                mt: 3,
+                fontSize: "0.95rem",
+                color: "#4b4b4b",
+              }}
+            >
+              Or{" "}
+              <Link
+                component={RouterLink}
+                to="/buyer/main"
+                underline="hover"
+                sx={{ color: "#dc3b38", fontWeight: 700 }}
+              >
+                continue as a guest
               </Link>
             </Typography>
 

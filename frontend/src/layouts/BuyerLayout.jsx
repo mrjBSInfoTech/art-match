@@ -43,7 +43,10 @@ import Settings from "@mui/icons-material/Settings";
 import Logout from "@mui/icons-material/Logout";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import { useThemeMode } from "../theme/ThemeModeProvider";
+import {
+  ThemeModeProvider,
+  useThemeMode,
+} from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -70,7 +73,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function BuyerLayout({ children }) {
+function BuyerLayoutContent({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, mode, setMode } = useThemeMode();
@@ -876,4 +879,10 @@ function BuyerLayout({ children }) {
   );
 }
 
-export default BuyerLayout;
+export default function BuyerLayout() {
+  return (
+    <ThemeModeProvider storageKey="artmatch-ui-theme-buyer">
+      <BuyerLayoutContent />
+    </ThemeModeProvider>
+  );
+}
