@@ -24,12 +24,15 @@ router.get("/", (req, res) => {
       s.profile_image,
       s.course,
       s.year_level,
+      sf.shop_name,
+      sf.shop_description,
       COALESCE(ac.register_status, 'available') AS status,
       ac.approved_date
     FROM artwork a
     LEFT JOIN student s ON a.student_id = s.student_id
     LEFT JOIN accregistration ac ON a.student_id = ac.student_id
     LEFT JOIN feature f ON a.artwork_id = f.artwork_id
+    LEFT JOIN storefront sf ON sf.student_id = a.student_id
     -- Include artworks where the seller either has been verified or has no registration row
     WHERE (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
     ORDER BY a.date_created DESC, a.artwork_id DESC
@@ -64,12 +67,15 @@ router.get("/:id", (req, res) => {
       s.profile_image,
       s.course,
       s.year_level,
+      sf.shop_name,
+      sf.shop_description,
       ac.register_status,
       ac.approved_date
     FROM artwork a
     LEFT JOIN student s ON a.student_id = s.student_id
     LEFT JOIN accregistration ac ON a.student_id = ac.student_id
     LEFT JOIN feature f ON a.artwork_id = f.artwork_id
+    LEFT JOIN storefront sf ON sf.student_id = a.student_id
     WHERE a.artwork_id = ? AND (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
   `;
 
