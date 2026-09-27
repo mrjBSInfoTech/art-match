@@ -11,18 +11,22 @@ import {
   CircularProgress,
   Grid,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
+import {
+  fetchStorefront,
+  saveStorefront,
+} from "../../api/seller/storefrontAPI";
 import ArtworkInfo from "../../components/seller/Artwork/ArtworkInfo";
 
 const defaultSettings = {
-  shopName: "Nexus Studio",
-  shopDescription:
-    "Contemporary works shaped by memory, texture, and experimentation.",
+  shopName: "",
+  shopDescription: "",
   shopStatus: true,
   autoAcceptOrders: true,
   orderAlertEmail: true,
@@ -45,10 +49,26 @@ export default function Storefront() {
   const [artworks, setArtworks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
 
   useEffect(() => {
+    const loadSavedStorefront = async () => {
+      try {
+        const storefront = await fetchStorefront();
+        if (storefront) {
+          setSettings((current) => ({
+            ...current,
+            shopName: storefront.shop_name || "",
+            shopDescription: storefront.shop_description || "",
+          }));
+        }
+      } catch (err) {
+        console.warn("Unable to load storefront profile:", err.message);
+      }
+    };
+
     const savedSettings = localStorage.getItem("seller_settings");
     if (savedSettings) {
       try {
@@ -56,15 +76,9 @@ export default function Storefront() {
       } catch {
         setSettings(defaultSettings);
       }
-    } else {
-      const storedName = localStorage.getItem("seller_shop_name");
-      const storedDescription = localStorage.getItem("seller_shop_description");
-      setSettings((current) => ({
-        ...current,
-        shopName: storedName || defaultSettings.shopName,
-        shopDescription: storedDescription || defaultSettings.shopDescription,
-      }));
     }
+
+    loadSavedStorefront();
 
     const storedPinned = localStorage.getItem("seller_pinned_artworks");
     if (storedPinned) {
@@ -103,20 +117,41 @@ export default function Storefront() {
     setSettings((current) => ({ ...current, [field]: !current[field] }));
   };
 
-  const saveSettings = () => {
-    localStorage.setItem("seller_settings", JSON.stringify(settings));
-    localStorage.setItem("seller_shop_name", settings.shopName);
-    localStorage.setItem("seller_shop_description", settings.shopDescription);
+  const saveSettings = async () => {
+    try {
+      setError("");
+      const saved = await saveStorefront({
+        shop_name: settings.shopName.trim(),
+        shop_description: settings.shopDescription.trim(),
+      });
+
+      localStorage.setItem("seller_settings", JSON.stringify(settings));
+      localStorage.setItem(
+        "seller_shop_name",
+        saved?.shop_name || settings.shopName,
+      );
+      localStorage.setItem(
+        "seller_shop_description",
+        saved?.shop_description || settings.shopDescription,
+      );
+
+      setSettings((current) => ({
+        ...current,
+        shopName: saved?.shop_name || current.shopName,
+        shopDescription: saved?.shop_description || current.shopDescription,
+      }));
+      setSuccessMessage("Storefront updated successfully.");
+    } catch (err) {
+      setError(err.message || "Unable to save storefront details.");
+    }
   };
 
   const resetSettings = () => {
     setSettings(defaultSettings);
     localStorage.removeItem("seller_settings");
-    localStorage.setItem("seller_shop_name", defaultSettings.shopName);
-    localStorage.setItem(
-      "seller_shop_description",
-      defaultSettings.shopDescription,
-    );
+    localStorage.removeItem("seller_shop_name");
+    localStorage.removeItem("seller_shop_description");
+    setSuccessMessage("Storefront reset successfully.");
   };
 
   const handlePinToggle = (artworkId) => {
@@ -396,6 +431,22 @@ export default function Storefront() {
           </Stack>
         </Paper>
       </Stack>
+
+      <Snackbar
+        open={Boolean(successMessage)}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage("")}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSuccessMessage("")}
+          severity="success"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
 
       <ArtworkInfo
         open={Boolean(selectedArtwork)}

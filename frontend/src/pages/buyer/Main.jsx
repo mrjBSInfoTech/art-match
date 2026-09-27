@@ -62,15 +62,21 @@ const buildArtistSummaries = (artworks = []) => {
     const studentId = artwork.student_id;
     if (!studentId) return;
 
+    const shopName = artwork.shop_name || "";
+    const fallbackArtistName =
+      [artwork.first_name, artwork.last_name].filter(Boolean).join(" ") ||
+      artwork.artist ||
+      "Unknown Artist";
+
     const current = artistMap.get(studentId) || {
       student_id: studentId,
-      name:
-        artwork.artist ||
-        [artwork.first_name, artwork.last_name].filter(Boolean).join(" ") ||
-        "Unknown Artist",
+      name: shopName || fallbackArtistName,
+      artistName: fallbackArtistName,
       course: artwork.course || artwork.genre || "Independent Artist",
       image: artwork.profile_image || "",
       featuredArtwork: artwork,
+      shopName: shopName,
+      shopDescription: artwork.shop_description || "",
       works: 0,
       sales: 0,
       rating: 4.8,
@@ -81,6 +87,10 @@ const buildArtistSummaries = (artworks = []) => {
     current.featuredArtwork = current.featuredArtwork || artwork;
     current.image = artwork.profile_image || current.image || "";
     current.course = artwork.course || current.course;
+    current.shopName = current.shopName || artwork.shop_name || "";
+    current.shopDescription =
+      current.shopDescription || artwork.shop_description || "";
+    current.name = current.shopName || current.artistName || fallbackArtistName;
 
     artistMap.set(studentId, current);
   });
@@ -91,8 +101,9 @@ const buildArtistSummaries = (artworks = []) => {
       department: artist.course,
       image: getProfileImage(artist),
       bio:
+        artist.shopDescription ||
         artist.featuredArtwork?.description ||
-        `Contemporary ${artist.department || "artist"} exploring thoughtful studio practice and original visual narratives.`,
+        "The seller currently doesn't have a bio.",
       worksLabel: `${artist.works} works`,
     }))
     .sort((a, b) => b.works - a.works || a.name.localeCompare(b.name));
@@ -555,10 +566,7 @@ export default function Main() {
               </Box>
             </Stack>
             <Button
-              onClick={() =>
-                featuredArtist &&
-                navigate(`/buyer/artist/${featuredArtist.student_id}`)
-              }
+              onClick={() => navigate("/buyer/artist")}
               variant="contained"
               endIcon={<ArrowForwardIcon />}
               sx={{
@@ -567,9 +575,8 @@ export default function Main() {
                 backgroundColor: theme.palette.text.primary,
                 color: theme.palette.background.paper,
               }}
-              disabled={!featuredArtist}
             >
-              View {featuredArtist?.name || "Artist"}'s Gallery
+              View Artists
             </Button>
           </Box>
         </Box>
@@ -638,7 +645,7 @@ export default function Main() {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => navigate(`/buyer/artist/${artist.student_id}`)}
+                onClick={() => navigate(`/buyer/seller/${artist.student_id}`)}
                 sx={{
                   flexShrink: 0,
                   minWidth: 70,
