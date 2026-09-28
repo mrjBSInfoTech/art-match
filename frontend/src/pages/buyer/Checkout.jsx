@@ -28,6 +28,7 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 
 import { fetchCart } from "../../api/buyer/cartAPI";
 import { fetchAddresses } from "../../api/buyer/addressAPI";
+import { placeBuyerOrder } from "../../api/buyer/orderAPI";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -73,15 +74,27 @@ export default function Checkout() {
     (sum, item) => sum + Number(item.price || 0),
     0
   );
-  const shipping = cartItems.length > 0 ? 150 : 0;
-  const total = subtotal + shipping;
+  const sellerCount = new Set(cartItems.map((item) => item.seller_id).filter(Boolean)).size;
+  const estimatedShipping = cartItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
+  const total = subtotal + estimatedShipping;
 
-  const handlePlaceOrder = () => {
-    setLoading(true);
-    setTimeout(() => {
+  const handlePlaceOrder = async () => {
+    try {
+      setError("");
+      setLoading(true);
+      const result = await placeBuyerOrder(currentAddress.address_id, paymentMethod);
+      if (paymentMethod === "cod") {
+        navigate("/buyer/order-finish", {
+          state: { orders: result.orders, paymentMethod },
+        });
+      } else {
+        navigate("/buyer/profile/orders", { state: { orderPlaced: true } });
+      }
+    } catch (orderError) {
+      setError(orderError.message || "Unable to place your order");
+    } finally {
       setLoading(false);
-      navigate("/buyer/profile/orders");
-    }, 1000);
+    }
   };
 
   return (
@@ -281,6 +294,11 @@ export default function Checkout() {
                     selectedValue={paymentMethod}
                   />
                 </RadioGroup>
+                {paymentMethod === "cod" && (
+                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                    Pay the delivery amount in cash when your artwork arrives. Your order will be confirmed on the next screen.
+                  </Alert>
+                )}
               </Paper>
             </Stack>
           </Grid>
@@ -354,7 +372,7 @@ export default function Checkout() {
 
               <Stack spacing={1.5}>
                 <SummaryRow label="Subtotal" value={`₱${subtotal.toLocaleString()}`} />
-                <SummaryRow label="Estimated Shipping" value={`₱${shipping.toLocaleString()}`} />
+                <SummaryRow label="Estimated Shipping" value={`₱${estimatedShipping.toLocaleString()}`} />
                 <Divider sx={{ my: 1 }} />
                 <SummaryRow label="Total Amount" value={`₱${total.toLocaleString()}`} bold />
               </Stack>

@@ -26,6 +26,7 @@ router.get("/", authenticateBuyer, (req, res) => {
       ci.add_to_id,
       ci.artwork_id,
       ci.date_created,
+      a.student_id AS seller_id,
       a.title,
       a.price,
       a.image,

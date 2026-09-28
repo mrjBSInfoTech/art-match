@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Avatar,
+  Alert,
   Box,
   Button,
   Chip,
@@ -18,6 +19,7 @@ import {
   Stack,
   TextField,
   Typography,
+  CircularProgress,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 // Icons
@@ -26,88 +28,8 @@ import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import { createElement } from "react";
-
-const initialOrders = [
-  {
-    id: "ORD-1045",
-    customer: "Maria Dela Cruz",
-    date: "2026-08-22",
-    status: "Pending",
-    payment: "COD",
-    total: 2450,
-    items: [
-      { title: "Sunset Over Davao", qty: 1, price: 1800 },
-      { title: "Canvas Miniature", qty: 2, price: 325 },
-    ],
-    address: "12 Ledesma St., Davao City",
-    note: "Please call before delivery.",
-  },
-  {
-    id: "ORD-1048",
-    customer: "Janelle Santos",
-    date: "2026-08-23",
-    status: "Confirmed",
-    payment: "GCash",
-    total: 3680,
-    items: [
-      { title: "Waves of Mindanao", qty: 1, price: 2600 },
-      { title: "Ink Sketch Set", qty: 1, price: 1080 },
-    ],
-    address: "8 Hizon Ave., Quezon City",
-    note: "Framed version preferred.",
-  },
-  {
-    id: "ORD-1052",
-    customer: "Rafael Tan",
-    date: "2026-08-24",
-    status: "Packed",
-    payment: "Bank Transfer",
-    total: 4200,
-    items: [
-      { title: "The Makers' Table", qty: 1, price: 2800 },
-      { title: "Poster Bundle", qty: 2, price: 700 },
-    ],
-    address: "88 Bicol Avenue, Makati",
-    note: "Include care instruction card.",
-  },
-  {
-    id: "ORD-1059",
-    customer: "Alice Lim",
-    date: "2026-08-25",
-    status: "Shipped",
-    payment: "PayPal",
-    total: 2960,
-    items: [
-      { title: "Night Bloom", qty: 1, price: 1950 },
-      { title: "Mini Abstracts", qty: 3, price: 335 },
-    ],
-    address: "7 Katipunan Rd., Cebu City",
-    note: "Courier delivery after 2pm.",
-  },
-  {
-    id: "ORD-1063",
-    customer: "Nico Reyes",
-    date: "2026-08-25",
-    status: "Delivered",
-    payment: "Card",
-    total: 1795,
-    items: [{ title: "Golden Horizon", qty: 1, price: 1795 }],
-    address: "24 Calamba St., Iloilo",
-    note: "Customer requested gift wrap.",
-  },
-  {
-    id: "ORD-1067",
-    customer: "Shane Torres",
-    date: "2026-08-24",
-    status: "Cancelled",
-    payment: "COD",
-    total: 0,
-    items: [{ title: "Coastal Memory", qty: 1, price: 1500 }],
-    address: "Dorm 3, UP Diliman",
-    note: "Cancelled by customer.",
-  },
-];
+import { createElement, useEffect } from "react";
+import { fetchSellerOrders, updateSellerOrderStatus } from "../../api/seller/orderAPI";
 
 const orderStatuses = [
   "All",
@@ -129,12 +51,12 @@ const statusColorMap = {
 };
 
 const nextStatusMap = {
-  Pending: "Confirmed",
-  Confirmed: "Packed",
-  Packed: "Shipped",
-  Shipped: "Delivered",
-  Delivered: "Delivered",
-  Cancelled: "Cancelled",
+  Pending: ["Confirmed", "Cancelled"],
+  Confirmed: ["Packed"],
+  Packed: ["Shipped"],
+  Shipped: ["Delivered"],
+  Delivered: [],
+  Cancelled: [],
 };
 
 const formatCurrency = (value) =>
@@ -146,10 +68,30 @@ const formatCurrency = (value) =>
 
 export default function SellerOrder() {
   const theme = useTheme();
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [statusError, setStatusError] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const loadOrders = async () => {
+    try {
+      setError("");
+      setLoading(true);
+      const response = await fetchSellerOrders();
+      setOrders(Array.isArray(response) ? response : []);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -177,15 +119,20 @@ export default function SellerOrder() {
     };
   }, [orders]);
 
-  const updateOrderStatus = (orderId, nextStatus) => {
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order.id === orderId ? { ...order, status: nextStatus } : order,
-      ),
-    );
-
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder((current) => ({ ...current, status: nextStatus }));
+  const updateOrderStatus = async (orderId, nextStatus) => {
+    try {
+      setStatusError("");
+      await updateSellerOrderStatus(orderId, nextStatus);
+      setOrders((currentOrders) =>
+        currentOrders.map((order) =>
+          order.orderId === orderId ? { ...order, status: nextStatus } : order,
+        ),
+      );
+      setSelectedOrder((current) =>
+        current?.orderId === orderId ? { ...current, status: nextStatus } : current,
+      );
+    } catch (updateError) {
+      setStatusError(updateError.message || "Unable to update order status");
     }
   };
 
@@ -422,7 +369,10 @@ export default function SellerOrder() {
         </Paper>
 
         <Stack spacing={2}>
-          {filteredOrders.length > 0 ? (
+          {error && <Alert severity="error" action={<Button color="inherit" onClick={loadOrders}>Retry</Button>}>{error}</Alert>}
+          {statusError && <Alert severity="error" onClose={() => setStatusError("")}>{statusError}</Alert>}
+          {loading && <Box sx={{ display: "grid", placeItems: "center", py: 4 }}><CircularProgress /></Box>}
+          {loading ? null : filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
               <Paper
                 key={order.id}
@@ -526,23 +476,19 @@ export default function SellerOrder() {
                       size="small"
                       value={order.status}
                       onChange={(e) =>
-                        updateOrderStatus(order.id, e.target.value)
+                        updateOrderStatus(order.orderId, e.target.value)
                       }
                       sx={{ minWidth: 150 }}
                     >
-                      {orderStatuses
-                        .filter((status) => status !== "All")
-                        .map((status) => (
-                          <MenuItem key={status} value={status}>
-                            {status}
-                          </MenuItem>
-                        ))}
+                      {[order.status, ...(nextStatusMap[order.status] || [])].map((status) => (
+                        <MenuItem key={status} value={status}>{status}</MenuItem>
+                      ))}
                     </Select>
                   </Stack>
                 </Stack>
               </Paper>
             ))
-          ) : (
+          ) : error ? null : (
             <Paper
               elevation={0}
               sx={{
@@ -714,16 +660,12 @@ export default function SellerOrder() {
                   size="small"
                   value={selectedOrder.status}
                   onChange={(e) =>
-                    updateOrderStatus(selectedOrder.id, e.target.value)
+                    updateOrderStatus(selectedOrder.orderId, e.target.value)
                   }
                 >
-                  {orderStatuses
-                    .filter((status) => status !== "All")
-                    .map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {status}
-                      </MenuItem>
-                    ))}
+                  {[selectedOrder.status, ...(nextStatusMap[selectedOrder.status] || [])].map((status) => (
+                    <MenuItem key={status} value={status}>{status}</MenuItem>
+                  ))}
                 </Select>
               </Box>
 
