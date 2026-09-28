@@ -19,10 +19,13 @@ import { ensureAccountAccessTable } from "./database/accountAccess.js";
 import { ensureChatPublicKeysTable } from "./database/chatKeys.js";
 import { ensureMessageSenderNameColumn } from "./database/message.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
+import { ensureOrderTables } from "./database/orders.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
 import sellerStorefrontRoutes from "./routes/seller/storefront.js";
+import sellerOrderRoutes from "./routes/seller/orders.js";
+import sellerReviewRoutes from "./routes/seller/reviews.js";
 //import sellerSalesRoutes from "./routes/seller/sales.js";
 import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
 // Routes (Buyer)
@@ -31,6 +34,8 @@ import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
+import buyerOrderRoutes from "./routes/buyer/orders.js";
+import buyerReviewRoutes from "./routes/buyer/reviews.js";
 import chatRoutes from "./routes/chat.js";
 
 dotenv.config();
@@ -79,12 +84,16 @@ app.use("/api/admin/admin", adminAdminRoutes);
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
 app.use("/api/seller/artwork", sellerArtworkRoutes);
 app.use("/api/seller/storefront", sellerStorefrontRoutes);
+app.use("/api/seller/orders", sellerOrderRoutes);
+app.use("/api/seller/reviews", sellerReviewRoutes);
 //app.use("/api/seller/sales", sellerSalesRoutes);
 // Routes (Buyer)
 app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
+app.use("/api/buyer/orders", buyerOrderRoutes);
+app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/chat", chatRoutes);
 
 // Handle 404 (unknown routes)
@@ -105,4 +114,9 @@ ensureAccountAccessTable();
 ensureChatPublicKeysTable();
 ensureMessageSenderNameColumn();
 ensureStorefrontTable().catch(() => {});
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+ensureOrderTables()
+  .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
+  .catch((error) => {
+    console.error("Unable to initialize order tables:", error.message);
+    process.exit(1);
+  });

@@ -56,6 +56,7 @@ import BuyerMessage from "../pages/buyer/Message";
 import BuyerProfile from "../pages/buyer/Profile";
 import BuyerSettings from "../pages/buyer/Settings";
 import BuyerOrder from "../pages/buyer/Order";
+import BuyerOrderFinish from "../pages/buyer/OrderFinish";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
 
@@ -89,6 +90,7 @@ export default function AppRoutes() {
               <Route element={<BuyerLayout />}>
                 <Route path="cart" element={<BuyerCart />} />
                 <Route path="checkout" element={<BuyerCheckout />} />
+                <Route path="order-finish" element={<BuyerOrderFinish />} />
                 <Route path="messages" element={<BuyerMessage />} />
                 <Route
                   path="message"

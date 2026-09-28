@@ -2,6 +2,7 @@
 import { Helmet } from "react-helmet-async";
 import {
   Avatar,
+  Alert,
   Box,
   Button,
   Card,
@@ -12,6 +13,7 @@ import {
   Grid,
   IconButton,
   Paper,
+  Rating,
   Stack,
   Tab,
   Tabs,
@@ -25,6 +27,7 @@ import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
 
 const getProfileFallback = (name = "Artist") =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6f1d1b&color=fff&size=200`;
@@ -104,17 +107,26 @@ const getProfileImage = (profileImage) => {
   return `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`;
 };
 
+const getArtworkImage = (image) => {
+  if (!image) return "";
+  if (image.startsWith("http")) return image;
+  if (image.startsWith("/")) return `http://localhost:5000${image}`;
+  return `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`;
+};
+
 export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [course, setCourse] = useState("");
-  const [yearLevel, setYearLevel] = useState("");
   const [profileImage, setProfileImage] = useState("");
   const [registeredDate, setRegisteredDate] = useState("");
   const [aboutMe, setAboutMe] = useState("");
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     const loadSellerData = () => {
@@ -122,7 +134,6 @@ export default function Profile() {
       const sellerLastName = localStorage.getItem("seller_last_name") || "";
       const sellerMiddleName = localStorage.getItem("seller_middle_name") || "";
       const sellerCourse = localStorage.getItem("seller_course") || "Fine Arts";
-      const sellerYearLevel = localStorage.getItem("seller_year_level") || "4th Year";
       const sellerProfileImage = localStorage.getItem("seller_profile_image") || "";
       const sellerRegisteredDate = localStorage.getItem("seller_registered_date") || "2024-09-01";
       const sellerStoreDescription =
@@ -133,7 +144,6 @@ export default function Profile() {
       setLastName(sellerLastName);
       setMiddleName(sellerMiddleName);
       setCourse(sellerCourse);
-      setYearLevel(sellerYearLevel);
       setProfileImage(sellerProfileImage);
       setRegisteredDate(sellerRegisteredDate);
       setAboutMe(sellerStoreDescription);
@@ -143,6 +153,21 @@ export default function Profile() {
     loadSellerData();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    fetchSellerReviews()
+      .then((response) => {
+        if (active) setReviews(Array.isArray(response) ? response : []);
+      })
+      .catch((error) => {
+        if (active) setReviewError(error.message || "Unable to load buyer reviews");
+      })
+      .finally(() => {
+        if (active) setReviewsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
   const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
   const profileName = fullName || "Malia";
 
@@ -150,6 +175,12 @@ export default function Profile() {
     if (!profileName) return [];
     return buildArtworkDefaults(profileName);
   }, [profileName]);
+
+  const sellerReviews = reviews;
+  const averageRating = sellerReviews.length
+    ? sellerReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) /
+      sellerReviews.length
+    : 0;
 
   const stats = [
     { label: "Followers", value: "234" },
@@ -405,9 +436,82 @@ export default function Profile() {
                 <Tab label="Artwork for Sale" />
                 <Tab label="Gallery Portfolio" />
                 <Tab label="About" />
-                <Tab label="Reviews [128]" />
+                <Tab label={`Reviews (${sellerReviews.length})`} />
               </Tabs>
 
+              {activeTab === 3 ? (
+                <Stack spacing={2}>
+                  {!reviewsLoading && !reviewError && sellerReviews.length > 0 && (
+                    <Paper
+                      elevation={0}
+                      sx={{ p: 2, borderRadius: 2, bgcolor: "#fff", border: "1px solid rgba(130,99,88,0.12)" }}
+                    >
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                        <Typography variant="h4" fontWeight={800}>
+                          {averageRating.toFixed(1)}
+                        </Typography>
+                        <Box>
+                          <Rating value={averageRating} precision={0.1} readOnly size="small" />
+                          <Typography variant="body2" color="text.secondary">
+                            Based on {sellerReviews.length} {sellerReviews.length === 1 ? "review" : "reviews"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  )}
+
+                  {reviewsLoading ? (
+                    <Box sx={{ display: "grid", placeItems: "center", py: 5 }}><CircularProgress size={28} /></Box>
+                  ) : reviewError ? (
+                    <Alert severity="error">{reviewError}</Alert>
+                  ) : sellerReviews.length === 0 ? (
+                    <Box sx={{ py: 6, textAlign: "center" }}>
+                      <Typography variant="h6" fontWeight={700}>
+                        No reviews yet
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                        Buyer reviews for your artworks will appear here.
+                      </Typography>
+                    </Box>
+                  ) : (
+                    sellerReviews.map((review) => (
+                      <Paper
+                        key={review.id}
+                        elevation={0}
+                        sx={{ p: 2.5, borderRadius: 2, bgcolor: "#fff", border: "1px solid rgba(130,99,88,0.12)" }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                          <Box>
+                            <Typography variant="subtitle1" fontWeight={800}>
+                              {review.reviewerName}
+                            </Typography>
+                            <Rating value={Number(review.rating)} readOnly size="small" />
+                          </Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2" sx={{ mt: 1, lineHeight: 1.7 }}>
+                          {review.comment}
+                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
+                          {review.artworkImage && (
+                            <Box
+                              component="img"
+                              src={getArtworkImage(review.artworkImage)}
+                              alt={review.artworkTitle}
+                              sx={{ width: 38, height: 38, borderRadius: 1, objectFit: "cover" }}
+                            />
+                          )}
+                          <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                            Purchased: {review.artworkTitle}
+                          </Typography>
+                        </Stack>
+                      </Paper>
+                    ))
+                  )}
+                </Stack>
+              ) : (
               <Grid container spacing={2.5}>
                 {artworks.slice(0, 6).map((artwork) => (
                   <Grid item xs={12} sm={6} md={4} key={artwork.id}>
@@ -469,6 +573,7 @@ export default function Profile() {
                   </Grid>
                 ))}
               </Grid>
+              )}
             </Paper>
           </Grid>
 
