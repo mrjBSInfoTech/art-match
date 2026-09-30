@@ -27,6 +27,8 @@ import ArtworkInfo from "../../components/seller/Artwork/ArtworkInfo";
 const defaultSettings = {
   shopName: "",
   shopDescription: "",
+  specialties: [],
+  customSpecialty: "",
   shopStatus: true,
   autoAcceptOrders: true,
   orderAlertEmail: true,
@@ -35,6 +37,21 @@ const defaultSettings = {
   shippingDefault: "Standard",
   pickupEnabled: true,
 };
+
+const specialtyOptions = [
+  "Oil Painting",
+  "Acrylic Painting",
+  "Watercolor",
+  "Landscape",
+  "Portrait",
+  "Abstract",
+  "Impressionism",
+  "Still Life",
+  "Mixed Media",
+  "Surrealism",
+  "Digital Art",
+  "Minimalism",
+];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -52,6 +69,58 @@ export default function Storefront() {
   const [successMessage, setSuccessMessage] = useState("");
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
+
+  const selectedSpecialties = settings.specialties || [];
+  const customSpecialtyLimitReached = selectedSpecialties.length >= 3;
+
+  const handleSpecialtyToggle = (specialty) => {
+    setSettings((current) => {
+      const currentSpecialties = current.specialties || [];
+      const alreadySelected = currentSpecialties.includes(specialty);
+
+      if (alreadySelected) {
+        return {
+          ...current,
+          specialties: currentSpecialties.filter((item) => item !== specialty),
+        };
+      }
+
+      if (currentSpecialties.length >= 3) {
+        return current;
+      }
+
+      return {
+        ...current,
+        specialties: [...currentSpecialties, specialty],
+      };
+    });
+  };
+
+  const handleAddCustomSpecialty = () => {
+    const value = settings.customSpecialty.trim();
+
+    if (!value || customSpecialtyLimitReached) {
+      return;
+    }
+
+    const normalized = value.replace(/\s+/g, " ");
+
+    setSettings((current) => {
+      const currentSpecialties = current.specialties || [];
+      if (
+        currentSpecialties.includes(normalized) ||
+        currentSpecialties.length >= 3
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        specialties: [...currentSpecialties, normalized],
+        customSpecialty: "",
+      };
+    });
+  };
 
   useEffect(() => {
     const loadSavedStorefront = async () => {
@@ -125,7 +194,13 @@ export default function Storefront() {
         shop_description: settings.shopDescription.trim(),
       });
 
-      localStorage.setItem("seller_settings", JSON.stringify(settings));
+      const nextSettings = {
+        ...settings,
+        specialties: settings.specialties || [],
+        customSpecialty: settings.customSpecialty || "",
+      };
+
+      localStorage.setItem("seller_settings", JSON.stringify(nextSettings));
       localStorage.setItem(
         "seller_shop_name",
         saved?.shop_name || settings.shopName,
@@ -270,6 +345,125 @@ export default function Storefront() {
                 Reset
               </Button>
             </Box>
+          </Stack>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 3 },
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 3,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Achievements
+          </Typography>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 3 },
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 3,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            Specialties
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Choose up to 3 art styles that best describe your work.
+          </Typography>
+
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {specialtyOptions.map((tag) => {
+                const isSelected = selectedSpecialties.includes(tag);
+
+                return (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    size="small"
+                    clickable
+                    onClick={() => handleSpecialtyToggle(tag)}
+                    color={isSelected ? "primary" : "default"}
+                    variant={isSelected ? "filled" : "outlined"}
+                    disabled={!isSelected && customSpecialtyLimitReached}
+                    sx={{
+                      fontWeight: 700,
+                      borderRadius: 999,
+                    }}
+                  />
+                );
+              })}
+            </Stack>
+
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <TextField
+                size="small"
+                value={settings.customSpecialty || ""}
+                onChange={(e) =>
+                  setSettings((current) => ({
+                    ...current,
+                    customSpecialty: e.target.value,
+                  }))
+                }
+                placeholder="Add custom art style"
+                sx={{ flex: 1, minWidth: 220 }}
+              />
+
+              <Button
+                variant="contained"
+                size="small"
+                disabled={
+                  !settings.customSpecialty?.trim() ||
+                  customSpecialtyLimitReached
+                }
+                onClick={handleAddCustomSpecialty}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 2,
+                }}
+              >
+                Add
+              </Button>
+            </Box>
+
+            {selectedSpecialties.length > 0 && (
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {selectedSpecialties.map((tag) => (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    onDelete={() => handleSpecialtyToggle(tag)}
+                    color="primary"
+                    sx={{
+                      fontWeight: 700,
+                      borderRadius: 999,
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
+
+            <Typography variant="caption" color="text.secondary">
+              {customSpecialtyLimitReached
+                ? "You have reached the maximum of 3 styles."
+                : `${3 - selectedSpecialties.length} style slots remaining.`}
+            </Typography>
           </Stack>
         </Paper>
 

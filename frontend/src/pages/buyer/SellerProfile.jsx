@@ -4,6 +4,8 @@ import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   CircularProgress,
   Container,
@@ -203,291 +205,270 @@ export default function SellerProfile() {
   const heroImage =
     getArtworkImage(selectedSeller.featuredArtwork) || selectedSeller.image;
 
+  const tabs = [
+    "Artworks for Sale",
+    "Gallery Portfolio",
+    "About",
+    "Reviews (128)",
+  ];
+  const specialties = [
+    selectedSeller.department || "Oil Painting",
+    "Modern Impressionist",
+    "Landscape",
+    "Impasto",
+  ];
+
   return (
-    <Box sx={{ minHeight: "100vh", background: "#f4f0ed", pb: 6 }}>
-      <Box
-        sx={{
-          background: `linear-gradient(180deg, rgba(122,18,18,0.35), rgba(94,16,16,0.52)), url(${heroImage}) center/cover no-repeat`,
-          minHeight: { xs: 420, md: 380 },
-          position: "relative",
-        }}
-      >
+    <Box sx={{ minHeight: "100vh", background: "#f4efe9", pb: 6 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
         <Box
           sx={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.18))",
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: "flex-start",
+            gap: 3,
           }}
-        />
-
-        <Container
-          maxWidth="lg"
-          sx={{ position: "relative", py: { xs: 5, md: 8 } }}
         >
-          <Button
-            onClick={() => navigate(-1)}
-            variant="contained"
-            sx={{
-              mb: 3,
-              borderRadius: 999,
-              background: "rgba(0,0,0,0.18)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              color: "#fff",
-              px: 2.5,
-              textTransform: "none",
-              fontWeight: 700,
-            }}
-          >
-            ← Back
-          </Button>
-
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={8}>
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-                sx={{ mb: 2 }}
-              >
-                <Chip
-                  label="SELLER PROFILE"
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    fontWeight: 700,
-                    letterSpacing: 0.8,
-                  }}
-                />
-                <Chip
-                  icon={<VerifiedRoundedIcon sx={{ fontSize: 16 }} />}
-                  label="Verified Seller"
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    fontWeight: 700,
-                  }}
-                />
-              </Stack>
-
-              <Typography
-                variant="h3"
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box
+              sx={{
+                background: "#f8f4f0",
+                border: "1px solid #e5d8cd",
+                borderRadius: 4,
+                p: { xs: 2.5, md: 3 },
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                minHeight: 200,
+                boxShadow: "none",
+              }}
+            >
+              <Box
+                component="img"
+                src={selectedSeller.image}
+                alt={selectedSeller.name}
                 sx={{
-                  color: "#fff",
-                  fontWeight: 800,
-                  letterSpacing: "-0.04em",
-                  maxWidth: 700,
-                  lineHeight: 1.06,
+                  width: 140,
+                  height: 140,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: "2px solid #e6d5c0",
+                  flexShrink: 0,
+                  background: "#f1e7df",
                 }}
-              >
-                {selectedSeller.name}
-              </Typography>
+              />
 
-              <Typography
-                variant="body1"
-                sx={{ color: "rgba(255,255,255,0.9)", mt: 1.5, maxWidth: 640 }}
-              >
-                {selectedSeller.bio ||
-                  "The seller currently doesn't have a bio."}
-              </Typography>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1.5}
+                  sx={{ mb: 0.5 }}
+                >
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 800,
+                      letterSpacing: "-0.05em",
+                      lineHeight: 1.1,
+                      color: "#1b1917",
+                    }}
+                  >
+                    {selectedSeller.shopName || selectedSeller.name}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      color: "#5f514b",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {selectedSeller.department || "Fine Arts"}
+                  </Typography>
+                </Stack>
 
-              <Stack
-                direction="row"
-                spacing={3}
-                sx={{ mt: 3, flexWrap: "wrap", rowGap: 1.5 }}
-              >
-                <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "rgba(255,255,255,0.75)" }}
-                  >
-                    ARTWORKS
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "#fff", fontWeight: 800 }}
-                  >
-                    {selectedSeller.worksLabel || "0 works"}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "rgba(255,255,255,0.75)" }}
-                  >
-                    LISTED
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "#fff", fontWeight: 800 }}
-                  >
-                    {selectedSeller.sales || 0} pieces
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "rgba(255,255,255,0.75)" }}
-                  >
-                    RATING
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "#fff", fontWeight: 800 }}
-                  >
-                    <Box component="span" sx={{ color: "#facc15" }}>
-                      ★
-                    </Box>{" "}
-                    {selectedSeller.rating || "4.8"}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  borderRadius: 4,
-                  background: "rgba(255,255,255,0.14)",
-                  border: "1px solid rgba(255,255,255,0.22)",
-                  backdropFilter: "blur(8px)",
-                  color: "#fff",
-                }}
-              >
-                <Box
-                  component="img"
-                  src={selectedSeller.image}
-                  alt={selectedSeller.name}
+                <Typography
+                  variant="body1"
                   sx={{
-                    width: 120,
-                    height: 120,
-                    objectFit: "cover",
-                    borderRadius: "50%",
-                    border: "4px solid rgba(255,255,255,0.58)",
-                    display: "block",
-                    mx: "auto",
+                    color: "#5f514b",
+                    maxWidth: 620,
+                    lineHeight: 1.6,
                     mb: 2,
                   }}
-                />
-
-                <Typography
-                  align="center"
-                  sx={{ fontWeight: 800, fontSize: 26 }}
                 >
-                  {selectedSeller.name}
-                </Typography>
-                <Typography
-                  align="center"
-                  sx={{ color: "rgba(255,255,255,0.8)", mt: 0.5 }}
-                >
-                  {selectedSeller.department || "Independent Artist"}
+                  {selectedSeller.bio ||
+                    "The seller currently doesn't have a bio."}
                 </Typography>
 
                 <Stack
                   direction="row"
-                  spacing={1}
-                  justifyContent="center"
-                  sx={{ mt: 2 }}
+                  spacing={3}
+                  sx={{ flexWrap: "wrap", rowGap: 1.5 }}
                 >
-                  <IconButton
-                    sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "#fff" }}
-                  >
-                    <FavoriteBorderOutlinedIcon />
-                  </IconButton>
-                  <IconButton
-                    sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "#fff" }}
-                  >
-                    <ShareOutlinedIcon />
-                  </IconButton>
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      sx={{ fontWeight: 800, color: "#1f1c1a" }}
+                    >
+                      {selectedSeller.works || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#6f625b" }}>
+                      Artworks
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      sx={{ fontWeight: 800, color: "#1f1c1a" }}
+                    >
+                      {selectedSeller.sales || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#6f625b" }}>
+                      Sales
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      sx={{ fontWeight: 800, color: "#1f1c1a" }}
+                    >
+                      {selectedSeller.rating || 4.8}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#6f625b" }}>
+                      Rating
+                    </Typography>
+                  </Box>
                 </Stack>
-              </Paper>
-            </Grid>
-          </Grid>
-        </Container>
-      </Box>
 
-      <Container maxWidth="lg" sx={{ py: 6 }}>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={8}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                mb: 2,
-              }}
-            >
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                Artworks by {selectedSeller.name}
-              </Typography>
+                <Stack direction="row" spacing={2} sx={{ mt: 2.5 }}>
+                  <Button
+                    variant="contained"
+                    onClick={() => {}}
+                    sx={{
+                      borderRadius: 999,
+                      background: "#d95454",
+                      color: "#fff",
+                      px: 3,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                      boxShadow: "none",
+                      "&:hover": { background: "#c94848", boxShadow: "none" },
+                    }}
+                  >
+                    Follow
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 999,
+                      borderColor: "#1f1c1a",
+                      color: "#1f1c1a",
+                      px: 2.75,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Contact Artist
+                  </Button>
+                </Stack>
+              </Box>
             </Box>
 
-            {displayArtworks.length === 0 ? (
-              <Paper sx={{ p: 4, borderRadius: 3, textAlign: "center" }}>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  No artworks yet
-                </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  This seller has not uploaded any work yet.
-                </Typography>
-              </Paper>
-            ) : (
-              <Grid container spacing={3}>
-                {displayArtworks.map((artwork) => (
+            <Box sx={{ mt: 4, borderBottom: "1px solid #e6d8cd" }}>
+              <Stack
+                direction="row"
+                spacing={3}
+                sx={{ flexWrap: "wrap", rowGap: 1.5 }}
+              >
+                {tabs.map((tab, index) => (
+                  <Box
+                    key={tab}
+                    sx={{
+                      py: 1.25,
+                      px: 0.5,
+                      borderBottom:
+                        index === 0
+                          ? "2px solid #1d1a1a"
+                          : "2px solid transparent",
+                      fontWeight: index === 0 ? 700 : 500,
+                      color: index === 0 ? "#1d1a1a" : "#6f625b",
+                    }}
+                  >
+                    {tab}
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+
+            <Grid container spacing={3} sx={{ mt: 0.5 }}>
+              {displayArtworks.length === 0 ? (
+                <Grid item xs={12}>
+                  <Paper
+                    sx={{
+                      p: 4,
+                      borderRadius: 3,
+                      textAlign: "center",
+                      border: "1px solid #eadfda",
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      No artworks yet
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>
+                      This seller has not uploaded any work yet.
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ) : (
+                displayArtworks.map((artwork) => (
                   <Grid item xs={12} sm={6} key={artwork.artwork_id}>
-                    <Paper
+                    <Card
                       elevation={0}
                       sx={{
                         borderRadius: 3,
                         overflow: "hidden",
-                        border: "1px solid",
-                        borderColor: "divider",
+                        border: "1px solid #e6d8cd",
+                        background: "#fffaf7",
                         height: "100%",
-                        transition: "all 0.2s ease",
-                        "&:hover": { boxShadow: 3 },
+                        boxShadow: "none",
                       }}
                     >
-                      <Box
-                        component="img"
-                        src={getArtworkImage(artwork)}
-                        alt={artwork.title}
-                        sx={{
-                          width: "100%",
-                          height: 250,
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                      />
-                      <Box sx={{ p: 2.5 }}>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          justifyContent="space-between"
-                          sx={{ mb: 1 }}
+                      <Box sx={{ position: "relative" }}>
+                        <Box
+                          component="img"
+                          src={getArtworkImage(artwork)}
+                          alt={artwork.title}
+                          sx={{
+                            width: "100%",
+                            height: 260,
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 12,
+                            left: 12,
+                            background: "#d95454",
+                            color: "#fff",
+                            borderRadius: 1,
+                            px: 1,
+                            py: 0.4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                          }}
                         >
-                          <Chip
-                            label={artwork.badge}
-                            size="small"
-                            sx={{
-                              borderRadius: 999,
-                              backgroundColor: theme.palette.primary.light,
-                              color: theme.palette.primary.dark,
-                              fontWeight: 700,
-                            }}
-                          />
-                          <Typography
-                            variant="body2"
-                            sx={{ fontWeight: 700, color: "text.secondary" }}
-                          >
-                            {artwork.genre || "Art"}
-                          </Typography>
-                        </Stack>
+                          {artwork.badge || "For Sale"}
+                        </Box>
+                      </Box>
 
+                      <CardContent sx={{ p: 2.25 }}>
                         <Typography
                           variant="h6"
                           sx={{ fontWeight: 800, mb: 0.5 }}
@@ -497,10 +478,12 @@ export default function SellerProfile() {
                         <Typography
                           variant="body2"
                           color="text.secondary"
-                          sx={{ mb: 2 }}
+                          sx={{ mb: 1.5 }}
                         >
-                          {artwork.description ||
-                            "Original artwork by this seller."}
+                          {selectedSeller.shopName ||
+                            selectedSeller.artistName ||
+                            "Li Wei"}{" "}
+                          ({selectedSeller.department || "Oil Painting Dept."})
                         </Typography>
 
                         <Stack
@@ -508,82 +491,146 @@ export default function SellerProfile() {
                           alignItems="center"
                           justifyContent="space-between"
                         >
-                          <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 800, color: "#d95454" }}
+                          >
                             {formatPrice(artwork.price)}
                           </Typography>
-                          <Button
-                            variant="contained"
-                            endIcon={<ArrowForwardIcon />}
-                            onClick={() =>
-                              navigate(
-                                `/buyer/artwork/view/${artwork.artwork_id}`,
-                              )
-                            }
+                          <IconButton
+                            size="small"
                             sx={{
-                              borderRadius: 999,
-                              backgroundColor: theme.palette.text.primary,
-                              color: theme.palette.background.paper,
-                              textTransform: "none",
+                              border: "1px solid #e7dace",
+                              background: "#f6efe9",
+                              color: "#6f625b",
                             }}
                           >
-                            View
-                          </Button>
+                            <FavoriteBorderOutlinedIcon fontSize="small" />
+                          </IconButton>
                         </Stack>
-                      </Box>
-                    </Paper>
+                      </CardContent>
+                    </Card>
                   </Grid>
-                ))}
-              </Grid>
-            )}
-          </Grid>
+                ))
+              )}
+            </Grid>
+          </Box>
 
-          <Grid item xs={12} md={4}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                borderRadius: 3,
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
-                Seller details
-              </Typography>
+          <Box sx={{ width: { xs: "100%", md: 300 }, flexShrink: 0 }}>
+            <Stack spacing={2.5} sx={{ height: "100%" }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  background: "#f7f2eb",
+                  border: "1px solid #e5d8cd",
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
+                  Artist Achievements
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                  sx={{ mb: 1.5 }}
+                >
+                  <Box
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: "#f2e5d2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    🏆
+                  </Box>
+                  <Typography variant="body2" sx={{ color: "#3a332f" }}>
+                    Top Seller
+                  </Typography>
+                </Stack>
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                  sx={{ mb: 1.5 }}
+                >
+                  <Box
+                    sx={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: "#f2e5d2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    ⭐
+                  </Box>
+                  <Typography variant="body2" sx={{ color: "#3a332f" }}>
+                    Featured Artist
+                  </Typography>
+                </Stack>
+              </Paper>
 
-              <Stack spacing={2}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <LocationOnOutlinedIcon color="action" />
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedSeller.department || "Independent Artist"}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <StarRoundedIcon color="warning" />
-                  <Typography variant="body2" color="text.secondary">
-                    Rating: {selectedSeller.rating || "4.8"}/5
-                  </Typography>
-                </Box>
-                <Divider />
-                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                  Shop name
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  background: "#f7f2eb",
+                  border: "1px solid #e5d8cd",
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
+                  Member Since
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedSeller.shopName ||
-                    selectedSeller.artistName ||
-                    "Shop name not set"}
+                <Typography variant="body2" sx={{ color: "#3a332f" }}>
+                  September 2024
                 </Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                  Bio
+              </Paper>
+
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  background: "#f7f2eb",
+                  border: "1px solid #e5d8cd",
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
+                  Specialties
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedSeller.bio ||
-                    "The seller currently doesn't have a bio."}
-                </Typography>
-              </Stack>
-            </Paper>
-          </Grid>
-        </Grid>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ flexWrap: "wrap", rowGap: 1 }}
+                >
+                  {specialties.map((item) => (
+                    <Chip
+                      key={item}
+                      label={item}
+                      size="small"
+                      sx={{
+                        background: "#f3e7dc",
+                        color: "#3a332f",
+                        borderRadius: 999,
+                        fontWeight: 600,
+                        border: "1px solid #e3d3c2",
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </Paper>
+            </Stack>
+          </Box>
+        </Box>
       </Container>
     </Box>
   );
