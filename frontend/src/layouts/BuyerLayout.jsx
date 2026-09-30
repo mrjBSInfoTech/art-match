@@ -43,15 +43,11 @@ import Settings from "@mui/icons-material/Settings";
 import Logout from "@mui/icons-material/Logout";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import {
-  ThemeModeProvider,
-  useThemeMode,
-} from "../theme/ThemeModeProvider";
+import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
-import TuneIcon from "@mui/icons-material/Tune";
 import logo from "../assets/Nexus.png";
 import Footer from "../pages/buyer/Footer";
 import { fetchCart } from "../api/buyer/cartAPI";
@@ -98,7 +94,8 @@ function BuyerLayoutContent({ children }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [categoriesAnchorPosition, setCategoriesAnchorPosition] =
+    useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [openDialog, setOpenDialog] = React.useState(false);
@@ -219,20 +216,55 @@ function BuyerLayoutContent({ children }) {
   const categoryGroups = [
     {
       title: "Art Type",
-      options: ["Painting", "Sculpture", "Architecture", "Digital", "Photography", "Print", "Mixed Media"],
+      options: [
+        "Painting",
+        "Sculpture",
+        "Architecture",
+        "Digital",
+        "Photography",
+        "Print",
+        "Mixed Media",
+      ],
     },
     {
       title: "Style",
-      options: ["Modern", "Abstract", "Traditional", "Minimalist", "Pop Art", "Conceptual", "Cute"],
+      options: [
+        "Modern",
+        "Abstract",
+        "Traditional",
+        "Minimalist",
+        "Pop Art",
+        "Conceptual",
+        "Cute",
+      ],
     },
     {
       title: "Materials",
       options: ["Oil on Canvas", "Acrylic", "Watercolor", "Clay", "Metal"],
     },
   ];
-  const paletteColors = ["#f52245", "#ffe3bb", "#1464ed", "#16b978", "#9c332b", "#151632", "#f5f1ea", "#1f1f1f"];
+  const paletteColors = [
+    "#f52245",
+    "#ffe3bb",
+    "#1464ed",
+    "#16b978",
+    "#9c332b",
+    "#151632",
+    "#f5f1ea",
+    "#1f1f1f",
+  ];
+  const handleCategoriesOpen = (event) => {
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const navigationRect = event.currentTarget
+      .closest("nav")
+      ?.getBoundingClientRect();
+    setCategoriesAnchorPosition({
+      top: navigationRect?.bottom ?? buttonRect.bottom,
+      left: 0,
+    });
+  };
   const handleCategoryOption = (option) => {
-    setCategoriesOpen(false);
+    setCategoriesAnchorPosition(null);
     navigate(`/buyer/artwork?q=${encodeURIComponent(option)}`);
   };
 
@@ -292,11 +324,22 @@ function BuyerLayoutContent({ children }) {
           }}
         >
           <Box
+            component="button"
+            type="button"
+            aria-label="Red Nexus home"
+            onClick={() => navigate("/buyer/main")}
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1,
               flexShrink: 0,
+              p: 0,
+              border: 0,
+              background: "transparent",
+              color: "inherit",
+              font: "inherit",
+              textAlign: "left",
+              cursor: "pointer",
             }}
           >
             <Box
@@ -307,15 +350,11 @@ function BuyerLayoutContent({ children }) {
                 justifyContent: "center",
                 alignItems: "center",
                 overflow: "hidden",
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                navigate("/buyer/main");
               }}
             >
               <img
                 src={logo}
-                alt="logo"
+                alt=""
                 style={{
                   width: "34px",
                   height: "42px",
@@ -561,8 +600,10 @@ function BuyerLayoutContent({ children }) {
             }}
           >
             <Button
-              onClick={() => setCategoriesOpen(true)}
-              startIcon={<TuneIcon sx={{ fontSize: 18 }} />}
+              onClick={handleCategoriesOpen}
+              startIcon={<MenuIcon sx={{ fontSize: 18 }} />}
+              aria-haspopup="true"
+              aria-expanded={Boolean(categoriesAnchorPosition)}
               sx={{
                 color: "inherit",
                 minWidth: 0,
@@ -576,19 +617,34 @@ function BuyerLayoutContent({ children }) {
             </Button>
             <Button
               onClick={() => navigate("/buyer/artwork")}
-              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+              sx={{
+                color: "inherit",
+                textTransform: "none",
+                px: { xs: 0.75, sm: 1 },
+                fontSize: { xs: 12, sm: 14 },
+              }}
             >
               Shop
             </Button>
             <Button
               onClick={() => navigate("/buyer/artist")}
-              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+              sx={{
+                color: "inherit",
+                textTransform: "none",
+                px: { xs: 0.75, sm: 1 },
+                fontSize: { xs: 12, sm: 14 },
+              }}
             >
               Artist
             </Button>
             <Button
               onClick={() => navigate("/buyer/artwork")}
-              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+              sx={{
+                color: "inherit",
+                textTransform: "none",
+                px: { xs: 0.75, sm: 1 },
+                fontSize: { xs: 12, sm: 14 },
+              }}
             >
               Gallery
             </Button>
@@ -603,13 +659,23 @@ function BuyerLayoutContent({ children }) {
           >
             <Button
               onClick={() => navigate("/buyer/about")}
-              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+              sx={{
+                color: "inherit",
+                textTransform: "none",
+                px: { xs: 0.75, sm: 1 },
+                fontSize: { xs: 12, sm: 14 },
+              }}
             >
               About Us
             </Button>
             <Button
               onClick={() => navigate("/buyer/help-support")}
-              sx={{ color: "inherit", textTransform: "none", px: { xs: 0.75, sm: 1 }, fontSize: { xs: 12, sm: 14 } }}
+              sx={{
+                color: "inherit",
+                textTransform: "none",
+                px: { xs: 0.75, sm: 1 },
+                fontSize: { xs: 12, sm: 14 },
+              }}
             >
               Help Support
             </Button>
@@ -659,32 +725,52 @@ function BuyerLayoutContent({ children }) {
         </Collapse>
       </AppBar>
 
-      <Drawer
-        anchor="left"
-        open={categoriesOpen}
-        onClose={() => setCategoriesOpen(false)}
+      <Popover
+        open={Boolean(categoriesAnchorPosition)}
+        onClose={() => setCategoriesAnchorPosition(null)}
+        marginThreshold={0}
+        anchorReference="anchorPosition"
+        anchorPosition={categoriesAnchorPosition || { top: 0, left: 0 }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
         PaperProps={{
           sx: {
-            width: { xs: "min(320px, 88vw)", sm: 300 },
+            width: "100vw",
+            maxWidth: "100vw",
+            maxHeight: "calc(100vh - 150px)",
+            overflowY: "auto",
+            p: { xs: 2, md: 3 },
+            borderRadius: "0 0 20px 20px",
+            border: `1px solid ${theme.palette.divider}`,
             backgroundColor: theme.palette.background.paper,
             color: theme.palette.text.primary,
-            borderRight: `1px solid ${theme.palette.divider}`,
+            boxShadow: "0 12px 28px rgba(0, 0, 0, 0.14)",
           },
         }}
       >
-        <Box sx={{ px: 2, py: 2.5, overflowY: "auto" }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              All Categories
-            </Typography>
-            <IconButton onClick={() => setCategoriesOpen(false)} aria-label="Close categories">
-              <CloseIcon />
-            </IconButton>
-          </Stack>
-
-          {categoryGroups.slice(0, 2).map((group) => (
-            <Box key={group.title} sx={{ py: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700, mb: 0.5 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(3, minmax(0, 1fr))",
+              lg: "repeat(5, minmax(0, 1fr))",
+            },
+            gap: { xs: 2, md: 3.5 },
+          }}
+        >
+          {categoryGroups.map((group) => (
+            <Box key={group.title}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontFamily: "Georgia, serif",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  mb: 1,
+                }}
+              >
                 {group.title}
               </Typography>
               {group.options.map((option, index) => (
@@ -695,18 +781,38 @@ function BuyerLayoutContent({ children }) {
                       size="small"
                       checked={index === 0 && group.title === "Art Type"}
                       onChange={() => handleCategoryOption(option)}
-                      sx={{ py: 0.35, color: theme.palette.divider, "&.Mui-checked": { color: theme.palette.error.main } }}
+                      sx={{
+                        p: 0.75,
+                        color: theme.palette.divider,
+                        "&.Mui-checked": { color: theme.palette.error.main },
+                      }}
                     />
                   }
                   label={option}
-                  sx={{ display: "flex", m: 0, minHeight: 25, ".MuiFormControlLabel-label": { fontSize: 12, color: theme.palette.text.secondary } }}
+                  sx={{
+                    display: "flex",
+                    m: 0,
+                    minHeight: 32,
+                    ".MuiFormControlLabel-label": {
+                      fontSize: 14,
+                      color: theme.palette.text.secondary,
+                    },
+                  }}
                 />
               ))}
             </Box>
           ))}
 
-          <Box sx={{ py: 1.75, borderBottom: `1px solid ${theme.palette.divider}` }}>
-            <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700, mb: 1.25 }}>
+          <Box>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontFamily: "Georgia, serif",
+                fontSize: 16,
+                fontWeight: 700,
+                mb: 1.5,
+              }}
+            >
               Color Palette
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -717,38 +823,55 @@ function BuyerLayoutContent({ children }) {
                   role="button"
                   tabIndex={0}
                   aria-label={`Filter by ${color}`}
-                  sx={{ width: 18, height: 18, borderRadius: "50%", backgroundColor: color, border: `1px solid ${theme.palette.divider}`, cursor: "pointer", "&:hover": { transform: "scale(1.15)" } }}
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: color,
+                    border: `1px solid ${theme.palette.divider}`,
+                    cursor: "pointer",
+                    "&:hover": { transform: "scale(1.15)" },
+                  }}
                 />
               ))}
             </Stack>
           </Box>
 
-          <Box sx={{ py: 1.75, borderBottom: `1px solid ${theme.palette.divider}` }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-              <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700 }}>
+          <Box>
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="baseline"
+            >
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontFamily: "Georgia, serif",
+                  fontSize: 16,
+                  fontWeight: 700,
+                }}
+              >
                 Price Range
               </Typography>
-              <Typography variant="caption" color="error.main">₱10,000+</Typography>
+              <Typography
+                variant="body2"
+                color="error.main"
+                sx={{ fontWeight: 600 }}
+              >
+                ₱10,000+
+              </Typography>
             </Stack>
-            <Typography variant="caption" color="text.secondary">₱100</Typography>
-            <Slider defaultValue={35} size="small" aria-label="Price range" sx={{ color: theme.palette.error.main, mt: 0.5 }} />
-          </Box>
-
-          <Box sx={{ pt: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontFamily: "Georgia, serif", fontWeight: 700, mb: 0.5 }}>
-              Materials
+            <Typography variant="body2" color="text.secondary">
+              ₱100
             </Typography>
-            {categoryGroups[2].options.map((option) => (
-              <FormControlLabel
-                key={option}
-                control={<Checkbox size="small" onChange={() => handleCategoryOption(option)} sx={{ py: 0.35, color: theme.palette.divider, "&.Mui-checked": { color: theme.palette.error.main } }} />}
-                label={option}
-                sx={{ display: "flex", m: 0, minHeight: 25, ".MuiFormControlLabel-label": { fontSize: 12, color: theme.palette.text.secondary } }}
-              />
-            ))}
+            <Slider
+              defaultValue={35}
+              aria-label="Price range"
+              sx={{ color: theme.palette.error.main, mt: 1, px: 0.5 }}
+            />
           </Box>
         </Box>
-      </Drawer>
+      </Popover>
 
       {/* MOBILE DRAWER (Menu only) */}
       <Drawer
@@ -810,7 +933,7 @@ function BuyerLayoutContent({ children }) {
                 <ListItem disablePadding>
                   <ListItemButton
                     onClick={() => {
-                      navigate("/buyer/profile")
+                      navigate("/buyer/profile");
                       setMobileOpen(false);
                     }}
                     sx={{ borderRadius: 2 }}
@@ -872,7 +995,7 @@ function BuyerLayoutContent({ children }) {
           sx={{ width: "100%", maxWidth: "none", p: 0, m: 0 }}
         >
           <Outlet />
-          <Footer/>
+          <Footer />
         </Container>
       </Box>
     </>
