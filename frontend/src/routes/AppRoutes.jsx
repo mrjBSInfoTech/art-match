@@ -54,6 +54,8 @@ import BuyerCart from "../pages/buyer/Cart";
 import BuyerCheckout from "../pages/buyer/Checkout";
 import BuyerMessage from "../pages/buyer/Message";
 import BuyerProfile from "../pages/buyer/Profile";
+import BuyerAccountOverview from "../pages/buyer/AccountOverview";
+import BuyerPaymentMethods from "../pages/buyer/PaymentMethods";
 import BuyerSettings from "../pages/buyer/Settings";
 import BuyerOrder from "../pages/buyer/Order";
 import BuyerOrderFinish from "../pages/buyer/OrderFinish";
@@ -99,10 +101,16 @@ export default function AppRoutes() {
 
                 {/* Account Center */}
                 <Route path="profile" element={<ProfileLayout />}>
-                  <Route index element={<BuyerProfile />} />
+                  <Route index element={<BuyerAccountOverview />} />
+                  <Route path="details" element={<BuyerProfile />} />
                   <Route path="addresses" element={<BuyerAddress />} />
+                  <Route path="messages" element={<BuyerMessage embedded />} />
                   <Route path="orders" element={<BuyerOrder />} />
                   <Route path="settings" element={<BuyerSettings />} />
+                  <Route
+                    path="payment-methods"
+                    element={<BuyerPaymentMethods />}
+                  />
                 </Route>
               </Route>
             </Route>

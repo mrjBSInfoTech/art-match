@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  Avatar,
   Box,
   Button,
   Container,
@@ -14,6 +15,7 @@ import {
   IconButton,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   MenuItem,
   Select,
@@ -29,20 +31,101 @@ import ProfileLogout from "./ProfileLogout";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import MenuIcon from "@mui/icons-material/Menu";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 const NAV_ITEMS = [
-  { label: "Profile", path: "/buyer/profile" },
-  { label: "Addresses", path: "/buyer/profile/addresses" },
-  { label: "Orders", path: "/buyer/profile/orders" },
-  { label: "Settings", path: "/buyer/profile/settings" },
+  {
+    label: "Orders",
+    path: "/buyer/profile/orders",
+    icon: <Inventory2OutlinedIcon fontSize="small" />,
+  },
+  {
+    label: "Addresses",
+    path: "/buyer/profile/addresses",
+    icon: <LocationOnOutlinedIcon fontSize="small" />,
+  },
+  {
+    label: "Messages",
+    path: "/buyer/profile/messages",
+    icon: <ChatBubbleOutlineIcon fontSize="small" />,
+  },
+  {
+    label: "Security & privacy",
+    path: "/buyer/profile/settings",
+    icon: <ShieldOutlinedIcon fontSize="small" />,
+  },
+  {
+    label: "Payment methods",
+    path: "/buyer/profile/payment-methods",
+    icon: <CreditCardOutlinedIcon fontSize="small" />,
+  },
 ];
 
 const getActiveItem = (pathname) => {
-  const match = NAV_ITEMS.filter((item) => pathname.startsWith(item.path)).sort(
-    (a, b) => b.path.length - a.path.length,
-  )[0];
-  return match || NAV_ITEMS[0];
+  return NAV_ITEMS.find(
+    (item) => pathname === item.path || pathname.startsWith(`${item.path}/`),
+  );
 };
+
+function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
+  return (
+    <Box
+      sx={{
+        p: 2,
+        border: "1px solid",
+        borderColor: "#ead4b3",
+        borderRadius: 2.5,
+        bgcolor: "background.paper",
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        <Avatar
+          src={
+            profileImage
+              ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
+              : undefined
+          }
+          sx={{ width: 48, height: 48, flexShrink: 0 }}
+        >
+          {(buyerName || username || "B").charAt(0).toUpperCase()}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: 14, fontWeight: 700 }} noWrap>
+            {buyerName}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {username ? `@${username}` : "ArtMatch buyer"}
+          </Typography>
+        </Box>
+      </Stack>
+      <Button
+        fullWidth
+        variant="outlined"
+        startIcon={<EditOutlinedIcon />}
+        onClick={onEdit}
+        sx={{
+          mt: 1.5,
+          height: 40,
+          border: "1.5px solid",
+          borderColor: "text.primary",
+          borderRadius: 999,
+          color: "text.primary",
+          fontWeight: 700,
+          textTransform: "none",
+          "&:hover": { borderWidth: "1.5px", bgcolor: "action.hover" },
+        }}
+      >
+        Edit profile
+      </Button>
+    </Box>
+  );
+}
 
 const ProfileLayout = ({ title, showBack = false, children }) => {
   const theme = useTheme();
@@ -52,6 +135,17 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const username = localStorage.getItem("buyer_username") || "";
+  const buyerName =
+    [
+      localStorage.getItem("buyer_first_name"),
+      localStorage.getItem("buyer_last_name"),
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    username ||
+    "Buyer";
+  const profileImage = localStorage.getItem("buyer_profile_image") || "";
 
   const activeItem = getActiveItem(location.pathname);
   const handleNavigate = (path) => {
@@ -72,14 +166,11 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-      }}
-    >
+    <Box sx={{ minHeight: "100vh" }}>
       <Box
         sx={{
           borderBottom: "1px solid rgba(0,0,0,0.08)",
+          display: { xs: "block", md: "none" },
           bgcolor:
             theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
         }}
@@ -120,77 +211,99 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+      <Container
+        maxWidth="xl"
+        sx={{ py: { xs: 2, md: 3 }, px: { xs: 2, md: 3 } }}
+      >
         <Box
           sx={{
             display: "flex",
             alignItems: "flex-start",
-            gap: { xs: 0, md: 4 },
+            gap: { xs: 0, md: 2.5 },
           }}
         >
           {isDesktop && (
             <Box
               component="aside"
-              sx={{ width: 260, flexShrink: 0, position: "sticky", top: 24 }}
+              sx={{ width: 270, flexShrink: 0, position: "sticky", top: 24 }}
             >
               <Box
                 sx={{
-                  bgcolor:
-                    theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
+                  bgcolor: "background.paper",
+                  border: "1px solid",
+                  borderColor: "divider",
                   borderRadius: 3,
                   p: 2,
-                  boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
+                  minHeight: "70vh",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
-                <Typography
-                  variant="subtitle2"
+                <AccountIdentityCard
+                  buyerName={buyerName}
+                  username={username}
+                  profileImage={profileImage}
+                  onEdit={() => handleNavigate("/buyer/profile/details")}
+                />
+
+                <Box
                   sx={{
-                    mb: 1.5,
-                    color: "text.secondary",
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
+                    mt: 1.5,
+                    p: 0.75,
+                    border: "1px solid",
+                    borderColor: "#ead4b3",
+                    borderRadius: 2.5,
                   }}
                 >
-                  Navigation
-                </Typography>
+                  <List disablePadding>
+                    {NAV_ITEMS.map((item) => {
+                      const isActive = activeItem?.path === item.path;
 
-                <List disablePadding>
-                  {NAV_ITEMS.map((item) => {
-                    const isActive = activeItem.path === item.path;
-
-                    return (
-                      <ListItemButton
-                        key={item.path}
-                        selected={isActive}
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: 2,
-                          mb: 0.5,
-                          backgroundColor:
-                            isActive && theme.palette.mode === "dark"
-                              ? "rgba(96, 165, 250, 0.22)"
+                      return (
+                        <ListItemButton
+                          key={item.path}
+                          selected={isActive}
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: 1.5,
+                            minHeight: 44,
+                            px: 1,
+                            backgroundColor: isActive
+                              ? "rgba(220, 0, 35, 0.07)"
                               : undefined,
-                        }}
-                      >
-                        <ListItemText primary={item.label} />
-                      </ListItemButton>
-                    );
-                  })}
-                </List>
-                <Divider sx={{ my: 1.5 }} />
+                            "&.Mui-selected": { color: "error.main" },
+                            "&.Mui-selected .MuiListItemIcon-root": {
+                              color: "error.main",
+                            },
+                          }}
+                        >
+                          <ListItemIcon
+                            sx={{ minWidth: 34, color: "text.secondary" }}
+                          >
+                            {item.icon}
+                          </ListItemIcon>
+                          <ListItemText primary={item.label} />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Box>
                 <Button
-                  variant="contained"
-                  color="error"
+                  variant="text"
+                  color="inherit"
                   fullWidth
                   onClick={handleLogoutOpen}
                   sx={{
-                    mt: 1,
-                    borderRadius: 2,
+                    mt: "auto",
+                    pt: 2,
+                    justifyContent: "flex-start",
+                    borderRadius: 1.5,
                     textTransform: "none",
-                    fontWeight: 600,
+                    fontWeight: 700,
                   }}
+                  startIcon={<LogoutIcon />}
                 >
-                  Logout
+                  Sign out
                 </Button>
               </Box>
             </Box>
@@ -202,7 +315,8 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                 <Select
                   fullWidth
                   size="small"
-                  value={activeItem.path}
+                  displayEmpty
+                  value={activeItem?.path || ""}
                   onChange={(event) => handleNavigate(event.target.value)}
                   sx={{
                     borderRadius: 3,
@@ -211,6 +325,10 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                       borderColor: "rgba(0,0,0,0.12)",
                     },
                   }}
+                  renderValue={(selected) =>
+                    NAV_ITEMS.find((item) => item.path === selected)?.label ||
+                    "Account navigation"
+                  }
                 >
                   {NAV_ITEMS.map((item) => (
                     <MenuItem key={item.path} value={item.path}>
@@ -221,15 +339,15 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
               </Box>
             )}
 
-            <Box
-              sx={{
-                bgcolor:
-                  theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
-                borderRadius: 3,
-                p: { xs: 2, md: 4 },
-                boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
-              }}
-            >
+            <Stack spacing={2}>
+              {!isDesktop && (
+                <AccountIdentityCard
+                  buyerName={buyerName}
+                  username={username}
+                  profileImage={profileImage}
+                  onEdit={() => handleNavigate("/buyer/profile/details")}
+                />
+              )}
               <Stack
                 direction="row"
                 alignItems="center"
@@ -252,7 +370,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
               </Stack>
 
               {children || <Outlet />}
-            </Box>
+            </Stack>
           </Box>
         </Box>
       </Container>
@@ -280,7 +398,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
 
         <List disablePadding>
           {NAV_ITEMS.map((item) => {
-            const isActive = activeItem.path === item.path;
+            const isActive = activeItem?.path === item.path;
 
             return (
               <React.Fragment key={item.path}>
@@ -288,7 +406,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                   selected={isActive}
                   onClick={() => handleNavigate(item.path)}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 1.5,
                     mb: 0.5,
                     backgroundColor:
                       isActive && theme.palette.mode === "dark"
@@ -296,6 +414,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                         : undefined,
                   }}
                 >
+                  <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.label} />
                 </ListItemButton>
                 <Divider />
@@ -304,18 +423,19 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
           })}
         </List>
         <Button
-          variant="contained"
-          color="error"
+          variant="text"
+          color="inherit"
           fullWidth
           onClick={handleLogoutOpen}
           sx={{
             mt: 2,
-            borderRadius: 2,
+            borderRadius: 1.5,
             textTransform: "none",
-            fontWeight: 600,
+            fontWeight: 700,
           }}
+          startIcon={<LogoutIcon />}
         >
-          Logout
+          Sign out
         </Button>
       </Drawer>
 
