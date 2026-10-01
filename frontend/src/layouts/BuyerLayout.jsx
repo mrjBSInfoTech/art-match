@@ -29,6 +29,7 @@ import {
   FormControlLabel,
   Slider,
   Stack,
+  Avatar,
   Menu,
   MenuItem,
   Paper,
@@ -39,13 +40,14 @@ import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SearchIcon from "@mui/icons-material/Search";
 import ChatIcon from "@mui/icons-material/Chat";
-import Settings from "@mui/icons-material/Settings";
 import Logout from "@mui/icons-material/Logout";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import logo from "../assets/Nexus.png";
@@ -89,6 +91,7 @@ function BuyerLayoutContent({ children }) {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [profileImage, setProfileImage] = useState("");
   const [cartCount, setCartCount] = useState(0);
 
   const [loggedIn, setLoggedIn] = useState(false);
@@ -110,12 +113,14 @@ function BuyerLayoutContent({ children }) {
     const storedLastName = localStorage.getItem("buyer_last_name");
     const storedEmail = localStorage.getItem("buyer_email");
     const storedPhoneNumber = localStorage.getItem("buyer_phone_number");
+    const storedProfileImage = localStorage.getItem("buyer_profile_image");
 
     setUsername(storedUsername || "");
     setFirstName(storedFirstName || "");
     setLastName(storedLastName || "");
     setEmail(storedEmail || "");
     setPhoneNumber(storedPhoneNumber || "");
+    setProfileImage(storedProfileImage || "");
     setLoggedIn(!!storedLoggedIn);
   }, []);
 
@@ -179,6 +184,11 @@ function BuyerLayoutContent({ children }) {
   // Close account popover
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleAccountNavigation = (path) => {
+    handleClose();
+    navigate(path);
   };
 
   const activeIndex = menuItems.findIndex(
@@ -462,12 +472,12 @@ function BuyerLayoutContent({ children }) {
               </Badge>
             </IconButton>
             <IconButton
+              aria-label="Open account menu"
+              aria-controls={open ? "account-menu" : undefined}
+              aria-haspopup="true"
+              aria-expanded={open ? "true" : undefined}
               sx={{ color: theme.palette.text.primary, ml: 1 }}
-              onClick={
-                loggedIn
-                  ? () => navigate("/buyer/profile")
-                  : () => navigate("/buyer/login")
-              }
+              onClick={loggedIn ? handleClick : () => navigate("/buyer/login")}
             >
               <AccountCircleIcon />
             </IconButton>
@@ -476,31 +486,24 @@ function BuyerLayoutContent({ children }) {
               id="account-menu"
               open={open}
               onClose={handleClose}
-              onClick={handleClose}
+              onClick={(event) => event.stopPropagation()}
               slotProps={{
                 paper: {
                   elevation: 0,
                   sx: {
                     overflow: "visible",
-                    filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
+                    width: "min(340px, calc(100vw - 24px))",
+                    bgcolor: mode === "dark" ? "background.paper" : "#f7f4ee",
+                    border: "1px solid",
+                    borderColor: mode === "dark" ? "divider" : "#e9dfd1",
+                    borderRadius: 3,
+                    boxShadow: "0 18px 42px rgba(34, 29, 22, 0.18)",
                     mt: 1.5,
-                    "& .MuiAvatar-root": {
-                      width: 32,
-                      height: 32,
-                      ml: -0.5,
-                      mr: 1,
-                    },
-                    "&::before": {
-                      content: '""',
-                      display: "block",
-                      position: "absolute",
-                      top: 0,
-                      right: 14,
-                      width: 10,
-                      height: 10,
-                      bgcolor: "background.paper",
-                      transform: "translateY(-50%) rotate(45deg)",
-                      zIndex: 0,
+                    "& .MuiMenu-list": {
+                      p: 1.5,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1.5,
                     },
                   },
                 },
@@ -508,24 +511,164 @@ function BuyerLayoutContent({ children }) {
               transformOrigin={{ horizontal: "right", vertical: "top" }}
               anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
             >
-              <MenuItem>
-                <ListItemIcon>
-                  <AccountCircleIcon fontSize="small" />
-                </ListItemIcon>
-                {username}
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <Settings fontSize="small" />
-                </ListItemIcon>
-                Settings
-              </MenuItem>
-              <MenuItem onClick={handleOpenDialog}>
+              <Box
+                sx={{
+                  p: 2.5,
+                  border: "1px solid",
+                  borderColor: mode === "dark" ? "divider" : "#ead4b3",
+                  borderRadius: 3,
+                  bgcolor: "background.paper",
+                  boxShadow: "0 5px 16px rgba(44, 36, 26, 0.10)",
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar
+                    src={
+                      profileImage
+                        ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
+                        : undefined
+                    }
+                    sx={{ width: 60, height: 60, flexShrink: 0 }}
+                  >
+                    {(firstName || username || "B").charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 18, fontWeight: 700 }} noWrap>
+                      {[firstName, lastName].filter(Boolean).join(" ") ||
+                        username}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.25 }}
+                    >
+                      ArtMatch buyer
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  variant="outlined"
+                  onClick={() =>
+                    handleAccountNavigation("/buyer/profile/details")
+                  }
+                  sx={{
+                    mt: 2,
+                    minWidth: 164,
+                    height: 48,
+                    px: 2.5,
+                    border: "2px solid",
+                    borderColor: "text.primary",
+                    borderRadius: 999,
+                    color: "text.primary",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    "&:hover": { borderWidth: 2, bgcolor: "action.hover" },
+                  }}
+                >
+                  Edit profile
+                </Button>
+              </Box>
+              <Box
+                sx={{
+                  p: 1,
+                  border: "1px solid",
+                  borderColor: mode === "dark" ? "divider" : "#ead4b3",
+                  borderRadius: 2.5,
+                  bgcolor: "background.paper",
+                  boxShadow: "0 5px 16px rgba(44, 36, 26, 0.10)",
+                  "& .MuiMenuItem-root": {
+                    minHeight: 48,
+                    px: 1.5,
+                    borderRadius: 1.5,
+                    fontSize: 15,
+                    fontWeight: 500,
+                  },
+                  "& .MuiListItemIcon-root": {
+                    minWidth: 38,
+                    color: "text.secondary",
+                  },
+                }}
+              >
+                <MenuItem
+                  onClick={() =>
+                    handleAccountNavigation("/buyer/profile/orders")
+                  }
+                >
+                  <ListItemIcon>
+                    <ShoppingBagIcon fontSize="small" />
+                  </ListItemIcon>
+                  Orders
+                </MenuItem>
+                <MenuItem
+                  onClick={() =>
+                    handleAccountNavigation("/buyer/profile/addresses")
+                  }
+                >
+                  <ListItemIcon>
+                    <LocationOnOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Addresses
+                </MenuItem>
+                <MenuItem
+                  onClick={() => handleAccountNavigation("/buyer/messages")}
+                >
+                  <ListItemIcon>
+                    <ChatIcon fontSize="small" />
+                  </ListItemIcon>
+                  Messages
+                  {badgeCount > 0 && (
+                    <Box
+                      sx={{
+                        ml: "auto",
+                        minWidth: 30,
+                        height: 26,
+                        px: 1,
+                        borderRadius: 99,
+                        bgcolor: "rgba(211, 47, 47, 0.08)",
+                        color: "error.main",
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {badgeCount}
+                    </Box>
+                  )}
+                </MenuItem>
+                <MenuItem
+                  onClick={() =>
+                    handleAccountNavigation("/buyer/profile/settings")
+                  }
+                >
+                  <ListItemIcon>
+                    <ShieldOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Security &amp; privacy
+                </MenuItem>
+              </Box>
+              <MenuItem
+                onClick={() => {
+                  handleClose();
+                  handleOpenDialog();
+                }}
+                sx={{
+                  minHeight: 48,
+                  px: 1.5,
+                  borderRadius: 1.5,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  "& .MuiListItemIcon-root": {
+                    minWidth: 38,
+                    color: "text.primary",
+                  },
+                }}
+              >
                 <ListItemIcon>
                   <Logout fontSize="small" />
                 </ListItemIcon>
-                Logout
+                Sign out
               </MenuItem>
             </Menu>
           </Box>

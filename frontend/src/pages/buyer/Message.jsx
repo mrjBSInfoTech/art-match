@@ -60,7 +60,7 @@ const toAbsoluteMediaUrl = (url) => {
   return `http://localhost:5000/${url}`;
 };
 
-export default function Messages() {
+export default function Messages({ embedded = false }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -84,8 +84,11 @@ export default function Messages() {
   useEffect(() => {
     const initializeEncryption = async () => {
       try {
-        const accountId = localStorage.getItem("buyer_customer_id") || "current";
-        const keyPair = await ensureChatKeyPair(`buyer_chat_key_pair_${accountId}`);
+        const accountId =
+          localStorage.getItem("buyer_customer_id") || "current";
+        const keyPair = await ensureChatKeyPair(
+          `buyer_chat_key_pair_${accountId}`,
+        );
         privateKeyRef.current = keyPair.privateKey;
         publicKeyJwkRef.current = keyPair.publicKeyJwk;
         await registerBuyerChatKey(keyPair.publicKeyJwk);
@@ -99,7 +102,10 @@ export default function Messages() {
   }, []);
 
   const activeChat = useMemo(
-    () => conversations.find((chat) => chat.conversation_id === selectedConversationId) || null,
+    () =>
+      conversations.find(
+        (chat) => chat.conversation_id === selectedConversationId,
+      ) || null,
     [conversations, selectedConversationId],
   );
   const activeNotification = notifications.find(
@@ -115,7 +121,12 @@ export default function Messages() {
         }
         const data = await fetchBuyerConversations();
         setConversations(data || []);
-        if (data && data.length > 0 && !selectedConversationId && !selectedNotificationId) {
+        if (
+          data &&
+          data.length > 0 &&
+          !selectedConversationId &&
+          !selectedNotificationId
+        ) {
           setSelectedConversationId(data[0].conversation_id);
         }
       } catch (err) {
@@ -158,8 +169,7 @@ export default function Messages() {
         let recipientPublicKey = null;
         try {
           recipientPublicKey = await fetchSellerChatKey(activeChat?.other_id);
-        } catch {
-        }
+        } catch {}
         const decryptedMessages = await Promise.all(
           (data || []).map(async (msg) => {
             try {
@@ -173,7 +183,10 @@ export default function Messages() {
                         ? recipientPublicKey
                         : msg.sender_public_key,
                   })
-                : { text: msg.message_data || "", image: toAbsoluteMediaUrl(msg.image) };
+                : {
+                    text: msg.message_data || "",
+                    image: toAbsoluteMediaUrl(msg.image),
+                  };
               return {
                 id: msg.message_id,
                 sender: msg.sender_type,
@@ -206,13 +219,17 @@ export default function Messages() {
     return () => window.clearInterval(intervalId);
   }, [selectedConversationId, encryptionReady]);
 
-  const filteredConversations = conversations.filter((chat) =>
-    (chat.other_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    String(chat.other_id || "").includes(searchQuery.trim()),
+  const filteredConversations = conversations.filter(
+    (chat) =>
+      (chat.other_name || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      String(chat.other_id || "").includes(searchQuery.trim()),
   );
 
   const searchedSellerId = searchQuery.trim();
-  const canStartConversation = /^\d+$/.test(searchedSellerId) &&
+  const canStartConversation =
+    /^\d+$/.test(searchedSellerId) &&
     !conversations.some((chat) => String(chat.other_id) === searchedSellerId);
 
   const handleStartConversation = async () => {
@@ -269,7 +286,8 @@ export default function Messages() {
         file: attachedFile,
       });
       formData.set("message", encrypted.encryptedText);
-      if (encrypted.encryptedFile) formData.set("image", encrypted.encryptedFile);
+      if (encrypted.encryptedFile)
+        formData.set("image", encrypted.encryptedFile);
       formData.append("sender_public_key", publicKeyJwkRef.current);
       formData.append("encryption_iv", encrypted.encryptionIv);
       formData.append("attachment_iv", encrypted.attachmentIv);
@@ -296,7 +314,17 @@ export default function Messages() {
   };
 
   return (
-    <Box sx={{ p: 5, height: { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" }, display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        p: embedded ? 0 : 5,
+        height: embedded
+          ? { xs: "min(68vh, 620px)", md: "min(70vh, 640px)" }
+          : { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" },
+        minHeight: embedded ? { xs: 420, md: 460 } : undefined,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Messages</title>
       </Helmet>
@@ -314,12 +342,13 @@ export default function Messages() {
           display: "flex",
           border: "1px solid",
           borderColor: "divider",
-          borderRadius: { xs: 0, md: 3 },
+          borderRadius: embedded ? 2 : { xs: 0, md: 3 },
           overflow: "hidden",
           bgcolor: "background.paper",
         }}
       >
-        {(!isMobile || (!selectedConversationId && !selectedNotificationId)) && (
+        {(!isMobile ||
+          (!selectedConversationId && !selectedNotificationId)) && (
           <Box
             sx={{
               width: { xs: "100%", md: 360 },
@@ -329,7 +358,9 @@ export default function Messages() {
               flexDirection: "column",
             }}
           >
-            <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+            <Box
+              sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}
+            >
               <TextField
                 fullWidth
                 size="small"
@@ -351,20 +382,29 @@ export default function Messages() {
                 sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
               />
               {canStartConversation && (
-                <Button fullWidth size="small" sx={{ mt: 1 }} onClick={handleStartConversation}>
+                <Button
+                  fullWidth
+                  size="small"
+                  sx={{ mt: 1 }}
+                  onClick={handleStartConversation}
+                >
                   Message seller #{searchedSellerId}
                 </Button>
               )}
             </Box>
 
             {loading ? (
-              <Box sx={{ p: 3, color: "text.secondary" }}>Loading conversations…</Box>
+              <Box sx={{ p: 3, color: "text.secondary" }}>
+                Loading conversations…
+              </Box>
             ) : (
               <List sx={{ flexGrow: 1, overflowY: "auto", p: 0 }}>
                 {notifications.map((notification) => (
                   <Box key={notification.notification_id}>
                     <ListItemButton
-                      selected={notification.notification_id === selectedNotificationId}
+                      selected={
+                        notification.notification_id === selectedNotificationId
+                      }
                       onClick={() => {
                         setSelectedNotificationId(notification.notification_id);
                         setSelectedConversationId(null);
@@ -372,21 +412,45 @@ export default function Messages() {
                       sx={{ py: 1.5, px: 2 }}
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: notification.notification_type === "ban" ? "error.main" : "warning.main" }}>!</Avatar>
+                        <Avatar
+                          sx={{
+                            bgcolor:
+                              notification.notification_type === "ban"
+                                ? "error.main"
+                                : "warning.main",
+                          }}
+                        >
+                          !
+                        </Avatar>
                       </ListItemAvatar>
                       <ListItemText
-                        primary={<Typography variant="subtitle2" fontWeight={600}>Account notice</Typography>}
-                        secondary={<Typography variant="body2" color="text.secondary" noWrap>{notification.message}</Typography>}
+                        primary={
+                          <Typography variant="subtitle2" fontWeight={600}>
+                            Account notice
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            noWrap
+                          >
+                            {notification.message}
+                          </Typography>
+                        }
                       />
                     </ListItemButton>
                     <Divider component="li" />
                   </Box>
                 ))}
                 {filteredConversations.length === 0 ? (
-                  <Box sx={{ p: 3, color: "text.secondary" }}>No conversations yet.</Box>
+                  <Box sx={{ p: 3, color: "text.secondary" }}>
+                    No conversations yet.
+                  </Box>
                 ) : (
                   filteredConversations.map((chat) => {
-                    const isSelected = chat.conversation_id === selectedConversationId;
+                    const isSelected =
+                      chat.conversation_id === selectedConversationId;
                     return (
                       <Box key={chat.conversation_id}>
                         <ListItemButton
@@ -398,27 +462,63 @@ export default function Messages() {
                           sx={{ py: 1.5, px: 2 }}
                         >
                           <ListItemAvatar>
-                            <Badge overlap="circular" anchorOrigin={{ vertical: "bottom", horizontal: "right" }} variant="dot" color="success">
-                              <Avatar src={chat.other_avatar || ""} alt={chat.other_name || "Seller"} />
+                            <Badge
+                              overlap="circular"
+                              anchorOrigin={{
+                                vertical: "bottom",
+                                horizontal: "right",
+                              }}
+                              variant="dot"
+                              color="success"
+                            >
+                              <Avatar
+                                src={chat.other_avatar || ""}
+                                alt={chat.other_name || "Seller"}
+                              />
                             </Badge>
                           </ListItemAvatar>
                           <ListItemText
                             primary={
-                              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Typography variant="subtitle2" fontWeight={600}>
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                              >
+                                <Typography
+                                  variant="subtitle2"
+                                  fontWeight={600}
+                                >
                                   {chat.other_name || "Seller"}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {chat.last_message_time ? formatMessageTime(chat.last_message_time) : ""}
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {chat.last_message_time
+                                    ? formatMessageTime(chat.last_message_time)
+                                    : ""}
                                 </Typography>
                               </Stack>
                             }
                             secondary={
-                              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
-                                <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 180 }}>
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                sx={{ mt: 0.5 }}
+                              >
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  noWrap
+                                  sx={{ maxWidth: 180 }}
+                                >
                                   {chat.last_message || "No messages yet"}
                                 </Typography>
-                                <CircleIcon color="primary" sx={{ fontSize: 10 }} />
+                                <CircleIcon
+                                  color="primary"
+                                  sx={{ fontSize: 10 }}
+                                />
                               </Stack>
                             }
                           />
@@ -433,26 +533,61 @@ export default function Messages() {
           </Box>
         )}
 
-        {(!isMobile || selectedConversationId || selectedNotificationId) && (activeChat || activeNotification) ? (
-          <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", width: "100%" }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+        {(!isMobile || selectedConversationId || selectedNotificationId) &&
+        (activeChat || activeNotification) ? (
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: "flex",
+              flexDirection: "column",
+              width: "100%",
+            }}
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}
+            >
               <Stack direction="row" spacing={1.5} alignItems="center">
                 {isMobile && (
-                  <IconButton size="small" onClick={() => { setSelectedConversationId(null); setSelectedNotificationId(null); }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setSelectedConversationId(null);
+                      setSelectedNotificationId(null);
+                    }}
+                  >
                     <ArrowBackIcon />
                   </IconButton>
                 )}
-                <Avatar src={activeChat?.other_avatar || ""} alt={activeChat?.other_name || "Account notice"} />
+                <Avatar
+                  src={activeChat?.other_avatar || ""}
+                  alt={activeChat?.other_name || "Account notice"}
+                />
                 <Box>
                   <Typography variant="subtitle1" fontWeight={700}>
-                    {activeNotification ? "Account notice" : activeChat?.other_name || "Seller"}
+                    {activeNotification
+                      ? "Account notice"
+                      : activeChat?.other_name || "Seller"}
                   </Typography>
-                  <Typography variant="caption" color={activeNotification ? "text.secondary" : "success.main"}>
-                    {activeNotification ? "From ArtMatch administration" : "Online"}
+                  <Typography
+                    variant="caption"
+                    color={
+                      activeNotification ? "text.secondary" : "success.main"
+                    }
+                  >
+                    {activeNotification
+                      ? "From ArtMatch administration"
+                      : "Online"}
                   </Typography>
                 </Box>
               </Stack>
-              {!activeNotification && <IconButton size="small"><MoreVertIcon /></IconButton>}
+              {!activeNotification && (
+                <IconButton size="small">
+                  <MoreVertIcon />
+                </IconButton>
+              )}
             </Stack>
 
             <Box
@@ -460,18 +595,41 @@ export default function Messages() {
                 flexGrow: 1,
                 p: { xs: 2, md: 2.5 },
                 overflowY: "auto",
-                bgcolor: theme.palette.mode === "dark" ? "background.default" : "#f8f9fa",
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "background.default"
+                    : "#f8f9fa",
                 display: "flex",
                 flexDirection: "column",
                 gap: 1.5,
               }}
             >
               {activeNotification ? (
-                <Box sx={{ alignSelf: "flex-start", maxWidth: { xs: "85%", sm: "70%" } }}>
-                  <Paper elevation={0} sx={{ p: 2, borderRadius: 2.5, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}>
-                    <Typography variant="body2" sx={{ lineHeight: 1.5 }}>{activeNotification.message}</Typography>
+                <Box
+                  sx={{
+                    alignSelf: "flex-start",
+                    maxWidth: { xs: "85%", sm: "70%" },
+                  }}
+                >
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2.5,
+                      bgcolor: "background.paper",
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
+                      {activeNotification.message}
+                    </Typography>
                   </Paper>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}
+                  >
                     {formatMessageTime(activeNotification.created_at)}
                   </Typography>
                 </Box>
@@ -483,7 +641,13 @@ export default function Messages() {
                 messages.map((msg) => {
                   const isMine = msg.sender === "buyer";
                   return (
-                    <Box key={msg.id} sx={{ alignSelf: isMine ? "flex-end" : "flex-start", maxWidth: { xs: "85%", sm: "70%" } }}>
+                    <Box
+                      key={msg.id}
+                      sx={{
+                        alignSelf: isMine ? "flex-end" : "flex-start",
+                        maxWidth: { xs: "85%", sm: "70%" },
+                      }}
+                    >
                       <Paper
                         elevation={0}
                         sx={{
@@ -498,22 +662,64 @@ export default function Messages() {
                           borderColor: "divider",
                         }}
                       >
-                        {msg.image && (
-                          msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
-                            <Box sx={{ width: "100%", maxHeight: 250, borderRadius: 2, overflow: "hidden", mb: msg.text ? 1 : 0 }}>
+                        {msg.image &&
+                          (msg.mediaType?.startsWith("video/") ||
+                          /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
+                            <Box
+                              sx={{
+                                width: "100%",
+                                maxHeight: 250,
+                                borderRadius: 2,
+                                overflow: "hidden",
+                                mb: msg.text ? 1 : 0,
+                              }}
+                            >
                               <video
                                 src={msg.image}
                                 controls
-                                style={{ display: "block", width: "100%", maxHeight: 250, objectFit: "cover", background: "#000" }}
+                                style={{
+                                  display: "block",
+                                  width: "100%",
+                                  maxHeight: 250,
+                                  objectFit: "cover",
+                                  background: "#000",
+                                }}
                               />
                             </Box>
                           ) : (
-                            <Box component="img" src={msg.image} alt="Attachment" sx={{ width: "100%", maxHeight: 250, objectFit: "cover", borderRadius: 2, mb: msg.text ? 1 : 0, display: "block" }} />
-                          )
+                            <Box
+                              component="img"
+                              src={msg.image}
+                              alt="Attachment"
+                              sx={{
+                                width: "100%",
+                                maxHeight: 250,
+                                objectFit: "cover",
+                                borderRadius: 2,
+                                mb: msg.text ? 1 : 0,
+                                display: "block",
+                              }}
+                            />
+                          ))}
+                        {msg.text && (
+                          <Typography
+                            variant="body2"
+                            sx={{ lineHeight: 1.4, px: msg.image ? 1 : 0 }}
+                          >
+                            {msg.text}
+                          </Typography>
                         )}
-                        {msg.text && <Typography variant="body2" sx={{ lineHeight: 1.4, px: msg.image ? 1 : 0 }}>{msg.text}</Typography>}
                       </Paper>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, textAlign: isMine ? "right" : "left", fontSize: "0.7rem" }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: "block",
+                          mt: 0.5,
+                          textAlign: isMine ? "right" : "left",
+                          fontSize: "0.7rem",
+                        }}
+                      >
                         {msg.time}
                       </Typography>
                     </Box>
@@ -523,60 +729,135 @@ export default function Messages() {
             </Box>
 
             {activeChat && attachedPreview && (
-              <Box sx={{ px: 2, pt: 1.5, display: "flex", alignItems: "center", borderTop: "1px solid", borderColor: "divider" }}>
+              <Box
+                sx={{
+                  px: 2,
+                  pt: 1.5,
+                  display: "flex",
+                  alignItems: "center",
+                  borderTop: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
                 <Box sx={{ position: "relative", display: "inline-block" }}>
                   {attachedFile?.type?.startsWith("video/") ? (
-                    <video src={attachedPreview} controls style={{ width: 80, height: 80, borderRadius: 8, objectFit: "cover", display: "block", background: "#000" }} />
+                    <video
+                      src={attachedPreview}
+                      controls
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 8,
+                        objectFit: "cover",
+                        display: "block",
+                        background: "#000",
+                      }}
+                    />
                   ) : (
-                    <Box component="img" src={attachedPreview} alt="Preview" sx={{ width: 60, height: 60, borderRadius: 2, objectFit: "cover" }} />
+                    <Box
+                      component="img"
+                      src={attachedPreview}
+                      alt="Preview"
+                      sx={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: 2,
+                        objectFit: "cover",
+                      }}
+                    />
                   )}
-                  <IconButton size="small" onClick={handleRemoveImage} sx={{ position: "absolute", top: -8, right: -8, bgcolor: "error.main", color: "#fff", "&:hover": { bgcolor: "error.dark" }, p: 0.3 }}>
+                  <IconButton
+                    size="small"
+                    onClick={handleRemoveImage}
+                    sx={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      bgcolor: "error.main",
+                      color: "#fff",
+                      "&:hover": { bgcolor: "error.dark" },
+                      p: 0.3,
+                    }}
+                  >
                     <CloseIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Box>
               </Box>
             )}
 
-            {activeChat ? <Box sx={{ p: 2, borderTop: attachedPreview ? "none" : "1px solid", borderColor: "divider" }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <input type="file" accept="image/*,video/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
-                <IconButton onClick={() => fileInputRef.current?.click()}>
-                  <AttachFileIcon />
-                </IconButton>
+            {activeChat ? (
+              <Box
+                sx={{
+                  p: 2,
+                  borderTop: attachedPreview ? "none" : "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    ref={fileInputRef}
+                    style={{ display: "none" }}
+                    onChange={handleImageChange}
+                  />
+                  <IconButton onClick={() => fileInputRef.current?.click()}>
+                    <AttachFileIcon />
+                  </IconButton>
 
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Type a message..."
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
-                />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Type a message..."
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
+                  />
 
-                <IconButton
-                  color="primary"
-                  onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() && !attachedFile}
-                  sx={{
-                    bgcolor: "primary.main",
-                    color: "#fff",
-                    "&:hover": { bgcolor: "primary.dark" },
-                    "&.Mui-disabled": { bgcolor: "action.disabledBackground" },
-                  }}
-                >
-                  <SendIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            </Box> : <Box sx={{ p: 2, borderTop: "1px solid", borderColor: "divider", textAlign: "center" }}>
-              <Typography variant="body2" color="text.secondary">
-                You can&apos;t reply to this user.
-              </Typography>
-            </Box>}
+                  <IconButton
+                    color="primary"
+                    onClick={handleSendMessage}
+                    disabled={!inputMessage.trim() && !attachedFile}
+                    sx={{
+                      bgcolor: "primary.main",
+                      color: "#fff",
+                      "&:hover": { bgcolor: "primary.dark" },
+                      "&.Mui-disabled": {
+                        bgcolor: "action.disabledBackground",
+                      },
+                    }}
+                  >
+                    <SendIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  p: 2,
+                  borderTop: "1px solid",
+                  borderColor: "divider",
+                  textAlign: "center",
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  You can&apos;t reply to this user.
+                </Typography>
+              </Box>
+            )}
           </Box>
         ) : (
-          <Box sx={{ flexGrow: 1, display: { xs: "none", md: "grid" }, placeItems: "center" }}>
-            <Typography color="text.secondary">Select a conversation to start chatting</Typography>
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: { xs: "none", md: "grid" },
+              placeItems: "center",
+            }}
+          >
+            <Typography color="text.secondary">
+              Select a conversation to start chatting
+            </Typography>
           </Box>
         )}
       </Paper>
