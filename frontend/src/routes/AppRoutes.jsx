@@ -1,4 +1,10 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { CssBaseline } from "@mui/material";
 import { ThemeModeProvider } from "../theme/ThemeModeProvider";
@@ -42,7 +48,8 @@ import SellerRegister from "../pages/seller/Register";
 // Buyer Pages
 import BuyerMain from "../pages/buyer/Main";
 import BuyerAddress from "../pages/buyer/Address";
-import BuyerArtwork from "../pages/buyer/Artwork";
+import BuyerShop from "../pages/buyer/Shop";
+import BuyerGallery from "../pages/buyer/Gallery";
 import BuyerArtworkDetail from "../pages/buyer/ArtworkDetail";
 import BuyerArtist from "../pages/buyer/Artist";
 import BuyerSellerProfile from "../pages/buyer/SellerProfile";
@@ -62,6 +69,16 @@ import BuyerOrderFinish from "../pages/buyer/OrderFinish";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
 
+function LegacyArtworkRedirect() {
+  const { genre } = useParams();
+  const { search } = useLocation();
+  const destination = genre
+    ? `/buyer/shop/${encodeURIComponent(genre)}${search}`
+    : `/buyer/shop${search}`;
+
+  return <Navigate to={destination} replace />;
+}
+
 export default function AppRoutes() {
   return (
     <HelmetProvider>
@@ -76,7 +93,9 @@ export default function AppRoutes() {
             {/* Public buyer pages */}
             <Route element={<BuyerLayout />}>
               <Route path="main" element={<BuyerMain />} />
-              <Route path="artwork" element={<BuyerArtwork />} />
+              <Route path="shop" element={<BuyerShop />} />
+              <Route path="shop/:genre" element={<BuyerShop />} />
+              <Route path="gallery" element={<BuyerGallery />} />
               <Route path="artist" element={<BuyerArtist />} />
               <Route path="seller/:id" element={<BuyerSellerProfile />} />
               <Route path="about" element={<BuyerAboutUs />} />
@@ -84,7 +103,11 @@ export default function AppRoutes() {
               <Route path="programs/:program" element={<BuyerProgram />} />
               <Route path="academy/:section" element={<BuyerAcademy />} />
               <Route path="artwork/view/:id" element={<BuyerArtworkDetail />} />
-              <Route path="artwork/:genre" element={<BuyerArtwork />} />
+              <Route path="artwork" element={<LegacyArtworkRedirect />} />
+              <Route
+                path="artwork/:genre"
+                element={<LegacyArtworkRedirect />}
+              />
             </Route>
 
             {/* Protected buyer pages */}
