@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Alert,
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -11,19 +10,18 @@ import {
   Container,
   Divider,
   Grid,
-  IconButton,
   Paper,
+  Rating,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
-import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
-import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
-import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
-import { useTheme } from "@mui/material/styles";
-import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import {
+  fetchArtworks,
+  fetchPublicSellerProfile,
+  fetchPublicSellerReviews,
+} from "../../api/buyer/artworkAPI";
 
 const getProfileFallback = (name = "Artist") =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
@@ -59,32 +57,22 @@ const buildSellerSummaries = (artworks = []) => {
       student_id: studentId,
       name: shopName || fallbackArtistName,
       artistName: fallbackArtistName,
-      department: artwork.course || artwork.genre || "Independent Artist",
+      department: artwork.course || "",
       image: artwork.profile_image || "",
-      bio:
-        artwork.shop_description ||
-        artwork.description ||
-        "The seller currently doesn't have a bio.",
+      bio: artwork.shop_description || "",
       shopName,
       shopDescription: artwork.shop_description || "",
-      rating: 4.8,
       works: 0,
-      sales: 0,
       featuredArtwork: artwork,
     };
 
     existing.works += 1;
-    existing.sales = existing.works;
     existing.image = artwork.profile_image || existing.image || "";
     existing.department = artwork.course || existing.department;
     existing.shopName = existing.shopName || shopName || "";
     existing.shopDescription =
       existing.shopDescription || artwork.shop_description || "";
-    existing.bio =
-      existing.shopDescription ||
-      artwork.shop_description ||
-      artwork.description ||
-      "The seller currently doesn't have a bio.";
+    existing.bio = existing.shopDescription || artwork.shop_description || "";
     existing.name =
       existing.shopName || existing.artistName || fallbackArtistName;
     existing.featuredArtwork = existing.featuredArtwork || artwork;
@@ -104,12 +92,13 @@ const formatPrice = (value) =>
   `₱${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 export default function SellerProfile() {
-  const navigate = useNavigate();
   const { id } = useParams();
-  const theme = useTheme();
-  const [sellers, setSellers] = useState([]);
   const [sellerArtworks, setSellerArtworks] = useState([]);
   const [selectedSeller, setSelectedSeller] = useState(null);
+  const [sellerReviews, setSellerReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState("");
+  const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -121,20 +110,57 @@ export default function SellerProfile() {
         const response = await fetchArtworks();
         const list = Array.isArray(response) ? response : response?.data || [];
         const sellerSummaries = buildSellerSummaries(list);
-        setSellers(sellerSummaries);
-
         if (id) {
-          const currentSeller = sellerSummaries.find(
-            (seller) => String(seller.student_id) === String(id),
+          const filteredArtworks = list.filter(
+            (artwork) => String(artwork.student_id) === String(id),
           );
-          const fallbackSeller = currentSeller || sellerSummaries[0] || null;
-          const partnerId = fallbackSeller?.student_id;
-          const filteredArtworks = partnerId
-            ? list.filter(
-                (artwork) => String(artwork.student_id) === String(partnerId),
-              )
-            : [];
-          setSelectedSeller(fallbackSeller);
+          let publicProfile = null;
+          try {
+            publicProfile = await fetchPublicSellerProfile(id);
+          } catch {
+            // Existing public artwork data can still provide a profile fallback.
+          }
+          const artworkSummary = buildSellerSummaries(filteredArtworks)[0];
+          const artistName = publicProfile
+            ? [publicProfile.first_name, publicProfile.last_name]
+                .filter(Boolean)
+                .join(" ")
+            : artworkSummary?.artistName || "";
+          const shopName =
+            publicProfile?.shop_name || artworkSummary?.shopName || "";
+          if (!publicProfile && !artworkSummary) {
+            setSelectedSeller(null);
+            setSellerArtworks([]);
+            return;
+          }
+          const profileSeller = {
+            ...artworkSummary,
+            student_id: publicProfile?.student_id || artworkSummary?.student_id,
+            name: shopName || artistName,
+            artistName,
+            department:
+              publicProfile?.course || artworkSummary?.department || "",
+            profile_image:
+              publicProfile?.profile_image || artworkSummary?.profile_image,
+            image: publicProfile
+              ? getProfileImage(publicProfile)
+              : artworkSummary?.image || getProfileImage({ name: artistName }),
+            bio:
+              publicProfile?.shop_description ||
+              artworkSummary?.shopDescription ||
+              artworkSummary?.bio ||
+              "The seller currently doesn't have a bio.",
+            shopName,
+            shopDescription:
+              publicProfile?.shop_description ||
+              artworkSummary?.shopDescription ||
+              "",
+            works: filteredArtworks.length,
+            sales: publicProfile ? Number(publicProfile.sales_count || 0) : null,
+            registeredDate: publicProfile?.registered_date || null,
+            featuredArtwork: artworkSummary?.featuredArtwork || filteredArtworks[0] || null,
+          };
+          setSelectedSeller(profileSeller);
           setSellerArtworks(filteredArtworks);
         } else {
           const featuredSeller = sellerSummaries[0] || null;
@@ -150,7 +176,6 @@ export default function SellerProfile() {
         }
       } catch (err) {
         setError(err.message || "Failed to load seller profile data.");
-        setSellers([]);
         setSellerArtworks([]);
         setSelectedSeller(null);
       } finally {
@@ -161,19 +186,31 @@ export default function SellerProfile() {
     loadSellers();
   }, [id]);
 
-  const displayArtworks = useMemo(() => {
-    return [...sellerArtworks].slice(0, 6).map((artwork, index) => ({
-      ...artwork,
-      badge:
-        index === 0
-          ? "Best Seller"
-          : index === 1
-            ? "For Sale"
-            : index === 2
-              ? "Featured"
-              : "New",
-    }));
-  }, [sellerArtworks]);
+  useEffect(() => {
+    if (!id) {
+      setSellerReviews([]);
+      setReviewsLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setReviewsLoading(true);
+    setReviewsError("");
+    fetchPublicSellerReviews(id)
+      .then((response) => {
+        if (active) setSellerReviews(Array.isArray(response) ? response : []);
+      })
+      .catch((error) => {
+        if (active) setReviewsError(error.message || "Unable to load seller reviews.");
+      })
+      .finally(() => {
+        if (active) setReviewsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   if (loading) {
     return (
@@ -202,21 +239,17 @@ export default function SellerProfile() {
     );
   }
 
-  const heroImage =
-    getArtworkImage(selectedSeller.featuredArtwork) || selectedSeller.image;
-
-  const tabs = [
-    "Artworks for Sale",
-    "Gallery Portfolio",
-    "About",
-    "Reviews (128)",
-  ];
-  const specialties = [
-    selectedSeller.department || "Oil Painting",
-    "Modern Impressionist",
-    "Landscape",
-    "Impasto",
-  ];
+  const specialties = [...new Set(sellerArtworks.map((artwork) => artwork.genre).filter(Boolean))];
+  const averageRating = sellerReviews.length
+    ? sellerReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) /
+      sellerReviews.length
+    : null;
+  const memberSince = selectedSeller.registeredDate
+    ? new Date(selectedSeller.registeredDate).toLocaleDateString("en", {
+        month: "long",
+        year: "numeric",
+      })
+    : "Not available";
 
   return (
     <Box sx={{ minHeight: "100vh", background: "#f4efe9", pb: 6 }}>
@@ -276,17 +309,19 @@ export default function SellerProfile() {
                   >
                     {selectedSeller.shopName || selectedSeller.name}
                   </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 600,
-                      color: "#5f514b",
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {selectedSeller.department || "Fine Arts"}
-                  </Typography>
+                  {selectedSeller.department && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        color: "#5f514b",
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {selectedSeller.department}
+                    </Typography>
+                  )}
                 </Stack>
 
                 <Typography
@@ -298,8 +333,7 @@ export default function SellerProfile() {
                     mb: 2,
                   }}
                 >
-                  {selectedSeller.bio ||
-                    "The seller currently doesn't have a bio."}
+                  {selectedSeller.bio || "This seller hasn’t added an About description yet."}
                 </Typography>
 
                 <Stack
@@ -312,7 +346,7 @@ export default function SellerProfile() {
                       variant="h5"
                       sx={{ fontWeight: 800, color: "#1f1c1a" }}
                     >
-                      {selectedSeller.works || 0}
+                      {sellerArtworks.length}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "#6f625b" }}>
                       Artworks
@@ -323,7 +357,7 @@ export default function SellerProfile() {
                       variant="h5"
                       sx={{ fontWeight: 800, color: "#1f1c1a" }}
                     >
-                      {selectedSeller.sales || 0}
+                      {selectedSeller.sales == null ? "—" : selectedSeller.sales}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "#6f625b" }}>
                       Sales
@@ -334,78 +368,32 @@ export default function SellerProfile() {
                       variant="h5"
                       sx={{ fontWeight: 800, color: "#1f1c1a" }}
                     >
-                      {selectedSeller.rating || 4.8}
+                      {reviewsLoading
+                        ? "..."
+                        : averageRating === null
+                          ? "—"
+                          : averageRating.toFixed(1)}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "#6f625b" }}>
-                      Rating
+                      {sellerReviews.length ? `Rating (${sellerReviews.length})` : "Rating"}
                     </Typography>
                   </Box>
-                </Stack>
-
-                <Stack direction="row" spacing={2} sx={{ mt: 2.5 }}>
-                  <Button
-                    variant="contained"
-                    onClick={() => {}}
-                    sx={{
-                      borderRadius: 999,
-                      background: "#d95454",
-                      color: "#fff",
-                      px: 3,
-                      py: 1,
-                      textTransform: "none",
-                      fontWeight: 700,
-                      boxShadow: "none",
-                      "&:hover": { background: "#c94848", boxShadow: "none" },
-                    }}
-                  >
-                    Follow
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    sx={{
-                      borderRadius: 999,
-                      borderColor: "#1f1c1a",
-                      color: "#1f1c1a",
-                      px: 2.75,
-                      py: 1,
-                      textTransform: "none",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Contact Artist
-                  </Button>
                 </Stack>
               </Box>
             </Box>
 
-            <Box sx={{ mt: 4, borderBottom: "1px solid #e6d8cd" }}>
-              <Stack
-                direction="row"
-                spacing={3}
-                sx={{ flexWrap: "wrap", rowGap: 1.5 }}
-              >
-                {tabs.map((tab, index) => (
-                  <Box
-                    key={tab}
-                    sx={{
-                      py: 1.25,
-                      px: 0.5,
-                      borderBottom:
-                        index === 0
-                          ? "2px solid #1d1a1a"
-                          : "2px solid transparent",
-                      fontWeight: index === 0 ? 700 : 500,
-                      color: index === 0 ? "#1d1a1a" : "#6f625b",
-                    }}
-                  >
-                    {tab}
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
+            <Tabs
+              value={activeTab}
+              onChange={(event, value) => setActiveTab(value)}
+              sx={{ mt: 4, borderBottom: "1px solid #e6d8cd" }}
+            >
+              <Tab label={`Artworks for Sale (${sellerArtworks.length})`} />
+              <Tab label="About" />
+              <Tab label={`Reviews (${sellerReviews.length})`} />
+            </Tabs>
 
-            <Grid container spacing={3} sx={{ mt: 0.5 }}>
-              {displayArtworks.length === 0 ? (
+            {activeTab === 0 && <Grid container spacing={3} sx={{ mt: 0.5 }}>
+              {sellerArtworks.length === 0 ? (
                 <Grid item xs={12}>
                   <Paper
                     sx={{
@@ -424,7 +412,7 @@ export default function SellerProfile() {
                   </Paper>
                 </Grid>
               ) : (
-                displayArtworks.map((artwork) => (
+                sellerArtworks.map((artwork) => (
                   <Grid item xs={12} sm={6} key={artwork.artwork_id}>
                     <Card
                       elevation={0}
@@ -449,23 +437,6 @@ export default function SellerProfile() {
                             display: "block",
                           }}
                         />
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 12,
-                            left: 12,
-                            background: "#d95454",
-                            color: "#fff",
-                            borderRadius: 1,
-                            px: 1,
-                            py: 0.4,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {artwork.badge || "For Sale"}
-                        </Box>
                       </Box>
 
                       <CardContent sx={{ p: 2.25 }}>
@@ -480,11 +451,18 @@ export default function SellerProfile() {
                           color="text.secondary"
                           sx={{ mb: 1.5 }}
                         >
-                          {selectedSeller.shopName ||
-                            selectedSeller.artistName ||
-                            "Li Wei"}{" "}
-                          ({selectedSeller.department || "Oil Painting Dept."})
+                          {selectedSeller.artistName}
+                          {artwork.genre ? ` · ${artwork.genre}` : ""}
                         </Typography>
+                        {artwork.description && (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mb: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                          >
+                            {artwork.description}
+                          </Typography>
+                        )}
 
                         <Stack
                           direction="row"
@@ -497,23 +475,66 @@ export default function SellerProfile() {
                           >
                             {formatPrice(artwork.price)}
                           </Typography>
-                          <IconButton
-                            size="small"
-                            sx={{
-                              border: "1px solid #e7dace",
-                              background: "#f6efe9",
-                              color: "#6f625b",
-                            }}
-                          >
-                            <FavoriteBorderOutlinedIcon fontSize="small" />
-                          </IconButton>
+                          {artwork.art_size && (
+                            <Typography variant="caption" color="text.secondary">
+                              {artwork.art_size}
+                            </Typography>
+                          )}
                         </Stack>
                       </CardContent>
                     </Card>
                   </Grid>
                 ))
               )}
-            </Grid>
+            </Grid>}
+            {activeTab === 1 && (
+              <Paper
+                elevation={0}
+                sx={{ mt: 2.5, p: { xs: 2, md: 3 }, border: "1px solid #e6d8cd", borderRadius: 3, bgcolor: "#fffaf7", minHeight: 180 }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  About {selectedSeller.artistName || selectedSeller.name}
+                </Typography>
+                <Typography color={selectedSeller.shopDescription ? "text.primary" : "text.secondary"} sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
+                  {selectedSeller.shopDescription || "This seller hasn’t added an About description yet."}
+                </Typography>
+              </Paper>
+            )}
+            {activeTab === 2 && (
+              <Stack spacing={2} sx={{ mt: 2.5 }}>
+                {reviewsLoading ? (
+                  <Box sx={{ display: "grid", placeItems: "center", py: 5 }}>
+                    <CircularProgress size={28} />
+                  </Box>
+                ) : reviewsError ? (
+                  <Alert severity="error">{reviewsError}</Alert>
+                ) : sellerReviews.length === 0 ? (
+                  <Paper elevation={0} sx={{ p: 4, textAlign: "center", border: "1px solid #e6d8cd", borderRadius: 3 }}>
+                    <Typography color="text.secondary">No reviews yet.</Typography>
+                  </Paper>
+                ) : (
+                  sellerReviews.map((review) => (
+                    <Paper key={review.id} elevation={0} sx={{ p: 2.5, border: "1px solid #e6d8cd", borderRadius: 3, bgcolor: "#fffaf7" }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                        <Box>
+                          <Typography fontWeight={700}>{review.reviewer_name || "Buyer"}</Typography>
+                          <Rating value={Number(review.rating)} precision={0.5} readOnly size="small" />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(review.created_at).toLocaleDateString()}
+                        </Typography>
+                      </Stack>
+                      <Typography sx={{ mt: 1.5, whiteSpace: "pre-wrap" }}>{review.comment}</Typography>
+                      {review.artwork_title && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
+                          Review for {review.artwork_title}
+                        </Typography>
+                      )}
+                    </Paper>
+                  ))
+                )}
+              </Stack>
+            )}
           </Box>
 
           <Box sx={{ width: { xs: "100%", md: 300 }, flexShrink: 0 }}>
@@ -527,71 +548,11 @@ export default function SellerProfile() {
                   border: "1px solid #e5d8cd",
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
-                  Artist Achievements
-                </Typography>
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  alignItems="center"
-                  sx={{ mb: 1.5 }}
-                >
-                  <Box
-                    sx={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: "#f2e5d2",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    🏆
-                  </Box>
-                  <Typography variant="body2" sx={{ color: "#3a332f" }}>
-                    Top Seller
-                  </Typography>
-                </Stack>
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  alignItems="center"
-                  sx={{ mb: 1.5 }}
-                >
-                  <Box
-                    sx={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: "#f2e5d2",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    ⭐
-                  </Box>
-                  <Typography variant="body2" sx={{ color: "#3a332f" }}>
-                    Featured Artist
-                  </Typography>
-                </Stack>
-              </Paper>
-
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2.5,
-                  borderRadius: 3,
-                  background: "#f7f2eb",
-                  border: "1px solid #e5d8cd",
-                }}
-              >
                 <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
                   Member Since
                 </Typography>
                 <Typography variant="body2" sx={{ color: "#3a332f" }}>
-                  September 2024
+                  {memberSince}
                 </Typography>
               </Paper>
 
@@ -607,7 +568,7 @@ export default function SellerProfile() {
                 <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
                   Specialties
                 </Typography>
-                <Stack
+                {specialties.length > 0 ? <Stack
                   direction="row"
                   spacing={1}
                   sx={{ flexWrap: "wrap", rowGap: 1 }}
@@ -626,7 +587,11 @@ export default function SellerProfile() {
                       }}
                     />
                   ))}
-                </Stack>
+                </Stack> : (
+                  <Typography variant="body2" color="text.secondary">
+                    No artwork genres listed yet.
+                  </Typography>
+                )}
               </Paper>
             </Stack>
           </Box>

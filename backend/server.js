@@ -20,6 +20,7 @@ import { ensureChatPublicKeysTable } from "./database/chatKeys.js";
 import { ensureMessageSenderNameColumn } from "./database/message.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
+import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -114,9 +115,10 @@ ensureAccountAccessTable();
 ensureChatPublicKeysTable();
 ensureMessageSenderNameColumn();
 ensureStorefrontTable().catch(() => {});
-ensureOrderTables()
+ensureBuyerPrivacyColumn()
+  .then(() => ensureOrderTables())
   .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
   .catch((error) => {
-    console.error("Unable to initialize order tables:", error.message);
+    console.error("Unable to initialize database schema:", error.message);
     process.exit(1);
   });

@@ -1,5 +1,6 @@
 import { Helmet } from "react-helmet-async";
 import {
+  Alert,
   Avatar,
   Box,
   Card,
@@ -10,6 +11,7 @@ import {
   Paper,
   Stack,
   Typography,
+  CircularProgress,
 } from "@mui/material";
 import {
   Area,
@@ -20,38 +22,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useTheme } from "@mui/material/styles";
 // Icons
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { createElement } from "react";
-
-const salesData = [
-  { month: "Jan", sales: 1600 },
-  { month: "Feb", sales: 2100 },
-  { month: "Mar", sales: 1850 },
-  { month: "Apr", sales: 2800 },
-  { month: "May", sales: 3350 },
-  { month: "Jun", sales: 4100 },
-  { month: "Jul", sales: 4900 },
-  { month: "Aug", sales: 5600 },
-];
-
-const bestSellers = [
-  { title: "Sunset Over Davao", sold: 18, revenue: 33000 },
-  { title: "Waves of Mindanao", sold: 14, revenue: 26400 },
-  { title: "Night Bloom", sold: 11, revenue: 20800 },
-  { title: "Golden Horizon", sold: 9, revenue: 17300 },
-];
-
-const recentSales = [
-  { id: "ORD-1045", customer: "Maria Dela Cruz", artwork: "Sunset Over Davao", amount: 2450, date: "Aug 22", status: "Paid" },
-  { id: "ORD-1048", customer: "Janelle Santos", artwork: "Waves of Mindanao", amount: 3680, date: "Aug 23", status: "Packed" },
-  { id: "ORD-1052", customer: "Rafael Tan", artwork: "The Makers' Table", amount: 4200, date: "Aug 24", status: "Shipped" },
-  { id: "ORD-1059", customer: "Alice Lim", artwork: "Night Bloom", amount: 2960, date: "Aug 25", status: "Paid" },
-];
+import { createElement, useEffect, useState } from "react";
+import { fetchSellerOrders } from "../../api/seller/orderAPI";
+import { getSellerSalesData } from "../../utils/sellerSales";
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -61,8 +39,19 @@ const formatCurrency = (value) =>
   }).format(value);
 
 export default function Sales() {
-  const totalRevenue = salesData.reduce((sum, entry) => sum + entry.sales, 0);
-  const averageOrder = Math.round(totalRevenue / salesData.length / 1.5);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchSellerOrders()
+      .then((response) => setOrders(Array.isArray(response) ? response : []))
+      .catch((loadError) => setError(loadError.message || "Unable to load sales"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const sales = getSellerSalesData(orders);
+  const { monthlySales, bestSellers, recentSales } = sales;
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: "auto" }}>
@@ -71,6 +60,7 @@ export default function Sales() {
       </Helmet>
 
       <Stack spacing={3}>
+        {error && <Alert severity="error">{error}</Alert>}
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>
             Sales Dashboard
@@ -91,25 +81,25 @@ export default function Sales() {
         {[
           {
             label: "TOTAL REVENUE",
-            value: formatCurrency(totalRevenue),
+            value: loading ? "..." : error ? "—" : formatCurrency(sales.revenue),
             caption: "Overall sales earnings",
             icon: TrendingUpOutlinedIcon,
           },
           {
             label: "THIS MONTH",
-            value: formatCurrency(salesData[salesData.length - 1].sales),
-            caption: "Latest recorded month",
+            value: loading ? "..." : error ? "—" : formatCurrency(sales.currentMonthSales),
+            caption: "Sales this calendar month",
             icon: CalendarMonthOutlinedIcon,
           },
           {
-            label: "ORDERS SOLD",
-            value: "42",
-            caption: "Completed purchases",
+            label: "ORDERS",
+            value: loading ? "..." : error ? "—" : sales.orderCount,
+            caption: "Excludes cancelled orders",
             icon: ShoppingBagOutlinedIcon,
           },
           {
             label: "AVG. ORDER",
-            value: formatCurrency(averageOrder),
+            value: loading ? "..." : error ? "—" : formatCurrency(sales.averageOrder),
             caption: "Average order value",
             icon: ReceiptLongOutlinedIcon,
           },
@@ -190,7 +180,7 @@ export default function Sales() {
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Revenue trend</Typography>
           <Box sx={{ width: "100%", height: 320 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesData}>
+              <AreaChart data={monthlySales}>
                 <defs>
                   <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#b73636" stopOpacity={0.4} />
@@ -204,6 +194,11 @@ export default function Sales() {
                 <Area type="monotone" dataKey="sales" stroke="#b73636" strokeWidth={3} fill="url(#salesFill)" />
               </AreaChart>
             </ResponsiveContainer>
+            {!loading && !error && sales.orderCount === 0 && (
+              <Typography color="text.secondary" align="center" sx={{ mt: 1 }}>
+                No sales recorded in the past 12 months.
+              </Typography>
+            )}
           </Box>
         </Paper>
 
@@ -227,6 +222,9 @@ export default function Sales() {
                     {index < bestSellers.length - 1 && <Divider sx={{ my: 1.5 }} />}
                   </Box>
                 ))}
+                {!loading && bestSellers.length === 0 && (
+                  <Typography color="text.secondary">No sold artworks yet.</Typography>
+                )}
               </Stack>
             </Paper>
           </Grid>
@@ -239,17 +237,21 @@ export default function Sales() {
                   <Box key={sale.id} sx={{ p: 1.5, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{sale.artwork}</Typography>
-                        <Typography variant="caption" color="text.secondary">{sale.customer} • {sale.date}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{sale.items.map((item) => item.title).join(", ")}</Typography>
+                        <Typography variant="caption" color="text.secondary">{sale.customer} • {new Date(sale.date).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</Typography>
                       </Box>
-                      <Chip label={sale.status} color={sale.status === "Paid" ? "success" : sale.status === "Packed" ? "info" : "primary"} size="small" />
+                      <Chip label={sale.status} color={sale.status === "Delivered" ? "success" : sale.status === "Pending" ? "warning" : sale.status === "Cancelled" ? "error" : "primary"} size="small" />
                     </Stack>
                     <Box sx={{ mt: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <Typography variant="caption" color="text.secondary">{sale.id}</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatCurrency(sale.amount)}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatCurrency(sale.subtotal)}</Typography>
                     </Box>
                   </Box>
                 ))}
+                {loading && <CircularProgress size={24} sx={{ alignSelf: "center" }} />}
+                {!loading && !error && recentSales.length === 0 && (
+                  <Typography color="text.secondary">No recent sales.</Typography>
+                )}
               </Stack>
             </Paper>
           </Grid>

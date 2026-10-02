@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Avatar,
@@ -24,79 +24,14 @@ import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
-import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
+import { fetchArtworks } from "../../api/seller/artworkAPI";
+import { fetchStorefront } from "../../api/seller/storefrontAPI";
 
 const getProfileFallback = (name = "Artist") =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6f1d1b&color=fff&size=200`;
-
-const buildArtworkDefaults = (profileName) => [
-  {
-    id: 1,
-    title: "Golden Hour Reflections",
-    subtitle: "Oil Painting | 2025",
-    price: 2450,
-    rating: 5.0,
-    badge: "Best Seller",
-    image:
-      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 2,
-    title: "Bijou Autumn Breeze",
-    subtitle: "Oil Painting | 2025",
-    price: 1850,
-    rating: 4.9,
-    badge: "For Sale",
-    image:
-      "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 3,
-    title: "Solitude of Form",
-    subtitle: "Oil Painting | 2025",
-    price: 3100,
-    rating: 4.8,
-    badge: "Featured",
-    image:
-      "https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 4,
-    title: "Crimson Balance Study",
-    subtitle: "Oil Painting | 2025",
-    price: 1200,
-    rating: 4.7,
-    badge: "For Sale",
-    image:
-      "https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 5,
-    title: "The Silent Alley",
-    subtitle: "Oil Painting | 2025",
-    price: 2100,
-    rating: 4.9,
-    badge: "For Sale",
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 6,
-    title: "Urban Rhythm",
-    subtitle: "Oil Painting | 2025",
-    price: 2800,
-    rating: 5.0,
-    badge: "New",
-    image:
-      "https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=900&q=80",
-  },
-].map((artwork) => ({
-  ...artwork,
-  artist: profileName,
-}));
 
 const formatPrice = (value) =>
   `₱${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -122,11 +57,16 @@ export default function Profile() {
   const [profileImage, setProfileImage] = useState("");
   const [registeredDate, setRegisteredDate] = useState("");
   const [aboutMe, setAboutMe] = useState("");
+  const [aboutLoading, setAboutLoading] = useState(true);
+  const [aboutError, setAboutError] = useState("");
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewError, setReviewError] = useState("");
+  const [artworks, setArtworks] = useState([]);
+  const [artworksLoading, setArtworksLoading] = useState(true);
+  const [artworksError, setArtworksError] = useState("");
 
   useEffect(() => {
     const loadSellerData = () => {
@@ -137,8 +77,7 @@ export default function Profile() {
       const sellerProfileImage = localStorage.getItem("seller_profile_image") || "";
       const sellerRegisteredDate = localStorage.getItem("seller_registered_date") || "2024-09-01";
       const sellerStoreDescription =
-        localStorage.getItem("seller_store_description") ||
-        "Combining traditional Chinese asthmopheric values with modern oil impressionism. Focusing on light, reflection, and quiet urban environments of Beijing.";
+        localStorage.getItem("seller_shop_description") || "";
 
       setFirstName(sellerFirstName);
       setLastName(sellerLastName);
@@ -151,6 +90,26 @@ export default function Profile() {
     };
 
     loadSellerData();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchStorefront()
+      .then((storefront) => {
+        if (!active) return;
+        const description = storefront?.shop_description || "";
+        setAboutMe(description);
+        localStorage.setItem("seller_shop_description", description);
+      })
+      .catch((error) => {
+        if (active) setAboutError(error.message || "Unable to load your About information.");
+      })
+      .finally(() => {
+        if (active) setAboutLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -168,13 +127,25 @@ export default function Profile() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    fetchArtworks()
+      .then((response) => {
+        if (active) setArtworks(Array.isArray(response) ? response : []);
+      })
+      .catch((error) => {
+        if (active) setArtworksError(error.message || "Unable to load your artworks");
+      })
+      .finally(() => {
+        if (active) setArtworksLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
   const profileName = fullName || "Malia";
-
-  const artworks = useMemo(() => {
-    if (!profileName) return [];
-    return buildArtworkDefaults(profileName);
-  }, [profileName]);
 
   const sellerReviews = reviews;
   const averageRating = sellerReviews.length
@@ -185,7 +156,7 @@ export default function Profile() {
   const stats = [
     { label: "Followers", value: "234" },
     { label: "Followings", value: "47" },
-    { label: "Artworks", value: "89" },
+    { label: "Artworks", value: artworksLoading ? "..." : artworks.length },
     { label: "Sales", value: "4.8" },
   ];
 
@@ -439,7 +410,25 @@ export default function Profile() {
                 <Tab label={`Reviews (${sellerReviews.length})`} />
               </Tabs>
 
-              {activeTab === 3 ? (
+              {activeTab === 2 ? (
+                <Box sx={{ py: 3, minHeight: 180 }}>
+                  {aboutError ? (
+                    <Alert severity="error">{aboutError}</Alert>
+                  ) : aboutLoading ? (
+                    <Box sx={{ display: "grid", placeItems: "center", py: 4 }}>
+                      <CircularProgress size={28} />
+                    </Box>
+                  ) : aboutMe.trim() ? (
+                    <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
+                      {aboutMe}
+                    </Typography>
+                  ) : (
+                    <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+                      This seller hasn’t added an About description yet.
+                    </Typography>
+                  )}
+                </Box>
+              ) : activeTab === 3 ? (
                 <Stack spacing={2}>
                   {!reviewsLoading && !reviewError && sellerReviews.length > 0 && (
                     <Paper
@@ -511,10 +500,25 @@ export default function Profile() {
                     ))
                   )}
                 </Stack>
+              ) : artworksError ? (
+                <Alert severity="error" sx={{ mb: 2 }}>{artworksError}</Alert>
+              ) : artworksLoading ? (
+                <Box sx={{ display: "grid", placeItems: "center", py: 5 }}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : artworks.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: "center" }}>
+                  <Typography variant="h6" fontWeight={700}>
+                    No artworks for sale yet
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                    Artworks you post will appear here.
+                  </Typography>
+                </Box>
               ) : (
               <Grid container spacing={2.5}>
-                {artworks.slice(0, 6).map((artwork) => (
-                  <Grid item xs={12} sm={6} md={4} key={artwork.id}>
+                {artworks.map((artwork) => (
+                  <Grid item xs={12} sm={6} md={4} key={artwork.artwork_id}>
                     <Card
                       elevation={0}
                       sx={{
@@ -529,31 +533,14 @@ export default function Profile() {
                       <Box sx={{ position: "relative" }}>
                         <Box
                           component="img"
-                          src={artwork.image}
+                          src={getArtworkImage(artwork.image)}
                           alt={artwork.title}
                           sx={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
-                        />
-                        <Chip
-                          label={artwork.badge}
-                          size="small"
-                          sx={{
-                            position: "absolute",
-                            top: 10,
-                            left: 10,
-                            background: "rgba(255,255,255,0.9)",
-                            fontWeight: 700,
-                            color: "#4e2d2c",
-                            borderRadius: 999,
-                          }}
                         />
                       </Box>
 
                       <Box sx={{ p: 2 }}>
-                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                          <Stack direction="row" spacing={0.6} alignItems="center">
-                            <StarRoundedIcon sx={{ fontSize: 16, color: "#f5b326" }} />
-                            <Typography variant="body2" fontWeight={700}>{artwork.rating.toFixed(1)}</Typography>
-                          </Stack>
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", mb: 1 }}>
                           <IconButton size="small" sx={{ color: "#6d4a45" }}>
                             <FavoriteBorderOutlinedIcon fontSize="small" />
                           </IconButton>
@@ -563,7 +550,9 @@ export default function Profile() {
                           {artwork.title}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.1 }}>
-                          {artwork.subtitle}
+                          {[artwork.genre, artwork.art_size, artwork.date_created && new Date(artwork.date_created).getFullYear()]
+                            .filter(Boolean)
+                            .join(" | ")}
                         </Typography>
                         <Typography variant="h6" fontWeight={800} color="primary.main">
                           {formatPrice(artwork.price)}

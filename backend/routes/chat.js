@@ -7,8 +7,17 @@ import db from "../database/db.js";
 import { authenticateBuyer } from "../middleware/buyerAuthMiddleware.js";
 import { authenticateSeller } from "../middleware/sellerAuthMiddleware.js";
 import { getChatPublicKey, saveChatPublicKey } from "../database/chatKeys.js";
+import { addChatEventClient, publishChatMessage } from "../utils/chatEvents.js";
 
 const router = express.Router();
+
+router.get("/buyer/events", authenticateBuyer, (req, res) => {
+  addChatEventClient("buyer", req.user.customer_id || req.user.id, res);
+});
+
+router.get("/seller/events", authenticateSeller, (req, res) => {
+  addChatEventClient("seller", req.user.student_id || req.user.id, res);
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,8 +97,8 @@ const fetchConversationList = (role, userId) =>
       SELECT
         c.conversation_id,
         ${isBuyer ? "s.student_id AS other_id" : "cu.customer_id AS other_id"},
-        ${isBuyer ? "CONCAT(s.first_name, ' ', s.last_name) AS other_name" : "CONCAT(cu.first_name, ' ', cu.last_name) AS other_name"},
-        ${isBuyer ? "s.profile_image AS other_avatar" : "cu.profile_image AS other_avatar"},
+        ${isBuyer ? "CONCAT(s.first_name, ' ', s.last_name) AS other_name" : "CASE WHEN COALESCE(cu.is_private, 0) = 1 THEN 'Private buyer' ELSE CONCAT(cu.first_name, ' ', cu.last_name) END AS other_name"},
+        ${isBuyer ? "s.profile_image AS other_avatar" : "CASE WHEN COALESCE(cu.is_private, 0) = 1 THEN NULL ELSE cu.profile_image END AS other_avatar"},
         CASE WHEN m.encryption_iv IS NULL THEN m.message_data ELSE '[Encrypted message]' END AS last_message,
         m.image AS last_image,
         m.date_created AS last_message_time
@@ -405,6 +414,7 @@ router.post("/buyer/conversations/:sellerId/messages", authenticateBuyer, chatUp
         return res.status(500).json({ message: "Unable to send message" });
       }
 
+      publishChatMessage(sellerId, buyerId, conversationId, result.insertId);
       res.status(201).json({
         message_id: result.insertId,
         conversation_id: conversationId,
@@ -455,6 +465,7 @@ router.post("/seller/conversations/:buyerId/messages", authenticateSeller, chatU
         return res.status(500).json({ message: "Unable to send message" });
       }
 
+      publishChatMessage(sellerId, buyerId, conversationId, result.insertId);
       res.status(201).json({
         message_id: result.insertId,
         conversation_id: conversationId,
