@@ -49,6 +49,30 @@ export const fetchArtworks = async () => {
   }
 };
 
+export const fetchPublicSellerProfile = async (sellerId) => {
+  try {
+    const res = await api.get(
+      `/buyer/artworks/seller/${encodeURIComponent(sellerId)}`,
+      { headers: { "Cache-Control": "no-cache" } },
+    );
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const fetchPublicSellerReviews = async (sellerId) => {
+  try {
+    const res = await api.get(
+      `/buyer/artworks/seller/${encodeURIComponent(sellerId)}/reviews`,
+      { headers: { "Cache-Control": "no-cache" } },
+    );
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 // Fetch single artwork by id
 export const fetchArtworkById = async (id) => {
   try {

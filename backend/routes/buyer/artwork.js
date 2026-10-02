@@ -3,8 +3,75 @@ import db from "../../database/db.js";
 
 const router = express.Router();
 
+router.get("/seller/:id", (req, res) => {
+  const studentId = Number(req.params.id);
+  if (!Number.isInteger(studentId) || studentId <= 0) {
+    return res.status(400).json({ message: "Invalid seller id" });
+  }
+
+  res.set("Cache-Control", "no-store");
+  db.query(
+        `SELECT s.student_id, s.first_name, s.last_name, s.profile_image, s.course,
+          ac.registered_date, sf.shop_name, sf.shop_description,
+          COALESCE((
+            SELECT SUM(oi.quantity)
+            FROM marketplace_order o
+            JOIN marketplace_order_item oi ON oi.order_id = o.order_id
+            WHERE o.seller_id = s.student_id AND o.status = 'Delivered'
+          ), 0) AS sales_count
+     FROM student s
+     LEFT JOIN accregistration ac ON ac.student_id = s.student_id
+     LEFT JOIN storefront sf ON sf.student_id = s.student_id
+     WHERE s.student_id = ?
+       AND (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
+     LIMIT 1`,
+    [studentId],
+    (err, rows) => {
+      if (err) {
+        console.error("Public seller profile query error:", err);
+        return res.status(500).json({ message: "Unable to load seller profile" });
+      }
+      if (!rows.length) {
+        return res.status(404).json({ message: "Seller not found" });
+      }
+      res.json(rows[0]);
+    },
+  );
+});
+
+router.get("/seller/:id/reviews", (req, res) => {
+  const studentId = Number(req.params.id);
+  if (!Number.isInteger(studentId) || studentId <= 0) {
+    return res.status(400).json({ message: "Invalid seller id" });
+  }
+
+  res.set("Cache-Control", "no-store");
+  db.query(
+    `SELECT r.review_id AS id, r.rating, r.comment, r.created_at,
+            CONCAT(c.first_name, ' ', c.last_name) AS reviewer_name,
+            oi.title AS artwork_title, oi.image AS artwork_image
+     FROM artwork_review r
+     JOIN customer c ON c.customer_id = r.customer_id
+     LEFT JOIN marketplace_order_item oi ON oi.order_item_id = r.order_item_id
+     JOIN student s ON s.student_id = r.seller_id
+     LEFT JOIN accregistration ac ON ac.student_id = s.student_id
+     WHERE r.seller_id = ?
+       AND (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
+     ORDER BY r.created_at DESC, r.review_id DESC`,
+    [studentId],
+    (err, rows) => {
+      if (err) {
+        console.error("Public seller reviews query error:", err);
+        return res.status(500).json({ message: "Unable to load seller reviews" });
+      }
+      res.json(rows);
+    },
+  );
+});
+
 // Public catalog: return artwork from every seller.
 router.get("/", (req, res) => {
+  res.set("Cache-Control", "no-store");
   const sql = `
     SELECT
       a.artwork_id,
@@ -48,6 +115,7 @@ router.get("/", (req, res) => {
 });
 
 router.get("/:id", (req, res) => {
+  res.set("Cache-Control", "no-store");
   const sql = `
     SELECT
       a.artwork_id,

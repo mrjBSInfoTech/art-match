@@ -19,6 +19,10 @@ import {
   verifyPassword,
   changePassword,
 } from "../../api/seller/sellerAPI";
+import {
+  fetchStorefront,
+  saveStorefront,
+} from "../../api/seller/storefrontAPI";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
@@ -33,7 +37,6 @@ function SlideTransition(props) {
 }
 
 export default function Settings() {
-  const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -51,6 +54,11 @@ export default function Settings() {
   const [passwordVerificationError, setPasswordVerificationError] =
     useState("");
   const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
+  const [aboutText, setAboutText] = useState("");
+  const [storefrontName, setStorefrontName] = useState("");
+  const [loadingAbout, setLoadingAbout] = useState(true);
+  const [savingAbout, setSavingAbout] = useState(false);
+  const [aboutError, setAboutError] = useState("");
 
   useEffect(() => {
     // Load account information from localStorage
@@ -60,6 +68,25 @@ export default function Settings() {
       last_name: localStorage.getItem("seller_last_name") || "",
       email: localStorage.getItem("seller_email") || "",
     });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchStorefront()
+      .then((storefront) => {
+        if (!active) return;
+        setStorefrontName(storefront?.shop_name || "");
+        setAboutText(storefront?.shop_description || "");
+      })
+      .catch((error) => {
+        if (active) setAboutError(error.message || "Unable to load your About details.");
+      })
+      .finally(() => {
+        if (active) setLoadingAbout(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenPasswordEdit = () => {
@@ -122,6 +149,27 @@ export default function Settings() {
     setPasswordDialogOpen(true);
   };
 
+  const handleSaveAbout = async () => {
+    try {
+      setSavingAbout(true);
+      setAboutError("");
+      const saved = await saveStorefront({
+        shop_name: storefrontName.trim(),
+        shop_description: aboutText.trim(),
+      });
+      const savedAbout = saved?.shop_description || "";
+      setAboutText(savedAbout);
+      localStorage.setItem("seller_shop_description", savedAbout);
+      localStorage.setItem("seller_store_description", savedAbout);
+      window.dispatchEvent(new Event("seller-profile-updated"));
+      showSnackbar("About information saved to your profile.");
+    } catch (error) {
+      setAboutError(error.message || "Unable to save your About information.");
+    } finally {
+      setSavingAbout(false);
+    }
+  };
+
   const handleConfirmAccountInformation = async () => {
     if (!confirmationPassword) {
       setPasswordVerificationError("Enter your password to continue.");
@@ -159,17 +207,6 @@ export default function Settings() {
   const closeSnackbar = (event, reason) => {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light";
-      case "error":
-        return "error.light";
-      default:
-        return "primary.light";
-    }
   };
 
   return (
@@ -239,6 +276,61 @@ export default function Settings() {
             onClick={() => setProfileImageDialogOpen(true)}
           >
             Upload Picture
+          </Button>
+        </Box>
+      </Paper>
+
+      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: "rgba(30, 31, 135, 0.08)",
+              color: "#1e1f87",
+            }}
+          >
+            <PersonIcon />
+          </Box>
+          <Box>
+            <Typography variant="body1" fontWeight="700">
+              About
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Share a short introduction that appears on your seller profile.
+            </Typography>
+          </Box>
+        </Box>
+        {aboutError && <Alert severity="error" sx={{ mb: 2 }}>{aboutError}</Alert>}
+        <TextField
+          fullWidth
+          multiline
+          minRows={4}
+          maxRows={10}
+          label="About you"
+          placeholder="Tell buyers about yourself, your art, and what inspires you."
+          value={aboutText}
+          onChange={(event) => setAboutText(event.target.value)}
+          disabled={loadingAbout || savingAbout || Boolean(aboutError)}
+          inputProps={{ maxLength: 2000 }}
+          helperText={`${aboutText.length}/2000`}
+        />
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            onClick={handleSaveAbout}
+            disabled={loadingAbout || savingAbout || Boolean(aboutError)}
+            sx={{
+              mt: 2,
+              color: "#fff",
+              bgcolor: "#1e1f87",
+              textTransform: "none",
+              fontWeight: "bold",
+              boxShadow: "none",
+              "&:hover": { bgcolor: "#151663" },
+            }}
+          >
+            {loadingAbout ? "Loading..." : savingAbout ? "Saving..." : "Save About"}
           </Button>
         </Box>
       </Paper>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -9,6 +9,7 @@ import {
   Divider,
   IconButton,
   InputAdornment,
+  Link as MuiLink,
   List,
   ListItemAvatar,
   ListItemButton,
@@ -28,6 +29,7 @@ import CircleIcon from "@mui/icons-material/Circle";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { Link as RouterLink } from "react-router-dom";
 
 import {
   fetchBuyerConversations,
@@ -38,6 +40,7 @@ import {
   registerBuyerChatKey,
   fetchSellerChatKey,
 } from "../../api/buyer/messageAPI";
+import { subscribeToChatEvents } from "../../api/chatEvents";
 import {
   decryptChatMessage,
   encryptChatMessage,
@@ -60,6 +63,13 @@ const toAbsoluteMediaUrl = (url) => {
   return `http://localhost:5000/${url}`;
 };
 
+const toAbsoluteProfileImageUrl = (image, accountType) => {
+  if (!image) return "";
+  if (/^https?:\/\//i.test(image)) return image;
+  if (image.startsWith("/")) return `http://localhost:5000${image}`;
+  return `http://localhost:5000/uploads/${accountType}/profile/${encodeURIComponent(image)}`;
+};
+
 export default function Messages({ embedded = false }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -80,6 +90,16 @@ export default function Messages({ embedded = false }) {
   const fileInputRef = useRef(null);
   const privateKeyRef = useRef(null);
   const publicKeyJwkRef = useRef("");
+  const messagesContainerRef = useRef(null);
+  const shouldScrollToBottomRef = useRef(true);
+  const lastMessageIdsRef = useRef(null);
+  const loadMessagesRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!shouldScrollToBottomRef.current || !messagesContainerRef.current) return;
+    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    shouldScrollToBottomRef.current = false;
+  }, [messages]);
 
   useEffect(() => {
     const initializeEncryption = async () => {
@@ -137,9 +157,17 @@ export default function Messages({ embedded = false }) {
     };
 
     loadConversations(true);
-    const intervalId = window.setInterval(() => loadConversations(), 3000);
+    const unsubscribe = subscribeToChatEvents("buyer", (event) => {
+      loadConversations();
+      if (
+        event.type === "ready" ||
+        Number(event.conversation_id) === Number(selectedConversationId)
+      ) {
+        loadMessagesRef.current?.();
+      }
+    });
 
-    return () => window.clearInterval(intervalId);
+    return unsubscribe;
   }, [selectedConversationId, selectedNotificationId]);
 
   useEffect(() => {
@@ -159,9 +187,16 @@ export default function Messages({ embedded = false }) {
 
   useEffect(() => {
     if (!selectedConversationId || !encryptionReady) {
+      loadMessagesRef.current = null;
+      lastMessageIdsRef.current = null;
+      shouldScrollToBottomRef.current = true;
       setMessages([]);
       return;
     }
+
+    lastMessageIdsRef.current = null;
+    shouldScrollToBottomRef.current = true;
+    setMessages([]);
 
     const loadMessages = async () => {
       try {
@@ -207,16 +242,28 @@ export default function Messages({ embedded = false }) {
             }
           }),
         );
-        setMessages(decryptedMessages);
+        const messageIds = decryptedMessages.map((message) => message.id).join(",");
+        if (messageIds !== lastMessageIdsRef.current) {
+          const container = messagesContainerRef.current;
+          const isNearBottom =
+            !container ||
+            container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+          shouldScrollToBottomRef.current =
+            lastMessageIdsRef.current === null || isNearBottom;
+          lastMessageIdsRef.current = messageIds;
+          setMessages(decryptedMessages);
+        }
       } catch (err) {
         setError(err.message || "Unable to load messages");
       }
     };
 
+    loadMessagesRef.current = loadMessages;
     loadMessages();
-    const intervalId = window.setInterval(loadMessages, 3000);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      if (loadMessagesRef.current === loadMessages) loadMessagesRef.current = null;
+    };
   }, [selectedConversationId, encryptionReady]);
 
   const filteredConversations = conversations.filter(
@@ -292,18 +339,23 @@ export default function Messages({ embedded = false }) {
       formData.append("encryption_iv", encrypted.encryptionIv);
       formData.append("attachment_iv", encrypted.attachmentIv);
       formData.append("media_type", encrypted.mediaType);
-      await sendBuyerMessage(activeChat.other_id, formData);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `local-${Date.now()}`,
-          sender: "buyer",
-          text: inputMessage.trim(),
-          image: attachedPreview,
-          mediaType: attachedFile?.type || "",
-          time: formatMessageTime(new Date().toISOString()),
-        },
-      ]);
+      const sentMessage = await sendBuyerMessage(activeChat.other_id, formData);
+      shouldScrollToBottomRef.current = true;
+      setMessages((prev) =>
+        prev.some((message) => String(message.id) === String(sentMessage.message_id))
+          ? prev
+          : [
+              ...prev,
+              {
+                id: sentMessage.message_id,
+                sender: "buyer",
+                text: inputMessage.trim(),
+                image: attachedPreview,
+                mediaType: attachedFile?.type || "",
+                time: formatMessageTime(new Date().toISOString()),
+              },
+            ],
+      );
       setInputMessage("");
       handleRemoveImage();
       const updated = await fetchBuyerConversations();
@@ -472,7 +524,7 @@ export default function Messages({ embedded = false }) {
                               color="success"
                             >
                               <Avatar
-                                src={chat.other_avatar || ""}
+                                src={toAbsoluteProfileImageUrl(chat.other_avatar, "seller")}
                                 alt={chat.other_name || "Seller"}
                               />
                             </Badge>
@@ -562,15 +614,26 @@ export default function Messages({ embedded = false }) {
                   </IconButton>
                 )}
                 <Avatar
-                  src={activeChat?.other_avatar || ""}
+                  src={toAbsoluteProfileImageUrl(activeChat?.other_avatar, "seller")}
                   alt={activeChat?.other_name || "Account notice"}
                 />
                 <Box>
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    {activeNotification
-                      ? "Account notice"
-                      : activeChat?.other_name || "Seller"}
-                  </Typography>
+                  {activeChat ? (
+                    <MuiLink
+                      component={RouterLink}
+                      to={`/buyer/seller/${activeChat.other_id}`}
+                      underline="hover"
+                      color="text.primary"
+                      variant="subtitle1"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      {activeChat.other_name || "Seller"}
+                    </MuiLink>
+                  ) : (
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      Account notice
+                    </Typography>
+                  )}
                   <Typography
                     variant="caption"
                     color={
@@ -591,6 +654,7 @@ export default function Messages({ embedded = false }) {
             </Stack>
 
             <Box
+              ref={messagesContainerRef}
               sx={{
                 flexGrow: 1,
                 p: { xs: 2, md: 2.5 },

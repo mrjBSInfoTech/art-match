@@ -1,132 +1,197 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  InputAdornment,
-  LinearProgress,
-  MenuItem,
+  FormControlLabel,
   Paper,
-  Select,
+  Stack,
+  Switch,
   TextField,
   Typography,
-  Snackbar,
-  Slide,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import { useThemeMode } from "../../theme/ThemeModeProvider";
-// Icons
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-
-// Slide Transition for Snackbar
-function SlideTransition(props) {
-  return <Slide {...props} direction="up" />;
-}
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
+import {
+  changeBuyerPassword,
+  getBuyerSecuritySettings,
+  updateBuyerPrivacy,
+} from "../../api/buyer/buyerAuthenticationAPI";
 
 export default function Settings() {
-  const { mode, setMode, theme } = useThemeMode();
-  const [loading, setLoading] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [privacyLoading, setPrivacyLoading] = useState(true);
+  const [privacySaving, setPrivacySaving] = useState(false);
+  const [privacyError, setPrivacyError] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState(null);
 
-  // Snackbar handlers
-  const showSnackbar = (message, severity = "success") => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity); // Set it to "success" or "error"
-    setSnackbarOpen(true);
+  useEffect(() => {
+    let active = true;
+    getBuyerSecuritySettings()
+      .then((profile) => {
+        if (active) setIsPrivate(Boolean(Number(profile.is_private)));
+      })
+      .catch((error) => {
+        if (active) setPrivacyError(error.message || "Unable to load privacy setting.");
+      })
+      .finally(() => {
+        if (active) setPrivacyLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handlePrivacyChange = async (event) => {
+    const nextValue = event.target.checked;
+    try {
+      setPrivacySaving(true);
+      setPrivacyError("");
+      await updateBuyerPrivacy(nextValue);
+      setIsPrivate(nextValue);
+    } catch (error) {
+      setPrivacyError(error.message || "Unable to update privacy setting.");
+    } finally {
+      setPrivacySaving(false);
+    }
   };
 
-  const closeSnackbar = (event, reason) => {
-    if (reason === "clickaway") return;
-    setSnackbarOpen(false);
-  };
+  const handlePasswordChange = async (event) => {
+    event.preventDefault();
+    setPasswordFeedback(null);
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light"; // Green
-      case "error":
-        return "error.light"; // Red
-      default:
-        return "primary.light"; //
+    if (newPassword !== confirmPassword) {
+      setPasswordFeedback({ severity: "error", message: "New passwords do not match." });
+      return;
+    }
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      setPasswordFeedback({
+        severity: "error",
+        message: "Your new password must be between 8 and 128 characters.",
+      });
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      await changeBuyerPassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordFeedback({ severity: "success", message: "Password changed successfully." });
+    } catch (error) {
+      setPasswordFeedback({
+        severity: "error",
+        message: error.message || "Unable to change password.",
+      });
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
-        <title>Settings</title>
+        <title>Security &amp; Privacy</title>
       </Helmet>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 2, sm: 3 },
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 2,
-          backgroundColor: theme.palette.background.paper,
-        }}
-      >
-        <FormControlLabel
-          control={
-            <Switch
-              checked={mode === "dark"}
-              onChange={(event) => setMode(event.target.checked ? "dark" : "light")}
-              color="primary"
-              inputProps={{ "aria-label": "Enable dark mode" }}
-            />
-          }
-          label={
-            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
-              {mode === "dark" ? <DarkModeRoundedIcon fontSize="small" /> : <LightModeRoundedIcon fontSize="small" />}
-              {mode === "dark" ? "Dark mode" : "Light mode"}
+      <Stack spacing={2.5}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <SecurityOutlinedIcon color="error" />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h6" fontWeight={700}>
+                Private account
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Hide your name and profile photo from sellers in chat. Sellers will still see the details needed to fulfill your orders.
+              </Typography>
+              {privacyError && <Alert severity="error" sx={{ mt: 2 }}>{privacyError}</Alert>}
+              <FormControlLabel
+                sx={{ mt: 1, ml: 0, mr: 0, justifyContent: "space-between", width: "100%" }}
+                label="Private account"
+                labelPlacement="start"
+                control={
+                  <Switch
+                    checked={isPrivate}
+                    onChange={handlePrivacyChange}
+                    disabled={privacyLoading || privacySaving}
+                    inputProps={{ "aria-label": "Make account private" }}
+                  />
+                }
+              />
+              {privacyLoading && <CircularProgress size={18} sx={{ ml: 1 }} />}
             </Box>
-          }
-          sx={{
-            m: 0,
-            width: "100%",
-            justifyContent: "space-between",
-            flexDirection: "row-reverse",
-            ".MuiFormControlLabel-label": { fontWeight: 600, mr: "auto" },
-          }}
-        />
-      </Paper>
-      {/* Snackbar Notification */}
-      {/* //For Future Use 
-      <Snackbar
-        open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
-        autoHideDuration={3000}
-        onClose={closeSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        TransitionComponent={SlideTransition}
-      >
-        <Alert
-          onClose={closeSnackbar}
-          severity={snackbarSeverity}
-          sx={{
-            width: "100%",
-            backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "#fff",
-            "& .MuiAlert-icon": {
-              color: "#fff",
-            },
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    */}
+          </Stack>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2.5 }}>
+            <LockOutlinedIcon color="error" />
+            <Box>
+              <Typography variant="h6" fontWeight={700}>
+                Change password
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Confirm your current password to choose a new one.
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Box component="form" onSubmit={handlePasswordChange}>
+            <Stack spacing={2}>
+              {passwordFeedback && (
+                <Alert severity={passwordFeedback.severity}>
+                  {passwordFeedback.message}
+                </Alert>
+              )}
+              <TextField
+                fullWidth
+                required
+                type="password"
+                label="Current password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                disabled={passwordSaving}
+              />
+              <TextField
+                fullWidth
+                required
+                type="password"
+                label="New password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                inputProps={{ minLength: 8, maxLength: 128 }}
+                disabled={passwordSaving}
+              />
+              <TextField
+                fullWidth
+                required
+                type="password"
+                label="Confirm new password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                inputProps={{ minLength: 8, maxLength: 128 }}
+                disabled={passwordSaving}
+              />
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button type="submit" variant="contained" color="error" disabled={passwordSaving}>
+                  {passwordSaving ? "Updating..." : "Change password"}
+                </Button>
+              </Box>
+            </Stack>
+          </Box>
+        </Paper>
+      </Stack>
     </Box>
   );
 }

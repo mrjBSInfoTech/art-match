@@ -156,7 +156,7 @@ router.post("/login", (req, res) => {
 
 router.get("/me", authenticateBuyer, (req, res) => {
   db.query(
-    "SELECT customer_id, username, first_name, last_name, email, phone_number, profile_image FROM customer WHERE customer_id = ?",
+    "SELECT customer_id, username, first_name, last_name, email, phone_number, profile_image, is_private FROM customer WHERE customer_id = ?",
     [req.user.customer_id],
     (err, result) => {
       if (err) return res.status(500).json({ message: "Database error" });
@@ -181,13 +181,16 @@ router.put(
     ];
     const updates = fields.filter((field) => Object.hasOwn(req.body, field));
     const values = updates.map((field) => req.body[field]);
+    if (Object.hasOwn(req.body, "is_private")) {
+      if (typeof req.body.is_private !== "boolean") {
+        return res.status(400).json({ message: "Privacy setting must be a boolean." });
+      }
+      updates.push("is_private");
+      values.push(req.body.is_private ? 1 : 0);
+    }
     if (req.file) {
       updates.push("profile_image");
       values.push(req.file.filename);
-    }
-    if (req.body.password) {
-      updates.push("password");
-      values.push(bcrypt.hashSync(req.body.password, 10));
     }
     if (!updates.length)
       return res.status(400).json({ message: "No profile changes supplied." });
@@ -211,6 +214,40 @@ router.put(
     );
   },
 );
+
+router.put("/change-password", authenticateBuyer, async (req, res) => {
+  const currentPassword = String(req.body.currentPassword || "");
+  const newPassword = String(req.body.newPassword || "");
+
+  if (!currentPassword || newPassword.length < 8 || newPassword.length > 128) {
+    return res.status(400).json({
+      message: "Enter your current password and a new password of at least 8 characters.",
+    });
+  }
+
+  try {
+    const [rows] = await db.promise().query(
+      "SELECT password FROM customer WHERE customer_id = ? LIMIT 1",
+      [req.user.customer_id],
+    );
+    if (!rows.length) {
+      return res.status(404).json({ message: "Buyer not found." });
+    }
+    if (!(await bcrypt.compare(currentPassword, rows[0].password))) {
+      return res.status(400).json({ message: "Current password is incorrect." });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.promise().query(
+      "UPDATE customer SET password = ? WHERE customer_id = ?",
+      [passwordHash, req.user.customer_id],
+    );
+    res.json({ message: "Password changed successfully." });
+  } catch (error) {
+    console.error("Buyer password change failed:", error);
+    res.status(500).json({ message: "Unable to change password." });
+  }
+});
 
 router.post("/logout", authenticateBuyer, async (req, res) => {
   try {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -38,6 +38,7 @@ import {
   registerSellerChatKey,
   fetchBuyerChatKey,
 } from "../../api/seller/messageAPI";
+import { subscribeToChatEvents } from "../../api/chatEvents";
 import {
   decryptChatMessage,
   encryptChatMessage,
@@ -60,6 +61,13 @@ const toAbsoluteMediaUrl = (url) => {
   return `http://localhost:5000/${url}`;
 };
 
+const toAbsoluteProfileImageUrl = (image, accountType) => {
+  if (!image) return "";
+  if (/^https?:\/\//i.test(image)) return image;
+  if (image.startsWith("/")) return `http://localhost:5000${image}`;
+  return `http://localhost:5000/uploads/${accountType}/profile/${encodeURIComponent(image)}`;
+};
+
 export default function Messages() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -80,6 +88,16 @@ export default function Messages() {
   const fileInputRef = useRef(null);
   const privateKeyRef = useRef(null);
   const publicKeyJwkRef = useRef("");
+  const messagesContainerRef = useRef(null);
+  const shouldScrollToBottomRef = useRef(true);
+  const lastMessageIdsRef = useRef(null);
+  const loadMessagesRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!shouldScrollToBottomRef.current || !messagesContainerRef.current) return;
+    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    shouldScrollToBottomRef.current = false;
+  }, [messages]);
 
   useEffect(() => {
     const initializeEncryption = async () => {
@@ -134,9 +152,17 @@ export default function Messages() {
     };
 
     loadConversations(true);
-    const intervalId = window.setInterval(() => loadConversations(), 3000);
+    const unsubscribe = subscribeToChatEvents("seller", (event) => {
+      loadConversations();
+      if (
+        event.type === "ready" ||
+        Number(event.conversation_id) === Number(selectedConversationId)
+      ) {
+        loadMessagesRef.current?.();
+      }
+    });
 
-    return () => window.clearInterval(intervalId);
+    return unsubscribe;
   }, [selectedConversationId, selectedNotificationId]);
 
   useEffect(() => {
@@ -156,9 +182,16 @@ export default function Messages() {
 
   useEffect(() => {
     if (!selectedConversationId || !encryptionReady) {
+      loadMessagesRef.current = null;
+      lastMessageIdsRef.current = null;
+      shouldScrollToBottomRef.current = true;
       setMessages([]);
       return;
     }
+
+    lastMessageIdsRef.current = null;
+    shouldScrollToBottomRef.current = true;
+    setMessages([]);
 
     const loadMessages = async () => {
       try {
@@ -202,16 +235,28 @@ export default function Messages() {
             }
           }),
         );
-        setMessages(decryptedMessages);
+        const messageIds = decryptedMessages.map((message) => message.id).join(",");
+        if (messageIds !== lastMessageIdsRef.current) {
+          const container = messagesContainerRef.current;
+          const isNearBottom =
+            !container ||
+            container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+          shouldScrollToBottomRef.current =
+            lastMessageIdsRef.current === null || isNearBottom;
+          lastMessageIdsRef.current = messageIds;
+          setMessages(decryptedMessages);
+        }
       } catch (err) {
         setError(err.message || "Unable to load messages");
       }
     };
 
+    loadMessagesRef.current = loadMessages;
     loadMessages();
-    const intervalId = window.setInterval(loadMessages, 3000);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      if (loadMessagesRef.current === loadMessages) loadMessagesRef.current = null;
+    };
   }, [selectedConversationId, encryptionReady]);
 
   const filteredConversations = conversations.filter(
@@ -286,18 +331,23 @@ export default function Messages() {
       formData.append("encryption_iv", encrypted.encryptionIv);
       formData.append("attachment_iv", encrypted.attachmentIv);
       formData.append("media_type", encrypted.mediaType);
-      await sendSellerMessage(activeChat.other_id, formData);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `local-${Date.now()}`,
-          sender: "seller",
-          text: inputMessage.trim(),
-          image: attachedPreview,
-          mediaType: attachedFile?.type || "",
-          time: formatMessageTime(new Date().toISOString()),
-        },
-      ]);
+      const sentMessage = await sendSellerMessage(activeChat.other_id, formData);
+      shouldScrollToBottomRef.current = true;
+      setMessages((prev) =>
+        prev.some((message) => String(message.id) === String(sentMessage.message_id))
+          ? prev
+          : [
+              ...prev,
+              {
+                id: sentMessage.message_id,
+                sender: "seller",
+                text: inputMessage.trim(),
+                image: attachedPreview,
+                mediaType: attachedFile?.type || "",
+                time: formatMessageTime(new Date().toISOString()),
+              },
+            ],
+      );
       setInputMessage("");
       handleRemoveImage();
       const updated = await fetchSellerConversations();
@@ -496,7 +546,7 @@ export default function Messages() {
                               color="success"
                             >
                               <Avatar
-                                src={chat.other_avatar || ""}
+                                src={toAbsoluteProfileImageUrl(chat.other_avatar, "buyer")}
                                 alt={chat.other_name || "Buyer"}
                               />
                             </Badge>
@@ -586,7 +636,7 @@ export default function Messages() {
                   </IconButton>
                 )}
                 <Avatar
-                  src={activeChat?.other_avatar || ""}
+                  src={toAbsoluteProfileImageUrl(activeChat?.other_avatar, "buyer")}
                   alt={activeChat?.other_name || "Account notice"}
                 />
                 <Box>
@@ -610,6 +660,7 @@ export default function Messages() {
             </Stack>
 
             <Box
+              ref={messagesContainerRef}
               sx={{
                 flexGrow: 1,
                 p: { xs: 2, md: 2.5 },

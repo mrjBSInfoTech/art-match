@@ -52,6 +52,47 @@ export const loginUser = async ({ username, password }) => {
   }
 };
 
+const authenticatedConfig = () => ({
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("buyer_token")}`,
+  },
+});
+
+export const getBuyerSecuritySettings = async () => {
+  try {
+    const res = await api.get("/me", authenticatedConfig());
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const updateBuyerPrivacy = async (isPrivate) => {
+  try {
+    const res = await api.put(
+      "/me",
+      { is_private: isPrivate },
+      authenticatedConfig(),
+    );
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const changeBuyerPassword = async (currentPassword, newPassword) => {
+  try {
+    const res = await api.put(
+      "/change-password",
+      { currentPassword, newPassword },
+      authenticatedConfig(),
+    );
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 // LOGOUT
 export const logout = () => {
   localStorage.removeItem("buyer_token");

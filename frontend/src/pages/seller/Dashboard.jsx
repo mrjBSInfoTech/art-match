@@ -1,6 +1,6 @@
 import { useState, useEffect, createElement } from "react";
 import { Helmet } from "react-helmet-async";
-import { Box, Card, CardContent, Paper, Typography } from "@mui/material";
+import { Alert, Box, Card, CardContent, Paper, Typography } from "@mui/material";
 import {
   Area,
   AreaChart,
@@ -12,20 +12,11 @@ import {
 } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
+import { fetchSellerOrders } from "../../api/seller/orderAPI";
+import { getSellerSalesData } from "../../utils/sellerSales";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
-
-const salesData = [
-  { month: "Jan", sales: 1600 },
-  { month: "Feb", sales: 2100 },
-  { month: "Mar", sales: 1850 },
-  { month: "Apr", sales: 2800 },
-  { month: "May", sales: 3350 },
-  { month: "Jun", sales: 4100 },
-  { month: "Jul", sales: 4900 },
-  { month: "Aug", sales: 5600 },
-];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -37,7 +28,10 @@ const formatCurrency = (value) =>
 export default function Dashboard() {
   const theme = useTheme();
   const [artworks, setArtworks] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [salesError, setSalesError] = useState("");
 
   const loadArtworks = async () => {
     try {
@@ -61,13 +55,16 @@ export default function Dashboard() {
     loadArtworks();
   }, []);
 
+  useEffect(() => {
+    fetchSellerOrders()
+      .then((response) => setOrders(Array.isArray(response) ? response : []))
+      .catch((error) => setSalesError(error.message || "Unable to load sales"))
+      .finally(() => setSalesLoading(false));
+  }, []);
+
   const artworkCount = artworks.length;
-  const totalRevenue = salesData.reduce((sum, entry) => sum + entry.sales, 0);
-  const soldCount = salesData.reduce(
-    (sum, entry) => sum + Math.round(entry.sales / 200),
-    0,
-  );
-  const salesCount = formatCurrency(totalRevenue);
+  const sales = getSellerSalesData(orders);
+  const salesData = sales.monthlySales;
 
   return (
     <Box
@@ -91,6 +88,8 @@ export default function Dashboard() {
         </Typography>
       </Box>
 
+      {salesError && <Alert severity="error" sx={{ mt: 2 }}>{salesError}</Alert>}
+
       <Box
         sx={{
           mt: 3,
@@ -113,16 +112,16 @@ export default function Dashboard() {
             accent: "primary.main",
           },
           {
-            label: "ORDERS SOLD",
-            value: soldCount,
-            caption: "Completed purchases",
+            label: "ACTIVE ORDERS",
+            value: salesLoading ? "..." : salesError ? "—" : sales.orderCount,
+            caption: "Excludes cancelled orders",
             icon: SellRoundedIcon,
             tint: "rgba(34, 197, 94, 0.18)",
             accent: "success.main",
           },
           {
             label: "TOTAL SALES",
-            value: salesCount,
+            value: salesLoading ? "..." : salesError ? "—" : formatCurrency(sales.revenue),
             caption: "Total revenue generated",
             icon: CreditScoreIcon,
             tint: "rgba(59, 130, 246, 0.18)",
