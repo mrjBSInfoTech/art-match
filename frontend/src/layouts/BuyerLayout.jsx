@@ -168,9 +168,9 @@ function BuyerLayoutContent({ children }) {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/buyer/artwork?q=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/buyer/shop?q=${encodeURIComponent(searchQuery.trim())}`);
     } else {
-      navigate("/buyer/artwork");
+      navigate("/buyer/shop");
     }
   };
 
@@ -275,7 +275,7 @@ function BuyerLayoutContent({ children }) {
   };
   const handleCategoryOption = (option) => {
     setCategoriesAnchorPosition(null);
-    navigate(`/buyer/artwork?q=${encodeURIComponent(option)}`);
+    navigate(`/buyer/shop?q=${encodeURIComponent(option)}`);
   };
 
   return (
@@ -310,7 +310,7 @@ function BuyerLayoutContent({ children }) {
           </Typography>
           <Button
             size="small"
-            onClick={() => navigate("/buyer/artwork")}
+            onClick={() => navigate("/buyer/shop")}
             sx={{
               color: "inherit",
               textTransform: "none",
@@ -759,7 +759,7 @@ function BuyerLayoutContent({ children }) {
               All Categories
             </Button>
             <Button
-              onClick={() => navigate("/buyer/artwork")}
+              onClick={() => navigate("/buyer/shop")}
               sx={{
                 color: "inherit",
                 textTransform: "none",
@@ -781,7 +781,7 @@ function BuyerLayoutContent({ children }) {
               Artist
             </Button>
             <Button
-              onClick={() => navigate("/buyer/artwork")}
+              onClick={() => navigate("/buyer/gallery")}
               sx={{
                 color: "inherit",
                 textTransform: "none",

@@ -124,7 +124,7 @@ export default function AccountOverview() {
       value: 0,
       action: "Browse artworks",
       icon: <FavoriteBorderOutlinedIcon />,
-      onClick: () => navigate("/buyer/artwork"),
+      onClick: () => navigate("/buyer/shop"),
     },
   ];
 

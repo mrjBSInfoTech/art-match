@@ -36,27 +36,45 @@ export default function OrderFinish() {
             <CheckCircleRoundedIcon sx={{ fontSize: 56 }} />
           </Box>
           <Box>
-            <Typography variant="overline" color="success.main" fontWeight={800}>
+            <Typography
+              variant="overline"
+              color="success.main"
+              fontWeight={800}
+            >
               CASH ON DELIVERY
             </Typography>
             <Typography variant="h4" fontWeight={800}>
               Order placed
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Your order is now with the seller. Pay the courier in cash when your artwork arrives.
+              Your order is now with the seller. Pay the courier in cash when
+              your artwork arrives.
             </Typography>
           </Box>
 
           <Paper
             variant="outlined"
-            sx={{ width: "100%", p: 2, borderRadius: 2, bgcolor: "background.default" }}
+            sx={{
+              width: "100%",
+              p: 2,
+              borderRadius: 2,
+              bgcolor: "background.default",
+            }}
           >
-            <Stack direction="row" spacing={1.5} alignItems="center" textAlign="left">
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              textAlign="left"
+            >
               <LocalAtmOutlinedIcon color="primary" />
               <Box>
-                <Typography variant="subtitle2" fontWeight={800}>Payment due on delivery</Typography>
+                <Typography variant="subtitle2" fontWeight={800}>
+                  Payment due on delivery
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Have the order total ready in cash. No online payment is due now.
+                  Have the order total ready in cash. No online payment is due
+                  now.
                 </Typography>
               </Box>
             </Stack>
@@ -64,9 +82,16 @@ export default function OrderFinish() {
 
           {orders.length > 0 && (
             <Box sx={{ width: "100%", textAlign: "left" }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ mb: 1.5 }}
+              >
                 <ShoppingBagOutlinedIcon color="action" fontSize="small" />
-                <Typography variant="subtitle2" fontWeight={800}>Order references</Typography>
+                <Typography variant="subtitle2" fontWeight={800}>
+                  Order references
+                </Typography>
               </Stack>
               <Stack spacing={1}>
                 {orders.map((order) => (
@@ -75,10 +100,18 @@ export default function OrderFinish() {
                     direction="row"
                     justifyContent="space-between"
                     spacing={2}
-                    sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider" }}
+                    sx={{
+                      py: 1,
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                    }}
                   >
-                    <Typography variant="body2" fontWeight={700}>{order.id}</Typography>
-                    <Typography variant="body2" fontWeight={700}>{formatCurrency(order.total)}</Typography>
+                    <Typography variant="body2" fontWeight={700}>
+                      {order.id}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700}>
+                      {formatCurrency(order.total)}
+                    </Typography>
                   </Stack>
                 ))}
               </Stack>
@@ -86,11 +119,17 @@ export default function OrderFinish() {
           )}
 
           <Divider flexItem />
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ width: "100%" }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{ width: "100%" }}
+          >
             <Button
               fullWidth
               variant="contained"
-              onClick={() => navigate("/buyer/profile/orders", { replace: true })}
+              onClick={() =>
+                navigate("/buyer/profile/orders", { replace: true })
+              }
               sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
             >
               View order status
@@ -98,7 +137,7 @@ export default function OrderFinish() {
             <Button
               fullWidth
               variant="outlined"
-              onClick={() => navigate("/buyer/artwork")}
+              onClick={() => navigate("/buyer/shop")}
               sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
             >
               Continue browsing

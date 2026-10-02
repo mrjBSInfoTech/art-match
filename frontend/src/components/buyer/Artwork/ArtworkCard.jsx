@@ -16,7 +16,11 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { addToCart } from "../../../api/buyer/cartAPI";
 
-export default function ArtworkCard({ artwork, showAddToCart = true, onAddToCart }) {
+export default function ArtworkCard({
+  artwork,
+  showAddToCart = true,
+  onAddToCart,
+}) {
   const artworkId = artwork?.id || artwork?.artwork_id;
   const [isAdding, setIsAdding] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
@@ -33,7 +37,7 @@ export default function ArtworkCard({ artwork, showAddToCart = true, onAddToCart
       setIsAdding(false);
     }
   };
-  
+
   return (
     <Card
       sx={{
@@ -62,7 +66,6 @@ export default function ArtworkCard({ artwork, showAddToCart = true, onAddToCart
             bgcolor: "#f2f2f2",
           }}
         />
-
       </Box>
 
       <CardContent
@@ -91,15 +94,20 @@ export default function ArtworkCard({ artwork, showAddToCart = true, onAddToCart
           {artwork.artist}
         </Typography>
 
-        <Stack direction="row" spacing={1} sx={{ mt: 0.5}}>
+        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
           <Chip
             label={artwork.genre}
             size="small"
             variant="outlined"
             component={RouterLink}
-            to={`/buyer/artwork/${encodeURIComponent(artwork.genre || "")}`}
+            to={`/buyer/shop/${encodeURIComponent(artwork.genre || "")}`}
             clickable
-            sx={{ fontWeight: "bold", borderRadius: 2, px: 1, textDecoration: "none" }}
+            sx={{
+              fontWeight: "bold",
+              borderRadius: 2,
+              px: 1,
+              textDecoration: "none",
+            }}
           />
         </Stack>
 
@@ -127,7 +135,7 @@ export default function ArtworkCard({ artwork, showAddToCart = true, onAddToCart
             </Button>
           ) : (
             <Button
-              sx={{fontSize: 10}}
+              sx={{ fontSize: 10 }}
               variant="text"
               component={RouterLink}
               to={`/buyer/artwork/view/${artworkId}`}

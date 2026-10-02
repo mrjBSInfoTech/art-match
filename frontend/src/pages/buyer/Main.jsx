@@ -228,7 +228,7 @@ export default function Main() {
                   size="large"
                   variant="contained"
                   component={RouterLink}
-                  to="/buyer/artwork"
+                  to="/buyer/shop"
                   endIcon={<ArrowForwardIcon />}
                   sx={{
                     borderRadius: 99999,
@@ -244,11 +244,7 @@ export default function Main() {
                   size="large"
                   variant="outlined"
                   component={RouterLink}
-                  onClick={() => {
-                    document
-                      .getElementById("featured")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                  }}
+                  to="/buyer/gallery"
                   endIcon={<ArrowForwardIcon />}
                   sx={{
                     borderRadius: 99999,
@@ -309,8 +305,8 @@ export default function Main() {
               onClick={() =>
                 navigate(
                   index === 0
-                    ? "/buyer/artwork"
-                    : `/buyer/artwork/${encodeURIComponent(genre)}`,
+                    ? "/buyer/shop"
+                    : `/buyer/shop/${encodeURIComponent(genre)}`,
                 )
               }
               sx={{
@@ -346,7 +342,7 @@ export default function Main() {
             backgroundColor: warmSurface,
           }}
         >
-          <SectionHeader title="Recently Added Artworks" to="/buyer/artwork" />
+          <SectionHeader title="Recently Added Artworks" to="/buyer/shop" />
           <Box
             sx={{
               display: "grid",
@@ -468,7 +464,7 @@ export default function Main() {
             </Typography>
           </Box>
           <Button
-            onClick={() => navigate("/buyer/artwork")}
+            onClick={() => navigate("/buyer/gallery")}
             endIcon={<ArrowForwardIcon />}
             sx={{
               display: { xs: "none", sm: "inline-flex" },
@@ -676,7 +672,7 @@ export default function Main() {
             }}
             id="featured"
           >
-            <SectionHeader title="Featured Artworks" to="/buyer/artwork" />
+            <SectionHeader title="Featured Artworks" to="/buyer/shop" />
             {/* Loading / Error States */}
             {loading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
