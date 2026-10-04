@@ -17,6 +17,7 @@ import {
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 
 const artworkImageUrl = (artwork) => {
   if (!artwork?.image) return "";
@@ -63,11 +64,10 @@ const groupArtworksByArtist = (artworks) => {
   );
 };
 
-function ArtworkTile({ artwork, index }) {
+function ArtworkTile({ artwork, index, isFavorite, onToggleFavorite }) {
   const theme = useTheme();
   const darkMode = theme.palette.mode === "dark";
   const navigate = useNavigate();
-  const [isFavorite, setIsFavorite] = useState(false);
   const artworkId = artwork.artwork_id || artwork.id;
   const image = artworkImageUrl(artwork);
 
@@ -142,7 +142,7 @@ function ArtworkTile({ artwork, index }) {
             }
             onClick={(event) => {
               event.stopPropagation();
-              setIsFavorite((favorite) => !favorite);
+              onToggleFavorite(artworkId);
             }}
             size="small"
             sx={{
@@ -240,6 +240,7 @@ export default function Gallery() {
   const theme = useTheme();
   const darkMode = theme.palette.mode === "dark";
   const [artists, setArtists] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -264,11 +265,48 @@ export default function Gallery() {
       }
     };
 
+    const loadFavoriteIds = async () => {
+      if (!localStorage.getItem("buyer_token")) {
+        if (active) setFavoriteIds(new Set());
+        return;
+      }
+
+      try {
+        const favorites = await fetchFavorites();
+        if (!active) return;
+        setFavoriteIds(new Set((favorites || []).map((item) => String(item.artwork_id))));
+      } catch {
+        if (active) setFavoriteIds(new Set());
+      }
+    };
+
     loadGallery();
+    loadFavoriteIds();
     return () => {
       active = false;
     };
   }, []);
+
+  const handleFavoriteToggle = async (artworkId) => {
+    const artworkKey = String(artworkId);
+    if (!localStorage.getItem("buyer_token")) {
+      navigate("/buyer/login");
+      return;
+    }
+
+    try {
+      const result = await toggleFavorite(artworkId);
+      const nextValue = Boolean(result?.isFavorite);
+      setFavoriteIds((current) => {
+        const next = new Set(current);
+        if (nextValue) next.add(artworkKey);
+        else next.delete(artworkKey);
+        return next;
+      });
+    } catch (toggleError) {
+      setError(toggleError.message || "Unable to update favorites.");
+    }
+  };
 
   return (
     <Box
@@ -475,6 +513,8 @@ export default function Gallery() {
                       key={artwork.artwork_id || artwork.id || index}
                       artwork={artwork}
                       index={index}
+                      isFavorite={favoriteIds.has(String(artwork.artwork_id || artwork.id))}
+                      onToggleFavorite={handleFavoriteToggle}
                     />
                   ))}
                 </Box>

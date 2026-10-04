@@ -21,6 +21,7 @@ import { ensureMessageSenderNameColumn } from "./database/message.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
+import { ensureFavoriteTable } from "./database/favorites.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -35,6 +36,7 @@ import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
+import buyerFavoriteRoutes from "./routes/buyer/favorites.js";
 import buyerOrderRoutes from "./routes/buyer/orders.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
 import chatRoutes from "./routes/chat.js";
@@ -93,6 +95,7 @@ app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
+app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/chat", chatRoutes);
@@ -115,6 +118,7 @@ ensureAccountAccessTable();
 ensureChatPublicKeysTable();
 ensureMessageSenderNameColumn();
 ensureBuyerPrivacyColumn()
+  .then(() => ensureFavoriteTable())
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
