@@ -50,6 +50,7 @@ import BuyerMain from "../pages/buyer/Main";
 import BuyerAddress from "../pages/buyer/Address";
 import BuyerShop from "../pages/buyer/Shop";
 import BuyerGallery from "../pages/buyer/Gallery";
+import BuyerFavorites from "../pages/buyer/Favorites";
 import BuyerArtworkDetail from "../pages/buyer/ArtworkDetail";
 import BuyerArtist from "../pages/buyer/Artist";
 import BuyerSellerProfile from "../pages/buyer/SellerProfile";
@@ -115,6 +116,7 @@ export default function AppRoutes() {
               <Route element={<BuyerLayout />}>
                 <Route path="cart" element={<BuyerCart />} />
                 <Route path="checkout" element={<BuyerCheckout />} />
+                <Route path="favorites" element={<BuyerFavorites />} />
                 <Route path="order-finish" element={<BuyerOrderFinish />} />
                 <Route path="messages" element={<BuyerMessage />} />
                 <Route

@@ -20,6 +20,7 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 
 const PAGE_SIZE = 8;
 
@@ -57,10 +58,9 @@ const artworkImageUrl = (image) =>
       ? `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`
       : "";
 
-function ShopArtworkCard({ artwork, onOpen }) {
+function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
   const theme = useTheme();
   const darkMode = theme.palette.mode === "dark";
-  const [isFavorite, setIsFavorite] = useState(false);
   const imageUrl = artworkImageUrl(artwork.image);
   const status = String(artwork.status || "").toLowerCase();
   const badge =
@@ -206,7 +206,7 @@ function ShopArtworkCard({ artwork, onOpen }) {
             }
             title={isFavorite ? "Remove from favorites" : "Add to favorites"}
             size="small"
-            onClick={() => setIsFavorite((favorite) => !favorite)}
+            onClick={() => onToggleFavorite(artwork.artwork_id || artwork.id)}
             sx={{
               width: 28,
               height: 28,
@@ -238,6 +238,7 @@ export default function Shop() {
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
   const selectedGenre = genre ? decodeURIComponent(genre).toLowerCase() : "";
   const [artworks, setArtworks] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -259,11 +260,48 @@ export default function Shop() {
       }
     };
 
+    const loadFavoriteIds = async () => {
+      if (!localStorage.getItem("buyer_token")) {
+        if (active) setFavoriteIds(new Set());
+        return;
+      }
+
+      try {
+        const favorites = await fetchFavorites();
+        if (!active) return;
+        setFavoriteIds(new Set((favorites || []).map((item) => String(item.artwork_id))));
+      } catch {
+        if (active) setFavoriteIds(new Set());
+      }
+    };
+
     loadArtworks();
+    loadFavoriteIds();
     return () => {
       active = false;
     };
   }, []);
+
+  const handleFavoriteToggle = async (artworkId) => {
+    const artworkKey = String(artworkId);
+    if (!localStorage.getItem("buyer_token")) {
+      navigate("/buyer/login");
+      return;
+    }
+
+    try {
+      const result = await toggleFavorite(artworkId);
+      const nextValue = Boolean(result?.isFavorite);
+      setFavoriteIds((current) => {
+        const next = new Set(current);
+        if (nextValue) next.add(artworkKey);
+        else next.delete(artworkKey);
+        return next;
+      });
+    } catch (toggleError) {
+      setError(toggleError.message || "Unable to update favorites.");
+    }
+  };
 
   const visibleArtworks = useMemo(
     () =>
@@ -457,6 +495,8 @@ export default function Shop() {
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                   onOpen={openArtwork}
+                  isFavorite={favoriteIds.has(String(artwork.artwork_id || artwork.id))}
+                  onToggleFavorite={handleFavoriteToggle}
                 />
               ))}
             </Box>

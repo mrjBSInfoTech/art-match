@@ -40,6 +40,7 @@ import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import SearchIcon from "@mui/icons-material/Search";
 import ChatIcon from "@mui/icons-material/Chat";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import Logout from "@mui/icons-material/Logout";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
@@ -446,6 +447,13 @@ function BuyerLayoutContent({ children }) {
               ) : (
                 <DarkModeRoundedIcon />
               )}
+            </IconButton>
+            <IconButton
+              sx={{ color: theme.palette.text.primary }}
+              aria-label="Favorites"
+              onClick={() => navigate("/buyer/favorites")}
+            >
+              <FavoriteBorderIcon />
             </IconButton>
             <IconButton
               sx={{ color: theme.palette.text.primary }}
