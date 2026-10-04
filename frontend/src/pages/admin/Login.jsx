@@ -221,7 +221,11 @@ const Login = () => {
               sx={{
                 borderRadius: "10px",
                 backgroundColor: "#f8f9fa",
+                color: "#1f2937",
                 fontSize: "0.95rem",
+                "& .MuiSelect-select": {
+                  color: "#1f2937",
+                },
                 "& .MuiOutlinedInput-notchedOutline": {
                   borderColor: "#e0e0e0",
                 },
@@ -274,6 +278,14 @@ const Login = () => {
                 sx: {
                   borderRadius: "10px",
                   backgroundColor: "#f8f9fa",
+                  color: "#1f2937",
+                  "& .MuiInputBase-input": {
+                    color: "#1f2937",
+                  },
+                  "& .MuiInputBase-input::placeholder": {
+                    color: "#6b7280",
+                    opacity: 1,
+                  },
                   "& .MuiOutlinedInput-notchedOutline": {
                     borderColor: "#e0e0e0",
                   },
@@ -317,9 +329,42 @@ const Login = () => {
                     <LockIcon sx={{ color: "#af4f4f", fontSize: "1.25rem" }} />
                   </InputAdornment>
                 ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      edge="end"
+                      sx={{
+                        color: "#7f1d1d",
+                        backgroundColor: "#fee2e2",
+                        borderRadius: "8px",
+                        p: 0.75,
+                        mr: -0.5,
+                        "&:hover": {
+                          backgroundColor: "#fecaca",
+                        },
+                      }}
+                    >
+                      {showPassword ? (
+                        <VisibilityOff sx={{ fontSize: 22 }} />
+                      ) : (
+                        <Visibility sx={{ fontSize: 22 }} />
+                      )}
+                    </IconButton>
+                  </InputAdornment>
+                ),
                 sx: {
                   borderRadius: "10px",
                   backgroundColor: "#f8f9fa",
+                  color: "#1f2937",
+                  "& .MuiInputBase-input": {
+                    color: "#1f2937",
+                  },
+                  "& .MuiInputBase-input::placeholder": {
+                    color: "#6b7280",
+                    opacity: 1,
+                  },
                   "& .MuiOutlinedInput-notchedOutline": {
                     borderColor: "#e0e0e0",
                   },

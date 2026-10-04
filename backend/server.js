@@ -114,8 +114,8 @@ createAuditLogsTable().catch(() => {});
 ensureAccountAccessTable();
 ensureChatPublicKeysTable();
 ensureMessageSenderNameColumn();
-ensureStorefrontTable().catch(() => {});
 ensureBuyerPrivacyColumn()
+  .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
   .catch((error) => {

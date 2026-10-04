@@ -30,6 +30,7 @@ import {
   ListItemText,
 } from "@mui/material";
 import Nexus from "../assets/Nexus.png";
+import SidebarNavigationHeader from "./SidebarNavigationHeader";
 import { clearAuthData } from "../../utils/auth";
 import { recordLogout } from "../api/admin/adminAuthenticationAPI";
 //Icons
@@ -186,6 +187,10 @@ function AdminLayoutContent({ children }) {
 
   // Sidebar menu items
   const navigation = [
+    {
+      kind: "header",
+      title: "Navigation",
+    },
     {
       segment: "dashboard",
       title: "Dashboard",
@@ -364,7 +369,6 @@ function AdminLayoutContent({ children }) {
         },
       }}
       theme={theme}
-      disableCollapsibleSidebar={true}
     >
       <Dialog
         open={open}
@@ -507,7 +511,9 @@ function AdminLayoutContent({ children }) {
         </Stack>
       </Drawer>
       <MuiDashboardLayout
+        sidebarExpandedWidth={240}
         slots={{
+          header: SidebarNavigationHeader,
           toolbarAccount: CustomHeader,
         }}
         renderPageItem={(item) => {
@@ -526,45 +532,89 @@ function AdminLayoutContent({ children }) {
         sx={{
           backgroundColor: theme.palette.background.default,
           "& .MuiDrawer-paper": {
-            backgroundColor: theme.palette.background.sidebar,
-            color: theme.palette.text.sidebar,
-            borderRight: `1px solid ${theme.palette.divider}`,
-            borderTopRightRadius: "36px !important",
+            backgroundColor: "#a3181f",
+            color: "#ffffff",
+            border: "none",
+            top: { xs: "64px", sm: "72px" },
+            height: { xs: "calc(100% - 64px)", sm: "calc(100% - 72px)" },
             overflow: "hidden",
           },
-          "& .MuiDrawer-docked .MuiDrawer-paper": {
-            borderTopRightRadius: "36px !important",
+          "& .MuiDrawer-paper > .MuiToolbar-root": {
+            display: "none",
+          },
+          "& .MuiDrawer-paper.MuiDrawer-paperAnchorLeft": {
+            borderTopRightRadius: "24px !important",
             overflow: "hidden",
           },
           "& .MuiAppBar-root .MuiIconButton-root": {
             color: "#6b7280",
           },
+          "& .MuiAppBar-root button[aria-label$='navigation menu']": {
+            display: { xs: "inline-flex", md: "none" },
+          },
           "& .MuiAppBar-root .MuiSvgIcon-root": {
             color: "#6b7280",
           },
           "& .MuiDrawer-paper .MuiPaper-root": {
-            backgroundColor: theme.palette.background.sidebar,
+            backgroundColor: "#a3181f",
           },
-          // Selected text
+          "& .MuiDrawer-paper .MuiListSubheader-root": {
+            backgroundColor: "#a3181f",
+            color: "#ffffff",
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: 0,
+            height: 56,
+            lineHeight: "56px",
+            paddingLeft: "64px",
+            fontFamily: "inherit",
+          },
           "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
-            color: theme.palette.error.main,
+            color: "#a3181f",
+            fontWeight: 600,
           },
           "& .MuiDrawer-paper .Mui-selected .MuiTypography-caption": {
-            color: theme.palette.error.main,
+            color: "#a3181f",
           },
-          // Selected icon
           "& .MuiDrawer-paper .Mui-selected .MuiSvgIcon-root": {
-            color: theme.palette.error.main,
+            color: "#a3181f",
           },
-          // Sidebar icons color
           "& .MuiDrawer-paper .MuiSvgIcon-root": {
-            color: theme.palette.text.sidebar,
+            color: "#ffffff",
           },
           "& .MuiListItemButton-root:hover": {
-            backgroundColor: theme.palette.background.sidebarAccent,
+            backgroundColor: "rgba(255, 255, 255, 0.12)",
           },
-          "& .Mui-selected": {
-            backgroundColor: `${theme.palette.background.sidebarAccent} !important`,
+          "& .MuiDrawer-paper .MuiListItemButton-root": {
+            borderRadius: "9px",
+          },
+          "& .MuiDrawer-paper .Mui-selected": {
+            backgroundColor: "#ffffff !important",
+          },
+          "& .MuiDrawer-paper .MuiListItemText-primary": {
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.25,
+            fontFamily: "inherit",
+          },
+          // Toolpad adds caption labels only in mini mode.
+          "& .MuiDrawer-paper:has(.MuiTypography-caption)": {
+            "& .MuiListSubheader-root": {
+              visibility: "hidden",
+              paddingLeft: 0,
+            },
+            "& .MuiTypography-caption": {
+              display: "none",
+            },
+            "& .MuiListItemButton-root": {
+              justifyContent: "center",
+              height: 52,
+              minHeight: 52,
+              margin: "3px 0",
+            },
+            "& .MuiListItemIcon-root": {
+              minWidth: 0,
+            },
           },
           // Header
           "& .MuiAppBar-root": {
