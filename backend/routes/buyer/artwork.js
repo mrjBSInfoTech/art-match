@@ -13,6 +13,7 @@ router.get("/seller/:id", (req, res) => {
   db.query(
         `SELECT s.student_id, s.first_name, s.last_name, s.profile_image, s.course,
           ac.registered_date, sf.shop_name, sf.shop_description,
+          sf.specialties, sf.pinned_artwork_ids,
           COALESCE((
             SELECT SUM(oi.quantity)
             FROM marketplace_order o

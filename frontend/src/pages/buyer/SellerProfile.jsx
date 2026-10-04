@@ -16,6 +16,7 @@ import {
   Tab,
   Tabs,
   Typography,
+  useTheme,
 } from "@mui/material";
 import {
   fetchArtworks,
@@ -25,6 +26,17 @@ import {
 
 const getProfileFallback = (name = "Artist") =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
+
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
 const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
@@ -58,6 +70,8 @@ const buildSellerSummaries = (artworks = []) => {
       name: shopName || fallbackArtistName,
       artistName: fallbackArtistName,
       department: artwork.course || "",
+      specialties: [],
+      pinnedArtworkIds: [],
       image: artwork.profile_image || "",
       bio: artwork.shop_description || "",
       shopName,
@@ -69,6 +83,9 @@ const buildSellerSummaries = (artworks = []) => {
     existing.works += 1;
     existing.image = artwork.profile_image || existing.image || "";
     existing.department = artwork.course || existing.department;
+    if (artwork.genre && !existing.specialties.includes(artwork.genre)) {
+      existing.specialties.push(artwork.genre);
+    }
     existing.shopName = existing.shopName || shopName || "";
     existing.shopDescription =
       existing.shopDescription || artwork.shop_description || "";
@@ -92,6 +109,21 @@ const formatPrice = (value) =>
   `₱${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 export default function SellerProfile() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const colors = {
+    page: isDark ? "#020817" : "#f4efe9",
+    card: isDark ? "#111827" : "#f8f4f0",
+    cardAlt: isDark ? "#1e293b" : "#fffaf7",
+    sideCard: isDark ? "#111827" : "#f7f2eb",
+    border: isDark ? "#334155" : "#e6d8cd",
+    text: isDark ? "#f8fafc" : "#1b1917",
+    muted: isDark ? "#cbd5e1" : "#5f514b",
+    subtle: isDark ? "#94a3b8" : "#6f625b",
+    chip: isDark ? "#334155" : "#f3e7dc",
+    chipBorder: isDark ? "#475569" : "#e3d3c2",
+    accent: isDark ? "#f87171" : "#d95454",
+  };
   const { id } = useParams();
   const [sellerArtworks, setSellerArtworks] = useState([]);
   const [selectedSeller, setSelectedSeller] = useState(null);
@@ -115,10 +147,13 @@ export default function SellerProfile() {
             (artwork) => String(artwork.student_id) === String(id),
           );
           let publicProfile = null;
+          let specialtiesLoadError = "";
           try {
             publicProfile = await fetchPublicSellerProfile(id);
-          } catch {
-            // Existing public artwork data can still provide a profile fallback.
+          } catch (profileError) {
+            specialtiesLoadError =
+              profileError.message || "Unable to load saved specialties.";
+            console.error("Unable to load public seller profile:", profileError);
           }
           const artworkSummary = buildSellerSummaries(filteredArtworks)[0];
           const artistName = publicProfile
@@ -158,10 +193,38 @@ export default function SellerProfile() {
             works: filteredArtworks.length,
             sales: publicProfile ? Number(publicProfile.sales_count || 0) : null,
             registeredDate: publicProfile?.registered_date || null,
+            specialtiesLoadError,
+            hasStorefrontSpecialties:
+              Boolean(publicProfile) &&
+              Object.hasOwn(publicProfile || {}, "specialties"),
+            specialties: publicProfile
+              ? parseArray(publicProfile.specialties)
+              : [],
+            pinnedArtworkIds: parseArray(
+              publicProfile?.pinned_artwork_ids,
+            ).map(String),
             featuredArtwork: artworkSummary?.featuredArtwork || filteredArtworks[0] || null,
           };
+          const pinOrder = new Map(
+            profileSeller.pinnedArtworkIds.map((artworkId, index) => [
+              artworkId,
+              index,
+            ]),
+          );
+          const prioritizedArtworks = [...filteredArtworks].sort(
+            (first, second) => {
+              const firstOrder = pinOrder.get(String(first.artwork_id));
+              const secondOrder = pinOrder.get(String(second.artwork_id));
+              if (firstOrder !== undefined && secondOrder !== undefined) {
+                return firstOrder - secondOrder;
+              }
+              if (firstOrder !== undefined) return -1;
+              if (secondOrder !== undefined) return 1;
+              return 0;
+            },
+          );
           setSelectedSeller(profileSeller);
-          setSellerArtworks(filteredArtworks);
+          setSellerArtworks(prioritizedArtworks);
         } else {
           const featuredSeller = sellerSummaries[0] || null;
           const featuredArtworks = featuredSeller
@@ -239,7 +302,12 @@ export default function SellerProfile() {
     );
   }
 
-  const specialties = [...new Set(sellerArtworks.map((artwork) => artwork.genre).filter(Boolean))];
+  const specialties = selectedSeller.specialties || [];
+  const specialtiesLoadError =
+    selectedSeller.specialtiesLoadError ||
+    (!selectedSeller.hasStorefrontSpecialties
+      ? "Saved specialties were not returned by the server. Restart the backend to apply the storefront updates."
+      : "");
   const averageRating = sellerReviews.length
     ? sellerReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) /
       sellerReviews.length
@@ -252,7 +320,7 @@ export default function SellerProfile() {
     : "Not available";
 
   return (
-    <Box sx={{ minHeight: "100vh", background: "#f4efe9", pb: 6 }}>
+    <Box sx={{ minHeight: "100vh", background: colors.page, color: colors.text, pb: 6 }}>
       <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
         <Box
           sx={{
@@ -265,8 +333,8 @@ export default function SellerProfile() {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box
               sx={{
-                background: "#f8f4f0",
-                border: "1px solid #e5d8cd",
+                background: colors.card,
+                border: `1px solid ${colors.border}`,
                 borderRadius: 4,
                 p: { xs: 2.5, md: 3 },
                 display: "flex",
@@ -285,9 +353,9 @@ export default function SellerProfile() {
                   height: 140,
                   borderRadius: "50%",
                   objectFit: "cover",
-                  border: "2px solid #e6d5c0",
+                  border: `2px solid ${colors.border}`,
                   flexShrink: 0,
-                  background: "#f1e7df",
+                  background: colors.cardAlt,
                 }}
               />
 
@@ -304,7 +372,7 @@ export default function SellerProfile() {
                       fontWeight: 800,
                       letterSpacing: "-0.05em",
                       lineHeight: 1.1,
-                      color: "#1b1917",
+                      color: colors.text,
                     }}
                   >
                     {selectedSeller.shopName || selectedSeller.name}
@@ -314,7 +382,7 @@ export default function SellerProfile() {
                       variant="body2"
                       sx={{
                         fontWeight: 600,
-                        color: "#5f514b",
+                        color: colors.muted,
                         letterSpacing: "0.04em",
                         textTransform: "uppercase",
                       }}
@@ -327,7 +395,7 @@ export default function SellerProfile() {
                 <Typography
                   variant="body1"
                   sx={{
-                    color: "#5f514b",
+                    color: colors.muted,
                     maxWidth: 620,
                     lineHeight: 1.6,
                     mb: 2,
@@ -344,29 +412,29 @@ export default function SellerProfile() {
                   <Box>
                     <Typography
                       variant="h5"
-                      sx={{ fontWeight: 800, color: "#1f1c1a" }}
+                      sx={{ fontWeight: 800, color: colors.text }}
                     >
                       {sellerArtworks.length}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#6f625b" }}>
+                    <Typography variant="caption" sx={{ color: colors.subtle }}>
                       Artworks
                     </Typography>
                   </Box>
                   <Box>
                     <Typography
                       variant="h5"
-                      sx={{ fontWeight: 800, color: "#1f1c1a" }}
+                      sx={{ fontWeight: 800, color: colors.text }}
                     >
                       {selectedSeller.sales == null ? "—" : selectedSeller.sales}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#6f625b" }}>
+                    <Typography variant="caption" sx={{ color: colors.subtle }}>
                       Sales
                     </Typography>
                   </Box>
                   <Box>
                     <Typography
                       variant="h5"
-                      sx={{ fontWeight: 800, color: "#1f1c1a" }}
+                      sx={{ fontWeight: 800, color: colors.text }}
                     >
                       {reviewsLoading
                         ? "..."
@@ -374,7 +442,7 @@ export default function SellerProfile() {
                           ? "—"
                           : averageRating.toFixed(1)}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#6f625b" }}>
+                    <Typography variant="caption" sx={{ color: colors.subtle }}>
                       {sellerReviews.length ? `Rating (${sellerReviews.length})` : "Rating"}
                     </Typography>
                   </Box>
@@ -385,7 +453,13 @@ export default function SellerProfile() {
             <Tabs
               value={activeTab}
               onChange={(event, value) => setActiveTab(value)}
-              sx={{ mt: 4, borderBottom: "1px solid #e6d8cd" }}
+              sx={{
+                mt: 4,
+                borderBottom: `1px solid ${colors.border}`,
+                "& .MuiTab-root": { color: colors.muted },
+                "& .MuiTab-root.Mui-selected": { color: colors.accent },
+                "& .MuiTabs-indicator": { backgroundColor: colors.accent },
+              }}
             >
               <Tab label={`Artworks for Sale (${sellerArtworks.length})`} />
               <Tab label="About" />
@@ -400,7 +474,8 @@ export default function SellerProfile() {
                       p: 4,
                       borderRadius: 3,
                       textAlign: "center",
-                      border: "1px solid #eadfda",
+                      border: `1px solid ${colors.border}`,
+                      bgcolor: colors.card,
                     }}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
@@ -412,20 +487,38 @@ export default function SellerProfile() {
                   </Paper>
                 </Grid>
               ) : (
-                sellerArtworks.map((artwork) => (
+                sellerArtworks.map((artwork) => {
+                  const isPinned = selectedSeller.pinnedArtworkIds.includes(
+                    String(artwork.artwork_id),
+                  );
+                  return (
                   <Grid item xs={12} sm={6} key={artwork.artwork_id}>
                     <Card
                       elevation={0}
                       sx={{
                         borderRadius: 3,
                         overflow: "hidden",
-                        border: "1px solid #e6d8cd",
-                        background: "#fffaf7",
+                        border: `1px solid ${colors.border}`,
+                        background: colors.cardAlt,
                         height: "100%",
                         boxShadow: "none",
                       }}
                     >
                       <Box sx={{ position: "relative" }}>
+                        {isPinned && (
+                          <Chip
+                            label="Pinned"
+                            size="small"
+                            color="primary"
+                            sx={{
+                              position: "absolute",
+                              top: 12,
+                              left: 12,
+                              zIndex: 1,
+                              fontWeight: 700,
+                            }}
+                          />
+                        )}
                         <Box
                           component="img"
                           src={getArtworkImage(artwork)}
@@ -471,7 +564,7 @@ export default function SellerProfile() {
                         >
                           <Typography
                             variant="h6"
-                            sx={{ fontWeight: 800, color: "#d95454" }}
+                            sx={{ fontWeight: 800, color: colors.accent }}
                           >
                             {formatPrice(artwork.price)}
                           </Typography>
@@ -484,13 +577,14 @@ export default function SellerProfile() {
                       </CardContent>
                     </Card>
                   </Grid>
-                ))
+                  );
+                })
               )}
             </Grid>}
             {activeTab === 1 && (
               <Paper
                 elevation={0}
-                sx={{ mt: 2.5, p: { xs: 2, md: 3 }, border: "1px solid #e6d8cd", borderRadius: 3, bgcolor: "#fffaf7", minHeight: 180 }}
+                sx={{ mt: 2.5, p: { xs: 2, md: 3 }, border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.cardAlt, minHeight: 180 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
                   About {selectedSeller.artistName || selectedSeller.name}
@@ -509,12 +603,12 @@ export default function SellerProfile() {
                 ) : reviewsError ? (
                   <Alert severity="error">{reviewsError}</Alert>
                 ) : sellerReviews.length === 0 ? (
-                  <Paper elevation={0} sx={{ p: 4, textAlign: "center", border: "1px solid #e6d8cd", borderRadius: 3 }}>
+                  <Paper elevation={0} sx={{ p: 4, textAlign: "center", border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.card }}>
                     <Typography color="text.secondary">No reviews yet.</Typography>
                   </Paper>
                 ) : (
                   sellerReviews.map((review) => (
-                    <Paper key={review.id} elevation={0} sx={{ p: 2.5, border: "1px solid #e6d8cd", borderRadius: 3, bgcolor: "#fffaf7" }}>
+                    <Paper key={review.id} elevation={0} sx={{ p: 2.5, border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.cardAlt }}>
                       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
                         <Box>
                           <Typography fontWeight={700}>{review.reviewer_name || "Buyer"}</Typography>
@@ -544,14 +638,14 @@ export default function SellerProfile() {
                 sx={{
                   p: 2.5,
                   borderRadius: 3,
-                  background: "#f7f2eb",
-                  border: "1px solid #e5d8cd",
+                  background: colors.sideCard,
+                  border: `1px solid ${colors.border}`,
                 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
                   Member Since
                 </Typography>
-                <Typography variant="body2" sx={{ color: "#3a332f" }}>
+                <Typography variant="body2" sx={{ color: colors.muted }}>
                   {memberSince}
                 </Typography>
               </Paper>
@@ -561,14 +655,18 @@ export default function SellerProfile() {
                 sx={{
                   p: 2.5,
                   borderRadius: 3,
-                  background: "#f7f2eb",
-                  border: "1px solid #e5d8cd",
+                  background: colors.sideCard,
+                  border: `1px solid ${colors.border}`,
                 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
                   Specialties
                 </Typography>
-                {specialties.length > 0 ? <Stack
+                {specialtiesLoadError ? (
+                  <Typography variant="body2" color="error">
+                    {specialtiesLoadError}
+                  </Typography>
+                ) : specialties.length > 0 ? <Stack
                   direction="row"
                   spacing={1}
                   sx={{ flexWrap: "wrap", rowGap: 1 }}
@@ -579,17 +677,17 @@ export default function SellerProfile() {
                       label={item}
                       size="small"
                       sx={{
-                        background: "#f3e7dc",
-                        color: "#3a332f",
+                        background: colors.chip,
+                        color: colors.muted,
                         borderRadius: 999,
                         fontWeight: 600,
-                        border: "1px solid #e3d3c2",
+                        border: `1px solid ${colors.chipBorder}`,
                       }}
                     />
                   ))}
                 </Stack> : (
                   <Typography variant="body2" color="text.secondary">
-                    No artwork genres listed yet.
+                    No specialties selected yet.
                   </Typography>
                 )}
               </Paper>

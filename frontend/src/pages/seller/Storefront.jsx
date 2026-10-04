@@ -60,6 +60,26 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const getSavedSpecialties = (response) => {
+  if (!Object.hasOwn(response || {}, "specialties")) {
+    throw new Error(
+      "The server did not return saved specialties. Restart the backend and try again.",
+    );
+  }
+  return parseArray(response.specialties);
+};
+
 export default function Storefront() {
   const theme = useTheme();
   const [settings, setSettings] = useState(defaultSettings);
@@ -68,32 +88,50 @@ export default function Storefront() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
+  const [savingPinId, setSavingPinId] = useState(null);
+  const [savingSpecialties, setSavingSpecialties] = useState(false);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
 
   const selectedSpecialties = settings.specialties || [];
   const customSpecialtyLimitReached = selectedSpecialties.length >= 3;
 
-  const handleSpecialtyToggle = (specialty) => {
-    setSettings((current) => {
-      const currentSpecialties = current.specialties || [];
-      const alreadySelected = currentSpecialties.includes(specialty);
+  const saveSpecialties = async (nextSpecialties) => {
+    if (savingSpecialties) return false;
+    const previousSpecialties = selectedSpecialties;
 
-      if (alreadySelected) {
-        return {
-          ...current,
-          specialties: currentSpecialties.filter((item) => item !== specialty),
-        };
-      }
-
-      if (currentSpecialties.length >= 3) {
-        return current;
-      }
-
-      return {
+    setSavingSpecialties(true);
+    setError("");
+    setSettings((current) => ({ ...current, specialties: nextSpecialties }));
+    try {
+      const saved = await saveStorefront({ specialties: nextSpecialties });
+    const savedSpecialties = getSavedSpecialties(saved);
+      setSettings((current) => ({
         ...current,
-        specialties: [...currentSpecialties, specialty],
-      };
-    });
+        specialties: savedSpecialties,
+      }));
+      setSuccessMessage("Specialties updated.");
+      return true;
+    } catch (err) {
+      setSettings((current) => ({
+        ...current,
+        specialties: previousSpecialties,
+      }));
+      setError(err.message || "Unable to save specialties.");
+      return false;
+    } finally {
+      setSavingSpecialties(false);
+    }
+  };
+
+  const handleSpecialtyToggle = (specialty) => {
+    if (savingSpecialties) return;
+    const alreadySelected = selectedSpecialties.includes(specialty);
+    if (!alreadySelected && customSpecialtyLimitReached) return;
+
+    const nextSpecialties = alreadySelected
+      ? selectedSpecialties.filter((item) => item !== specialty)
+      : [...selectedSpecialties, specialty];
+    saveSpecialties(nextSpecialties);
   };
 
   const handleAddCustomSpecialty = () => {
@@ -105,58 +143,85 @@ export default function Storefront() {
 
     const normalized = value.replace(/\s+/g, " ");
 
-    setSettings((current) => {
-      const currentSpecialties = current.specialties || [];
-      if (
-        currentSpecialties.includes(normalized) ||
-        currentSpecialties.length >= 3
-      ) {
-        return current;
-      }
+    if (
+      selectedSpecialties.some(
+        (item) => item.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
+      )
+    ) {
+      setError("That specialty has already been selected.");
+      return;
+    }
 
-      return {
-        ...current,
-        specialties: [...currentSpecialties, normalized],
-        customSpecialty: "",
-      };
+    saveSpecialties([...selectedSpecialties, normalized]).then((saved) => {
+      if (saved) {
+        setSettings((current) => ({ ...current, customSpecialty: "" }));
+      }
     });
   };
 
   useEffect(() => {
     const loadSavedStorefront = async () => {
+      let legacySettings = defaultSettings;
       try {
-        const storefront = await fetchStorefront();
-        if (storefront) {
-          setSettings((current) => ({
-            ...current,
-            shopName: storefront.shop_name || "",
-            shopDescription: storefront.shop_description || "",
-          }));
+        const savedSettings = localStorage.getItem("seller_settings");
+        if (savedSettings) {
+          legacySettings = { ...defaultSettings, ...JSON.parse(savedSettings) };
+          setSettings(legacySettings);
         }
       } catch (err) {
-        console.warn("Unable to load storefront profile:", err.message);
+        console.warn("Unable to read saved storefront settings:", err.message);
+      }
+
+      const legacyPinnedArtworkIds = parseArray(
+        localStorage.getItem("seller_pinned_artworks"),
+      ).map(String);
+
+      try {
+        const storefront = await fetchStorefront();
+        const specialties =
+          storefront?.specialties != null
+            ? parseArray(storefront.specialties)
+            : legacySettings.specialties || [];
+        const savedPinnedArtworkIds =
+          storefront?.pinned_artwork_ids != null
+            ? parseArray(storefront.pinned_artwork_ids).map(String)
+            : legacyPinnedArtworkIds;
+        const shopName = storefront?.shop_name || legacySettings.shopName || "";
+        const shopDescription =
+          storefront?.shop_description ||
+          legacySettings.shopDescription ||
+          "";
+
+        setSettings((current) => ({
+          ...current,
+          shopName,
+          shopDescription,
+          specialties,
+        }));
+        setPinnedArtworkIds(savedPinnedArtworkIds);
+
+        const hasLegacyStorefrontSettings =
+          storefront?.specialties == null &&
+          specialties.length > 0;
+        const hasLegacyPinnedArtworks =
+          storefront?.pinned_artwork_ids == null &&
+          savedPinnedArtworkIds.length > 0;
+        if (hasLegacyStorefrontSettings || hasLegacyPinnedArtworks) {
+          const migrated = await saveStorefront({
+            shop_name: shopName,
+            shop_description: shopDescription,
+            specialties,
+            pinned_artwork_ids: savedPinnedArtworkIds,
+          });
+          getSavedSpecialties(migrated);
+        }
+        localStorage.removeItem("seller_pinned_artworks");
+      } catch (err) {
+        setError(err.message || "Unable to load storefront profile.");
       }
     };
 
-    const savedSettings = localStorage.getItem("seller_settings");
-    if (savedSettings) {
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
-      } catch {
-        setSettings(defaultSettings);
-      }
-    }
-
     loadSavedStorefront();
-
-    const storedPinned = localStorage.getItem("seller_pinned_artworks");
-    if (storedPinned) {
-      try {
-        setPinnedArtworkIds(JSON.parse(storedPinned));
-      } catch {
-        setPinnedArtworkIds([]);
-      }
-    }
   }, []);
 
   useEffect(() => {
@@ -182,16 +247,14 @@ export default function Storefront() {
     loadArtworks();
   }, []);
 
-  const handleToggle = (field) => {
-    setSettings((current) => ({ ...current, [field]: !current[field] }));
-  };
-
   const saveSettings = async () => {
     try {
       setError("");
       const saved = await saveStorefront({
         shop_name: settings.shopName.trim(),
         shop_description: settings.shopDescription.trim(),
+        specialties: settings.specialties || [],
+        pinned_artwork_ids: pinnedArtworkIds.map(Number),
       });
 
       const nextSettings = {
@@ -214,30 +277,63 @@ export default function Storefront() {
         ...current,
         shopName: saved?.shop_name || current.shopName,
         shopDescription: saved?.shop_description || current.shopDescription,
+        specialties: saved?.specialties || current.specialties,
       }));
+      setPinnedArtworkIds(
+        (saved?.pinned_artwork_ids || pinnedArtworkIds).map(String),
+      );
       setSuccessMessage("Storefront updated successfully.");
     } catch (err) {
       setError(err.message || "Unable to save storefront details.");
     }
   };
 
-  const resetSettings = () => {
-    setSettings(defaultSettings);
-    localStorage.removeItem("seller_settings");
-    localStorage.removeItem("seller_shop_name");
-    localStorage.removeItem("seller_shop_description");
-    setSuccessMessage("Storefront reset successfully.");
+  const resetSettings = async () => {
+    try {
+      setError("");
+      await saveStorefront({
+        shop_name: "",
+        shop_description: "",
+        specialties: [],
+        pinned_artwork_ids: [],
+      });
+      setSettings(defaultSettings);
+      setPinnedArtworkIds([]);
+      localStorage.removeItem("seller_settings");
+      localStorage.removeItem("seller_pinned_artworks");
+      localStorage.removeItem("seller_shop_name");
+      localStorage.removeItem("seller_shop_description");
+      setSuccessMessage("Storefront reset successfully.");
+    } catch (err) {
+      setError(err.message || "Unable to reset storefront details.");
+    }
   };
 
-  const handlePinToggle = (artworkId) => {
-    setPinnedArtworkIds((current) => {
-      const next = current.includes(artworkId)
-        ? current.filter((id) => id !== artworkId)
-        : [...current, artworkId];
+  const handlePinToggle = async (artworkId) => {
+    if (savingPinId !== null) return;
+    const normalizedId = String(artworkId);
+    const next = pinnedArtworkIds.includes(normalizedId)
+      ? pinnedArtworkIds.filter((id) => id !== normalizedId)
+      : [...pinnedArtworkIds, normalizedId];
 
-      localStorage.setItem("seller_pinned_artworks", JSON.stringify(next));
-      return next;
-    });
+    try {
+      setSavingPinId(normalizedId);
+      setError("");
+      const saved = await saveStorefront({
+        shop_name: settings.shopName.trim(),
+        shop_description: settings.shopDescription.trim(),
+        specialties: settings.specialties || [],
+        pinned_artwork_ids: next.map(Number),
+      });
+      setPinnedArtworkIds(
+        (saved?.pinned_artwork_ids || next).map(String),
+      );
+      setSuccessMessage("Pinned artworks updated.");
+    } catch (err) {
+      setError(err.message || "Unable to update pinned artworks.");
+    } finally {
+      setSavingPinId(null);
+    }
   };
 
   const getArtworkImageUrl = (artwork) => {
@@ -393,7 +489,10 @@ export default function Storefront() {
                     onClick={() => handleSpecialtyToggle(tag)}
                     color={isSelected ? "primary" : "default"}
                     variant={isSelected ? "filled" : "outlined"}
-                    disabled={!isSelected && customSpecialtyLimitReached}
+                    disabled={
+                      savingSpecialties ||
+                      (!isSelected && customSpecialtyLimitReached)
+                    }
                     sx={{
                       fontWeight: 700,
                       borderRadius: 999,
@@ -422,12 +521,14 @@ export default function Storefront() {
                 }
                 placeholder="Add custom art style"
                 sx={{ flex: 1, minWidth: 220 }}
+                disabled={savingSpecialties}
               />
 
               <Button
                 variant="contained"
                 size="small"
                 disabled={
+                  savingSpecialties ||
                   !settings.customSpecialty?.trim() ||
                   customSpecialtyLimitReached
                 }
@@ -450,6 +551,7 @@ export default function Storefront() {
                     label={tag}
                     onDelete={() => handleSpecialtyToggle(tag)}
                     color="primary"
+                    disabled={savingSpecialties}
                     sx={{
                       fontWeight: 700,
                       borderRadius: 999,
@@ -514,7 +616,9 @@ export default function Storefront() {
             ) : artworks.length > 0 ? (
               <Grid container spacing={2}>
                 {artworks.map((artwork) => {
-                  const artworkId = artwork.artwork_id || artwork.id;
+                  const artworkId = String(
+                    artwork.artwork_id || artwork.id,
+                  );
                   const isPinned = pinnedArtworkIds.includes(artworkId);
 
                   return (

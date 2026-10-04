@@ -57,6 +57,19 @@ CREATE TABLE IF NOT EXISTS student (
   profile_image VARCHAR(255) NULL
 );
 
+CREATE TABLE IF NOT EXISTS storefront (
+  storefront_id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL UNIQUE,
+  shop_name VARCHAR(255) NULL,
+  shop_description TEXT NULL,
+  specialties JSON NULL,
+  pinned_artwork_ids JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_storefront_student
+    FOREIGN KEY (student_id) REFERENCES student (student_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS accregistration (
   registration_id INT AUTO_INCREMENT PRIMARY KEY,
   student_id INT NOT NULL UNIQUE,

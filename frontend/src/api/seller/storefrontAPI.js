@@ -32,11 +32,18 @@ export const fetchStorefront = async () => {
   }
 };
 
-export const saveStorefront = async ({ shop_name, shop_description }) => {
+export const saveStorefront = async ({
+  shop_name,
+  shop_description,
+  specialties,
+  pinned_artwork_ids,
+}) => {
   try {
     const res = await api.put("/storefront", {
       shop_name,
       shop_description,
+      specialties,
+      pinned_artwork_ids,
     });
     return res.data;
   } catch (error) {

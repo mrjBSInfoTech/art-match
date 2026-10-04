@@ -49,6 +49,17 @@ const getArtworkImage = (image) => {
   return `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`;
 };
 
+const parseArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -67,6 +78,8 @@ export default function Profile() {
   const [artworks, setArtworks] = useState([]);
   const [artworksLoading, setArtworksLoading] = useState(true);
   const [artworksError, setArtworksError] = useState("");
+  const [specialties, setSpecialties] = useState([]);
+  const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
 
   useEffect(() => {
     const loadSellerData = () => {
@@ -99,6 +112,10 @@ export default function Profile() {
         if (!active) return;
         const description = storefront?.shop_description || "";
         setAboutMe(description);
+        setSpecialties(parseArray(storefront?.specialties));
+        setPinnedArtworkIds(
+          parseArray(storefront?.pinned_artwork_ids).map(String),
+        );
         localStorage.setItem("seller_shop_description", description);
       })
       .catch((error) => {
@@ -160,7 +177,14 @@ export default function Profile() {
     { label: "Sales", value: "4.8" },
   ];
 
-  const specialties = ["Oil Painting", "Modern Impressionist", "Landscape", "Impression"];
+  const prioritizedArtworks = [...artworks].sort((first, second) => {
+    const firstIndex = pinnedArtworkIds.indexOf(String(first.artwork_id));
+    const secondIndex = pinnedArtworkIds.indexOf(String(second.artwork_id));
+    if (firstIndex >= 0 && secondIndex >= 0) return firstIndex - secondIndex;
+    if (firstIndex >= 0) return -1;
+    if (secondIndex >= 0) return 1;
+    return 0;
+  });
 
   if (loading) {
     return (
@@ -517,7 +541,11 @@ export default function Profile() {
                 </Box>
               ) : (
               <Grid container spacing={2.5}>
-                {artworks.map((artwork) => (
+                {prioritizedArtworks.map((artwork) => {
+                  const isPinned = pinnedArtworkIds.includes(
+                    String(artwork.artwork_id),
+                  );
+                  return (
                   <Grid item xs={12} sm={6} md={4} key={artwork.artwork_id}>
                     <Card
                       elevation={0}
@@ -531,6 +559,21 @@ export default function Profile() {
                       }}
                     >
                       <Box sx={{ position: "relative" }}>
+                        {isPinned && (
+                          <Chip
+                            label="Pinned"
+                            size="small"
+                            sx={{
+                              position: "absolute",
+                              top: 12,
+                              left: 12,
+                              zIndex: 1,
+                              fontWeight: 700,
+                              bgcolor: "#1e1f87",
+                              color: "#fff",
+                            }}
+                          />
+                        )}
                         <Box
                           component="img"
                           src={getArtworkImage(artwork.image)}
@@ -560,7 +603,8 @@ export default function Profile() {
                       </Box>
                     </Card>
                   </Grid>
-                ))}
+                  );
+                })}
               </Grid>
               )}
             </Paper>
@@ -591,7 +635,7 @@ export default function Profile() {
                 <Box>
                   <Typography variant="caption" color="text.secondary">Specialties</Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                    {specialties.map((tag) => (
+                    {specialties.length > 0 ? specialties.map((tag) => (
                       <Chip
                         key={tag}
                         label={tag}
@@ -603,7 +647,11 @@ export default function Profile() {
                           borderRadius: 999,
                         }}
                       />
-                    ))}
+                    )) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No specialties selected yet.
+                      </Typography>
+                    )}
                   </Stack>
                 </Box>
 
