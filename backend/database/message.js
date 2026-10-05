@@ -1,5 +1,43 @@
 import db from "./db.js";
 
+export const ensureConversationReadStateTable = () =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `CREATE TABLE IF NOT EXISTS conversation_read_state (
+        conversation_id INT NOT NULL,
+        account_type ENUM('buyer', 'seller') NOT NULL,
+        account_id INT NOT NULL,
+        last_read_message_id INT NOT NULL DEFAULT 0,
+        hidden_through_message_id INT NULL DEFAULT NULL,
+        PRIMARY KEY (conversation_id, account_type, account_id),
+        INDEX idx_conversation_read_account (account_type, account_id)
+      ) ENGINE=InnoDB`,
+      (createError) => {
+        if (createError) return reject(createError);
+        db.query(
+          "ALTER TABLE conversation_read_state ADD COLUMN hidden_through_message_id INT NULL DEFAULT NULL",
+          (alterError) => {
+            if (alterError && alterError.code !== "ER_DUP_FIELDNAME") {
+              return reject(alterError);
+            }
+            db.query(
+              `CREATE TABLE IF NOT EXISTS chat_blocks (
+                blocker_type ENUM('buyer', 'seller') NOT NULL,
+                blocker_id INT NOT NULL,
+                blocked_type ENUM('buyer', 'seller') NOT NULL,
+                blocked_id INT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (blocker_type, blocker_id, blocked_type, blocked_id),
+                INDEX idx_chat_blocks_target (blocked_type, blocked_id)
+              ) ENGINE=InnoDB`,
+              (blockError) => (blockError ? reject(blockError) : resolve()),
+            );
+          },
+        );
+      },
+    );
+  });
+
 const backfillSenderNames = () => {
   const sql = `
     UPDATE message m

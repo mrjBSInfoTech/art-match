@@ -17,7 +17,10 @@ import adminAdminRoutes from "./routes/admin/admin.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
 import { ensureChatPublicKeysTable } from "./database/chatKeys.js";
-import { ensureMessageSenderNameColumn } from "./database/message.js";
+import {
+  ensureConversationReadStateTable,
+  ensureMessageSenderNameColumn,
+} from "./database/message.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
@@ -121,6 +124,7 @@ ensureBuyerPrivacyColumn()
   .then(() => ensureFavoriteTable())
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
+  .then(() => ensureConversationReadStateTable())
   .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
   .catch((error) => {
     console.error("Unable to initialize database schema:", error.message);

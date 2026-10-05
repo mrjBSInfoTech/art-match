@@ -280,6 +280,7 @@ export default function Profile() {
             <Box component="span" sx={{ opacity: 0.9 }}>Artist Gallery</Box>
           </Box>
         </Container>
+
       </Box>
 
       <Container maxWidth="lg" sx={{ mt: -8, pb: 7 }}>
@@ -294,20 +295,43 @@ export default function Profile() {
           }}
         >
           <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={1.2}>
-              <Avatar
-                src={getProfileImage(profileImage)}
-                alt={profileName}
-                sx={{ width: 92, height: 92, border: "4px solid #fff" }}
-              />
+            <Grid item xs={12} md={3}>
+              <Stack alignItems={{ xs: "center", md: "flex-start" }} spacing={1}>
+                <Avatar
+                  src={getProfileImage(profileImage)}
+                  alt={profileName}
+                  sx={{ width: 92, height: 92, border: "4px solid #fff" }}
+                />
+                <Typography
+                  component="h1"
+                  variant="subtitle1"
+                  fontWeight={800}
+                  textAlign={{ xs: "center", md: "left" }}
+                  sx={{
+                    width: "100%",
+                    color: "#1f1f1f",
+                    lineHeight: 1.2,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {profileName}
+                </Typography>
+                {aboutMe && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    textAlign={{ xs: "center", md: "left" }}
+                    sx={{ maxWidth: 280, lineHeight: 1.5 }}
+                  >
+                    {aboutMe}
+                  </Typography>
+                )}
+              </Stack>
             </Grid>
 
-            <Grid item xs={12} md={7.5}>
+            <Grid item xs={12} md={6}>
               <Stack spacing={1}>
                 <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} spacing={1.5}>
-                  <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.1 }}>
-                    {profileName}
-                  </Typography>
                   <Chip
                     label={course || "Fine Arts"}
                     size="small"
@@ -319,10 +343,6 @@ export default function Profile() {
                     }}
                   />
                 </Stack>
-
-                <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 690 }}>
-                  {aboutMe}
-                </Typography>
 
                 <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
                   {stats.map((stat) => (
@@ -337,36 +357,6 @@ export default function Profile() {
                   ))}
                 </Stack>
 
-                <Stack direction="row" spacing={1.5} sx={{ mt: 1 }}>
-                  <Button
-                    variant="contained"
-                    sx={{
-                      borderRadius: 999,
-                      background: "linear-gradient(135deg, #d93d3d, #b81d1d)",
-                      boxShadow: "none",
-                      px: 2.5,
-                      py: 1,
-                      fontWeight: 700,
-                      textTransform: "none",
-                    }}
-                  >
-                    Follow
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    sx={{
-                      borderRadius: 999,
-                      borderColor: "rgba(112, 81, 71, 0.35)",
-                      color: "#3e2d2b",
-                      px: 2.5,
-                      py: 1,
-                      fontWeight: 700,
-                      textTransform: "none",
-                    }}
-                  >
-                    Contact Artist
-                  </Button>
-                </Stack>
               </Stack>
             </Grid>
 

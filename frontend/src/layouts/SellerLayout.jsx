@@ -19,6 +19,11 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { clearAuthData } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
+import {
+  fetchSellerConversations,
+  fetchSellerNotifications,
+  markSellerNotificationsRead,
+} from "../api/seller/messageAPI";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Stack,
@@ -90,6 +95,8 @@ function SellerLayoutContent({ children }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
@@ -138,6 +145,34 @@ function SellerLayoutContent({ children }) {
       window.removeEventListener("seller-profile-updated", loadSellerProfile);
   }, []);
 
+  useEffect(() => {
+    const loadBadgeCounts = async () => {
+      if (!localStorage.getItem("seller_token")) {
+        setNotifications([]);
+        setUnreadMessageCount(0);
+        return;
+      }
+
+      const [conversations, accountNotifications] = await Promise.all([
+        fetchSellerConversations().catch(() => null),
+        fetchSellerNotifications().catch(() => null),
+      ]);
+      if (conversations) {
+        setUnreadMessageCount(
+          conversations.reduce(
+            (total, conversation) => total + Number(conversation.unread_count || 0),
+            0,
+          ),
+        );
+      }
+      if (accountNotifications) setNotifications(accountNotifications);
+    };
+
+    loadBadgeCounts();
+    const intervalId = window.setInterval(loadBadgeCounts, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [location.pathname]);
+
   const openMenu = Boolean(anchorEl);
 
   // Open/Close option handlers
@@ -159,9 +194,17 @@ function SellerLayoutContent({ children }) {
     },
   };
 
-  const handleNotificationClick = () => {
+  const handleNotificationClick = async () => {
     setNotificationDrawerOpen(true);
     setProfileDrawerOpen(false);
+    try {
+      await markSellerNotificationsRead();
+      setNotifications((current) =>
+        current.map((notification) => ({ ...notification, is_read: 1 })),
+      );
+    } catch (error) {
+      console.error("Unable to mark seller notifications read:", error);
+    }
   };
 
   const handleProfileClick = () => {
@@ -224,7 +267,16 @@ function SellerLayoutContent({ children }) {
     {
       segment: "messages",
       title: "Messages",
-      icon: <MessageIcon />,
+      icon: (
+        <Badge
+          badgeContent={unreadMessageCount}
+          color="error"
+          invisible={unreadMessageCount === 0}
+          max={99}
+        >
+          <MessageIcon />
+        </Badge>
+      ),
       pattern: "/seller/messages",
     },
   ];
@@ -282,14 +334,16 @@ function SellerLayoutContent({ children }) {
       </IconButton>
 
       <IconButton
-        onClick={() => {
-          setNotificationDrawerOpen(true);
-          setProfileDrawerOpen(false);
-        }}
+        onClick={handleNotificationClick}
         aria-label="Open notifications"
         sx={{ color: "#6b7280" }}
       >
-        <Badge variant="dot" color="error">
+        <Badge
+          badgeContent={notifications.filter((notification) => !Number(notification.is_read)).length}
+          color="error"
+          invisible={!notifications.some((notification) => !Number(notification.is_read))}
+          max={99}
+        >
           <NotificationsNoneIcon sx={{ fontSize: 22 }} />
         </Badge>
       </IconButton>
@@ -481,16 +535,35 @@ function SellerLayoutContent({ children }) {
         }}
       >
         <Stack sx={{ height: "100%", mt: 9 }}>
-          <Stack
-            alignItems="center"
-            justifyContent="center"
-            sx={{ flex: 1, p: 3 }}
-          >
-            <NotificationsNoneIcon
-              sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
-            />
-            <Typography color="text.secondary">No new notifications</Typography>
-          </Stack>
+          <Typography variant="h6" sx={{ p: 2, fontWeight: 700 }}>
+            Notifications
+          </Typography>
+          <Divider />
+          {notifications.length ? (
+            <List sx={{ overflowY: "auto", p: 0 }}>
+              {notifications.map((notification) => (
+                <ListItemButton key={notification.notification_id}>
+                  <ListItemText
+                    primary={notification.message}
+                    secondary={new Date(notification.created_at).toLocaleString()}
+                    primaryTypographyProps={{ variant: "body2" }}
+                    secondaryTypographyProps={{ variant: "caption" }}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          ) : (
+            <Stack
+              alignItems="center"
+              justifyContent="center"
+              sx={{ flex: 1, p: 3 }}
+            >
+              <NotificationsNoneIcon
+                sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
+              />
+              <Typography color="text.secondary">No notifications</Typography>
+            </Stack>
+          )}
         </Stack>
       </Drawer>
       <MuiDashboardLayout

@@ -42,10 +42,51 @@ export const fetchSellerMessages = async (conversationId) => {
   }
 };
 
+export const deleteSellerConversation = async (conversationId) => {
+  try {
+    await api.delete(`/seller/conversations/${conversationId}`);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const fetchSellerChatBlockStatus = async (conversationId) => {
+  try {
+    const res = await api.get(`/seller/conversations/${conversationId}/block`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const blockSellerChatUser = async (conversationId) => {
+  try {
+    await api.post(`/seller/conversations/${conversationId}/block`);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const unblockSellerChatUser = async (conversationId) => {
+  try {
+    await api.delete(`/seller/conversations/${conversationId}/block`);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const fetchSellerNotifications = async () => {
   try {
     const res = await api.get("/seller/notifications");
     return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const markSellerNotificationsRead = async () => {
+  try {
+    await api.post("/seller/notifications/read");
   } catch (error) {
     handleError(error);
   }

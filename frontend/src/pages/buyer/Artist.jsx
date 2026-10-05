@@ -7,10 +7,8 @@ import {
   Button,
   Card,
   CardContent,
-  CardMedia,
   CircularProgress,
   Container,
-  Grid,
   Stack,
   Typography,
 } from "@mui/material";
@@ -154,37 +152,42 @@ export default function Artist() {
           </Typography>
         </Box>
 
-        <Grid container spacing={3}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(auto-fill, minmax(260px, 320px))",
+            },
+            gap: 2.5,
+            justifyContent: "start",
+          }}
+        >
           {artists.map((artist) => (
-            <Grid item xs={12} sm={6} md={4} key={artist.student_id}>
+            <Box key={artist.student_id} sx={{ minWidth: 0 }}>
               <Card
                 sx={{
                   height: "100%",
-                  borderRadius: 3,
+                  maxWidth: 320,
+                  borderRadius: 2,
                   overflow: "hidden",
                   border: "1px solid",
                   borderColor: "divider",
                   transition: "all 0.2s ease",
-                  "&:hover": { transform: "translateY(-3px)", boxShadow: 3 },
+                  "&:hover": { transform: "translateY(-2px)", boxShadow: 2 },
                 }}
               >
-                <CardMedia
-                  component="img"
-                  image={artist.image}
-                  alt={artist.name}
-                  sx={{ height: 220, objectFit: "cover" }}
-                />
-                <CardContent sx={{ p: 2.5 }}>
+                <CardContent sx={{ p: 2 }}>
                   <Stack
                     direction="row"
                     spacing={1.5}
                     alignItems="center"
-                    sx={{ mb: 1.5 }}
+                    sx={{ minWidth: 0 }}
                   >
                     <Avatar
                       src={artist.image}
                       alt={artist.name}
-                      sx={{ width: 52, height: 52 }}
+                      sx={{ width: 56, height: 56, flexShrink: 0 }}
                     />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography
@@ -207,7 +210,14 @@ export default function Artist() {
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ minHeight: 64 }}
+                    sx={{
+                      mt: 1.5,
+                      minHeight: 60,
+                      display: "-webkit-box",
+                      WebkitBoxOrient: "vertical",
+                      WebkitLineClamp: 3,
+                      overflow: "hidden",
+                    }}
                   >
                     {artist.bio || "The seller currently doesn't have a bio."}
                   </Typography>
@@ -239,7 +249,7 @@ export default function Artist() {
                     }
                     sx={{
                       mt: 2,
-                      borderRadius: 999,
+                      borderRadius: 1,
                       backgroundColor: "#1f1f1f",
                       color: "#fff",
                       textTransform: "none",
@@ -250,9 +260,9 @@ export default function Artist() {
                   </Button>
                 </CardContent>
               </Card>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       </Stack>
     </Container>
   );

@@ -265,6 +265,26 @@ CREATE TABLE IF NOT EXISTS account_notifications (
   INDEX idx_account_notifications_created (created_at)
 );
 
+CREATE TABLE IF NOT EXISTS conversation_read_state (
+  conversation_id INT NOT NULL,
+  account_type ENUM('buyer', 'seller') NOT NULL,
+  account_id INT NOT NULL,
+  last_read_message_id INT NOT NULL DEFAULT 0,
+  hidden_through_message_id INT NULL DEFAULT NULL,
+  PRIMARY KEY (conversation_id, account_type, account_id),
+  INDEX idx_conversation_read_account (account_type, account_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS chat_blocks (
+  blocker_type ENUM('buyer', 'seller') NOT NULL,
+  blocker_id INT NOT NULL,
+  blocked_type ENUM('buyer', 'seller') NOT NULL,
+  blocked_id INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (blocker_type, blocker_id, blocked_type, blocked_id),
+  INDEX idx_chat_blocks_target (blocked_type, blocked_id)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS audit_logs (
   audit_id INT AUTO_INCREMENT PRIMARY KEY,
   datetime TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

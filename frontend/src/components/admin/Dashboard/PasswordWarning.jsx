@@ -84,7 +84,6 @@ function PasswordWarning({ open, handleClose, navigate }) {
             navigate("/admin/settings");
           }}
           sx={{
-            color: theme.palette.text.primary,
             borderRadius: 1.5,
             px: 2.5,
             textTransform: "none",

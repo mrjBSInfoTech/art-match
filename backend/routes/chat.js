@@ -76,6 +76,21 @@ const getOrCreateConversation = (sellerId, buyerId) =>
     });
   });
 
+const markConversationRead = (conversationId, accountType, accountId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `INSERT INTO conversation_read_state
+        (conversation_id, account_type, account_id, last_read_message_id)
+       SELECT ?, ?, ?, COALESCE(MAX(message_id), 0)
+       FROM message
+       WHERE conversation_id = ?
+       ON DUPLICATE KEY UPDATE
+         last_read_message_id = GREATEST(last_read_message_id, VALUES(last_read_message_id))`,
+      [conversationId, accountType, accountId, conversationId],
+      (error) => (error ? reject(error) : resolve()),
+    );
+  });
+
 const getConversationAccessQuery = (role, userId) => {
   if (role === "buyer") {
     return {
@@ -99,11 +114,22 @@ const fetchConversationList = (role, userId) =>
         ${isBuyer ? "s.student_id AS other_id" : "cu.customer_id AS other_id"},
         ${isBuyer ? "CONCAT(s.first_name, ' ', s.last_name) AS other_name" : "CASE WHEN COALESCE(cu.is_private, 0) = 1 THEN 'Private buyer' ELSE CONCAT(cu.first_name, ' ', cu.last_name) END AS other_name"},
         ${isBuyer ? "s.profile_image AS other_avatar" : "CASE WHEN COALESCE(cu.is_private, 0) = 1 THEN NULL ELSE cu.profile_image END AS other_avatar"},
+        (
+          SELECT COUNT(*)
+          FROM message unread
+          WHERE unread.conversation_id = c.conversation_id
+            AND unread.sender_type = '${isBuyer ? "seller" : "buyer"}'
+            AND unread.message_id > COALESCE(read_state.last_read_message_id, 0)
+        ) AS unread_count,
         CASE WHEN m.encryption_iv IS NULL THEN m.message_data ELSE '[Encrypted message]' END AS last_message,
         m.image AS last_image,
         m.date_created AS last_message_time
       FROM conversation c
       ${isBuyer ? "LEFT JOIN student s ON s.student_id = c.student_id" : "LEFT JOIN customer cu ON cu.customer_id = c.customer_id"}
+      LEFT JOIN conversation_read_state read_state
+        ON read_state.conversation_id = c.conversation_id
+        AND read_state.account_type = '${role}'
+        AND read_state.account_id = c.${isBuyer ? "customer_id" : "student_id"}
       LEFT JOIN message m ON m.message_id = (
         SELECT m2.message_id
         FROM message m2
@@ -112,6 +138,10 @@ const fetchConversationList = (role, userId) =>
         LIMIT 1
       )
       WHERE c.${isBuyer ? "customer_id" : "student_id"} = ?
+        AND (
+          read_state.hidden_through_message_id IS NULL
+          OR COALESCE(m.message_id, 0) > read_state.hidden_through_message_id
+        )
       ORDER BY COALESCE(m.date_created, c.date_created) DESC
     `;
 
@@ -119,6 +149,89 @@ const fetchConversationList = (role, userId) =>
       if (err) return reject(err);
       resolve(rows);
     });
+  });
+
+const getConversationParticipants = (role, conversationId, accountId) =>
+  new Promise((resolve, reject) => {
+    const accountColumn = role === "buyer" ? "customer_id" : "student_id";
+    db.query(
+      `SELECT conversation_id, student_id, customer_id
+       FROM conversation
+       WHERE conversation_id = ? AND ${accountColumn} = ?
+       LIMIT 1`,
+      [conversationId, accountId],
+      (error, rows) => {
+        if (error) return reject(error);
+        resolve(rows[0] || null);
+      },
+    );
+  });
+
+const getChatBlockStatus = (role, accountId, otherType, otherId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `SELECT
+        EXISTS(
+          SELECT 1 FROM chat_blocks
+          WHERE blocker_type = ? AND blocker_id = ?
+            AND blocked_type = ? AND blocked_id = ?
+        ) AS blocked_by_me,
+        EXISTS(
+          SELECT 1 FROM chat_blocks
+          WHERE blocker_type = ? AND blocker_id = ?
+            AND blocked_type = ? AND blocked_id = ?
+        ) AS blocked_by_other`,
+      [role, accountId, otherType, otherId, otherType, otherId, role, accountId],
+      (error, rows) => {
+        if (error) return reject(error);
+        resolve(rows[0]);
+      },
+    );
+  });
+
+const isChatBlocked = (sellerId, buyerId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `SELECT EXISTS(
+        SELECT 1 FROM chat_blocks
+        WHERE (blocker_type = 'buyer' AND blocker_id = ? AND blocked_type = 'seller' AND blocked_id = ?)
+           OR (blocker_type = 'seller' AND blocker_id = ? AND blocked_type = 'buyer' AND blocked_id = ?)
+      ) AS is_blocked`,
+      [buyerId, sellerId, sellerId, buyerId],
+      (error, rows) => {
+        if (error) return reject(error);
+        resolve(Boolean(rows[0]?.is_blocked));
+      },
+    );
+  });
+
+const hideConversationForAccount = (conversationId, role, accountId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `INSERT INTO conversation_read_state
+        (conversation_id, account_type, account_id, hidden_through_message_id)
+       SELECT ?, ?, ?, COALESCE(MAX(message_id), 0)
+       FROM message
+       WHERE conversation_id = ?
+       ON DUPLICATE KEY UPDATE
+         hidden_through_message_id = GREATEST(
+           COALESCE(hidden_through_message_id, 0),
+           VALUES(hidden_through_message_id)
+         )`,
+      [conversationId, role, accountId, conversationId],
+      (error) => (error ? reject(error) : resolve()),
+    );
+  });
+
+const restoreConversationForAccount = (conversationId, role, accountId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `UPDATE conversation_read_state
+       SET hidden_through_message_id = NULL
+       WHERE conversation_id = ? AND account_type = ? AND account_id = ?`,
+      [conversationId, role, accountId],
+      (error) => (error ? reject(error) : resolve()),
+    );
   });
 
 const parsePublicKey = (value) => {
@@ -211,12 +324,142 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
         `SELECT notification_id, notification_type, message, is_read, created_at
          FROM account_notifications
          WHERE role = ? AND account_id = ?
-         ORDER BY created_at DESC
-         LIMIT 50`,
+         ORDER BY created_at DESC`,
         [role, accountId],
         (error, rows) => (error ? reject(error) : resolve(rows)),
       );
     });
+
+  const markAccountNotificationsRead = (role, accountId) =>
+    new Promise((resolve, reject) => {
+      db.query(
+        "UPDATE account_notifications SET is_read = TRUE WHERE role = ? AND account_id = ? AND is_read = FALSE",
+        [role, accountId],
+        (error) => (error ? reject(error) : resolve()),
+      );
+    });
+
+  router.post("/buyer/notifications/read", authenticateBuyer, (req, res) => {
+    markAccountNotificationsRead("buyer", req.user.customer_id || req.user.id)
+      .then(() => res.status(204).end())
+      .catch((error) => {
+        console.error("Buyer notification update failed:", error);
+        res.status(500).json({ message: "Unable to update notifications" });
+      });
+  });
+
+  router.post("/seller/notifications/read", authenticateSeller, (req, res) => {
+    markAccountNotificationsRead("seller", req.user.student_id || req.user.id)
+      .then(() => res.status(204).end())
+      .catch((error) => {
+        console.error("Seller notification update failed:", error);
+        res.status(500).json({ message: "Unable to update notifications" });
+      });
+  });
+
+  const registerConversationActions = (role, authenticate, getAccountId, otherType) => {
+    router.get(`/${role}/conversations/:conversationId/block`, authenticate, async (req, res) => {
+      const conversationId = Number(req.params.conversationId);
+      const accountId = getAccountId(req.user);
+      if (!Number.isInteger(conversationId) || conversationId <= 0) {
+        return res.status(400).json({ message: "Invalid conversation id" });
+      }
+
+      try {
+        const conversation = await getConversationParticipants(role, conversationId, accountId);
+        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+        const otherId = role === "buyer" ? conversation.student_id : conversation.customer_id;
+        res.json(await getChatBlockStatus(role, accountId, otherType, otherId));
+      } catch (error) {
+        console.error("Chat block status fetch failed:", error);
+        res.status(500).json({ message: "Unable to load block status" });
+      }
+    });
+
+    router.post(`/${role}/conversations/:conversationId/block`, authenticate, async (req, res) => {
+      const conversationId = Number(req.params.conversationId);
+      const accountId = getAccountId(req.user);
+      if (!Number.isInteger(conversationId) || conversationId <= 0) {
+        return res.status(400).json({ message: "Invalid conversation id" });
+      }
+
+      try {
+        const conversation = await getConversationParticipants(role, conversationId, accountId);
+        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+        const otherId = role === "buyer" ? conversation.student_id : conversation.customer_id;
+        await new Promise((resolve, reject) => {
+          db.query(
+            `INSERT INTO chat_blocks (blocker_type, blocker_id, blocked_type, blocked_id)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP`,
+            [role, accountId, otherType, otherId],
+            (error) => (error ? reject(error) : resolve()),
+          );
+        });
+        res.status(204).end();
+      } catch (error) {
+        console.error("Chat block failed:", error);
+        res.status(500).json({ message: "Unable to block user" });
+      }
+    });
+
+    router.delete(`/${role}/conversations/:conversationId/block`, authenticate, async (req, res) => {
+      const conversationId = Number(req.params.conversationId);
+      const accountId = getAccountId(req.user);
+      if (!Number.isInteger(conversationId) || conversationId <= 0) {
+        return res.status(400).json({ message: "Invalid conversation id" });
+      }
+
+      try {
+        const conversation = await getConversationParticipants(role, conversationId, accountId);
+        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+        const otherId = role === "buyer" ? conversation.student_id : conversation.customer_id;
+        await new Promise((resolve, reject) => {
+          db.query(
+            `DELETE FROM chat_blocks
+             WHERE blocker_type = ? AND blocker_id = ? AND blocked_type = ? AND blocked_id = ?`,
+            [role, accountId, otherType, otherId],
+            (error) => (error ? reject(error) : resolve()),
+          );
+        });
+        res.status(204).end();
+      } catch (error) {
+        console.error("Chat unblock failed:", error);
+        res.status(500).json({ message: "Unable to unblock user" });
+      }
+    });
+
+    router.delete(`/${role}/conversations/:conversationId`, authenticate, async (req, res) => {
+      const conversationId = Number(req.params.conversationId);
+      const accountId = getAccountId(req.user);
+      if (!Number.isInteger(conversationId) || conversationId <= 0) {
+        return res.status(400).json({ message: "Invalid conversation id" });
+      }
+
+      try {
+        const conversation = await getConversationParticipants(role, conversationId, accountId);
+        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+        await hideConversationForAccount(conversationId, role, accountId);
+        res.status(204).end();
+      } catch (error) {
+        console.error("Chat delete failed:", error);
+        res.status(500).json({ message: "Unable to delete chat" });
+      }
+    });
+  };
+
+  registerConversationActions(
+    "buyer",
+    authenticateBuyer,
+    (user) => user.customer_id || user.id,
+    "seller",
+  );
+  registerConversationActions(
+    "seller",
+    authenticateSeller,
+    (user) => user.student_id || user.id,
+    "buyer",
+  );
 
   router.get("/buyer/notifications", authenticateBuyer, (req, res) => {
     fetchAccountNotifications("buyer", req.user.customer_id || req.user.id)
@@ -260,7 +503,12 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
         return res.status(404).json({ message: "Seller not found" });
       }
 
+      if (await isChatBlocked(sellerId, buyerId)) {
+        return res.status(403).json({ message: "Messaging is unavailable for this account" });
+      }
+
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
+      await restoreConversationForAccount(conversationId, "buyer", buyerId);
       res.status(201).json({ conversation_id: conversationId });
     } catch (error) {
       console.error("Buyer conversation creation failed:", error);
@@ -288,7 +536,12 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
         return res.status(404).json({ message: "Buyer not found" });
       }
 
+      if (await isChatBlocked(sellerId, buyerId)) {
+        return res.status(403).json({ message: "Messaging is unavailable for this account" });
+      }
+
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
+      await restoreConversationForAccount(conversationId, "seller", sellerId);
       res.status(201).json({ conversation_id: conversationId });
     } catch (error) {
       console.error("Seller conversation creation failed:", error);
@@ -328,14 +581,21 @@ router.get("/buyer/conversations/:conversationId/messages", authenticateBuyer, (
       ORDER BY date_created ASC
     `;
 
-    db.query(sql, [conversationId], (messageErr, rows) => {
-      if (messageErr) {
-        console.error("Message fetch failed:", messageErr);
-        return res.status(500).json({ message: "Unable to load messages" });
-      }
+    markConversationRead(conversationId, "buyer", buyerId)
+      .then(() => {
+        db.query(sql, [conversationId], (messageErr, rows) => {
+          if (messageErr) {
+            console.error("Message fetch failed:", messageErr);
+            return res.status(500).json({ message: "Unable to load messages" });
+          }
 
-      res.json(rows);
-    });
+          res.json(rows);
+        });
+      })
+      .catch((error) => {
+        console.error("Message read update failed:", error);
+        res.status(500).json({ message: "Unable to load messages" });
+      });
   });
 });
 
@@ -371,14 +631,21 @@ router.get("/seller/conversations/:conversationId/messages", authenticateSeller,
       ORDER BY date_created ASC
     `;
 
-    db.query(sql, [conversationId], (messageErr, rows) => {
-      if (messageErr) {
-        console.error("Message fetch failed:", messageErr);
-        return res.status(500).json({ message: "Unable to load messages" });
-      }
+    markConversationRead(conversationId, "seller", sellerId)
+      .then(() => {
+        db.query(sql, [conversationId], (messageErr, rows) => {
+          if (messageErr) {
+            console.error("Message fetch failed:", messageErr);
+            return res.status(500).json({ message: "Unable to load messages" });
+          }
 
-      res.json(rows);
-    });
+          res.json(rows);
+        });
+      })
+      .catch((error) => {
+        console.error("Message read update failed:", error);
+        res.status(500).json({ message: "Unable to load messages" });
+      });
   });
 });
 
@@ -401,6 +668,10 @@ router.post("/buyer/conversations/:sellerId/messages", authenticateBuyer, chatUp
   }
 
   try {
+    if (await isChatBlocked(sellerId, buyerId)) {
+      return res.status(403).json({ message: "Messaging is unavailable for this account" });
+    }
+
     const conversationId = await getOrCreateConversation(sellerId, buyerId);
 
     const insertSql = `
@@ -452,6 +723,10 @@ router.post("/seller/conversations/:buyerId/messages", authenticateSeller, chatU
   }
 
   try {
+    if (await isChatBlocked(sellerId, buyerId)) {
+      return res.status(403).json({ message: "Messaging is unavailable for this account" });
+    }
+
     const conversationId = await getOrCreateConversation(sellerId, buyerId);
 
     const insertSql = `

@@ -7,12 +7,18 @@ import {
   Box,
   Button,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   List,
   ListItemAvatar,
   ListItemButton,
   ListItemText,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -24,7 +30,9 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import SendIcon from "@mui/icons-material/Send";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import CircleIcon from "@mui/icons-material/Circle";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import PermMediaOutlinedIcon from "@mui/icons-material/PermMediaOutlined";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -33,6 +41,10 @@ import {
   fetchSellerConversations,
   fetchSellerMessages,
   fetchSellerNotifications,
+  deleteSellerConversation,
+  fetchSellerChatBlockStatus,
+  blockSellerChatUser,
+  unblockSellerChatUser,
   startSellerConversation,
   sendSellerMessage,
   registerSellerChatKey,
@@ -53,6 +65,13 @@ const formatMessageTime = (dateString) => {
     minute: "2-digit",
   }).format(date);
 };
+
+const clearConversationUnreadCount = (items, conversationId) =>
+  items.map((conversation) =>
+    String(conversation.conversation_id) === String(conversationId)
+      ? { ...conversation, unread_count: 0 }
+      : conversation,
+  );
 
 const toAbsoluteMediaUrl = (url) => {
   if (!url) return null;
@@ -84,6 +103,14 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [encryptionReady, setEncryptionReady] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
+  const [actionDialog, setActionDialog] = useState("");
+  const [blockStatus, setBlockStatus] = useState({
+    blocked_by_me: false,
+    blocked_by_other: false,
+  });
+  const [blockStatusConversationId, setBlockStatusConversationId] = useState(null);
 
   const fileInputRef = useRef(null);
   const privateKeyRef = useRef(null);
@@ -126,6 +153,33 @@ export default function Messages() {
   const activeNotification = notifications.find(
     (notification) => notification.notification_id === selectedNotificationId,
   );
+  const isChatBlocked =
+    String(blockStatusConversationId) === String(selectedConversationId) &&
+    (Boolean(blockStatus.blocked_by_me) || Boolean(blockStatus.blocked_by_other));
+  const sharedMedia = messages.filter((message) => message.image);
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      setBlockStatusConversationId(null);
+      setBlockStatus({ blocked_by_me: false, blocked_by_other: false });
+      return undefined;
+    }
+
+    let active = true;
+    fetchSellerChatBlockStatus(selectedConversationId)
+      .then((status) => {
+        if (!active) return;
+        setBlockStatus(status);
+        setBlockStatusConversationId(selectedConversationId);
+      })
+      .catch((err) => {
+        if (active) setError(err.message || "Unable to load chat settings");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedConversationId]);
 
   useEffect(() => {
     const loadConversations = async (initialLoad = false) => {
@@ -135,14 +189,26 @@ export default function Messages() {
           setError("");
         }
         const data = await fetchSellerConversations();
-        setConversations(data || []);
+        const conversationList = data || [];
+        const nextSelectedConversationId =
+          selectedConversationId ||
+          (!selectedNotificationId
+            ? conversationList[0]?.conversation_id
+            : null);
+        setConversations(
+          nextSelectedConversationId
+            ? clearConversationUnreadCount(
+                conversationList,
+                nextSelectedConversationId,
+              )
+            : conversationList,
+        );
         if (
-          data &&
-          data.length > 0 &&
+          conversationList.length > 0 &&
           !selectedConversationId &&
           !selectedNotificationId
         ) {
-          setSelectedConversationId(data[0].conversation_id);
+          setSelectedConversationId(conversationList[0].conversation_id);
         }
       } catch (err) {
         setError(err.message || "Unable to load conversations");
@@ -285,7 +351,45 @@ export default function Messages() {
   };
 
   const handleSelectChat = (conversationId) => {
+    setConversations((current) =>
+      clearConversationUnreadCount(current, conversationId),
+    );
     setSelectedConversationId(conversationId);
+  };
+
+  const handleDeleteChat = async () => {
+    try {
+      await deleteSellerConversation(selectedConversationId);
+      setConversations((current) =>
+        current.filter(
+          (chat) => String(chat.conversation_id) !== String(selectedConversationId),
+        ),
+      );
+      setSelectedConversationId(null);
+      setMessages([]);
+      setActionDialog("");
+    } catch (err) {
+      setError(err.message || "Unable to delete chat");
+    }
+  };
+
+  const handleBlockUser = async () => {
+    try {
+      await blockSellerChatUser(selectedConversationId);
+      setBlockStatus((current) => ({ ...current, blocked_by_me: true }));
+      setActionDialog("");
+    } catch (err) {
+      setError(err.message || "Unable to block user");
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    try {
+      await unblockSellerChatUser(selectedConversationId);
+      setBlockStatus((current) => ({ ...current, blocked_by_me: false }));
+    } catch (err) {
+      setError(err.message || "Unable to unblock user");
+    }
   };
 
   const handleImageChange = (e) => {
@@ -589,10 +693,18 @@ export default function Messages() {
                                 >
                                   {chat.last_message || "No messages yet"}
                                 </Typography>
-                                <CircleIcon
-                                  color="primary"
-                                  sx={{ fontSize: 10 }}
-                                />
+                                {Number(chat.unread_count || 0) > 0 && (
+                                  <Box
+                                    aria-label={`${chat.unread_count} unread messages`}
+                                    sx={{
+                                      width: 8,
+                                      height: 8,
+                                      borderRadius: "50%",
+                                      bgcolor: "primary.main",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
                               </Stack>
                             }
                           />
@@ -653,11 +765,58 @@ export default function Messages() {
                 </Box>
               </Stack>
               {!activeNotification && (
-                <IconButton size="small">
+                <IconButton
+                  size="small"
+                  aria-label="Conversation options"
+                  aria-controls={menuAnchorEl ? "seller-chat-actions" : undefined}
+                  aria-haspopup="true"
+                  onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+                >
                   <MoreVertIcon />
                 </IconButton>
               )}
             </Stack>
+
+            {activeChat && (
+              <Menu
+                id="seller-chat-actions"
+                anchorEl={menuAnchorEl}
+                open={Boolean(menuAnchorEl)}
+                onClose={() => setMenuAnchorEl(null)}
+              >
+                <MenuItem
+                  onClick={() => {
+                    setMenuAnchorEl(null);
+                    setMediaDialogOpen(true);
+                  }}
+                >
+                  <PermMediaOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
+                  View photos and videos
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setMenuAnchorEl(null);
+                    setActionDialog("delete");
+                  }}
+                >
+                  <DeleteOutlineIcon fontSize="small" sx={{ mr: 1.5 }} />
+                  Delete chat
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setMenuAnchorEl(null);
+                    if (blockStatus.blocked_by_me) {
+                      handleUnblockUser();
+                    } else {
+                      setActionDialog("block");
+                    }
+                  }}
+                >
+                  <BlockOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
+                  {blockStatus.blocked_by_me ? "Unblock user" : "Block user"}
+                </MenuItem>
+              </Menu>
+            )}
 
             <Box
               ref={messagesContainerRef}
@@ -863,6 +1022,13 @@ export default function Messages() {
                   borderColor: "divider",
                 }}
               >
+                {isChatBlocked && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {blockStatus.blocked_by_me
+                      ? "You blocked this user. Unblock them to send messages."
+                      : "This user has blocked you."}
+                  </Typography>
+                )}
                 <Stack direction="row" spacing={1} alignItems="center">
                   <input
                     type="file"
@@ -871,7 +1037,10 @@ export default function Messages() {
                     style={{ display: "none" }}
                     onChange={handleImageChange}
                   />
-                  <IconButton onClick={() => fileInputRef.current?.click()}>
+                  <IconButton
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isChatBlocked}
+                  >
                     <AttachFileIcon />
                   </IconButton>
 
@@ -880,6 +1049,7 @@ export default function Messages() {
                     size="small"
                     placeholder="Type a message..."
                     value={inputMessage}
+                    disabled={isChatBlocked}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
@@ -888,7 +1058,7 @@ export default function Messages() {
                   <IconButton
                     color="primary"
                     onClick={handleSendMessage}
-                    disabled={!inputMessage.trim() && !attachedFile}
+                    disabled={isChatBlocked || (!inputMessage.trim() && !attachedFile)}
                     sx={{
                       bgcolor: "primary.main",
                       color: "#fff",
@@ -931,6 +1101,82 @@ export default function Messages() {
           </Box>
         )}
       </Paper>
+
+      <Dialog
+        open={mediaDialogOpen}
+        onClose={() => setMediaDialogOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>Photos and videos</DialogTitle>
+        <DialogContent>
+          {sharedMedia.length ? (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: 1.5,
+              }}
+            >
+              {sharedMedia.map((media) => {
+                const isVideo =
+                  media.mediaType?.startsWith("video/") ||
+                  /\.(mp4|mov|webm|ogg|m4v)$/i.test(media.image);
+                return isVideo ? (
+                  <Box
+                    key={media.id}
+                    component="video"
+                    src={media.image}
+                    controls
+                    sx={{ width: "100%", aspectRatio: "1", bgcolor: "black" }}
+                  />
+                ) : (
+                  <Box
+                    key={media.id}
+                    component="img"
+                    src={media.image}
+                    alt="Shared in this conversation"
+                    sx={{
+                      width: "100%",
+                      aspectRatio: "1",
+                      objectFit: "cover",
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          ) : (
+            <Typography color="text.secondary">
+              No photos or videos in this conversation yet.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMediaDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(actionDialog)} onClose={() => setActionDialog("")}>
+        <DialogTitle>
+          {actionDialog === "delete" ? "Delete this chat?" : "Block this user?"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary">
+            {actionDialog === "delete"
+              ? "This removes the conversation from your inbox. The other person’s copy is not deleted."
+              : "You and this user will no longer be able to send messages to each other."}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setActionDialog("")}>Cancel</Button>
+          <Button
+            color={actionDialog === "delete" ? "error" : "primary"}
+            onClick={actionDialog === "delete" ? handleDeleteChat : handleBlockUser}
+          >
+            {actionDialog === "delete" ? "Delete chat" : "Block user"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

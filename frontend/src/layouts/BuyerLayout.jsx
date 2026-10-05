@@ -54,6 +54,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import logo from "../assets/Nexus.png";
 import Footer from "../pages/buyer/Footer";
 import { fetchCart } from "../api/buyer/cartAPI";
+import { fetchBuyerConversations } from "../api/buyer/messageAPI";
 import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
 
 // Animation transition
@@ -94,6 +95,7 @@ function BuyerLayoutContent({ children }) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [profileImage, setProfileImage] = useState("");
   const [cartCount, setCartCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -144,6 +146,28 @@ function BuyerLayoutContent({ children }) {
     window.addEventListener("cart-updated", loadCartCount);
 
     return () => window.removeEventListener("cart-updated", loadCartCount);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const loadUnreadMessageCount = async () => {
+      if (!localStorage.getItem("buyer_token")) {
+        setUnreadMessageCount(0);
+        return;
+      }
+
+      const conversations = await fetchBuyerConversations().catch(() => null);
+      if (!conversations) return;
+      setUnreadMessageCount(
+        conversations.reduce(
+          (total, conversation) => total + Number(conversation.unread_count || 0),
+          0,
+        ),
+      );
+    };
+
+    loadUnreadMessageCount();
+    const intervalId = window.setInterval(loadUnreadMessageCount, 5000);
+    return () => window.clearInterval(intervalId);
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -223,7 +247,6 @@ function BuyerLayoutContent({ children }) {
     }
   }, [activeIndex]);
 
-  const badgeCount = 10;
   const categoryGroups = [
     {
       title: "Art Type",
@@ -461,7 +484,12 @@ function BuyerLayoutContent({ children }) {
                 navigate("/buyer/messages");
               }}
             >
-              <Badge badgeContent={badgeCount} color="error">
+              <Badge
+                badgeContent={unreadMessageCount}
+                color="error"
+                invisible={unreadMessageCount === 0}
+                max={99}
+              >
                 <ChatIcon />
               </Badge>
             </IconButton>
@@ -625,7 +653,7 @@ function BuyerLayoutContent({ children }) {
                     <ChatIcon fontSize="small" />
                   </ListItemIcon>
                   Messages
-                  {badgeCount > 0 && (
+                  {unreadMessageCount > 0 && (
                     <Box
                       sx={{
                         ml: "auto",
@@ -641,7 +669,7 @@ function BuyerLayoutContent({ children }) {
                         fontWeight: 700,
                       }}
                     >
-                      {badgeCount}
+                      {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
                     </Box>
                   )}
                 </MenuItem>
