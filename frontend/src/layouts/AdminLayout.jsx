@@ -2,7 +2,6 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { AppProvider } from "@toolpad/core";
 import Backdrop from "@mui/material/Backdrop";
-import Badge from "@mui/material/Badge";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import {
@@ -296,9 +295,7 @@ function AdminLayoutContent({ children }) {
         aria-label="Open notifications"
         sx={{ color: "text.secondary" }}
       >
-        <Badge variant="dot" color="error">
-          <NotificationsNoneIcon sx={{ fontSize: 22 }} />
-        </Badge>
+        <NotificationsNoneIcon sx={{ fontSize: 22 }} />
       </IconButton>
 
       <Divider

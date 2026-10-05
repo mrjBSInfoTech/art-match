@@ -36,10 +36,51 @@ export const fetchBuyerMessages = async (conversationId) => {
   }
 };
 
+export const deleteBuyerConversation = async (conversationId) => {
+  try {
+    await api.delete(`/buyer/conversations/${conversationId}`);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const fetchBuyerChatBlockStatus = async (conversationId) => {
+  try {
+    const res = await api.get(`/buyer/conversations/${conversationId}/block`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const blockBuyerChatUser = async (conversationId) => {
+  try {
+    await api.post(`/buyer/conversations/${conversationId}/block`);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const unblockBuyerChatUser = async (conversationId) => {
+  try {
+    await api.delete(`/buyer/conversations/${conversationId}/block`);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const fetchBuyerNotifications = async () => {
   try {
     const res = await api.get("/buyer/notifications");
     return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const markBuyerNotificationsRead = async () => {
+  try {
+    await api.post("/buyer/notifications/read");
   } catch (error) {
     handleError(error);
   }

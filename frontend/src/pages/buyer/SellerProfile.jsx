@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -18,6 +19,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import {
   fetchArtworks,
   fetchPublicSellerProfile,
@@ -109,6 +111,7 @@ const formatPrice = (value) =>
   `₱${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 export default function SellerProfile() {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const colors = {
@@ -447,6 +450,19 @@ export default function SellerProfile() {
                     </Typography>
                   </Box>
                 </Stack>
+
+                <Button
+                  variant="contained"
+                  startIcon={<ChatBubbleOutlineIcon />}
+                  onClick={() =>
+                    navigate(
+                      `/buyer/messages?seller=${encodeURIComponent(selectedSeller.student_id)}`,
+                    )
+                  }
+                  sx={{ mt: 2, textTransform: "none", fontWeight: 700 }}
+                >
+                  Message artist
+                </Button>
               </Box>
             </Box>
 

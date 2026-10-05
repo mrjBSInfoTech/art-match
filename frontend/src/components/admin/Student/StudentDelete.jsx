@@ -133,7 +133,6 @@ function StudentDelete({ open, handleClose, onSubmit, selectedStudent }) {
             color="error"
             variant="contained"
             sx={{
-              color: theme.palette.text.primary,
               borderRadius: 1.5,
               px: 2.5,
               textTransform: "none",
