@@ -1,0 +1,76 @@
+{
+    "threshold": 0.15,
+    "precision": 0.7166666666666667,
+    "coverage": 1.0,
+    "accepted": 120,
+    "correct": 86,
+    "overall_accuracy": 0.7166666666666667,
+    "average_margin_accepted": 0.6251229833811521,
+    "target_precision": 0.9,
+    "minimum_coverage": 0.6,
+    "classes": [
+        "acrylic",
+        "charcoal",
+        "digital",
+        "oil",
+        "pastel",
+        "pencil",
+        "watercolor"
+    ],
+    "per_class": [
+        {
+            "class": "acrylic",
+            "precision": 0.34615384615384615,
+            "recall": 0.45,
+            "f1": 0.3913043478260869,
+            "true_count": 20,
+            "predicted_count": 26,
+            "correct": 9
+        },
+        {
+            "class": "charcoal",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "true_count": 20,
+            "predicted_count": 20,
+            "correct": 20
+        },
+        {
+            "class": "digital",
+            "precision": 0.7777777777777778,
+            "recall": 0.7,
+            "f1": 0.7368421052631577,
+            "true_count": 20,
+            "predicted_count": 18,
+            "correct": 14
+        },
+        {
+            "class": "oil",
+            "precision": 0.6190476190476191,
+            "recall": 0.65,
+            "f1": 0.6341463414634146,
+            "true_count": 20,
+            "predicted_count": 21,
+            "correct": 13
+        },
+        {
+            "class": "pencil",
+            "precision": 0.9444444444444444,
+            "recall": 0.85,
+            "f1": 0.8947368421052632,
+            "true_count": 20,
+            "predicted_count": 18,
+            "correct": 17
+        },
+        {
+            "class": "watercolor",
+            "precision": 0.7647058823529411,
+            "recall": 0.65,
+            "f1": 0.7027027027027027,
+            "true_count": 20,
+            "predicted_count": 17,
+            "correct": 13
+        }
+    ]
+}

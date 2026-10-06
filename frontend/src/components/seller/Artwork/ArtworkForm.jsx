@@ -67,6 +67,8 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
   const [formData, setFormData] = useState({
     title: "",
+    art_type: "physical",
+    product: "",
     art_size: "",
     genre: "",
     price: "",
@@ -82,11 +84,22 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
   const [uploadError, setUploadError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const uploadReminder =
+    formData.art_type && formData.product === "painting"
+      ? formData.art_type === "digital"
+        ? "Upload the complete digital artwork. Avoid screenshots with app controls, borders, or other background content so the artwork fills the image."
+        : "Take a straight-on photo of the entire painting and crop out the surrounding background. A scanner app such as CamScanner can help make the painting fill the image."
+      : formData.art_type && formData.product === "3d_object"
+        ? "Upload a clear, well-lit image of the 3D object. Use a plain, uncluttered background and keep other objects out of the frame because they can affect the machine-learning scan."
+        : "";
+
   useEffect(() => {
     if (selectedArtwork) {
       setFormData({
         title: selectedArtwork.title || "",
         art_size: selectedArtwork.art_size || "",
+        art_type: selectedArtwork.art_type || "",
+        product: selectedArtwork.product || "",
         genre: selectedArtwork.genre || selectedArtwork.color_used || "",
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
@@ -99,6 +112,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
       setFormData({
         title: "",
         art_size: "",
+        art_type: "",
+        product: "",
         genre: "",
         price: "",
         description: "",
@@ -148,12 +163,20 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
       setError("Title is required");
       return;
     }
+    if (!formData.art_type) {
+      setError("Art type is required");
+      return;
+    }
+    if (!formData.product.trim()) {
+      setError("Product type is required");
+      return;
+    }
     if (!formData.art_size.trim()) {
       setError("Art size is required");
       return;
     }
     if (!formData.genre.trim()) {
-      setError("Genre is required");
+      setError("Style is required");
       return;
     }
     if (!formData.price || Number(formData.price) <= 0) {
@@ -186,7 +209,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
@@ -202,7 +224,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
@@ -311,6 +332,15 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
             />
           </Button>
 
+          {uploadReminder && (
+            <Alert severity="info" aria-live="polite">
+              <Typography component="span" fontWeight={700}>
+                Image reminder: {" "}
+              </Typography>
+              {uploadReminder}
+            </Alert>
+          )}
+
           <Box
             sx={{
               display: "grid",
@@ -326,6 +356,35 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               fullWidth
               autoFocus
             />
+
+            {/* Art Type Selection */}
+            <FormControl fullWidth>
+              <InputLabel>Art Type</InputLabel>
+              <Select
+                label="Art Type"
+                name="art_type"
+                value={formData.art_type}
+                onChange={handleChange}
+              >
+                <MenuItem value="physical">Physical</MenuItem>
+                <MenuItem value="digital">Digital</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Product Selection */}
+            <FormControl fullWidth>
+              <InputLabel>Product Type</InputLabel>
+              <Select
+                label="Product Type"
+                name="product"
+                value={formData.product}
+                onChange={handleChange}
+              >
+                <MenuItem value="painting">Painting</MenuItem>
+                <MenuItem value="3d_object">3D Object</MenuItem>
+              </Select>
+            </FormControl>
+
             <TextField
               label="Art size"
               name="art_size"
@@ -333,10 +392,11 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               onChange={handleChange}
               fullWidth
             />
+
             <FormControl fullWidth>
-              <InputLabel>Genre</InputLabel>
+              <InputLabel>Style</InputLabel>
               <Select
-                label="Genre"
+                label="Style"
                 name="genre"
                 value={formData.genre}
                 onChange={handleChange}
@@ -349,6 +409,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
                 <MenuItem value="Landscape">Landscape</MenuItem>
               </Select>
             </FormControl>
+
             <TextField
               label="Price"
               name="price"
@@ -357,6 +418,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               onChange={handleChange}
               fullWidth
             />
+
             <TextField
               label="Description"
               name="description"

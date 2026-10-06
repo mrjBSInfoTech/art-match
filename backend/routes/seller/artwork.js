@@ -68,6 +68,8 @@ router.get("/", authenticateSeller, (req, res) => {
         a.genre,
         a.color_used,
         a.art_size,
+        a.art_type,
+        a.product,
         au.request_status,
         a.date_created,
         f.feature_scanned,
@@ -111,6 +113,8 @@ router.get("/:id", authenticateSeller, (req, res) => {
         a.genre,
         a.color_used,
         a.art_size,
+        a.art_type,
+        a.product,
         au.request_status,
         a.date_created,
         f.feature_scanned,
@@ -136,15 +140,20 @@ router.get("/:id", authenticateSeller, (req, res) => {
 });
 
 // Add new artwork
-router.post("/", authenticateSeller, upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No image file uploaded" });
-    }
+router.post(
+  "/",
+  authenticateSeller,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file uploaded" });
+      }
 
-    const studentId = req.user?.student_id || req.user?.id;
+      const studentId = req.user?.student_id || req.user?.id;
 
-    {/* // For future use
+      {
+        /* // For future use
     const hasPostedToday = await new Promise((resolve, reject) => {
       const checkSql = `
         SELECT COUNT(*) AS post_count 
@@ -168,91 +177,146 @@ router.post("/", authenticateSeller, upload.single("file"), async (req, res) => 
         error: "Daily limit reached. You can only upload 1 art per day. Please try again tomorrow.",
       });
     }  
-    */}
-
-    const { title, art_size, genre, price, description, date_posted } = req.body;
-    const createdAt = date_posted || new Date().toISOString().slice(0, 19).replace("T", " ");
-
-    if (!studentId) {
-      return res.status(403).json({ error: "Unable to identify seller" });
-    }
-    if (!title || !art_size || !genre || !price || !description) {
-      return res.status(400).json({ error: "Please fill all required fields." });
-    }
-
-    const absoluteImagePath = path.join(uploadDir, req.file.filename);
-    let detectedColors = "Pending";
-
-    // Call Local Python ML API Service for Color Extraction
-    try {
-      const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_path: absoluteImagePath }),
-      });
-
-      if (mlResponse.ok) {
-        const mlData = await mlResponse.json();
-        if (mlData.success && Array.isArray(mlData.colors) && mlData.colors.length > 0) {
-          detectedColors = mlData.colors.join(", ");
-        }
+    */
       }
-    } catch (mlError) {
-      console.error("Python ML Service offline, saving default color status:", mlError.message);
-    }
 
-    const imageName = req.file.filename;
-    const sql = `
+      const {
+        title,
+        art_size,
+        art_type,
+        product,
+        genre,
+        price,
+        description,
+        date_posted,
+      } = req.body;
+      const createdAt =
+        date_posted || new Date().toISOString().slice(0, 19).replace("T", " ");
+
+      if (!studentId) {
+        return res.status(403).json({ error: "Unable to identify seller" });
+      }
+      if (!title || !art_size || !genre || !price || !description) {
+        return res
+          .status(400)
+          .json({ error: "Please fill all required fields." });
+      }
+
+      const absoluteImagePath = path.join(uploadDir, req.file.filename);
+      let detectedColors = "Pending";
+
+      // Call Local Python ML API Service for Color Extraction
+      try {
+        const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_path: absoluteImagePath,
+            artwork_type: art_type.trim().toLowerCase(),
+            product: product.trim().toLowerCase(),
+          }),
+        });
+
+        if (mlResponse.ok) {
+          const mlData = await mlResponse.json();
+          if (
+            mlData.success &&
+            Array.isArray(mlData.colors) &&
+            mlData.colors.length > 0
+          ) {
+            detectedColors = mlData.colors.join(", ");
+            console.log("Detected colors:", detectedColors);
+            // =====================================================
+            // FUTURE USE: ML-detected features and mediums
+            // Keep this commented until the feature/medium results
+            // are ready to be saved to the database.
+            // =====================================================
+
+            // if (
+            //   mlData.success &&
+            //   Array.isArray(mlData.features) &&
+            //   mlData.features.length > 0
+            // ) {
+            //   const detectedFeatures = mlData.features.join(", ");
+            //   console.log("Detected features:", detectedFeatures);
+            // }
+
+            // if (
+            //   mlData.success &&
+            //   Array.isArray(mlData.mediums) &&
+            //   mlData.mediums.length > 0
+            // ) {
+            //   const detectedMediums =
+            //     art_type.trim().toLowerCase() === "digital"
+            //       ? "Digital"
+            //       : mlData.mediums.join(", ");
+            //
+            //   console.log("Detected mediums:", detectedMediums);
+            // }
+          }
+        }
+      } catch (mlError) {
+        console.error(
+          "Python ML Service offline, saving default color status:",
+          mlError.message,
+        );
+      }
+
+      const imageName = req.file.filename;
+      const sql = `
       INSERT INTO artwork
-      (student_id, title, art_size, genre, color_used, price, description, image, date_created)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (student_id, title, art_size, art_type, product, genre, color_used, price, description, image, date_created)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(
-      sql,
-      [
-        studentId,
-        title.trim(),
-        art_size.trim(),
-        genre.trim(),
-        detectedColors,
-        price,
-        description.trim(),
-        imageName,
-        createdAt,
-      ],
-      (err, result) => {
-        if (err) {
-          console.error("DB Error:", err);
-          return res.status(500).json({ error: err.message });
-        }
+      db.query(
+        sql,
+        [
+          studentId,
+          title.trim(),
+          art_size.trim(),
+          art_type.trim(),
+          product.trim(),
+          genre.trim(),
+          detectedColors,
+          price,
+          description.trim(),
+          imageName,
+          createdAt,
+        ],
+        (err, result) => {
+          if (err) {
+            console.error("DB Error:", err);
+            return res.status(500).json({ error: err.message });
+          }
 
-        const artworkId = result.insertId;
+          const artworkId = result.insertId;
 
-        const artUploadSql = `
+          const artUploadSql = `
           INSERT INTO artupload (artwork_id, request_status, request_date)
           VALUES (?, 'Pending', ?)
         `;
 
-        db.query(artUploadSql, [artworkId, createdAt], (uploadErr) => {
-          if (uploadErr) {
-            console.error("ArtUpload DB Error:", uploadErr);
-            return res.status(500).json({ error: uploadErr.message });
-          }
+          db.query(artUploadSql, [artworkId, createdAt], (uploadErr) => {
+            if (uploadErr) {
+              console.error("ArtUpload DB Error:", uploadErr);
+              return res.status(500).json({ error: uploadErr.message });
+            }
 
-          res.json({
-            message: "Artwork added successfully!",
-            id: artworkId,
-            colors: detectedColors,
+            res.json({
+              message: "Artwork added successfully!",
+              id: artworkId,
+              colors: detectedColors,
+            });
           });
-        });
-      }
-    );
-  } catch (error) {
-    console.error("Error creating artwork:", error);
-    res.status(500).json({ error: "Failed to process artwork submission." });
-  }
-});
+        },
+      );
+    } catch (error) {
+      console.error("Error creating artwork:", error);
+      res.status(500).json({ error: "Failed to process artwork submission." });
+    }
+  },
+);
 
 // Update artwork
 router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
@@ -261,6 +325,8 @@ router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
   const {
     title,
     art_size,
+    art_type,
+    product,
     genre,
     price,
     description,
@@ -285,14 +351,14 @@ router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
             fs.unlinkSync(oldImagePath);
           }
         }
-      }
+      },
     );
   }
 
   const imageName = req.file ? req.file.filename : null;
   const sql = `
     UPDATE artwork
-    SET title = ?, art_size = ?, genre = ?, color_used = ?, price = ?, description = ?, image = COALESCE(?, image)
+    SET title = ?, art_size = ?, art_type = ?, product = ?, genre = ?, color_used = ?, price = ?, description = ?, image = COALESCE(?, image)
     WHERE artwork_id = ? AND student_id = ?
   `;
 
@@ -301,6 +367,8 @@ router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
     [
       title.trim(),
       art_size.trim(),
+      art_type.trim(),
+      product.trim(),
       genre.trim(),
       (color_used || "").trim(),
       price,
@@ -318,7 +386,7 @@ router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
         return res.status(404).json({ error: "Artwork not found" });
       }
       res.json({ message: "Artwork updated successfully" });
-    }
+    },
   );
 });
 

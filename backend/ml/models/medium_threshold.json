@@ -1,0 +1,24 @@
+{
+    "threshold": 0.55,
+    "precision": 0.907103825136612,
+    "recall": 0.6384615384615384,
+    "f1": 0.7494356659142211,
+    "coverage": 0.7038461538461539,
+    "accepted": 183,
+    "validation_images": 260,
+    "classes": [
+        "acrylic",
+        "acrylic_plastic",
+        "ceramic_sculpture",
+        "charcoal",
+        "digital",
+        "metal_enamel",
+        "metal_sculpture",
+        "oil",
+        "pencil",
+        "recycle_sculpture",
+        "watercolor",
+        "wood_sculpture",
+        "yarn_textile"
+    ]
+}

@@ -3,7 +3,7 @@ from PIL import Image, ImageFile
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-dataset_dirs = ["datasets/features", "datasets/mediums"]
+dataset_dirs = ["datasets/mediums_2d"]
 corrupted_count = 0
 resized_count = 0
 MAX_DIM = 600  # ResNet only needs 224x224, so max 600px is more than enough
