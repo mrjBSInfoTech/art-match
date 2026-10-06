@@ -1,0 +1,94 @@
+{
+    "model": "medium_2d_scanner.pth",
+    "classes": [
+        "acrylic",
+        "charcoal",
+        "digital",
+        "oil",
+        "pastel",
+        "pencil",
+        "watercolor"
+    ],
+    "validation_images": 700,
+    "overall_accuracy": 0.7514285714285714,
+    "precision_target": 0.9,
+    "thresholds": {
+        "acrylic": {
+            "threshold": 0.15,
+            "precision": 0.5420560747663551,
+            "coverage": 0.15285714285714286,
+            "accepted": 107,
+            "correct": 58,
+            "recall": 0.58,
+            "f1": 0.5603864734299516,
+            "fallback": true,
+            "reason": "No threshold reached 90% precision; selected best F1."
+        },
+        "charcoal": {
+            "threshold": 0.57,
+            "precision": 0.90625,
+            "coverage": 0.13714285714285715,
+            "accepted": 96,
+            "correct": 87,
+            "recall": 0.87,
+            "f1": 0.8877551020408163,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "digital": {
+            "threshold": 0.52,
+            "precision": 0.9032258064516129,
+            "coverage": 0.13285714285714287,
+            "accepted": 93,
+            "correct": 84,
+            "recall": 0.84,
+            "f1": 0.8704663212435233,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "oil": {
+            "threshold": 0.3,
+            "precision": 0.6363636363636364,
+            "coverage": 0.12571428571428572,
+            "accepted": 88,
+            "correct": 56,
+            "recall": 0.56,
+            "f1": 0.5957446808510639,
+            "fallback": true,
+            "reason": "No threshold reached 90% precision; selected best F1."
+        },
+        "pastel": {
+            "threshold": 0.58,
+            "precision": 0.921875,
+            "coverage": 0.09142857142857143,
+            "accepted": 64,
+            "correct": 59,
+            "recall": 0.59,
+            "f1": 0.7195121951219512,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "pencil": {
+            "threshold": 0.5,
+            "precision": 0.9090909090909091,
+            "coverage": 0.12571428571428572,
+            "accepted": 88,
+            "correct": 80,
+            "recall": 0.8,
+            "f1": 0.8510638297872342,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "watercolor": {
+            "threshold": 0.59,
+            "precision": 0.9014084507042254,
+            "coverage": 0.10142857142857142,
+            "accepted": 71,
+            "correct": 64,
+            "recall": 0.64,
+            "f1": 0.7485380116959065,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        }
+    }
+}

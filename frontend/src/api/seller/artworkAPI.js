@@ -17,18 +17,14 @@ api.interceptors.request.use((config) => {
 
 const handleError = (error) => {
   if (error.response) {
-    console.error(
-      "Server error:",
-      error.response.status,
-      error.response.data
-    );
+    console.error("Server error:", error.response.status, error.response.data);
     throw new Error(
-      error.response.data.message || "Server responded with an error"
+      error.response.data.message || "Server responded with an error",
     );
   } else if (error.request) {
     console.error("No response from server:", error.message);
     throw new Error(
-      "Server not responding. Please check your connection or try again later."
+      "Server not responding. Please check your connection or try again later.",
     );
   } else {
     console.error("Request setup error:", error.message);
@@ -77,14 +73,28 @@ export const addArtwork = async (artworkData) => {
     if (!artworkData.file) {
       throw new Error("Image file is required");
     }
+    if (!artworkData.genre || !artworkData.genre.trim()) {
+      throw new Error("Style is required");
+    }
+    if (!artworkData.art_size || !artworkData.art_size.trim()) {
+      throw new Error("Art size is required");
+    }
+    if (!artworkData.art_type || !artworkData.art_type.trim()) {
+      throw new Error("Art type is required");
+    }
+    if (!artworkData.product || !artworkData.product.trim()) {
+      throw new Error("Product type is required");
+    }
 
     const formData = new FormData();
-    formData.append('file', artworkData.file);
-    formData.append('title', artworkData.title.trim());
-    formData.append('description', artworkData.description.trim());
-    formData.append('price', artworkData.price);
-    formData.append('genre', artworkData.genre.trim());
-    formData.append('art_size', artworkData.art_size.trim());
+    formData.append("file", artworkData.file);
+    formData.append("title", artworkData.title.trim());
+    formData.append("description", artworkData.description.trim());
+    formData.append("price", artworkData.price);
+    formData.append("genre", artworkData.genre.trim());
+    formData.append("art_size", artworkData.art_size.trim());
+    formData.append("art_type", artworkData.art_type.trim());
+    formData.append("product", artworkData.product.trim());
 
     const res = await api.post("/artwork", formData);
     return res.data;
@@ -92,7 +102,6 @@ export const addArtwork = async (artworkData) => {
     handleError(error);
   }
 };
-
 
 // Update artwork
 export const updateArtwork = async (id, artworkData) => {
@@ -106,16 +115,24 @@ export const updateArtwork = async (id, artworkData) => {
     if (!artworkData.price || isNaN(artworkData.price)) {
       throw new Error("Valid price is required");
     }
+    if (!artworkData.art_type || !artworkData.art_type.trim()) {
+      throw new Error("Art type is required");
+    } 
+    if (!artworkData.product || !artworkData.product.trim()) {
+      throw new Error("Product type is required");
+    }
 
     const formData = new FormData();
     if (artworkData.file) {
-      formData.append('file', artworkData.file);
+      formData.append("file", artworkData.file);
     }
-    formData.append('title', artworkData.title.trim());
-    formData.append('description', artworkData.description.trim());
-    formData.append('price', artworkData.price);
-    formData.append('genre', artworkData.genre.trim());
-    formData.append('art_size', artworkData.art_size.trim());
+    formData.append("title", artworkData.title.trim());
+    formData.append("description", artworkData.description.trim());
+    formData.append("price", artworkData.price);
+    formData.append("genre", artworkData.genre.trim());
+    formData.append("art_size", artworkData.art_size.trim());
+    formData.append("art_type", artworkData.art_type.trim());
+    formData.append("product", artworkData.product.trim());
 
     const res = await api.put(`/artwork/${id}`, formData);
     return res.data;

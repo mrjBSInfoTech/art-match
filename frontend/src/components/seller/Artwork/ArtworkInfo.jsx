@@ -294,9 +294,21 @@ function ArtworkInfo({
                     : "N/A"}
                 </Typography>
               </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Art Type</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatList(artwork.art_type) || "N/A"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Product</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatList(artwork.product) || "N/A"}
+                </Typography>
+              </Box>
 
               <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
-                <Typography sx={detailLabelSx}>Color Used</Typography>
+                <Typography sx={detailLabelSx}>Color(s) Used</Typography>
                 {colors.length > 0 ? (
                   <Stack direction="row" flexWrap="wrap" gap={0.75}>
                     {colors.map((color, index) => (

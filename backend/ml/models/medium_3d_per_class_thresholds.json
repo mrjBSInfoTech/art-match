@@ -1,0 +1,94 @@
+{
+    "model": "medium_3d_scanner.pth",
+    "classes": [
+        "acrylic_plastic",
+        "ceramic_sculpture",
+        "metal_enamel",
+        "metal_sculpture",
+        "recycle_sculpture",
+        "wood_sculpture",
+        "yarn_textile"
+    ],
+    "validation_images": 140,
+    "overall_accuracy": 0.8642857142857143,
+    "precision_target": 0.9,
+    "thresholds": {
+        "acrylic_plastic": {
+            "threshold": 0.15,
+            "precision": 0.9,
+            "coverage": 0.14285714285714285,
+            "accepted": 20,
+            "correct": 18,
+            "recall": 0.9,
+            "f1": 0.9,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "ceramic_sculpture": {
+            "threshold": 0.67,
+            "precision": 0.9,
+            "coverage": 0.14285714285714285,
+            "accepted": 20,
+            "correct": 18,
+            "recall": 0.9,
+            "f1": 0.9,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "metal_enamel": {
+            "threshold": 0.15,
+            "precision": 0.95,
+            "coverage": 0.14285714285714285,
+            "accepted": 20,
+            "correct": 19,
+            "recall": 0.95,
+            "f1": 0.9500000000000001,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "metal_sculpture": {
+            "threshold": 0.76,
+            "precision": 0.9090909090909091,
+            "coverage": 0.07857142857142857,
+            "accepted": 11,
+            "correct": 10,
+            "recall": 0.5,
+            "f1": 0.6451612903225806,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "recycle_sculpture": {
+            "threshold": 0.4,
+            "precision": 0.9333333333333333,
+            "coverage": 0.10714285714285714,
+            "accepted": 15,
+            "correct": 14,
+            "recall": 0.7,
+            "f1": 0.8,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "wood_sculpture": {
+            "threshold": 0.15,
+            "precision": 0.9,
+            "coverage": 0.14285714285714285,
+            "accepted": 20,
+            "correct": 18,
+            "recall": 0.9,
+            "f1": 0.9,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        },
+        "yarn_textile": {
+            "threshold": 0.15,
+            "precision": 1.0,
+            "coverage": 0.12857142857142856,
+            "accepted": 18,
+            "correct": 18,
+            "recall": 0.9,
+            "f1": 0.9473684210526316,
+            "fallback": false,
+            "reason": "Meets 90% precision target; maximized coverage."
+        }
+    }
+}
