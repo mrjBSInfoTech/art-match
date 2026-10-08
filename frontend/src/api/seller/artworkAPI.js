@@ -19,7 +19,7 @@ const handleError = (error) => {
   if (error.response) {
     console.error("Server error:", error.response.status, error.response.data);
     throw new Error(
-      error.response.data.message || "Server responded with an error",
+      error.response.data.message || error.response.data.error || "Server responded with an error",
     );
   } else if (error.request) {
     console.error("No response from server:", error.message);
@@ -140,7 +140,15 @@ export const updateArtwork = async (id, artworkData) => {
     handleError(error);
   }
 };
-
+// Verify artwork
+export const verifyArtwork = async (id) => {
+  try {
+    const res = await api.put(`/artwork/${id}/verify`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
 // Delete artwork
 export const deleteArtwork = async (id) => {
   try {

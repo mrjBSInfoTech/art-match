@@ -222,7 +222,7 @@ function ArtworkInfo({
                 }}
               />
               <Chip
-                label={isVerified ? "APPROVED" : "PENDING"}
+                label={String(artwork?.request_status || "Unverified").toUpperCase()}
                 size="small"
                 sx={{
                   position: "absolute",
@@ -380,12 +380,9 @@ function ArtworkInfo({
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
       >
-        {!isVerified && canEdit && (
+        {String(artwork?.request_status || "").toLowerCase() === "unverified" && canEdit && (
           <Button
-            onClick={async () => {
-              await onVerify?.(artwork);
-              handleClose();
-            }}
+            onClick={() => onVerify?.(artwork)}
             variant="contained"
             startIcon={<CheckIcon />}
             sx={{

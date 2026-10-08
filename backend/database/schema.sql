@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS artupload (
   artupload_id INT AUTO_INCREMENT PRIMARY KEY,
   artwork_id INT NOT NULL UNIQUE,
   admin_id INT NULL,
-  request_status VARCHAR(30) NOT NULL DEFAULT 'Pending',
+  request_status ENUM('Pending', 'Verified', 'Unverified', 'Rejected') NOT NULL NOT NULL DEFAULT 'Unverified',
   request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   approved_date DATETIME NULL,
   CONSTRAINT fk_artupload_artwork

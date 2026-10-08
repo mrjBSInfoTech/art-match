@@ -15,6 +15,7 @@ import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
+import CancelSharpIcon from '@mui/icons-material/CancelSharp';
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -372,10 +373,24 @@ function ArtworkInfo({
       >
         {!isVerified && canEdit && (
           <Button
-            onClick={async () => {
-              await onVerify?.(artwork);
-              handleClose();
+            onClick={() => onVerify?.(artwork)}
+            variant="contained"
+            startIcon={<CancelSharpIcon />}
+            sx={{
+              backgroundColor: "#be4f4f",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              "&:hover": { backgroundColor: "#a93d3d" },
             }}
+          >
+            Reject 
+          </Button>
+        )}
+        
+        {!isVerified && canEdit && (
+          <Button
+            onClick={() => onVerify?.(artwork)}
             variant="contained"
             startIcon={<CheckIcon />}
             sx={{
@@ -386,7 +401,7 @@ function ArtworkInfo({
               "&:hover": { backgroundColor: "#3da98c" },
             }}
           >
-            Verify Artwork
+            Verify 
           </Button>
         )}
         <Button

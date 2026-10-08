@@ -18,9 +18,10 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InfoIcon from "@mui/icons-material/Info";
 
-export default function ArtworkCard({ artworks, onEdit, onDelete }) {
+export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
@@ -118,7 +119,7 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
               alt={artwork.title}
             />
             <Chip
-              label={isVerified(artwork) ? "APPROVED" : "PENDING"}
+              label={(getRequestStatus(artwork) || "Unverified").toUpperCase()}
               size="small"
               sx={{
                 position: "absolute",
@@ -250,6 +251,19 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
                 Edit
               </MenuItem>
               <MenuItem
+                disabled={getRequestStatus(artwork).toLowerCase() !== "unverified"}
+                onClick={() => {
+                  onVerify(selectedArtwork);
+                  handleMenuClose();
+                }}
+                sx={{
+                  color: "warning.main",
+                }}
+              >
+                <CheckCircleIcon sx={{ mr: 1, fontSize: "20px" }} />
+                Verify
+              </MenuItem>
+              <MenuItem
                 onClick={() => {
                   onDelete(selectedArtwork.artwork_id);
                   handleMenuClose();
@@ -271,6 +285,8 @@ export default function ArtworkCard({ artworks, onEdit, onDelete }) {
         open={openInfoDialog}
         handleClose={handleInfoClose}
         selectedArtwork={selectedArtwork}
+        onVerify={onVerify}
+        canEdit={Boolean(onVerify)}
       />
     </Box>
   );
