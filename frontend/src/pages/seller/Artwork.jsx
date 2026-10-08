@@ -23,12 +23,14 @@ import { useTheme } from "@mui/material/styles";
 import ArtworkCard from "../../components/seller/Artwork/ArtworkCard";
 import ArtworkForm from "../../components/seller/Artwork/ArtworkForm";
 import ArtworkDelete from "../../components/seller/Artwork/ArtworkDelete";
+import ArtworkVerify from "../../components/seller/Artwork/ArtworkVerify";
 import ArtworkErrorAdd from "../../components/seller/Artwork/ArtworkErrorAdd";
 import {
   fetchArtworks,
   addArtwork,
   updateArtwork,
   deleteArtwork,
+  verifyArtwork,
 } from "../../api/seller/artworkAPI";
 // Icons
 import SearchIcon from "@mui/icons-material/Search";
@@ -47,6 +49,7 @@ export default function Artwork() {
   const [artworks, setArtworks] = useState([]);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openArtworkDelete, setOpenArtworkDelete] = useState(false);
+  const [openArtworkVerify, setOpenArtworkVerify] = useState(false);
   const [openArtworkErrorAdd, setOpenArtworkErrorAdd] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -149,6 +152,12 @@ export default function Artwork() {
     setOpenArtworkDelete(true);
   };
 
+  // Open Verify Artwork Modal
+  const handleOpenArtworkVerify = (artwork) => {
+    setSelectedArtwork(artwork);
+    setOpenArtworkVerify(true);
+  };
+
   // Open Error Modal for Adding Artwork
   const handleOpenArtworkErrorAdd = () => {
     setOpenArtworkErrorAdd(true);
@@ -180,7 +189,22 @@ export default function Artwork() {
       setLoading(false);
     }
   };
-
+  // Verify Artwork
+  const handleVerifyArtwork = async (id) => {
+    try {
+      setLoading(true);
+      await verifyArtwork(id);
+      await loadArtworks();
+      setOpenArtworkVerify(false);
+      showSnackbar("Artwork will be verified. Please wait for confirmation.", "success");
+      setLoading(false);
+    } catch (err) {
+      console.error("Error verifying artwork:", err, "error");
+      setArtworkErrorMessage(err.message || "Error verifying artwork", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
   // Delete Artwork
   const handleDeleteArtwork = async (id) => {
     try {
@@ -523,6 +547,7 @@ export default function Artwork() {
           <ArtworkCard
             artworks={filteredArtworks}
             onEdit={handleOpenArtworkEdit}
+            onVerify={handleOpenArtworkVerify}
             onDelete={handleOpenArtworkDelete}
           />
         ) : (
@@ -547,6 +572,12 @@ export default function Artwork() {
         open={openArtworkDelete}
         handleClose={() => setOpenArtworkDelete(false)}
         onSubmit={handleDeleteArtwork}
+        selectedArtwork={selectedArtwork}
+      />
+      <ArtworkVerify
+        open={openArtworkVerify}
+        handleClose={() => setOpenArtworkVerify(false)}
+        onSubmit={handleVerifyArtwork}
         selectedArtwork={selectedArtwork}
       />
       <ArtworkErrorAdd

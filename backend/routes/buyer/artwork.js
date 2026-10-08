@@ -70,7 +70,7 @@ router.get("/seller/:id/reviews", (req, res) => {
   );
 });
 
-// Public catalog: return artwork from every seller.
+// Public catalog: return only verified artwork.
 router.get("/", (req, res) => {
   res.set("Cache-Control", "no-store");
   const sql = `
@@ -103,6 +103,11 @@ router.get("/", (req, res) => {
     LEFT JOIN storefront sf ON sf.student_id = a.student_id
     -- Include artworks where the seller either has been verified or has no registration row
     WHERE (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
+      AND EXISTS (
+        SELECT 1 FROM artupload au
+        WHERE au.artwork_id = a.artwork_id
+          AND LOWER(au.request_status) = 'verified'
+      )
     ORDER BY a.date_created DESC, a.artwork_id DESC
   `;
 
@@ -146,6 +151,11 @@ router.get("/:id", (req, res) => {
     LEFT JOIN feature f ON a.artwork_id = f.artwork_id
     LEFT JOIN storefront sf ON sf.student_id = a.student_id
     WHERE a.artwork_id = ? AND (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
+      AND EXISTS (
+        SELECT 1 FROM artupload au
+        WHERE au.artwork_id = a.artwork_id
+          AND LOWER(au.request_status) = 'verified'
+      )
   `;
 
   // Debugging: log the incoming id

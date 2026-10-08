@@ -204,8 +204,10 @@ router.post(
 
       const absoluteImagePath = path.join(uploadDir, req.file.filename);
       let detectedColors = "Pending";
+      let detectedFeatures = null;
+      let detectedMediums = null;
 
-      // Call Local Python ML API Service for Color Extraction
+      // Analyze colors, features, and mediums when the seller uploads artwork.
       try {
         const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
           method: "POST",
@@ -226,33 +228,19 @@ router.post(
           ) {
             detectedColors = mlData.colors.join(", ");
             console.log("Detected colors:", detectedColors);
-            // =====================================================
-            // FUTURE USE: ML-detected features and mediums
-            // Keep this commented until the feature/medium results
-            // are ready to be saved to the database.
-            // =====================================================
+          }
 
-            // if (
-            //   mlData.success &&
-            //   Array.isArray(mlData.features) &&
-            //   mlData.features.length > 0
-            // ) {
-            //   const detectedFeatures = mlData.features.join(", ");
-            //   console.log("Detected features:", detectedFeatures);
-            // }
-
-            // if (
-            //   mlData.success &&
-            //   Array.isArray(mlData.mediums) &&
-            //   mlData.mediums.length > 0
-            // ) {
-            //   const detectedMediums =
-            //     art_type.trim().toLowerCase() === "digital"
-            //       ? "Digital"
-            //       : mlData.mediums.join(", ");
-            //
-            //   console.log("Detected mediums:", detectedMediums);
-            // }
+          if (mlData.success) {
+            detectedFeatures = (Array.isArray(mlData.features)
+              ? mlData.features.join(", ") || "None"
+              : String(mlData.features || "None")).slice(0, 1000);
+            console.log("Detected features:", detectedFeatures);
+            detectedMediums = (art_type.trim().toLowerCase() === "digital"
+              ? "Digital"
+              : Array.isArray(mlData.mediums)
+                ? mlData.mediums.join(", ") || "None"
+                : String(mlData.mediums || "None")).slice(0, 1000);
+            console.log("Detected mediums:", detectedMediums);
           }
         }
       } catch (mlError) {
@@ -294,7 +282,7 @@ router.post(
 
           const artUploadSql = `
           INSERT INTO artupload (artwork_id, request_status, request_date)
-          VALUES (?, 'Pending', ?)
+          VALUES (?, 'Unverified', ?)
         `;
 
           db.query(artUploadSql, [artworkId, createdAt], (uploadErr) => {
@@ -303,11 +291,28 @@ router.post(
               return res.status(500).json({ error: uploadErr.message });
             }
 
-            res.json({
+            const respond = () => res.json({
               message: "Artwork added successfully!",
               id: artworkId,
               colors: detectedColors,
             });
+
+            if (detectedFeatures === null) {
+              return respond();
+            }
+
+            db.query(
+              `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
+               VALUES (?, ?, ?)`,
+              [artworkId, detectedFeatures, detectedMediums],
+              (featureErr) => {
+                if (featureErr) {
+                  console.error("Feature scan DB Error:", featureErr);
+                  return res.status(500).json({ error: featureErr.message });
+                }
+                return respond();
+              },
+            );
           });
         },
       );
@@ -317,6 +322,36 @@ router.post(
     }
   },
 );
+
+// Update artwork verification status
+router.put("/:id/verify", authenticateSeller, (req, res) => {
+  const studentId = req.user?.student_id || req.user?.id;
+  if (!studentId) {
+    return res.status(403).json({ error: "Unable to identify seller" });
+  }
+
+  db.query(
+    `UPDATE artupload au
+     JOIN artwork a ON a.artwork_id = au.artwork_id
+     SET au.request_status = 'Pending', au.request_date = NOW(),
+         au.admin_id = NULL, au.approved_date = NULL
+     WHERE a.artwork_id = ? AND a.student_id = ?
+       AND LOWER(au.request_status) = 'unverified'`,
+    [req.params.id, studentId],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.affectedRows === 0) {
+        return res.status(409).json({
+          error: "Artwork must belong to you and be Unverified to request verification.",
+        });
+      }
+      return res.json({
+        message: "Artwork submitted for verification.",
+        request_status: "Pending",
+      });
+    },
+  );
+});
 
 // Update artwork
 router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {

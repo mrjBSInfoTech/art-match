@@ -20,6 +20,7 @@ import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
+import ArtworkVerify from "../../components/admin/Artwork/ArtworkVerify";
 import { fetchArtworks, verifyArtwork } from "../../api/admin/artworkAPI";
 
 function SlideTransition(props) {
@@ -38,6 +39,7 @@ export default function Artwork() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [verificationArtwork, setVerificationArtwork] = useState(null);
 
   const loadArtworks = async () => {
     try {
@@ -113,10 +115,12 @@ export default function Artwork() {
   const handleVerify = async (artwork) => {
     try {
       await verifyArtwork(artwork.artwork_id);
+      setVerificationArtwork(null);
       showSnackbar("Artwork verified successfully.", "success");
       await loadArtworks();
     } catch (err) {
       showSnackbar(err.message || "Failed to verify artwork.", "error");
+      throw err;
     }
   };
 
@@ -337,7 +341,7 @@ export default function Artwork() {
             {errorMessage}
           </Typography>
         ) : filteredArtworks.length > 0 ? (
-          <ArtworkCard artworks={filteredArtworks} onVerify={handleVerify} />
+          <ArtworkCard artworks={filteredArtworks} onVerify={setVerificationArtwork} />
         ) : (
           <Typography
             color="text.secondary"
@@ -349,6 +353,13 @@ export default function Artwork() {
           </Typography>
         )}
       </Paper>
+
+      <ArtworkVerify
+        open={Boolean(verificationArtwork)}
+        handleClose={() => setVerificationArtwork(null)}
+        onSubmit={handleVerify}
+        selectedArt={verificationArtwork}
+      />
 
       <Snackbar
         open={snackbarOpen}
