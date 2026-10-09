@@ -98,7 +98,7 @@ function ArtworkVerify({ open, handleClose, onSubmit, selectedArtwork }) {
           </Button>
           <Button
             onClick={handleVerify}
-            color="success"
+            color="error"
             variant="contained"
             sx={{
               borderRadius: 1.5,

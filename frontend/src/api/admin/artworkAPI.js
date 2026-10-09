@@ -38,7 +38,7 @@ export const fetchArtworks = async (status = "") => {
   }
 };
 
-// Fetch verified artworks
+// Verify artworks
 export const verifyArtwork = async (artworkId) => {
   try {
     const res = await api.put(`/${artworkId}`, { status: "verified" });
@@ -48,3 +48,15 @@ export const verifyArtwork = async (artworkId) => {
   }
 };
 
+// Reject artworks
+export const rejectArtwork = async (artworkId, rejectionReason) => {
+  try {
+    const res = await api.put(`/${artworkId}`, {
+      status: "rejected",
+      rejection_reason: rejectionReason,
+    });
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};

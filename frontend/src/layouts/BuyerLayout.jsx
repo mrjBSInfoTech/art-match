@@ -56,6 +56,7 @@ import Footer from "../pages/buyer/Footer";
 import { fetchCart } from "../api/buyer/cartAPI";
 import { fetchBuyerConversations } from "../api/buyer/messageAPI";
 import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
+import { recordRecommendationEvent } from "../api/buyer/recommendationAPI";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -192,8 +193,17 @@ function BuyerLayoutContent({ children }) {
   // For search functionality
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/buyer/shop?q=${encodeURIComponent(searchQuery.trim())}`);
+
+    const query = searchQuery.trim();
+
+    if (query) {
+      void recordRecommendationEvent({
+        event_type: "search",
+        search_query: query,
+        source_page: "buyer_layout",
+      });
+
+      navigate(`/buyer/shop?q=${encodeURIComponent(query)}`);
     } else {
       navigate("/buyer/shop");
     }
@@ -297,8 +307,16 @@ function BuyerLayoutContent({ children }) {
       left: 0,
     });
   };
-  const handleCategoryOption = (option) => {
+  const handleCategoryOption = (option, filterType) => {
     setCategoriesAnchorPosition(null);
+
+    void recordRecommendationEvent({
+      event_type: "filter",
+      filter_type: filterType,
+      filter_value: option,
+      source_page: "buyer_layout",
+    });
+
     navigate(`/buyer/shop?q=${encodeURIComponent(option)}`);
   };
 
@@ -959,7 +977,16 @@ function BuyerLayoutContent({ children }) {
                     <Checkbox
                       size="small"
                       checked={index === 0 && group.title === "Art Type"}
-                      onChange={() => handleCategoryOption(option)}
+                      onChange={() =>
+                        handleCategoryOption(
+                          option,
+                          group.title === "Art Type"
+                            ? "art_type"
+                            : group.title === "Style"
+                              ? "style"
+                              : "material"
+                        )
+                      }
                       sx={{
                         p: 0.75,
                         color: theme.palette.divider,
@@ -998,7 +1025,7 @@ function BuyerLayoutContent({ children }) {
               {paletteColors.map((color) => (
                 <Box
                   key={color}
-                  onClick={() => handleCategoryOption(color)}
+                  onClick={() => handleCategoryOption(color, "color")}
                   role="button"
                   tabIndex={0}
                   aria-label={`Filter by ${color}`}

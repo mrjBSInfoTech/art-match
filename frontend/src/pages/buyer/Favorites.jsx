@@ -94,7 +94,8 @@ export default function BuyerFavorites() {
     <Box
       sx={{
         minHeight: "100vh",
-        backgroundColor: "#f8f3ed",
+        backgroundColor: "background.default",
+        color: "text.primary",
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 5 }, py: 0 }}>
@@ -104,7 +105,8 @@ export default function BuyerFavorites() {
             alignItems: "center",
             justifyContent: "space-between",
             minHeight: 72,
-            borderBottom: "1px solid #e5ddd5",
+            borderBottom: 1,
+            borderColor: "divider",
             gap: 2,
             flexWrap: "wrap",
           }}
@@ -121,10 +123,9 @@ export default function BuyerFavorites() {
                     px: 1.5,
                     py: 0.75,
                     borderRadius: 0,
-                    borderBottom: active
-                      ? "3px solid #ef3b5a"
-                      : "3px solid transparent",
-                    color: active ? "#111827" : "#52525b",
+                    borderBottom: "3px solid",
+                    borderColor: active ? "error.main" : "transparent",
+                    color: active ? "text.primary" : "text.secondary",
                     fontSize: 14,
                     fontWeight: 600,
                     textTransform: "none",
@@ -148,17 +149,17 @@ export default function BuyerFavorites() {
               startIcon={<ShareOutlinedIcon sx={{ fontSize: 18 }} />}
               sx={{
                 borderRadius: 999,
-                borderColor: "#d7d0c9",
-                color: "#1f2937",
+                borderColor: "divider",
+                color: "text.primary",
                 textTransform: "none",
                 fontWeight: 700,
                 px: 2,
                 py: 0.8,
                 minHeight: 40,
-                backgroundColor: "#f7f4f0",
+                backgroundColor: "background.paper",
                 "&:hover": {
-                  backgroundColor: "#f0eae3",
-                  borderColor: "#d7d0c9",
+                  backgroundColor: "action.hover",
+                  borderColor: "text.secondary",
                 },
               }}
             >
@@ -169,8 +170,8 @@ export default function BuyerFavorites() {
               onClick={() => navigate("/buyer/shop")}
               sx={{
                 borderRadius: 999,
-                bgcolor: "#ef3b5a",
-                color: "#fff",
+                bgcolor: "error.main",
+                color: "error.contrastText",
                 textTransform: "none",
                 fontWeight: 700,
                 px: 2.5,
@@ -178,7 +179,7 @@ export default function BuyerFavorites() {
                 minHeight: 40,
                 boxShadow: "none",
                 "&:hover": {
-                  bgcolor: "#e02d4d",
+                  bgcolor: "error.dark",
                   boxShadow: "none",
                 },
               }}
@@ -206,8 +207,9 @@ export default function BuyerFavorites() {
               onClick={() => navigate("/buyer/shop")}
               sx={{
                 borderRadius: 999,
-                bgcolor: "#ef3b5a",
-                color: "#fff",
+                bgcolor: "error.main",
+                color: "error.contrastText",
+                "&:hover": { bgcolor: "error.dark" },
                 textTransform: "none",
                 fontWeight: 700,
               }}
@@ -234,11 +236,12 @@ export default function BuyerFavorites() {
               <Box
                 key={artwork.favorite_id || artwork.artwork_id}
                 sx={{
-                  backgroundColor: "#f7f3ee",
+                  backgroundColor: "background.paper",
                   borderRadius: 4,
                   overflow: "hidden",
-                  border: "1px solid #ebdfd6",
-                  boxShadow: "0 8px 18px rgba(31, 41, 55, 0.04)",
+                  border: 1,
+                  borderColor: "divider",
+                  boxShadow: 1,
                 }}
               >
                 <Box
@@ -250,7 +253,7 @@ export default function BuyerFavorites() {
                     width: "100%",
                     height: 260,
                     objectFit: "cover",
-                    backgroundColor: "#d9d9d9",
+                    backgroundColor: "action.hover",
                   }}
                 />
 
@@ -266,14 +269,14 @@ export default function BuyerFavorites() {
                         fontWeight: 700,
                         fontSize: 19,
                         lineHeight: 1.2,
-                        color: "#171717",
+                        color: "text.primary",
                       }}
                     >
                       {artwork.title}
                     </Typography>
                     <Stack direction="row" alignItems="center" spacing={0.4}>
-                      <StarIcon sx={{ fontSize: 16, color: "#f2b545" }} />
-                      <Typography sx={{ color: "#232323", fontWeight: 600 }}>
+                      <StarIcon sx={{ fontSize: 16, color: "warning.main" }} />
+                      <Typography sx={{ color: "text.primary", fontWeight: 600 }}>
                         {Number(artwork.rating || 5).toFixed(1)}
                       </Typography>
                     </Stack>
@@ -282,7 +285,7 @@ export default function BuyerFavorites() {
                   <Typography
                     variant="body2"
                     sx={{
-                      color: "#4b5563",
+                      color: "text.secondary",
                       fontWeight: 500,
                       mb: 1.5,
                     }}
@@ -297,7 +300,7 @@ export default function BuyerFavorites() {
                   >
                     <Typography
                       sx={{
-                        color: "#ef3b5a",
+                        color: "error.main",
                         fontSize: 18,
                         fontWeight: 800,
                       }}
@@ -309,13 +312,14 @@ export default function BuyerFavorites() {
                       aria-label={`Remove ${artwork.title} from favorites`}
                       onClick={() => handleToggleFavorite(artwork.artwork_id)}
                       sx={{
-                        bgcolor: "#f0e7de",
-                        color: "#232323",
-                        border: "1px solid #e9dccf",
+                        bgcolor: "action.selected",
+                        color: "error.main",
+                        border: 1,
+                        borderColor: "divider",
                         width: 36,
                         height: 36,
                         "&:hover": {
-                          bgcolor: "#e9e0d5",
+                          bgcolor: "action.hover",
                         },
                       }}
                     >

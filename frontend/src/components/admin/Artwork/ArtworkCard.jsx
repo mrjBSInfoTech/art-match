@@ -13,7 +13,7 @@ import ArtworkInfo from "../../admin/Artwork/ArtworkInfo";
 // Icons
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 
-export default function ArtworkCard({ artworks, onVerify }) {
+export default function ArtworkCard({ artworks, onVerify, onReject }) {
   const theme = useTheme();
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
@@ -35,6 +35,15 @@ export default function ArtworkCard({ artworks, onVerify }) {
 
   const isVerified = (artwork) =>
     String(getRequestStatus(artwork)).toLowerCase() === "verified";
+
+  const getStatusColor = (artwork) => {
+    const status = getRequestStatus(artwork).toLowerCase();
+    const shade = theme.palette.mode === "dark" ? "light" : "dark";
+    if (status === "verified" || status === "approved") return theme.palette.success[shade];
+    if (status === "rejected") return theme.palette.error[shade];
+    if (status === "pending" || status === "requested") return theme.palette.warning[shade];
+    return theme.palette.text.secondary;
+  };
 
   const currentRole = (localStorage.getItem("admin_role") || "")
     .toLowerCase()
@@ -113,7 +122,7 @@ export default function ArtworkCard({ artworks, onVerify }) {
                 alt={artwork.title}
               />
               <Chip
-                label={isVerified(artwork) ? "APPROVED" : "PENDING"}
+                label={isVerified(artwork) ? "APPROVED" : (getRequestStatus(artwork) || "Unverified").toUpperCase()}
                 size="small"
                 sx={{
                   position: "absolute",
@@ -121,8 +130,8 @@ export default function ArtworkCard({ artworks, onVerify }) {
                   right: 10,
                   height: 22,
                   borderRadius: 2,
-                  backgroundColor: "#fff",
-                  color: isVerified(artwork) ? "#15803d" : "#d97706",
+                  backgroundColor: theme.palette.background.paper,
+                  color: getStatusColor(artwork),
                   fontSize: 10,
                   fontWeight: 700,
                   boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
@@ -222,6 +231,7 @@ export default function ArtworkCard({ artworks, onVerify }) {
         handleClose={handleInfoClose}
         selectedArtwork={selectedArtwork}
         onVerify={onVerify}
+        onReject={onReject}
         canEdit={canEdit}
       />
     </Box>

@@ -1,6 +1,10 @@
 import express from "express";
 import db from "../../database/db.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
+import {
+  recordRecommendationInteraction,
+  getRecommendationSessionIdFromRequest,
+} from "../../utils/recommendationInteractions.js";
 
 const router = express.Router();
 
@@ -45,47 +49,96 @@ router.get("/", authenticateBuyer, (req, res) => {
       console.error("Buyer cart query error:", err);
       return res.status(500).json({ message: "Database error" });
     }
+
     res.json(items);
   });
 });
 
 router.post("/", authenticateBuyer, (req, res) => {
   const artworkId = Number(req.body.artwork_id);
+
   if (!Number.isInteger(artworkId) || artworkId <= 0) {
-    return res.status(400).json({ message: "A valid artwork is required" });
+    return res.status(400).json({
+      message: "A valid artwork is required",
+    });
   }
 
   db.query(
     "SELECT artwork_id FROM artwork WHERE artwork_id = ?",
     [artworkId],
     (artworkError, artworks) => {
-      if (artworkError) return res.status(500).json({ message: "Database error" });
-      if (!artworks.length) return res.status(404).json({ message: "Artwork not found" });
+      if (artworkError) {
+        return res.status(500).json({
+          message: "Database error",
+        });
+      }
+
+      if (!artworks.length) {
+        return res.status(404).json({
+          message: "Artwork not found",
+        });
+      }
 
       db.query(
         "SELECT add_to_id FROM add_cart WHERE customer_id = ? LIMIT 1",
         [req.user.customer_id],
         (cartError, carts) => {
-          if (cartError) return res.status(500).json({ message: "Database error" });
+          if (cartError) {
+            return res.status(500).json({
+              message: "Database error",
+            });
+          }
 
           const addItem = (cartId) => {
             db.query(
               "SELECT cart_item_id FROM cart_item WHERE add_to_id = ? AND artwork_id = ? LIMIT 1",
               [cartId, artworkId],
               (itemError, existingItems) => {
-                if (itemError) return res.status(500).json({ message: "Database error" });
+                if (itemError) {
+                  return res.status(500).json({
+                    message: "Database error",
+                  });
+                }
+
                 if (existingItems.length) {
-                  return res.status(409).json({ message: "Artwork is already in your cart" });
+                  return res.status(409).json({
+                    message: "Artwork is already in your cart",
+                  });
                 }
 
                 db.query(
                   "INSERT INTO cart_item (add_to_id, artwork_id) VALUES (?, ?)",
                   [cartId, artworkId],
                   (insertError) => {
-                    if (insertError) return res.status(500).json({ message: "Database error" });
+                    if (insertError) {
+                      return res.status(500).json({
+                        message: "Database error",
+                      });
+                    }
+
                     updateCartTotal(cartId, (totalError) => {
-                      if (totalError) return res.status(500).json({ message: "Database error" });
-                      res.status(201).json({ message: "Artwork added to cart" });
+                      if (totalError) {
+                        return res.status(500).json({
+                          message: "Database error",
+                        });
+                      }
+
+                      void recordRecommendationInteraction({
+                        customerId: req.user.customer_id,
+                        artworkId,
+                        sessionId: getRecommendationSessionIdFromRequest(req),
+                        eventType: "cart",
+                        sourcePage: "cart",
+                      }).catch((error) =>
+                        console.error(
+                          "Cart recommendation tracking failed:",
+                          error,
+                        ),
+                      );
+
+                      return res.status(201).json({
+                        message: "Artwork added to cart",
+                      });
                     });
                   },
                 );
@@ -93,14 +146,21 @@ router.post("/", authenticateBuyer, (req, res) => {
             );
           };
 
-          if (carts.length) return addItem(carts[0].add_to_id);
+          if (carts.length) {
+            return addItem(carts[0].add_to_id);
+          }
 
           db.query(
             "INSERT INTO add_cart (customer_id, total_price) VALUES (?, 0)",
             [req.user.customer_id],
             (insertCartError, result) => {
-              if (insertCartError) return res.status(500).json({ message: "Database error" });
-              addItem(result.insertId);
+              if (insertCartError) {
+                return res.status(500).json({
+                  message: "Database error",
+                });
+              }
+
+              return addItem(result.insertId);
             },
           );
         },
@@ -111,8 +171,11 @@ router.post("/", authenticateBuyer, (req, res) => {
 
 router.delete("/:artworkId", authenticateBuyer, (req, res) => {
   const artworkId = Number(req.params.artworkId);
+
   if (!Number.isInteger(artworkId) || artworkId <= 0) {
-    return res.status(400).json({ message: "A valid artwork is required" });
+    return res.status(400).json({
+      message: "A valid artwork is required",
+    });
   }
 
   db.query(
@@ -123,18 +186,50 @@ router.delete("/:artworkId", authenticateBuyer, (req, res) => {
      LIMIT 1`,
     [req.user.customer_id, artworkId],
     (findError, items) => {
-      if (findError) return res.status(500).json({ message: "Database error" });
-      if (!items.length) return res.status(404).json({ message: "Cart item not found" });
+      if (findError) {
+        return res.status(500).json({
+          message: "Database error",
+        });
+      }
+
+      if (!items.length) {
+        return res.status(404).json({
+          message: "Cart item not found",
+        });
+      }
 
       const { cart_item_id: cartItemId, add_to_id: cartId } = items[0];
+
       db.query(
         "DELETE FROM cart_item WHERE cart_item_id = ?",
         [cartItemId],
         (deleteError) => {
-          if (deleteError) return res.status(500).json({ message: "Database error" });
+          if (deleteError) {
+            return res.status(500).json({
+              message: "Database error",
+            });
+          }
+
           updateCartTotal(cartId, (totalError) => {
-            if (totalError) return res.status(500).json({ message: "Database error" });
-            res.json({ message: "Artwork removed from cart" });
+            if (totalError) {
+              return res.status(500).json({
+                message: "Database error",
+              });
+            }
+
+            void recordRecommendationInteraction({
+              customerId: req.user.customer_id,
+              artworkId,
+              sessionId: getRecommendationSessionIdFromRequest(req),
+              eventType: "remove_cart",
+              sourcePage: "cart",
+            }).catch((error) =>
+              console.error("Cart removal tracking failed:", error),
+            );
+
+            return res.json({
+              message: "Artwork removed from cart",
+            });
           });
         },
       );

@@ -34,7 +34,6 @@ import sellerReviewRoutes from "./routes/seller/reviews.js";
 //import sellerSalesRoutes from "./routes/seller/sales.js";
 import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
 // Routes (Buyer)
-//import buyerArtworkRoutes from "./routes/buyer/artwork.js";
 import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
@@ -42,6 +41,9 @@ import buyerCartRoutes from "./routes/buyer/cart.js";
 import buyerFavoriteRoutes from "./routes/buyer/favorites.js";
 import buyerOrderRoutes from "./routes/buyer/orders.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
+import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
+
+// Routes (Chat of both buyer and seller)
 import chatRoutes from "./routes/chat.js";
 
 dotenv.config();
@@ -101,6 +103,9 @@ app.use("/api/buyer/cart", buyerCartRoutes);
 app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
+app.use("/api/buyer/recommendations", buyerRecommendationRoutes);
+
+// Routes (Chat of both buyer and seller)
 app.use("/api/chat", chatRoutes);
 
 // Handle 404 (unknown routes)

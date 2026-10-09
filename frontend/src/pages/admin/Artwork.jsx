@@ -21,7 +21,12 @@ import SearchIcon from "@mui/icons-material/Search";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
 import ArtworkVerify from "../../components/admin/Artwork/ArtworkVerify";
-import { fetchArtworks, verifyArtwork } from "../../api/admin/artworkAPI";
+import ArtworkReject from "../../components/admin/Artwork/ArtworkReject";
+import {
+  fetchArtworks,
+  verifyArtwork,
+  rejectArtwork,
+} from "../../api/admin/artworkAPI.js";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -40,6 +45,7 @@ export default function Artwork() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [verificationArtwork, setVerificationArtwork] = useState(null);
+  const [rejectionArtwork, setRejectionArtwork] = useState(null);
 
   const loadArtworks = async () => {
     try {
@@ -64,7 +70,7 @@ export default function Artwork() {
   }, [statusFilter]);
 
   const normalizeStatus = (artwork) =>
-    String(artwork.request_status || artwork.status || "").toLowerCase();
+    String(artwork.request_status || artwork.status || "").trim().toLowerCase();
   const totalPending = allArtworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
     return s === "pending" || s === "pending";
@@ -77,7 +83,6 @@ export default function Artwork() {
   const filteredArtworks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const filtered = artworks.filter((artwork) => {
-      if (statusFilter === "rejected") return false;
       const searchableFields = [
         artwork.title,
         artwork.genre,
@@ -109,7 +114,7 @@ export default function Artwork() {
       : statusFilter === "approved"
         ? totalVerified
         : statusFilter === "rejected"
-          ? 0
+          ? allArtworks.filter((artwork) => normalizeStatus(artwork) === "rejected").length
           : allArtworks.length;
 
   const handleVerify = async (artwork) => {
@@ -120,6 +125,18 @@ export default function Artwork() {
       await loadArtworks();
     } catch (err) {
       showSnackbar(err.message || "Failed to verify artwork.", "error");
+      throw err;
+    }
+  };
+
+  const handleReject = async (artwork, reason) => {
+    try {
+      await rejectArtwork(artwork.artwork_id, reason);
+      setRejectionArtwork(null);
+      showSnackbar("Artwork rejected successfully.", "success");
+      await loadArtworks();
+    } catch (err) {
+      showSnackbar(err.message || "Failed to reject artwork.", "error");
       throw err;
     }
   };
@@ -341,7 +358,7 @@ export default function Artwork() {
             {errorMessage}
           </Typography>
         ) : filteredArtworks.length > 0 ? (
-          <ArtworkCard artworks={filteredArtworks} onVerify={setVerificationArtwork} />
+          <ArtworkCard artworks={filteredArtworks} onVerify={setVerificationArtwork} onReject={setRejectionArtwork} />
         ) : (
           <Typography
             color="text.secondary"
@@ -359,6 +376,13 @@ export default function Artwork() {
         handleClose={() => setVerificationArtwork(null)}
         onSubmit={handleVerify}
         selectedArt={verificationArtwork}
+      />
+
+      <ArtworkReject
+        open={Boolean(rejectionArtwork)}
+        handleClose={() => setRejectionArtwork(null)}
+        onSubmit={handleReject}
+        selectedArt={rejectionArtwork}
       />
 
       <Snackbar

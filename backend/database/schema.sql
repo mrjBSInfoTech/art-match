@@ -104,9 +104,11 @@ CREATE TABLE IF NOT EXISTS artupload (
   artupload_id INT AUTO_INCREMENT PRIMARY KEY,
   artwork_id INT NOT NULL UNIQUE,
   admin_id INT NULL,
-  request_status ENUM('Pending', 'Verified', 'Unverified', 'Rejected') NOT NULL NOT NULL DEFAULT 'Unverified',
+  request_status ENUM('Pending', 'Verified', 'Unverified', 'Rejected') NOT NULL DEFAULT 'Unverified',
   request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   approved_date DATETIME NULL,
+  rejection_date DATETIME NULL,
+  rejection_reason TEXT NULL,
   CONSTRAINT fk_artupload_artwork
     FOREIGN KEY (artwork_id) REFERENCES artwork (artwork_id) ON DELETE CASCADE,
   CONSTRAINT fk_artupload_admin

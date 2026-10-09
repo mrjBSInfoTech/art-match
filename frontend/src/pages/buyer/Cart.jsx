@@ -51,7 +51,6 @@ export default function Cart() {
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const navigate = useNavigate();
 
-
   const loadCart = async () => {
     try {
       setLoading(true);
@@ -116,7 +115,13 @@ export default function Cart() {
   };
 
   return (
-    <Box sx={{ py: { xs: 2, md: 3 } }}>
+    <Box
+      sx={{
+        py: { xs: 2, md: 3, lg: 4 },
+        backgroundColor: "background.default",
+        color: "text.primary",
+      }}
+    >
       <Container maxWidth="lg">
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Cart</title>
@@ -153,7 +158,13 @@ export default function Cart() {
               variant="contained"
               component={Link}
               to="/artworks"
-              sx={{ mt: 3, borderRadius: 999, textTransform: "none", px: 3 }}
+              sx={{
+                mt: 3,
+                borderRadius: 999,
+                textTransform: "none",
+                px: 3,
+                color: "white",
+              }}
             >
               Explore artworks
             </Button>
@@ -223,7 +234,9 @@ export default function Cart() {
                           </TableCell>
                           <TableCell align="right">₱{item.price}</TableCell>
                           <TableCell align="right">
-                            <IconButton onClick={() => onRemove(item.artwork_id)}>
+                            <IconButton
+                              onClick={() => onRemove(item.artwork_id)}
+                            >
                               <DeleteOutlineIcon />
                             </IconButton>
                           </TableCell>

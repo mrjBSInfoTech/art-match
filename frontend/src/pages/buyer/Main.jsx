@@ -707,6 +707,55 @@ export default function Main() {
           </Box>
         </>
       )}
+      {/* Recommended Artworks */}
+      {!loading && !artworkErrorMessage && (
+        <>
+          <Box
+            sx={{
+              width: "100%",
+              overflow: "hidden",
+              mt: { xs: 0, md: -1 },
+              backgroundColor: warmSurface,
+              px: { xs: 7, sm: 10 },
+              p: 4,
+            }}
+            id="recommended"
+          >
+            <SectionHeader title="Recommended Artworks" to="/buyer/shop" />
+            {/* Loading / Error States */}
+            {loading && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {artworkErrorMessage && (
+              <Typography align="center" color="error" sx={{ py: 3 }}>
+                {artworkErrorMessage}
+              </Typography>
+            )}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(1,1fr)",
+                  sm: "repeat(3,1fr)",
+                  md: "repeat(4,1fr)",
+                  lg: "repeat(4,1fr)",
+                },
+                gap: 3,
+              }}
+            >
+              {artworks.slice(0, 12).map((artwork) => (
+                <ArtworkCard
+                  key={artwork.artwork_id || artwork.id}
+                  artwork={artwork}
+                />
+              ))}
+            </Box>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }

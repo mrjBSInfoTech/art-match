@@ -5,9 +5,10 @@ import { requireAdminPermission } from "../../middleware/adminPermissionMiddlewa
 
 const router = express.Router();
 
-// Get all artworks of all students
+// List artwork submitted for review, approved, or rejected.
 router.get("/", authenticateAdmin, (req, res) => {
   const { status } = req.query;
+  const statusFilter = typeof status === "string" ? status.trim().toLowerCase() : "";
 
   let sql = `
     SELECT
@@ -24,6 +25,8 @@ router.get("/", authenticateAdmin, (req, res) => {
       au.request_status AS status,
       au.request_date,
       au.approved_date,
+      au.rejection_date,
+      au.rejection_reason,
       au.admin_id,
       f.feature_scanned,
       f.mediums_used,
@@ -36,17 +39,18 @@ router.get("/", authenticateAdmin, (req, res) => {
     LEFT JOIN student s ON s.student_id = a.student_id
     LEFT JOIN artupload au ON au.artwork_id = a.artwork_id
     LEFT JOIN feature f ON f.artwork_id = a.artwork_id
+    WHERE LOWER(TRIM(au.request_status)) IN ('pending', 'verified', 'rejected')
   `;
 
   const params = [];
 
-  if (status) {
-    sql += " WHERE au.request_status = ?";
-    params.push(status);
+  if (statusFilter && statusFilter !== "all") {
+    sql += " AND LOWER(TRIM(au.request_status)) = ?";
+    params.push(statusFilter);
   }
 
   const orderBy =
-    status && String(status).toLowerCase() === "verified"
+    statusFilter === "verified"
       ? "au.approved_date DESC"
       : "a.artwork_id DESC";
   sql += ` ORDER BY ${orderBy}`;
@@ -76,6 +80,8 @@ router.get("/:id", authenticateAdmin, (req, res) => {
       au.request_status,
       au.request_date,
       au.approved_date,
+      au.rejection_date,
+      au.rejection_reason,
       au.admin_id,
       f.feature_scanned,
       f.mediums_used,
@@ -113,11 +119,21 @@ router.put(
     }
 
     const status = String(rawStatus).toLowerCase();
-    const allowed = ["verified", "pending"];
+    const allowed = ["verified", "pending", "rejected"];
     if (!allowed.includes(status)) {
       return res
         .status(400)
         .json({ error: `Status must be one of: ${allowed.join(", ")}` });
+    }
+
+    const rejectionReason = status === "rejected"
+      ? (typeof req.body.rejection_reason === "string" ? req.body.rejection_reason.trim() : "")
+      : null;
+    if (status === "rejected" && !rejectionReason) {
+      return res.status(400).json({ error: "A rejection reason is required." });
+    }
+    if (rejectionReason && rejectionReason.length > 5000) {
+      return res.status(400).json({ error: "Rejection reason must be 5000 characters or fewer." });
     }
 
     const selectSql = "SELECT artwork_id FROM artwork WHERE artwork_id = ?";
@@ -127,6 +143,7 @@ router.put(
         return res.status(404).json({ error: "Artwork not found" });
 
       const approvedDate = status === "verified" ? new Date() : null;
+      const rejectionDate = status === "rejected" ? new Date() : null;
 
       const checkUploadSql =
         "SELECT artupload_id FROM artupload WHERE artwork_id = ?";
@@ -137,12 +154,13 @@ router.put(
           // Update existing record
           const updateSql = `
           UPDATE artupload
-          SET request_status = ?, admin_id = ?, approved_date = ?
+          SET request_status = ?, admin_id = ?, approved_date = ?,
+              rejection_date = ?, rejection_reason = ?
           WHERE artwork_id = ?
         `;
           db.query(
             updateSql,
-            [status, adminId, approvedDate, id],
+            [status, adminId, approvedDate, rejectionDate, rejectionReason, id],
             (updateErr) => {
               if (updateErr)
                 return res.status(500).json({ error: updateErr.message });
@@ -155,12 +173,12 @@ router.put(
         } else {
           // Insert new record into artupload
           const insertSql = `
-          INSERT INTO artupload (artwork_id, admin_id, request_status, request_date, approved_date)
-          VALUES (?, ?, ?, NOW(), ?)
+          INSERT INTO artupload (artwork_id, admin_id, request_status, request_date, approved_date, rejection_date, rejection_reason)
+          VALUES (?, ?, ?, NOW(), ?, ?, ?)
         `;
           db.query(
             insertSql,
-            [id, adminId, status, approvedDate],
+            [id, adminId, status, approvedDate, rejectionDate, rejectionReason],
             (insertErr) => {
               if (insertErr)
                 return res.status(500).json({ error: insertErr.message });
