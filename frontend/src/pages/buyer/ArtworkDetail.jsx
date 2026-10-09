@@ -22,6 +22,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
+import { recordRecommendationEvent } from "../../api/buyer/recommendationAPI";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -50,6 +51,22 @@ export default function ArtworkDetail() {
 
         // fetch detail
         const detail = await fetchArtworkById(id);
+
+        const viewKey = `recommendation_view_${id}`;
+        const now = Date.now();
+
+        const lastView = Number(sessionStorage.getItem(viewKey) || 0);
+
+        if (now - lastView >= 30000) {
+          sessionStorage.setItem(viewKey, String(now));
+
+          void recordRecommendationEvent({
+            event_type: "view",
+            artwork_id: Number(id),
+            source_page: "artwork_detail",
+          });
+        }
+
         // fetch list for related/same-artist
         const listResp = await fetchArtworks();
 
@@ -499,13 +516,17 @@ export default function ArtworkDetail() {
             color: "text.primary",
             fontSize: { xs: 15, sm: 16 },
             fontWeight: 700,
-  
           }}
         >
           <IconButton
             onClick={() => setImageViewerOpen(false)}
             aria-label="Close artwork image"
-            sx={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)" }}
+            sx={{
+              position: "absolute",
+              top: "50%",
+              right: 8,
+              transform: "translateY(-50%)",
+            }}
           >
             <CloseIcon />
           </IconButton>

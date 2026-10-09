@@ -120,10 +120,15 @@ function ArtworkInfo({
   const colors = artwork
     ? toColorList(artwork.color_used || artwork.colors_used)
     : [];
-  const isVerified = artwork
-    ? String(artwork.request_status || artwork.status || "").toLowerCase() ===
-      "verified"
-    : false;
+  const requestStatus = String(artwork?.request_status || artwork?.status || "Unverified").trim().toLowerCase();
+  const statusShade = theme.palette.mode === "dark" ? "light" : "dark";
+  const statusColor = ["verified", "approved"].includes(requestStatus)
+    ? theme.palette.success[statusShade]
+    : requestStatus === "rejected"
+      ? theme.palette.error[statusShade]
+      : ["pending", "requested"].includes(requestStatus)
+        ? theme.palette.warning[statusShade]
+        : theme.palette.text.secondary;
 
   const imageUrl = artwork?.image
     ? `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
@@ -222,7 +227,7 @@ function ArtworkInfo({
                 }}
               />
               <Chip
-                label={String(artwork?.request_status || "Unverified").toUpperCase()}
+                label={requestStatus.toUpperCase()}
                 size="small"
                 sx={{
                   position: "absolute",
@@ -230,7 +235,7 @@ function ArtworkInfo({
                   right: 10,
                   height: 22,
                   backgroundColor: theme.palette.background.paper,
-                  color: isVerified ? "#15803d" : "#d97706",
+                  color: statusColor,
                   fontSize: 10,
                   fontWeight: 700,
                   boxShadow: "0 1px 4px rgba(15, 23, 42, 0.16)",
@@ -380,17 +385,17 @@ function ArtworkInfo({
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
       >
-        {String(artwork?.request_status || "").toLowerCase() === "unverified" && canEdit && (
+        {["unverified", "rejected"].includes(String(artwork?.request_status || artwork?.status || "").trim().toLowerCase()) && canEdit && (
           <Button
             onClick={() => onVerify?.(artwork)}
             variant="contained"
             startIcon={<CheckIcon />}
             sx={{
-              backgroundColor: "#4fbea0",
+              backgroundColor: "success.main",
               color: "#fff",
               fontSize: 11,
               fontWeight: 700,
-              "&:hover": { backgroundColor: "#3da98c" },
+              "&:hover": { backgroundColor: "success.dark" },
             }}
           >
             Verify Artwork

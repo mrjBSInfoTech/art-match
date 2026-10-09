@@ -447,11 +447,14 @@ function SellerLayoutContent({ children }) {
         anchor="right"
         open={profileDrawerOpen}
         onClose={() => setProfileDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: "min(320px, 88vw)", sm: 340 },
-            backgroundColor: theme.palette.background.drawer,
-            color: theme.palette.text.primary,
+        slotProps={{
+          paper: {
+            sx: {
+              width: { xs: "min(320px, 88vw)", sm: 340 },
+              backgroundColor: theme.palette.background.drawer,
+              backgroundImage: "none",
+              color: theme.palette.text.primary,
+            },
           },
         }}
       >
@@ -526,19 +529,18 @@ function SellerLayoutContent({ children }) {
         anchor="right"
         open={notificationDrawerOpen}
         onClose={() => setNotificationDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: "min(320px, 88vw)", sm: 340 },
-            backgroundColor: theme.palette.background.drawer,
-            color: theme.palette.text.primary,
+        slotProps={{
+          paper: {
+            sx: {
+              width: { xs: "min(320px, 88vw)", sm: 340 },
+              backgroundColor: theme.palette.background.drawer,
+              backgroundImage: "none",
+              color: theme.palette.text.primary,
+            },
           },
         }}
       >
         <Stack sx={{ height: "100%", mt: 9 }}>
-          <Typography variant="h6" sx={{ p: 2, fontWeight: 700 }}>
-            Notifications
-          </Typography>
-          <Divider />
           {notifications.length ? (
             <List sx={{ overflowY: "auto", p: 0 }}>
               {notifications.map((notification) => (
@@ -561,7 +563,7 @@ function SellerLayoutContent({ children }) {
               <NotificationsNoneIcon
                 sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
               />
-              <Typography color="text.secondary">No notifications</Typography>
+              <Typography color="text.secondary">No new notifications</Typography>
             </Stack>
           )}
         </Stack>

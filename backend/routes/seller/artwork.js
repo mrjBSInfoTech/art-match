@@ -336,13 +336,13 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
      SET au.request_status = 'Pending', au.request_date = NOW(),
          au.admin_id = NULL, au.approved_date = NULL
      WHERE a.artwork_id = ? AND a.student_id = ?
-       AND LOWER(au.request_status) = 'unverified'`,
+       AND LOWER(TRIM(au.request_status)) IN ('unverified', 'rejected')`,
     [req.params.id, studentId],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) {
         return res.status(409).json({
-          error: "Artwork must belong to you and be Unverified to request verification.",
+          error: "Artwork must belong to you and be Unverified or Rejected to request verification.",
         });
       }
       return res.json({

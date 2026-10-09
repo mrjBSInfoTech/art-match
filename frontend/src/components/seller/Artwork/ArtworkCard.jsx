@@ -51,8 +51,14 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
     return String(raw).trim();
   };
 
-  const isVerified = (artwork) =>
-    String(getRequestStatus(artwork)).toLowerCase() === "verified";
+  const getStatusColor = (artwork) => {
+    const status = getRequestStatus(artwork).toLowerCase();
+    const shade = theme.palette.mode === "dark" ? "light" : "dark";
+    if (status === "verified" || status === "approved") return theme.palette.success[shade];
+    if (status === "rejected") return theme.palette.error[shade];
+    if (status === "pending" || status === "requested") return theme.palette.warning[shade];
+    return theme.palette.text.secondary;
+  };
 
   return (
     <Box
@@ -128,9 +134,7 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
                 height: 22,
                 borderRadius: 2,
                 backgroundColor: theme.palette.background.paper,
-                color: isVerified(artwork)
-                  ? theme.palette.success.main
-                  : theme.palette.warning.main,
+                color: getStatusColor(artwork),
                 fontSize: 10,
                 fontWeight: 700,
                 boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
@@ -206,19 +210,20 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
               startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
               onClick={() => handleInfoOpen(artwork)}
               sx={{
-                mt: "auto",
-                py: 0.65,
-                backgroundColor: "#eef2f7",
-                color: "#172033",
-                border: "1px solid #cbd5e1",
-                boxShadow: "none",
-                fontSize: 11,
-                "& .MuiButton-startIcon": { color: "#172033" },
-                "&:hover": {
-                  backgroundColor: "#ffffff",
-                  borderColor: "#94a3b8",
+                  mt: "auto",
+                  py: 0.55,
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
                   boxShadow: "none",
-                },
+                  fontSize: 11,
+                  "& .MuiButton-startIcon": { color: theme.palette.error.main },
+                  "&:hover": {
+                    backgroundColor: theme.palette.action.hover,
+                    borderColor: theme.palette.text.secondary,
+                    boxShadow: "none",
+                  },
               }}
             >
               View Details
@@ -251,7 +256,7 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
                 Edit
               </MenuItem>
               <MenuItem
-                disabled={getRequestStatus(artwork).toLowerCase() !== "unverified"}
+                disabled={!['unverified', 'rejected'].includes(getRequestStatus(artwork).toLowerCase())}
                 onClick={() => {
                   onVerify(selectedArtwork);
                   handleMenuClose();

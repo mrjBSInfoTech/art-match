@@ -296,6 +296,8 @@ router.get("/:id", authenticateAdmin, (req, res) => {
       ar.can_demote,
       ar.created_at,
       ar.updated_at
+      ar.rejected_at
+      ar.rejection_reasonr
     FROM admin a
     LEFT JOIN admin_role ar ON a.admin_id = ar.admin_id
     WHERE a.admin_id = ?

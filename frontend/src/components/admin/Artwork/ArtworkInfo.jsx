@@ -27,9 +27,19 @@ function ArtworkInfo({
   handleClose,
   selectedArtwork,
   onVerify,
+  onReject,
   canEdit,
 }) {
   const theme = useTheme();
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "N/A";
+    return date.toLocaleString("en-PH", {
+      month: "long", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit",
+    });
+  };
   const [artwork, setArtwork] = useState(null);
 
   useEffect(() => {
@@ -121,6 +131,15 @@ function ArtworkInfo({
   const colors = artwork
     ? toColorList(artwork.color_used || artwork.colors_used)
     : [];
+  const requestStatus = String(artwork?.request_status || artwork?.status || "Unverified").trim().toLowerCase();
+  const statusShade = theme.palette.mode === "dark" ? "light" : "dark";
+  const statusColor = ["verified", "approved"].includes(requestStatus)
+    ? theme.palette.success[statusShade]
+    : requestStatus === "rejected"
+      ? theme.palette.error[statusShade]
+      : ["pending", "requested"].includes(requestStatus)
+        ? theme.palette.warning[statusShade]
+        : theme.palette.text.secondary;
   const isVerified = artwork
     ? String(artwork.request_status || artwork.status || "").toLowerCase() ===
       "verified"
@@ -225,7 +244,7 @@ function ArtworkInfo({
                 }}
               />
               <Chip
-                label={isVerified ? "APPROVED" : "PENDING"}
+                label={isVerified ? "APPROVED" : String(artwork.request_status || artwork.status || "Unverified").toUpperCase()}
                 size="small"
                 sx={{
                   position: "absolute",
@@ -233,9 +252,9 @@ function ArtworkInfo({
                   right: 10,
                   height: 22,
                   backgroundColor: theme.palette.background.paper,
-                  color: isVerified ? "#15803d" : "#d97706",
+                  color: statusColor,
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: "bold",
                   boxShadow: "0 1px 4px rgba(15, 23, 42, 0.16)",
                 }}
               />
@@ -315,6 +334,7 @@ function ArtworkInfo({
                           color: getChipTextColor(color),
                           border: `1px solid ${theme.palette.divider}`,
                           fontSize: 10,
+                          fontWeight: "bold",
                         }}
                       />
                     ))}
@@ -345,14 +365,27 @@ function ArtworkInfo({
               <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
                 <Typography sx={detailLabelSx}>Posted</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.date_created
-                    ? new Date(artwork.date_created).toLocaleDateString(
-                        "en-US",
-                        { month: "long", day: "numeric", year: "numeric" },
-                      )
-                    : "N/A"}
+                  {formatDateTime(artwork.date_created)}
                 </Typography>
               </Box>
+              {[
+                ["Requested", artwork.request_date],
+                ["Approved", artwork.approved_date],
+                ["Rejected", artwork.rejection_date],
+              ].map(([label, value]) => (
+                <Box key={label}>
+                  <Typography sx={detailLabelSx}>{label}</Typography>
+                  <Typography sx={detailValueSx}>{formatDateTime(value)}</Typography>
+                </Box>
+              ))}
+              {artwork.rejection_reason && (
+                <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                  <Typography sx={detailLabelSx}>Rejection reason</Typography>
+                  <Typography sx={{ ...detailValueSx, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                    {artwork.rejection_reason}
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </Box>
         ) : (
@@ -373,7 +406,7 @@ function ArtworkInfo({
       >
         {!isVerified && canEdit && (
           <Button
-            onClick={() => onVerify?.(artwork)}
+            onClick={() => onReject?.(artwork)}
             variant="contained"
             startIcon={<CancelSharpIcon />}
             sx={{
@@ -394,11 +427,11 @@ function ArtworkInfo({
             variant="contained"
             startIcon={<CheckIcon />}
             sx={{
-              backgroundColor: "#4fbea0",
+              backgroundColor: "success.main",
               color: "#fff",
               fontSize: 11,
               fontWeight: 700,
-              "&:hover": { backgroundColor: "#3da98c" },
+              "&:hover": { backgroundColor: "success.dark" },
             }}
           >
             Verify 

@@ -507,6 +507,7 @@ export default function Messages({ embedded = false }) {
         minHeight: embedded ? { xs: 420, md: 460 } : undefined,
         display: "flex",
         flexDirection: "column",
+        backgroundColor: "background.default",
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">

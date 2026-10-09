@@ -407,7 +407,8 @@ function AdminLayoutContent({ children }) {
           paper: {
             sx: {
               width: { xs: "min(320px, 88vw)", sm: 340 },
-              backgroundColor: theme.palette.background.header,
+              backgroundColor: theme.palette.background.drawer,
+              backgroundImage: "none",
               color: theme.palette.text.primary,
             },
           },
@@ -488,7 +489,8 @@ function AdminLayoutContent({ children }) {
           paper: {
             sx: {
               width: { xs: "min(320px, 88vw)", sm: 340 },
-              backgroundColor: theme.palette.background.header,
+              backgroundColor: theme.palette.background.drawer,
+              backgroundImage: "none",
               color: theme.palette.text.primary,
             },
           },
