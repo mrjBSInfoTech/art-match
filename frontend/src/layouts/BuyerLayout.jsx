@@ -746,13 +746,14 @@ function BuyerLayoutContent({ children }) {
               </DialogContentText>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseDialog} color="primary">
+              <Button onClick={handleCloseDialog} color="text.secondary">
                 Cancel
               </Button>
               <Button
                 onClick={handleLogout}
                 variant="contained"
-                color="primary"
+                color="error"
+                sx={{ color: "#fff" }}
               >
                 Logout
               </Button>

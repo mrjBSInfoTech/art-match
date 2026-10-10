@@ -74,9 +74,9 @@ export default function Profile() {
               overflow: "hidden",
               p: { xs: 3, sm: 4 },
               borderRadius: 3,
-              color: "#fff",
-              background: "linear-gradient(145deg, #af4f4f 0%, #7f2929 100%)",
-              boxShadow: "0 14px 30px rgba(127, 41, 41, 0.2)",
+              color: "error.contrastText",
+              background: (theme) => `linear-gradient(145deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+              boxShadow: 3,
             }}
           >
             <AccountCircleOutlinedIcon
@@ -98,7 +98,7 @@ export default function Profile() {
                 sx={{
                   width: 86,
                   height: 86,
-                  bgcolor: "#fff",
+                  bgcolor: "background.paper",
                   color: "error.main",
                   fontSize: 34,
                   fontWeight: 800,
@@ -123,7 +123,8 @@ export default function Profile() {
                 sx={{
                   mt: "auto",
                   pt: 3,
-                  borderTop: "1px solid rgba(255,255,255,0.22)",
+                  borderTop: 1,
+                  borderColor: "error.light",
                 }}
               >
                 <Typography variant="body2" sx={{ opacity: 0.8 }}>

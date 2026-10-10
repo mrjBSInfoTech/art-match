@@ -1,0 +1,14 @@
+{
+  "exported_at": "2026-10-10T08:16:48.765Z",
+  "total_database_rows": 28,
+  "positive_item_rows_seen": 17,
+  "search_filter_rows_exported_separately": 5,
+  "ignored_non_positive_item_rows": 6,
+  "invalid_rows_ignored": 0,
+  "sasrec_users": 2,
+  "sasrec_items": 8,
+  "sasrec_interaction_lines": 11,
+  "users_with_at_least_4_items": 1,
+  "excluded_users_with_less_than_2_items": 0,
+  "excluded_short_sequences": []
+}

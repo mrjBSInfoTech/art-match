@@ -124,7 +124,9 @@ export default function BuyerFavorites() {
                     py: 0.75,
                     borderRadius: 0,
                     borderBottom: "3px solid",
-                    borderColor: active ? "error.main" : "transparent",
+                    borderColor: (theme) => active
+                      ? theme.palette.error[theme.palette.mode === "dark" ? "light" : "main"]
+                      : "transparent",
                     color: active ? "text.primary" : "text.secondary",
                     fontSize: 14,
                     fontWeight: 600,
@@ -133,7 +135,7 @@ export default function BuyerFavorites() {
                     minHeight: 0,
                     lineHeight: 1.2,
                     "&:hover": {
-                      backgroundColor: "transparent",
+                      backgroundColor: "action.hover",
                     },
                   }}
                 >
@@ -275,7 +277,7 @@ export default function BuyerFavorites() {
                       {artwork.title}
                     </Typography>
                     <Stack direction="row" alignItems="center" spacing={0.4}>
-                      <StarIcon sx={{ fontSize: 16, color: "warning.main" }} />
+                      <StarIcon sx={{ fontSize: 16, color: (theme) => theme.palette.warning[theme.palette.mode === "dark" ? "light" : "dark"] }} />
                       <Typography sx={{ color: "text.primary", fontWeight: 600 }}>
                         {Number(artwork.rating || 5).toFixed(1)}
                       </Typography>
@@ -300,7 +302,7 @@ export default function BuyerFavorites() {
                   >
                     <Typography
                       sx={{
-                        color: "error.main",
+                        color: (theme) => theme.palette.error[theme.palette.mode === "dark" ? "light" : "dark"],
                         fontSize: 18,
                         fontWeight: 800,
                       }}
@@ -313,13 +315,18 @@ export default function BuyerFavorites() {
                       onClick={() => handleToggleFavorite(artwork.artwork_id)}
                       sx={{
                         bgcolor: "action.selected",
-                        color: "error.main",
+                        color: (theme) => theme.palette.error[theme.palette.mode === "dark" ? "light" : "dark"],
                         border: 1,
                         borderColor: "divider",
                         width: 36,
                         height: 36,
                         "&:hover": {
                           bgcolor: "action.hover",
+                        },
+                        "&.Mui-focusVisible": {
+                          outline: "2px solid",
+                          outlineColor: "error.main",
+                          outlineOffset: 2,
                         },
                       }}
                     >

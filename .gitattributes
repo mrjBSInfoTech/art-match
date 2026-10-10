@@ -1,0 +1,29 @@
+# Normalize text files and keep LF endings in every working copy.
+* text=auto eol=lf
+
+# Windows command scripts require CRLF endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Preserve binary assets and machine learning artifacts unchanged.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.mp3 binary
+*.mp4 binary
+*.zip binary
+*.pt binary
+*.pth binary
+*.onnx binary
+*.h5 binary
+*.keras binary
+*.pkl binary
+*.npy binary
+*.npz binary

@@ -32,7 +32,7 @@ export default function ArtworkCard({
       await (onAddToCart ? onAddToCart(artworkId) : addToCart(artworkId));
       setCartMessage("Added");
     } catch (error) {
-      setCartMessage(error.message || "Failed");
+      setCartMessage("Need to login");
     } finally {
       setIsAdding(false);
     }

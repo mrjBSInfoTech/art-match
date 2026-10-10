@@ -847,10 +847,7 @@ export default function Messages({ embedded = false }) {
                 flexGrow: 1,
                 p: { xs: 2, md: 2.5 },
                 overflowY: "auto",
-                bgcolor:
-                  theme.palette.mode === "dark"
-                    ? "background.default"
-                    : "#f8f9fa",
+                bgcolor: "background.default",
                 display: "flex",
                 flexDirection: "column",
                 gap: 1.5,

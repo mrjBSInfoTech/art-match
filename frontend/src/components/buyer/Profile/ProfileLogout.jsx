@@ -84,14 +84,16 @@ function ProfileLogout({
         <DialogTitle sx={{ fontWeight: 700 }}>
           Logout
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent>
           <Typography>
             Are you sure you want to logout?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleLogout} color="error" variant="contained">
+          <Button onClick={handleClose} color="text.secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleLogout} color="error" variant="contained" sx={{ color: "#fff" }}>
             Logout
           </Button>
         </DialogActions>

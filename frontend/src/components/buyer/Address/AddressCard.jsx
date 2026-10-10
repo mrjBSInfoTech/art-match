@@ -1,4 +1,5 @@
 import React from "react";
+import { alpha } from "@mui/material/styles";
 import {
   Box,
   Chip,
@@ -46,20 +47,20 @@ function AddressCard({ addresses, onEdit, onDelete }) {
               borderRadius: 3,
               borderColor: isCurrent ? "error.main" : "divider",
               borderWidth: 1.5,
-              backgroundColor: isCurrent
-                ? "rgba(175, 79, 79, 0.16)"
-                : "background.paper",
+              background: (theme) => isCurrent
+                ? alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.16 : 0.06)
+                : theme.palette.background.paper,
               boxShadow: isCurrent
-                ? "0 4px 20px -2px rgba(175, 79, 79, 0.12)"
+                ? 1
                 : "none",
               transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               "&:hover": {
                 transform: "translateY(-3px)",
                 borderColor: "error.dark",
-                backgroundColor: isCurrent
-                  ? "rgba(175, 79, 79, 0.2)"
-                  : "action.hover",
-                boxShadow: "0 8px 24px -4px rgba(175, 79, 79, 0.24)",
+                background: (theme) => isCurrent
+                  ? alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.22 : 0.1)
+                  : theme.palette.action.hover,
+                boxShadow: 2,
               },
             }}
           >
@@ -80,7 +81,7 @@ function AddressCard({ addresses, onEdit, onDelete }) {
                       height: 44,
                       borderRadius: 2.5,
                       bgcolor: isCurrent ? "error.main" : "action.hover",
-                      color: isCurrent ? "#fff" : "text.secondary",
+                      color: isCurrent ? "error.contrastText" : "text.secondary",
                       transition: "0.2s ease-in-out",
                     }}
                   >

@@ -152,7 +152,7 @@ export default function AccountOverview() {
             sx={{
               p: 2,
               minWidth: 0,
-              borderColor: "#ead4b3",
+              borderColor: "divider",
               borderRadius: 2,
               boxShadow: "none",
             }}
@@ -193,7 +193,7 @@ export default function AccountOverview() {
         variant="outlined"
         sx={{
           p: { xs: 2, sm: 2.5 },
-          borderColor: "#ead4b3",
+          borderColor: "divider",
           borderRadius: 2,
           boxShadow: "none",
         }}
@@ -203,7 +203,7 @@ export default function AccountOverview() {
           alignItems={{ sm: "center" }}
           justifyContent="space-between"
           gap={1}
-          sx={{ borderBottom: "1px solid", borderColor: "#f0e4d5", mb: 1.5 }}
+          sx={{ borderBottom: "1px solid", borderColor: "divider", mb: 1.5 }}
         >
           <Typography variant="h6" sx={{ fontSize: 18, fontWeight: 800 }}>
             Recent orders
@@ -260,7 +260,7 @@ export default function AccountOverview() {
             <CircularProgress size={28} />
           </Box>
         ) : visibleItems.length ? (
-          <Stack divider={<Box sx={{ borderBottom: "1px solid #ead4b3" }} />}>
+          <Stack divider={<Box sx={{ borderBottom: 1, borderColor: "divider" }} />}>
             {visibleItems.map((item, index) => (
               <Stack
                 key={`${item.orderNumber}-${item.id || item.title}-${index}`}
