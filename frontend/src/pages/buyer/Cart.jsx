@@ -280,6 +280,7 @@ export default function Cart() {
                     textTransform: "none",
                     py: 1.25,
                     fontWeight: 600,
+                    color: "#fff",
                   }}
                 >
                   Checkout

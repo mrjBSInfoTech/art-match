@@ -221,9 +221,9 @@ export default function Address() {
           sx={{
             width: "100%",
             backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "#fff",
+            color: "primary.contrastText",
             "& .MuiAlert-icon": {
-              color: "#fff",
+              color: "primary.contrastText",
             },
           }}
         >

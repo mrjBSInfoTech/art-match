@@ -12,6 +12,15 @@ import json
 
 import csv
 
+try:
+    from recommendation.recommendation_service import (
+        recommend_from_artwork_ids,
+    )
+except ModuleNotFoundError:
+    from ml.recommendation.recommendation_service import (
+        recommend_from_artwork_ids,
+    )
+
 # Allow loading of truncated/incomplete image files without crashing
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -23,6 +32,11 @@ class ImageRequest(BaseModel):
     image_path: str
     artwork_type: str = "auto"  # frontend values: "physical" or "digital"; legacy values still supported
     product: str = ""            # "painting" or "3d_object"
+
+class RecommendationRequest(BaseModel):
+    artwork_ids: list[int]
+    candidate_artwork_ids: list[int] | None = None
+    top_k: int = 5
 
 # Common Transform for Neural Networks
 transform = transforms.Compose([
@@ -895,3 +909,43 @@ def analyze_artwork(req: ImageRequest):
         "mediums": final_mediums,
         "colors": detected_colors
     }
+
+@app.post("/recommend")
+def recommend_artworks(
+    req: RecommendationRequest,
+):
+
+    try:
+
+        recommendations = (
+            recommend_from_artwork_ids(
+                artwork_ids=
+                    req.artwork_ids,
+
+                candidate_artwork_ids=
+                    req.candidate_artwork_ids,
+
+                top_k=
+                    req.top_k,
+            )
+        )
+
+        return {
+            "recommendations":
+                recommendations
+        }
+
+    except Exception as error:
+
+        print(
+            "Recommendation error:",
+            error,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to generate "
+                "recommendations"
+            ),
+        )

@@ -2,9 +2,34 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL:
-    "http://localhost:5000/api/buyer/recommendations",
+    "http://localhost:5000/api/buyer/recommendation",
   timeout: 5000,
 });
+
+export const fetchRecommendations = async (
+  topK = 4,
+) => {
+  try {
+    const response = await api.get("/", {
+      params: {
+        top_k: topK,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.warn(
+      "Unable to load recommendations:",
+      error.response?.data?.message ||
+        error.message,
+    );
+
+    return {
+      mode: "unavailable",
+      recommendations: [],
+    };
+  }
+};
 
 export const getRecommendationSessionId = () => {
   let sessionId = localStorage.getItem(

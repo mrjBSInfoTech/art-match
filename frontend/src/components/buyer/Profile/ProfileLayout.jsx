@@ -79,7 +79,7 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
       sx={{
         p: 2,
         border: "1px solid",
-        borderColor: "#ead4b3",
+        borderColor: "divider",
         borderRadius: 2.5,
         bgcolor: "background.paper",
       }}
@@ -166,13 +166,13 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary" }}>
       <Box
         sx={{
-          borderBottom: "1px solid rgba(0,0,0,0.08)",
+          borderBottom: 1, borderColor: "divider",
           display: { xs: "block", md: "none" },
           bgcolor:
-            theme.palette.mode === "dark" ? "#1a2d3d" : "background.paper",
+            "background.paper",
         }}
       >
         <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
@@ -200,7 +200,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                 onClick={() => setDrawerOpen(true)}
                 sx={{
                   border: "1px solid",
-                  borderColor: "rgba(0,0,0,0.12)",
+                  borderColor: "divider",
                   borderRadius: 2,
                 }}
               >
@@ -251,11 +251,11 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                     mt: 1.5,
                     p: 0.75,
                     border: "1px solid",
-                    borderColor: "#ead4b3",
+                    borderColor: "divider",
                     borderRadius: 2.5,
                   }}
                 >
-                  <List disablePadding>
+                  <List disablePadding sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                     {NAV_ITEMS.map((item) => {
                       const isActive = activeItem?.path === item.path;
 
@@ -266,10 +266,12 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                           onClick={() => handleNavigate(item.path)}
                           sx={{
                             borderRadius: 1.5,
-                            minHeight: 44,
-                            px: 1,
+                            minHeight: 48,
+                            px: 1.25,
+                            py: 1,
+                            gap: 1.25,
                             backgroundColor: isActive
-                              ? "rgba(220, 0, 35, 0.07)"
+                              ? "action.selected"
                               : undefined,
                             "&.Mui-selected": { color: "error.main" },
                             "&.Mui-selected .MuiListItemIcon-root": {
@@ -278,11 +280,11 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                           }}
                         >
                           <ListItemIcon
-                            sx={{ minWidth: 34, color: "text.secondary" }}
+                            sx={{ minWidth: 0, flexShrink: 0, color: "text.secondary" }}
                           >
                             {item.icon}
                           </ListItemIcon>
-                          <ListItemText primary={item.label} />
+                          <ListItemText primary={item.label} sx={{ my: 0 }} slotProps={{ primary: { sx: { fontSize: 14, lineHeight: 1.4 } } }} />
                         </ListItemButton>
                       );
                     })}
@@ -295,7 +297,9 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                   onClick={handleLogoutOpen}
                   sx={{
                     mt: "auto",
-                    pt: 2,
+                    px: 1.25,
+                    py: 1.25,
+                    minHeight: 48,
                     justifyContent: "flex-start",
                     borderRadius: 1.5,
                     textTransform: "none",
@@ -322,7 +326,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                     borderRadius: 3,
                     bgcolor: "background.paper",
                     "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "rgba(0,0,0,0.12)",
+                      borderColor: "divider",
                     },
                   }}
                   renderValue={(selected) =>
@@ -331,7 +335,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                   }
                 >
                   {NAV_ITEMS.map((item) => (
-                    <MenuItem key={item.path} value={item.path}>
+                    <MenuItem key={item.path} value={item.path} sx={{ minHeight: 48, px: 2, py: 1 }}>
                       {item.label}
                     </MenuItem>
                   ))}
@@ -360,7 +364,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                     onClick={() => navigate(-1)}
                     sx={{
                       border: "1px solid",
-                      borderColor: "rgba(0,0,0,0.12)",
+                      borderColor: "divider",
                       borderRadius: 2,
                     }}
                   >
@@ -379,7 +383,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
         anchor="left"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{ sx: { width: 288, p: 2, borderRadius: 0 } }}
+        slotProps={{ paper: { sx: { width: 288, p: 2, borderRadius: 0, bgcolor: "background.drawer", color: "text.primary", backgroundImage: "none" } } }}
       >
         <Stack
           direction="row"
@@ -396,7 +400,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
           </IconButton>
         </Stack>
 
-        <List disablePadding>
+        <List disablePadding sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
           {NAV_ITEMS.map((item) => {
             const isActive = activeItem?.path === item.path;
 
@@ -407,17 +411,18 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                   onClick={() => handleNavigate(item.path)}
                   sx={{
                     borderRadius: 1.5,
-                    mb: 0.5,
+                    minHeight: 48,
+                    px: 1.25,
+                    py: 1,
+                    gap: 1.25,
                     backgroundColor:
-                      isActive && theme.palette.mode === "dark"
-                        ? "rgba(96, 165, 250, 0.22)"
+                      isActive ? "action.selected"
                         : undefined,
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} />
+                  <ListItemIcon sx={{ minWidth: 0, flexShrink: 0 }}>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.label} sx={{ my: 0 }} slotProps={{ primary: { sx: { fontSize: 14, lineHeight: 1.4 } } }} />
                 </ListItemButton>
-                <Divider />
               </React.Fragment>
             );
           })}
@@ -429,6 +434,10 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
           onClick={handleLogoutOpen}
           sx={{
             mt: 2,
+            px: 1.25,
+            py: 1.25,
+            minHeight: 48,
+            justifyContent: "flex-start",
             borderRadius: 1.5,
             textTransform: "none",
             fontWeight: 700,

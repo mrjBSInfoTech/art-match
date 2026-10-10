@@ -98,7 +98,7 @@ export default function Checkout() {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 6 }, px: { md: 5 } }}>
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 6 }, px: { md: 5 }, bgcolor: "background.default", color: "text.primary" }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Checkout</title>
       </Helmet>
@@ -138,7 +138,7 @@ export default function Checkout() {
                   border: "1px solid",
                   borderColor: "divider",
                   borderRadius: 3.5,
-                  bgcolor: "#ffffff",
+                  bgcolor: "background.paper",
                 }}
               >
                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
@@ -146,7 +146,7 @@ export default function Checkout() {
                     sx={{
                       p: 1,
                       borderRadius: 2,
-                      bgcolor: "primary.50",
+                      bgcolor: "action.selected",
                       color: "primary.main",
                       display: "flex",
                     }}
@@ -164,9 +164,9 @@ export default function Checkout() {
                     p: 2.5,
                     mb: 3,
                     borderRadius: 2.5,
-                    bgcolor: "grey.50",
+                    bgcolor: "background.default",
                     border: "1px solid",
-                    borderColor: "grey.200",
+                    borderColor: "divider",
                   }}
                 >
                   <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -193,7 +193,7 @@ export default function Checkout() {
                       mt: 1,
                       borderRadius: 2.5,
                       borderColor: "primary.main",
-                      bgcolor: "rgba(175, 79, 79, 0.02)",
+                      bgcolor: "action.selected",
                     }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="flex-start">
@@ -209,7 +209,7 @@ export default function Checkout() {
                               label="Default"
                               size="small"
                               color="primary"
-                              sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                              sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700, color: "#fff" }}
                             />
                           )}
                         </Stack>
@@ -245,7 +245,7 @@ export default function Checkout() {
                   border: "1px solid",
                   borderColor: "divider",
                   borderRadius: 3.5,
-                  bgcolor: "#ffffff",
+                  bgcolor: "background.paper",
                 }}
               >
                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
@@ -253,7 +253,7 @@ export default function Checkout() {
                     sx={{
                       p: 1,
                       borderRadius: 2,
-                      bgcolor: "primary.50",
+                      bgcolor: "action.selected",
                       color: "primary.main",
                       display: "flex",
                     }}
@@ -314,7 +314,7 @@ export default function Checkout() {
                 borderRadius: 3.5,
                 position: { md: "sticky" },
                 top: 96,
-                bgcolor: "#ffffff",
+                bgcolor: "background.paper",
               }}
             >
               <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
@@ -389,6 +389,7 @@ export default function Checkout() {
                   py: 1.5,
                   fontSize: "1rem",
                   fontWeight: 700,
+                  color: "#fff",
                 }}
                 disabled={cartItems.length === 0 || !currentAddress || loading}
                 onClick={handlePlaceOrder}
@@ -414,7 +415,7 @@ function PaymentOptionCard({ value, title, subtitle, icon, selectedValue }) {
         cursor: "pointer",
         borderColor: isSelected ? "primary.main" : "divider",
         borderWidth: isSelected ? 2 : 1,
-        bgcolor: isSelected ? "rgba(175, 79, 79, 0.02)" : "#fff",
+        bgcolor: isSelected ? "action.selected" : "background.paper",
         transition: "all 0.2s ease-in-out",
         "&:hover": {
           borderColor: "primary.main",

@@ -30,7 +30,7 @@ export default function PaymentMethods() {
             variant="outlined"
             sx={{
               p: 2,
-              borderColor: "#ead4b3",
+              borderColor: "divider",
               borderRadius: 2,
               boxShadow: "none",
             }}

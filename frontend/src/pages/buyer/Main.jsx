@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import artGenres from "../../data/artGenres";
 import Footer from "./Footer";
 // Icons
@@ -116,15 +117,18 @@ function SlideTransition(props) {
 
 export default function Main() {
   const [artworks, setArtworks] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [artworksLoading, setArtworksLoading] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
+  const [recommendedArtworks, setRecommendedArtworks] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationMode, setRecommendationMode] = useState("");
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const theme = useTheme();
 
   const loadArtworks = async () => {
     try {
-      setLoading(true);
+      setArtworksLoading(true);
       setArtworkErrorMessage("");
       const response = await fetchArtworks();
       if (response && Array.isArray(response)) {
@@ -139,12 +143,37 @@ export default function Main() {
       setArtworks([]);
       setArtworkErrorMessage("Failed to load artworks: " + err.message);
     } finally {
-      setLoading(false);
+      setArtworksLoading(false);
+    }
+  };
+
+  const loadRecommendations = async () => {
+    try {
+      setRecommendationsLoading(true);
+
+      const response = await fetchRecommendations(20);
+
+      const list = Array.isArray(response?.recommendations)
+        ? response.recommendations
+        : [];
+
+      setRecommendedArtworks(list);
+
+      setRecommendationMode(response?.mode || "");
+    } catch (error) {
+      console.warn("Recommendation section error:", error);
+
+      setRecommendedArtworks([]);
+
+      setRecommendationMode("unavailable");
+    } finally {
+      setRecommendationsLoading(false);
     }
   };
 
   useEffect(() => {
     loadArtworks();
+    loadRecommendations();
   }, []);
 
   const genres = artGenres;
@@ -334,7 +363,7 @@ export default function Main() {
       </Box>
 
       {/* Recently Added Artworks */}
-      {!loading && !artworkErrorMessage && (
+      {!artworksLoading && !artworkErrorMessage && (
         <Box
           sx={{
             px: { xs: 3, sm: 5, lg: 7 },
@@ -659,7 +688,7 @@ export default function Main() {
       </Box>
 
       {/* Featured Artworks */}
-      {!loading && !artworkErrorMessage && (
+      {!artworksLoading && !artworkErrorMessage && (
         <>
           <Box
             sx={{
@@ -674,7 +703,7 @@ export default function Main() {
           >
             <SectionHeader title="Featured Artworks" to="/buyer/shop" />
             {/* Loading / Error States */}
-            {loading && (
+            {artworksLoading && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
                 <CircularProgress />
               </Box>
@@ -708,53 +737,93 @@ export default function Main() {
         </>
       )}
       {/* Recommended Artworks */}
-      {!loading && !artworkErrorMessage && (
-        <>
-          <Box
-            sx={{
-              width: "100%",
-              overflow: "hidden",
-              mt: { xs: 0, md: -1 },
-              backgroundColor: warmSurface,
-              px: { xs: 7, sm: 10 },
-              p: 4,
-            }}
-            id="recommended"
-          >
-            <SectionHeader title="Recommended Artworks" to="/buyer/shop" />
-            {/* Loading / Error States */}
-            {loading && (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress />
-              </Box>
-            )}
+      {(recommendationsLoading || recommendedArtworks.length > 0) && (
+        <Box
+          sx={{
+            px: { xs: 7, sm: 10 },
+            p: 4,
+            width: "100%",
+            overflow: "hidden",
+            mt: { xs: 0, md: -1 },
+            backgroundColor: theme.palette.background.default,
+          }}
+          id="recommended"
+        >
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: theme.palette.error.main,
 
-            {artworkErrorMessage && (
-              <Typography align="center" color="error" sx={{ py: 3 }}>
-                {artworkErrorMessage}
-              </Typography>
-            )}
+                fontWeight: 800,
+                letterSpacing: 1.5,
+              }}
+            >
+              PERSONALIZED
+            </Typography>
+
+            <Typography
+              variant="h4"
+              sx={{
+                mt: 0.5,
+                fontSize: {
+                  xs: 22,
+                  sm: 26,
+                  md: 30,
+                },
+                fontWeight: 800,
+              }}
+            >
+              Recommended for You
+            </Typography>
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                mt: 0.75,
+                maxWidth: 650,
+              }}
+            >
+              {recommendationMode === "sasrec"
+                ? "Based on your recent artwork activity."
+                : "Discover recently available artworks while we learn your preferences."}
+            </Typography>
+          </Box>
+
+          {recommendationsLoading ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                py: 5,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : (
             <Box
               sx={{
                 display: "grid",
+
                 gridTemplateColumns: {
-                  xs: "repeat(1,1fr)",
-                  sm: "repeat(3,1fr)",
-                  md: "repeat(4,1fr)",
-                  lg: "repeat(4,1fr)",
+                  xs: "repeat(1, 1fr)",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)",
                 },
+
                 gap: 3,
               }}
             >
-              {artworks.slice(0, 12).map((artwork) => (
+              {recommendedArtworks.map((artwork) => (
                 <ArtworkCard
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                 />
               ))}
             </Box>
-          </Box>
-        </>
+          )}
+        </Box>
       )}
     </Box>
   );
@@ -769,7 +838,15 @@ function SectionHeader({ title, to }) {
       <Box>
         <Typography
           variant="h4"
-          sx={{ fontSize: { xs: 17, sm: 20, md: 24 }, fontWeight: 600 }}
+          sx={{
+            mt: 0.5,
+            fontSize: {
+              xs: 22,
+              sm: 26,
+              md: 30,
+            },
+            fontWeight: 800,
+          }}
         >
           {title}
         </Typography>

@@ -103,7 +103,7 @@ app.use("/api/buyer/cart", buyerCartRoutes);
 app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
-app.use("/api/buyer/recommendations", buyerRecommendationRoutes);
+app.use("/api/buyer/recommendation", buyerRecommendationRoutes);
 
 // Routes (Chat of both buyer and seller)
 app.use("/api/chat", chatRoutes);

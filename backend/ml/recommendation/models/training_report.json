@@ -1,0 +1,269 @@
+{
+  "checkpoint": "C:\\VS Codes\\React JS\\art-match\\backend\\ml\\recommendation\\models\\sasrec.pth",
+  "saved_at": "2026-10-10T09:21:40.732919+00:00",
+  "config": {
+    "item_num": 8,
+    "maxlen": 50,
+    "hidden_units": 50,
+    "num_blocks": 2,
+    "num_heads": 1,
+    "dropout_rate": 0.2,
+    "norm_first": true
+  },
+  "training": {
+    "epochs": 50,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "seed": 42,
+    "device": "cpu"
+  },
+  "dataset": {
+    "user_num": 2,
+    "item_num": 8,
+    "trainable_users": 2,
+    "source_file": "ArtMatch.txt"
+  },
+  "final_test": {
+    "users": 1,
+    "hit_rate": 1.0,
+    "ndcg": 0.43067655807339306,
+    "k": 5
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 1.803973913192749,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 2,
+      "loss": 1.562776803970337
+    },
+    {
+      "epoch": 3,
+      "loss": 1.8539762496948242
+    },
+    {
+      "epoch": 4,
+      "loss": 1.3500772714614868
+    },
+    {
+      "epoch": 5,
+      "loss": 1.3613801002502441,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.43067655807339306
+    },
+    {
+      "epoch": 6,
+      "loss": 1.1297338008880615
+    },
+    {
+      "epoch": 7,
+      "loss": 0.787744402885437
+    },
+    {
+      "epoch": 8,
+      "loss": 1.671634554862976
+    },
+    {
+      "epoch": 9,
+      "loss": 0.7580753564834595
+    },
+    {
+      "epoch": 10,
+      "loss": 0.5415312051773071,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.43067655807339306
+    },
+    {
+      "epoch": 11,
+      "loss": 0.608013391494751
+    },
+    {
+      "epoch": 12,
+      "loss": 0.5548675656318665
+    },
+    {
+      "epoch": 13,
+      "loss": 0.7197279930114746
+    },
+    {
+      "epoch": 14,
+      "loss": 0.6438265442848206
+    },
+    {
+      "epoch": 15,
+      "loss": 0.588546633720398,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 16,
+      "loss": 0.5256659984588623
+    },
+    {
+      "epoch": 17,
+      "loss": 0.28967922925949097
+    },
+    {
+      "epoch": 18,
+      "loss": 0.584111213684082
+    },
+    {
+      "epoch": 19,
+      "loss": 0.25275588035583496
+    },
+    {
+      "epoch": 20,
+      "loss": 0.4152674078941345,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 21,
+      "loss": 0.5654615163803101
+    },
+    {
+      "epoch": 22,
+      "loss": 0.2947705090045929
+    },
+    {
+      "epoch": 23,
+      "loss": 0.2903590798377991
+    },
+    {
+      "epoch": 24,
+      "loss": 0.13195577263832092
+    },
+    {
+      "epoch": 25,
+      "loss": 0.17155838012695312,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 26,
+      "loss": 0.1829957664012909
+    },
+    {
+      "epoch": 27,
+      "loss": 0.7390820980072021
+    },
+    {
+      "epoch": 28,
+      "loss": 0.2759246826171875
+    },
+    {
+      "epoch": 29,
+      "loss": 0.11456939578056335
+    },
+    {
+      "epoch": 30,
+      "loss": 0.22426378726959229,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 31,
+      "loss": 0.23884141445159912
+    },
+    {
+      "epoch": 32,
+      "loss": 0.29025933146476746
+    },
+    {
+      "epoch": 33,
+      "loss": 0.16056421399116516
+    },
+    {
+      "epoch": 34,
+      "loss": 0.17893199622631073
+    },
+    {
+      "epoch": 35,
+      "loss": 0.12459030747413635,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 36,
+      "loss": 0.36197686195373535
+    },
+    {
+      "epoch": 37,
+      "loss": 0.14287079870700836
+    },
+    {
+      "epoch": 38,
+      "loss": 0.13234975934028625
+    },
+    {
+      "epoch": 39,
+      "loss": 0.09092716872692108
+    },
+    {
+      "epoch": 40,
+      "loss": 0.24734243750572205,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 41,
+      "loss": 0.11898239701986313
+    },
+    {
+      "epoch": 42,
+      "loss": 0.11555016040802002
+    },
+    {
+      "epoch": 43,
+      "loss": 0.07689160853624344
+    },
+    {
+      "epoch": 44,
+      "loss": 0.07725134491920471
+    },
+    {
+      "epoch": 45,
+      "loss": 0.06443443894386292,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    },
+    {
+      "epoch": 46,
+      "loss": 0.07692353427410126
+    },
+    {
+      "epoch": 47,
+      "loss": 0.08817559480667114
+    },
+    {
+      "epoch": 48,
+      "loss": 0.0716719776391983
+    },
+    {
+      "epoch": 49,
+      "loss": 0.08527930080890656
+    },
+    {
+      "epoch": 50,
+      "loss": 0.08950785547494888,
+      "valid_users": 1,
+      "valid_hit_rate": 1.0,
+      "valid_ndcg": 0.5
+    }
+  ],
+  "warning": "Current metrics are diagnostic only. ArtMatch currently has very few users and interactions, so HR/NDCG are not statistically meaningful yet."
+}

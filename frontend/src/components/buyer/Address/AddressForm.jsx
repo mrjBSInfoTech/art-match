@@ -269,7 +269,7 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
           Cancel
         </Button>
 
-        <Button onClick={handleSubmit} variant="contained" color="primary" sx={{ color: "#fff"  }}>
+        <Button onClick={handleSubmit} variant="contained" color="primary" sx={{ color: "primary.contrastText"  }}>
           {selectedAddress ? "Update" : "Add Address"}
         </Button>
       </DialogActions>

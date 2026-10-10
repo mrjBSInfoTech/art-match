@@ -1,0 +1,10 @@
+{
+  "raw_to_sasrec": {
+    "customer:1": 1,
+    "guest:d2ff6b26-eac4-4353-a23b-001d17a222c9": 2
+  },
+  "sasrec_to_raw": {
+    "1": "customer:1",
+    "2": "guest:d2ff6b26-eac4-4353-a23b-001d17a222c9"
+  }
+}
