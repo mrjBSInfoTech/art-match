@@ -122,6 +122,12 @@ export default function Main() {
   const [recommendedArtworks, setRecommendedArtworks] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationMode, setRecommendationMode] = useState("");
+  const [recommendationSignals, setRecommendationSignals] = useState({
+    search_filter_events: 0,
+    preferred_artists: 0,
+    sasrec_candidates: 0,
+    available_unseen: 0,
+  });
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const theme = useTheme();
@@ -160,6 +166,15 @@ export default function Main() {
       setRecommendedArtworks(list);
 
       setRecommendationMode(response?.mode || "");
+
+      setRecommendationSignals(
+        response?.signals || {
+          search_filter_events: 0,
+          preferred_artists: 0,
+          sasrec_candidates: 0,
+          available_unseen: 0,
+        },
+      );
     } catch (error) {
       console.warn("Recommendation section error:", error);
 
@@ -196,6 +211,43 @@ export default function Main() {
   const heroImage = artworks.slice(0, 1).map(getArtworkImage);
   const warmSurface =
     theme.palette.mode === "light" ? "#fff9ef" : theme.palette.background.paper;
+
+  const isPersonalizedRecommendation = [
+    "sasrec",
+    "sasrec_reranked",
+    "hybrid",
+    "preference_fallback",
+  ].includes(recommendationMode);
+
+  const getRecommendationMessage = () => {
+    const hasHistory = recommendationSignals.sasrec_candidates > 0;
+
+    const hasSearchOrFilters = recommendationSignals.search_filter_events > 0;
+
+    const hasArtistPreference = recommendationSignals.preferred_artists > 0;
+
+    if (hasHistory && hasSearchOrFilters && hasArtistPreference) {
+      return "Based on your browsing, searches, filters, and artist preferences.";
+    }
+
+    if (hasHistory && hasSearchOrFilters) {
+      return "Based on your browsing, searches, and filters.";
+    }
+
+    if (hasHistory && hasArtistPreference) {
+      return "Based on your browsing and artist preferences.";
+    }
+
+    if (hasHistory) {
+      return "Based on your recent artwork browsing.";
+    }
+
+    if (hasSearchOrFilters) {
+      return "Based on your recent searches and filters.";
+    }
+
+    return "Discover recent and popular artworks while we learn your preferences.";
+  };
 
   return (
     <Box
@@ -785,9 +837,7 @@ export default function Main() {
                 maxWidth: 650,
               }}
             >
-              {recommendationMode === "sasrec"
-                ? "Based on your recent artwork activity."
-                : "Discover recently available artworks while we learn your preferences."}
+              {getRecommendationMessage()}
             </Typography>
           </Box>
 
