@@ -66,6 +66,26 @@ const reviewTableSql = `
   ) ENGINE=InnoDB
 `;
 
+const recommendationTableSql = `
+  CREATE TABLE IF NOT EXISTS recommendation_interaction (
+    interaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NULL,
+    artwork_id INT NULL,
+    session_id VARCHAR(100) NULL,
+    event_type VARCHAR(32) NOT NULL,
+    search_query VARCHAR(255) NULL,
+    filter_type VARCHAR(50) NULL,
+    filter_value VARCHAR(255) NULL,
+    min_price DECIMAL(12, 2) NULL,
+    max_price DECIMAL(12, 2) NULL,
+    source_page VARCHAR(100) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_recommendation_customer (customer_id, created_at),
+    INDEX idx_recommendation_artwork (artwork_id, created_at),
+    INDEX idx_recommendation_session (session_id, created_at)
+  ) ENGINE=InnoDB
+`;
+
 export const ensureOrderTables = () =>
   new Promise((resolve, reject) => {
     db.query(orderTableSql, (orderError) => {
@@ -83,7 +103,13 @@ export const ensureOrderTables = () =>
             reject(reviewError);
             return;
           }
-          resolve();
+          db.query(recommendationTableSql, (recommendationError) => {
+            if (recommendationError) {
+              reject(recommendationError);
+              return;
+            }
+            resolve();
+          });
         });
       });
     });

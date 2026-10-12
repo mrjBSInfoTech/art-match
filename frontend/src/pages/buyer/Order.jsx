@@ -159,6 +159,13 @@ export default function Orders() {
                       <Typography fontWeight={800}>{formatCurrency(order.total)}</Typography>
                     </Stack>
                   </Stack>
+                  {order.status === "Shipped" || order.status === "Delivered" ? (
+                    <Alert severity={order.status === "Delivered" ? "success" : "info"} sx={{ mt: 2, borderRadius: 2 }}>
+                      {order.status === "Delivered"
+                        ? "Your order has been delivered. Please review the artwork if you’re happy with it."
+                        : "Shipping update: your order is on the way and should arrive soon."}
+                    </Alert>
+                  ) : null}
                   <Box sx={{ borderTop: "1px solid", borderColor: "divider", mt: 2, pt: 2 }}>
                     <Stack spacing={1.5}>
                       {order.items.map((item) => (

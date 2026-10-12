@@ -47,6 +47,7 @@ import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -54,7 +55,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import logo from "../assets/Nexus.png";
 import Footer from "../pages/buyer/Footer";
 import { fetchCart } from "../api/buyer/cartAPI";
-import { fetchBuyerConversations } from "../api/buyer/messageAPI";
+import {
+  fetchBuyerConversations,
+  fetchBuyerNotifications,
+} from "../api/buyer/messageAPI";
 import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
 import { recordRecommendationEvent } from "../api/buyer/recommendationAPI";
 
@@ -97,6 +101,7 @@ function BuyerLayoutContent({ children }) {
   const [profileImage, setProfileImage] = useState("");
   const [cartCount, setCartCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -153,17 +158,29 @@ function BuyerLayoutContent({ children }) {
     const loadUnreadMessageCount = async () => {
       if (!localStorage.getItem("buyer_token")) {
         setUnreadMessageCount(0);
+        setUnreadNotificationCount(0);
         return;
       }
 
-      const conversations = await fetchBuyerConversations().catch(() => null);
-      if (!conversations) return;
-      setUnreadMessageCount(
-        conversations.reduce(
-          (total, conversation) => total + Number(conversation.unread_count || 0),
-          0,
-        ),
-      );
+      const [conversations, notifications] = await Promise.all([
+        fetchBuyerConversations().catch(() => null),
+        fetchBuyerNotifications().catch(() => null),
+      ]);
+
+      if (conversations) {
+        setUnreadMessageCount(
+          conversations.reduce(
+            (total, conversation) => total + Number(conversation.unread_count || 0),
+            0,
+          ),
+        );
+      }
+
+      if (notifications) {
+        setUnreadNotificationCount(
+          notifications.filter((notification) => !Number(notification.is_read)).length,
+        );
+      }
     };
 
     loadUnreadMessageCount();
@@ -509,6 +526,20 @@ function BuyerLayoutContent({ children }) {
                 max={99}
               >
                 <ChatIcon />
+              </Badge>
+            </IconButton>
+            <IconButton
+              sx={{ color: theme.palette.text.primary }}
+              onClick={() => navigate("/buyer/notifications")}
+              aria-label="View notifications"
+            >
+              <Badge
+                badgeContent={unreadNotificationCount}
+                color="error"
+                invisible={unreadNotificationCount === 0}
+                max={99}
+              >
+                <NotificationsNoneOutlinedIcon />
               </Badge>
             </IconButton>
             <IconButton

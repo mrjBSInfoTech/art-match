@@ -10,6 +10,33 @@ const allowedTransitions = {
   Shipped: new Set(["Delivered"]),
 };
 
+const createOrderStatusNotification = (orderId, buyerId, status) =>
+  new Promise((resolve) => {
+    const orderLabel = `AM-${String(orderId).padStart(6, "0")}`;
+    const statusMessages = {
+      Confirmed: `Your order ${orderLabel} has been confirmed and is now being prepared.`,
+      Packed: `Your order ${orderLabel} has been packed and is ready for shipment.`,
+      Shipped: `Your order ${orderLabel} has shipped and is on the way.`,
+      Delivered: `Your order ${orderLabel} has been delivered.`,
+      Cancelled: `Your order ${orderLabel} has been cancelled.`,
+    };
+
+    const message = statusMessages[status] || `Your order ${orderLabel} status has been updated.`;
+    const notificationType = status === "Shipped" || status === "Delivered" ? "shipping" : "order_status";
+
+    db.query(
+      "INSERT INTO account_notifications (role, account_id, notification_type, message) VALUES (?, ?, ?, ?)",
+      ["buyer", buyerId, notificationType, message],
+      (error) => {
+        if (error) {
+          console.error("Unable to create order notification:", error.message);
+          return resolve(false);
+        }
+        resolve(true);
+      },
+    );
+  });
+
 router.get("/", authenticateSeller, (req, res) => {
   db.query(
     `SELECT
@@ -88,9 +115,33 @@ router.put("/:id/status", authenticateSeller, (req, res) => {
       db.query(
         "UPDATE marketplace_order SET status = ? WHERE order_id = ? AND seller_id = ? AND status = ?",
         [requestedStatus, req.params.id, req.user.student_id, currentStatus],
-        (updateError, result) => {
+        async (updateError, result) => {
           if (updateError) return res.status(500).json({ message: "Unable to update order" });
           if (!result.affectedRows) return res.status(409).json({ message: "Order status changed; refresh and try again" });
+
+          if (["Confirmed", "Packed", "Shipped", "Delivered", "Cancelled"].includes(requestedStatus)) {
+            db.query(
+              "SELECT customer_id, order_id FROM marketplace_order WHERE order_id = ? AND seller_id = ? LIMIT 1",
+              [req.params.id, req.user.student_id],
+              (orderError, orderRows) => {
+                if (orderError) {
+                  console.error("Unable to load order for status notification:", orderError.message);
+                  return res.json({ message: "Order status updated", status: requestedStatus });
+                }
+
+                if (!orderRows.length) {
+                  return res.json({ message: "Order status updated", status: requestedStatus });
+                }
+
+                createOrderStatusNotification(orderRows[0].order_id, orderRows[0].customer_id, requestedStatus)
+                  .finally(() => {
+                    res.json({ message: "Order status updated", status: requestedStatus });
+                  });
+              },
+            );
+            return;
+          }
+
           res.json({ message: "Order status updated", status: requestedStatus });
         },
       );

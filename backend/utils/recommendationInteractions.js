@@ -60,18 +60,27 @@ export const recordRecommendationInteraction = async ({
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  const [result] = await executor.query(sql, [
-    normalizedCustomerId,
-    normalizedArtworkId,
-    normalizedSessionId,
-    normalizedEventType,
-    cleanText(searchQuery, 255),
-    cleanText(filterType, 50),
-    cleanText(filterValue, 255),
-    minPrice === undefined || minPrice === null ? null : Number(minPrice),
-    maxPrice === undefined || maxPrice === null ? null : Number(maxPrice),
-    cleanText(sourcePage, 100),
-  ]);
+  try {
+    const [result] = await executor.query(sql, [
+      normalizedCustomerId,
+      normalizedArtworkId,
+      normalizedSessionId,
+      normalizedEventType,
+      cleanText(searchQuery, 255),
+      cleanText(filterType, 50),
+      cleanText(filterValue, 255),
+      minPrice === undefined || minPrice === null ? null : Number(minPrice),
+      maxPrice === undefined || maxPrice === null ? null : Number(maxPrice),
+      cleanText(sourcePage, 100),
+    ]);
 
-  return result.insertId;
+    return result.insertId;
+  } catch (error) {
+    if (String(error?.code || "").includes("ER_NO_SUCH_TABLE")) {
+      console.warn("Recommendation tracking table is missing; skipping interaction logging.");
+      return null;
+    }
+
+    throw error;
+  }
 };
