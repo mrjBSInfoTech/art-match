@@ -279,6 +279,21 @@ function SellerLayoutContent({ children }) {
       ),
       pattern: "/seller/messages",
     },
+    {
+      segment: "notifications",
+      title: "Notifications",
+      icon: (
+        <Badge
+          badgeContent={notifications.filter((notification) => !Number(notification.is_read)).length}
+          color="error"
+          invisible={!notifications.some((notification) => !Number(notification.is_read))}
+          max={99}
+        >
+          <NotificationsNoneIcon />
+        </Badge>
+      ),
+      pattern: "/seller/notifications",
+    },
   ];
 
   const branding = {
@@ -334,7 +349,10 @@ function SellerLayoutContent({ children }) {
       </IconButton>
 
       <IconButton
-        onClick={handleNotificationClick}
+        onClick={() => {
+          navigate("/seller/notifications");
+          setNotificationDrawerOpen(false);
+        }}
         aria-label="Open notifications"
         sx={{ color: "#6b7280" }}
       >

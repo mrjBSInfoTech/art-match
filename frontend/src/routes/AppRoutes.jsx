@@ -39,6 +39,7 @@ import SellerArtwork from "../pages/seller/Artwork";
 import SellerStorefront from "../pages/seller/Storefront";
 import SellerSales from "../pages/seller/Sales";
 import SellerMessages from "../pages/seller/Messages";
+import SellerNotifications from "../pages/seller/Notifications";
 import SellerOrder from "../pages/seller/Order";
 import SellerProfile from "../pages/seller/Profile";
 import SellerSettings from "../pages/seller/Settings";
@@ -67,6 +68,7 @@ import BuyerPaymentMethods from "../pages/buyer/PaymentMethods";
 import BuyerSettings from "../pages/buyer/Settings";
 import BuyerOrder from "../pages/buyer/Order";
 import BuyerOrderFinish from "../pages/buyer/OrderFinish";
+import BuyerNotifications from "../pages/buyer/Notifications";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
 
@@ -119,6 +121,7 @@ export default function AppRoutes() {
                 <Route path="favorites" element={<BuyerFavorites />} />
                 <Route path="order-finish" element={<BuyerOrderFinish />} />
                 <Route path="messages" element={<BuyerMessage />} />
+                <Route path="notifications" element={<BuyerNotifications />} />
                 <Route
                   path="message"
                   element={<Navigate to="../messages" replace />}
@@ -175,6 +178,7 @@ export default function AppRoutes() {
                 <Route path="sales" element={<SellerSales />} />
                 <Route path="orders" element={<SellerOrder />} />
                 <Route path="messages" element={<SellerMessages />} />
+                <Route path="notifications" element={<SellerNotifications />} />
                 <Route path="profile" element={<SellerProfile />} />
                 <Route path="settings" element={<SellerSettings />} />
               </Route>
