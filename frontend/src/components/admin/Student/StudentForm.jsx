@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
+import { courseOptions, yearLevelOptions } from "./studentOptions";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
@@ -49,14 +50,6 @@ const DropZone = styled(Box, {
     backgroundColor: theme.palette.action.hover,
   },
 }));
-
-const courseOptions = [
-  "Bachelor of Science in Architecture",
-  "Bachelor of Fine Arts in Painting",
-  "Bachelor of Fine Arts in Advertising Arts",
-  "Bachelor of Science in Interior Design",
-  "Bachelor of Fine Arts in Industrial Design",
-];
 
 const initialFormData = {
   first_name: "",
@@ -326,10 +319,11 @@ export default function StudentForm({
               <MenuItem value="">
                 <em>Select school year</em>
               </MenuItem>
-              <MenuItem value="First Year">First Year</MenuItem>
-              <MenuItem value="Second Year">Second Year</MenuItem>
-              <MenuItem value="Third Year">Third Year</MenuItem>
-              <MenuItem value="Fourth Year">Fourth Year</MenuItem>
+              {yearLevelOptions.map((year) => (
+                <MenuItem key={year} value={year}>
+                  {year}
+                </MenuItem>
+              ))}
             </TextField>
 
             <TextField

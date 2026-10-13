@@ -22,7 +22,6 @@ import {
   DialogContentText,
   DialogActions,
   Divider,
-  Collapse,
   Autocomplete,
   InputBase,
   Checkbox,
@@ -35,6 +34,7 @@ import {
   Paper,
   Popover,
   Container,
+  useMediaQuery,
 } from "@mui/material";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -82,6 +82,15 @@ function BuyerLayoutContent({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, mode, setMode } = useThemeMode();
+  const inlineSearch = useMediaQuery(theme.breakpoints.up("md"));
+  const searchInputRef = useRef(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchOpen && !inlineSearch) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen, inlineSearch]);
   const toggleTheme = () =>
     setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
 
@@ -108,7 +117,6 @@ function BuyerLayoutContent({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categoriesAnchorPosition, setCategoriesAnchorPosition] =
     useState(null);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [openDialog, setOpenDialog] = React.useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -254,17 +262,6 @@ function BuyerLayoutContent({ children }) {
   };
 
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1200) {
-        setSearchOpen(false);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-  useEffect(() => {
     const button = buttonRefs.current[activeIndex];
     if (button) {
       setIndicatorStyle({
@@ -384,10 +381,13 @@ function BuyerLayoutContent({ children }) {
         </Box>
         <Toolbar
           sx={{
-            display: "flex",
+            display: { xs: "flex", md: "grid" },
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 420px) minmax(0, 1fr)",
             alignItems: "center",
             justifyContent: "space-between",
             gap: { xs: 1, lg: 2 },
+            flexWrap: "wrap",
+            py: { xs: 1, lg: 0 },
             minHeight: { xs: 64, lg: 68 },
             px: { xs: 2, sm: 4, lg: 6 },
           }}
@@ -402,6 +402,7 @@ function BuyerLayoutContent({ children }) {
               alignItems: "center",
               gap: 1,
               flexShrink: 0,
+              justifySelf: "start",
               p: 0,
               border: 0,
               background: "transparent",
@@ -451,22 +452,29 @@ function BuyerLayoutContent({ children }) {
 
           <Box
             sx={{
-              display: { xs: "none", lg: "flex" },
+              display: { xs: searchOpen ? "flex" : "none", md: "flex" },
               flexGrow: 1,
+              flexBasis: { xs: "100%", md: "auto" },
+              minWidth: 0,
+              order: { xs: 2, md: 0 },
               justifyContent: "center",
-              px: 2,
+              width: "100%",
             }}
           >
-            {/* DESKTOP SEARCH */}
+            {/* Inline on larger tablets; toggled below the header on smaller screens. */}
             <Paper
+              id="buyer-header-search"
               component="form"
+              role="search"
               onSubmit={handleSearchSubmit}
               elevation={0}
               sx={{
                 display: "flex",
                 alignItems: "center",
-                width: 750,
-                maxWidth: "100%",
+                width: "100%",
+                maxWidth: { xs: "100%", md: 420 },
+                minWidth: 0,
+                boxSizing: "border-box",
                 backgroundColor: theme.palette.background.default,
                 border: `1px solid ${theme.palette.divider}`,
                 borderRadius: "24px",
@@ -474,14 +482,25 @@ function BuyerLayoutContent({ children }) {
               }}
             >
               <InputBase
+                inputRef={searchInputRef}
                 fullWidth
                 size="small"
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{ py: 0.5, fontSize: "0.9rem" }}
+                inputProps={{ "aria-label": "Search artworks" }}
+                sx={{
+                  py: 0.5,
+                  minWidth: 0,
+                  fontSize: { xs: "1rem", lg: "0.9rem" },
+                }}
               />
-              <IconButton type="submit" size="small" sx={{ p: 1 }}>
+              <IconButton
+                type="submit"
+                aria-label="Submit search"
+                size="small"
+                sx={{ p: 1, flexShrink: 0 }}
+              >
                 <SearchIcon />
               </IconButton>
             </Paper>
@@ -492,6 +511,7 @@ function BuyerLayoutContent({ children }) {
               display: { xs: "none", lg: "flex" },
               alignItems: "center",
               flexShrink: 0,
+              justifySelf: "end",
               ml: 1,
             }}
           >
@@ -793,10 +813,20 @@ function BuyerLayoutContent({ children }) {
 
           {/* MOBILE/TABLET BUTTONS (Visible below LG breakpoint) */}
           <Box
-            sx={{ display: { xs: "flex", lg: "none" }, gap: 1, flexShrink: 0 }}
+            sx={{ display: { xs: "flex", lg: "none" }, gap: 1, flexShrink: 0, justifySelf: "end" }}
           >
             <IconButton
+              onClick={() => setSearchOpen((current) => !current)}
+              aria-label={searchOpen ? "Hide search" : "Show search"}
+              aria-expanded={searchOpen}
+              aria-controls="buyer-header-search"
+              sx={{ display: { xs: "inline-flex", md: "none" }, color: theme.palette.text.primary }}
+            >
+              <SearchIcon />
+            </IconButton>
+            <IconButton
               onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Open navigation menu"
               sx={{ color: theme.palette.text.primary }}
             >
               <MenuIcon />
@@ -910,48 +940,6 @@ function BuyerLayoutContent({ children }) {
             </Button>
           </Box>
         </Box>
-
-        {/* SEARCH DROP-DOWN (For Mobile and Tablet) */}
-        <Collapse in={searchOpen}>
-          <Box
-            sx={{
-              p: 2,
-              backgroundColor: theme.palette.background.paper,
-              borderTop: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <Paper
-              component="form"
-              onSubmit={handleSearchSubmit}
-              elevation={0}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                width: 500,
-                maxWidth: "100%",
-                backgroundColor: theme.palette.background.paper,
-                borderRadius: "6px",
-                px: 1.5,
-              }}
-            >
-              <InputBase
-                fullWidth
-                size="small"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{
-                  py: 0.5,
-                  fontSize: "0.9rem",
-                  color: theme.palette.text.primary,
-                }}
-              />
-              <IconButton type="submit" size="small" sx={{ p: 1 }}>
-                <SearchIcon />
-              </IconButton>
-            </Paper>
-          </Box>
-        </Collapse>
       </AppBar>
 
       <Popover

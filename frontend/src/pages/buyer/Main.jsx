@@ -128,6 +128,8 @@ export default function Main() {
     sasrec_candidates: 0,
     available_unseen: 0,
   });
+  const [recommendationHistoryLength, setRecommendationHistoryLength] =
+    useState(0);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const theme = useTheme();
@@ -166,6 +168,8 @@ export default function Main() {
       setRecommendedArtworks(list);
 
       setRecommendationMode(response?.mode || "");
+
+      setRecommendationHistoryLength(Number(response?.history_length || 0));
 
       setRecommendationSignals(
         response?.signals || {
@@ -220,11 +224,45 @@ export default function Main() {
   ].includes(recommendationMode);
 
   const getRecommendationMessage = () => {
-    const hasHistory = recommendationSignals.sasrec_candidates > 0;
+    const isGuest = !localStorage.getItem("buyer_token");
+
+    const hasHistory = recommendationHistoryLength > 0;
 
     const hasSearchOrFilters = recommendationSignals.search_filter_events > 0;
 
     const hasArtistPreference = recommendationSignals.preferred_artists > 0;
+
+    // -------------------------
+    // GUEST
+    // -------------------------
+
+    if (isGuest) {
+      if (hasHistory && hasSearchOrFilters && hasArtistPreference) {
+        return "Based on your guest browsing, searches, filters, and artist preferences.";
+      }
+
+      if (hasHistory && hasSearchOrFilters) {
+        return "Based on your guest browsing, searches, and filters.";
+      }
+
+      if (hasHistory && hasArtistPreference) {
+        return "Based on your guest browsing and artist preferences.";
+      }
+
+      if (hasHistory) {
+        return "Based on your recent guest browsing.";
+      }
+
+      if (hasSearchOrFilters) {
+        return "Based on your recent guest searches and filters.";
+      }
+
+      return "Discover recent and popular artworks while we learn what you like.";
+    }
+
+    // -------------------------
+    // LOGGED-IN BUYER
+    // -------------------------
 
     if (hasHistory && hasSearchOrFilters && hasArtistPreference) {
       return "Based on your browsing, searches, filters, and artist preferences.";

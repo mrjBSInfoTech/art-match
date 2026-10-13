@@ -23,6 +23,222 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
+const normalizeHeader = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ");
+
+const COLUMN_ALIASES = {
+  student_number: [
+    "student number",
+    "student no",
+    "student no.",
+    "student id",
+    "id number",
+    "school id",
+  ],
+
+  first_name: ["first name", "firstname", "given name", "given names"],
+
+  middle_name: ["middle name", "middlename", "middle"],
+
+  last_name: ["last name", "lastname", "surname", "family name"],
+
+  course: ["course", "program", "degree", "degree program"],
+
+  year_level: ["year level", "year", "level", "yearlevel"],
+};
+
+const NORMALIZED_ALIASES = Object.fromEntries(
+  Object.entries(COLUMN_ALIASES).map(([field, aliases]) => [
+    field,
+
+    new Set(aliases.map(normalizeHeader)),
+  ]),
+);
+
+const getFieldForHeader = (header) => {
+  const normalized = normalizeHeader(header);
+
+  for (const [field, aliases] of Object.entries(NORMALIZED_ALIASES)) {
+    if (aliases.has(normalized)) {
+      return field;
+    }
+  }
+
+  return null;
+};
+
+const analyzeHeaderRow = (row) => {
+  const columnMap = {};
+  let score = 0;
+
+  row.forEach((cell, index) => {
+    const field = getFieldForHeader(cell);
+
+    if (field && columnMap[field] === undefined) {
+      columnMap[field] = index;
+
+      score += 1;
+    }
+  });
+
+  // These are the strongest
+  // indicators that this really
+  // is a student-list header.
+  if (columnMap.student_number !== undefined) {
+    score += 3;
+  }
+
+  if (columnMap.first_name !== undefined) {
+    score += 2;
+  }
+
+  if (columnMap.last_name !== undefined) {
+    score += 2;
+  }
+
+  return {
+    score,
+    columnMap,
+  };
+};
+
+const findHeaderRow = (rows) => {
+  let best = null;
+
+  rows.slice(0, 30).forEach((row, index) => {
+    const analysis = analyzeHeaderRow(row);
+
+    if (!best || analysis.score > best.score) {
+      best = {
+        rowIndex: index,
+        ...analysis,
+      };
+    }
+  });
+
+  if (
+    !best ||
+    best.score < 7 ||
+    best.columnMap.student_number === undefined ||
+    best.columnMap.first_name === undefined ||
+    best.columnMap.last_name === undefined
+  ) {
+    return null;
+  }
+
+  return best;
+};
+
+const getCellValue = (row, columnMap, field) => {
+  const index = columnMap[field];
+
+  if (index === undefined) {
+    return "";
+  }
+
+  return String(row[index] ?? "").trim();
+};
+
+const normalizeYearLevel = (value) => {
+  const text = normalizeHeader(value);
+
+  if (["1", "1st", "1st year", "first", "first year"].includes(text)) {
+    return "First Year";
+  }
+
+  if (["2", "2nd", "2nd year", "second", "second year"].includes(text)) {
+    return "Second Year";
+  }
+
+  if (["3", "3rd", "3rd year", "third", "third year"].includes(text)) {
+    return "Third Year";
+  }
+
+  if (["4", "4th", "4th year", "fourth", "fourth year"].includes(text)) {
+    return "Fourth Year";
+  }
+
+  if (["5", "5th", "5th year", "fifth", "fifth year"].includes(text)) {
+    return "Fifth Year";
+  }
+
+  return String(value || "").trim();
+};
+
+const normalizeCourse = (value) => {
+  const text = normalizeHeader(value);
+
+  const courseAliases = {
+    "bfa painting": "Bachelor of Fine Arts in Painting",
+
+    "bfa ptg": "Bachelor of Fine Arts in Painting",
+
+    "bachelor of fine arts in painting": "Bachelor of Fine Arts in Painting",
+
+    "bs architecture": "Bachelor of Science in Architecture",
+
+    "bachelor of science in architecture":
+      "Bachelor of Science in Architecture",
+
+    "bfa advertising arts": "Bachelor of Fine Arts in Advertising Arts",
+
+    "bachelor of fine arts in advertising arts":
+      "Bachelor of Fine Arts in Advertising Arts",
+
+    "bs interior design": "Bachelor of Science in Interior Design",
+
+    "bachelor of science in interior design":
+      "Bachelor of Science in Interior Design",
+
+    "bfa industrial design": "Bachelor of Fine Arts in Industrial Design",
+
+    "bachelor of fine arts in industrial design":
+      "Bachelor of Fine Arts in Industrial Design",
+  };
+
+  return courseAliases[text] || String(value || "").trim();
+};
+
+const formatPersonName = (value) => {
+  const text = String(value || "").trim();
+
+  if (!text) {
+    return "";
+  }
+
+  return text
+    .split(/([ '-])/)
+    .map((part) => {
+      // Keep spaces, hyphens,
+      // and apostrophes unchanged.
+      if (/^[ '-]$/.test(part)) {
+        return part;
+      }
+
+      if (!part) {
+        return part;
+      }
+
+      // If already mixed-case,
+      // preserve it.
+      const hasUpper = /[A-Z]/.test(part);
+
+      const hasLower = /[a-z]/.test(part);
+
+      if (hasUpper && hasLower) {
+        return part;
+      }
+
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join("");
+};
+
 export default function StudentBulkAdd({
   open,
   handleClose,
@@ -37,44 +253,140 @@ export default function StudentBulkAdd({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+
     if (!file) return;
 
     setFileName(file.name);
     setError("");
+    setParsedData([]);
 
     const reader = new FileReader();
+
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws, { raw: false });
+        const data = evt.target.result;
 
-        const formattedData = data.map((row) => ({
-          first_name: row["First Name"] || row.first_name || "",
-          middle_name: row["Middle Name"] || row.middle_name || "",
-          last_name: row["Last Name"] || row.last_name || "",
-          birthdate: row["Date of Birth"] || row.birthdate || row.dob || "",
-          email: row["Email"] || row.email || "",
-          address: row["Address"] || row.address || "",
-          phone_number: String(row["Phone Number"] || row.phone_number || ""),
-          cor: row["COR Image"] || row.cor || "",
-          year_level: row["Year Level"] || row.year_level || "",
-          student_number: row["Student Number"] || row.student_number || "",
-          course: row["Course"] || row.course || "",
-          profile_image: row["Profile Picture"] || row.profile_image || "",
-        }));
+        const workbook = XLSX.read(data, {
+          type: "array",
+        });
 
-        setParsedData(formattedData);
+        let bestSheet = null;
+
+        // Search every worksheet.
+        // Beneficiaries do not have
+        // to move the correct sheet
+        // to the first position.
+        for (const sheetName of workbook.SheetNames) {
+          const worksheet = workbook.Sheets[sheetName];
+
+          const rows = XLSX.utils.sheet_to_json(worksheet, {
+            header: 1,
+            raw: false,
+            defval: "",
+            blankrows: false,
+          });
+
+          const header = findHeaderRow(rows);
+
+          if (header && (!bestSheet || header.score > bestSheet.header.score)) {
+            bestSheet = {
+              sheetName,
+              rows,
+              header,
+            };
+          }
+        }
+
+        if (!bestSheet) {
+          throw new Error(
+            "Could not automatically find the student columns in this file.",
+          );
+        }
+
+        const { rows, header } = bestSheet;
+
+        const { rowIndex, columnMap } = header;
+
+        const students = rows
+          .slice(rowIndex + 1)
+          .map((row) => {
+            const studentNumber = getCellValue(
+              row,
+              columnMap,
+              "student_number",
+            );
+
+            const firstName = formatPersonName(
+              getCellValue(row, columnMap, "first_name"),
+            );
+
+            const middleName = formatPersonName(
+              getCellValue(row, columnMap, "middle_name"),
+            );
+
+            const lastName = formatPersonName(
+              getCellValue(row, columnMap, "last_name"),
+            );
+
+            const course = normalizeCourse(
+              getCellValue(row, columnMap, "course"),
+            );
+
+            const yearLevel = normalizeYearLevel(
+              getCellValue(row, columnMap, "year_level"),
+            );
+
+            return {
+              student_number: studentNumber,
+
+              first_name: firstName,
+
+              middle_name: middleName,
+
+              last_name: lastName,
+
+              course,
+
+              year_level: yearLevel,
+            };
+          })
+
+          // Ignore empty/footer rows.
+          .filter(
+            (student) =>
+              student.student_number && student.first_name && student.last_name,
+          );
+
+        if (!students.length) {
+          throw new Error(
+            "Student columns were found, but no valid student rows were detected.",
+          );
+        }
+
+        // Remove duplicated student
+        // numbers inside the same file.
+        const uniqueStudents = [
+          ...new Map(
+            students.map((student) => [
+              student.student_number.toLowerCase(),
+
+              student,
+            ]),
+          ).values(),
+        ];
+
+        setParsedData(uniqueStudents);
       } catch (err) {
-        setError(
-          "Failed to parse the file. Ensure it is a valid Excel or CSV file.",
-        );
+        console.error("Bulk student file error:", err);
+
+        setParsedData([]);
+
+        setError(err.message || "Unable to read this Excel or CSV file.");
       }
     };
-    reader.readAsBinaryString(file);
+
+    reader.readAsArrayBuffer(file);
   };
 
   const handleSubmit = async () => {
@@ -200,13 +512,14 @@ export default function StudentBulkAdd({
         <Box
           onClick={() => fileInputRef.current.click()}
           sx={{
-            border: "2px dashed #1976d2",
+            border: "2px dashed",
+            borderColor: "primary.main",
             borderRadius: 2,
             p: 4,
             textAlign: "center",
             cursor: "pointer",
-            backgroundColor: "#f5f9ff",
-            "&:hover": { backgroundColor: "#e3f2fd" },
+            bgcolor: "background.default",
+            "&:hover": { bgcolor: "action.hover" },
           }}
         >
           <CloudUploadIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />

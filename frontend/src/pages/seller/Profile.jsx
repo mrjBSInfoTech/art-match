@@ -19,6 +19,7 @@ import {
   Tabs,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
@@ -61,6 +62,7 @@ const parseArray = (value) => {
 };
 
 export default function Profile() {
+  const theme = useTheme();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
@@ -200,7 +202,7 @@ export default function Profile() {
   });
 
   return (
-    <Box sx={{ minHeight: "100vh", background: "#efeae7", color: "#1f1f1f" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary" }}>
       <Helmet>
         <title>Seller Profile</title>
       </Helmet>
@@ -212,7 +214,7 @@ export default function Profile() {
           position: "relative",
         }}
       >
-        <Box sx={{ background: "rgba(26, 23, 23, 0.08)", py: 2 }}>
+        <Box sx={{ bgcolor: alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.5 : 0.3), py: 2 }}>
           <Container maxWidth="lg">
             <Stack
               direction="row"
@@ -251,11 +253,11 @@ export default function Profile() {
                   display: "flex",
                   alignItems: "center",
                   gap: 1,
-                  background: "rgba(255,255,255,0.9)",
+                  bgcolor: alpha(theme.palette.background.paper, 0.95),
                   borderRadius: 999,
                   px: 2,
                   py: 1,
-                  color: "#444",
+                  color: "text.primary",
                 }}
               >
                 <SearchOutlinedIcon fontSize="small" />
@@ -289,9 +291,9 @@ export default function Profile() {
           sx={{
             p: { xs: 2.5, md: 3 },
             borderRadius: 3,
-            background: "rgba(249,245,242,0.96)",
-            border: "1px solid rgba(130,99,88,0.15)",
-            boxShadow: "0 20px 30px rgba(50, 25, 22, 0.08)",
+            bgcolor: "background.paper",
+            border: "1px solid", borderColor: "divider",
+            boxShadow: theme.shadows[3],
           }}
         >
           <Grid container spacing={3} alignItems="center">
@@ -300,7 +302,7 @@ export default function Profile() {
                 <Avatar
                   src={getProfileImage(profileImage)}
                   alt={profileName}
-                  sx={{ width: 92, height: 92, border: "4px solid #fff" }}
+                  sx={{ width: 92, height: 92, border: "4px solid", borderColor: "background.paper" }}
                 />
                 <Typography
                   component="h1"
@@ -309,7 +311,7 @@ export default function Profile() {
                   textAlign={{ xs: "center", md: "left" }}
                   sx={{
                     width: "100%",
-                    color: "#1f1f1f",
+                    color: "text.primary",
                     lineHeight: 1.2,
                     overflowWrap: "anywhere",
                   }}
@@ -336,8 +338,8 @@ export default function Profile() {
                     label={course || "Fine Arts"}
                     size="small"
                     sx={{
-                      background: "#f2ece8",
-                      color: "#5b3b35",
+                      bgcolor: "action.selected",
+                      color: "text.primary",
                       fontWeight: 700,
                       borderRadius: 999,
                     }}
@@ -364,10 +366,10 @@ export default function Profile() {
               <Paper
                 elevation={0}
                 sx={{
-                  background: "rgba(255,255,255,0.5)",
+                  bgcolor: "background.default",
                   borderRadius: 3,
                   p: 2,
-                  border: "1px solid rgba(124,94,86,0.16)",
+                  border: "1px solid", borderColor: "divider",
                 }}
               >
                 <Typography variant="h6" fontWeight={700} sx={{ mb: 1.5 }}>
@@ -376,7 +378,7 @@ export default function Profile() {
 
                 <Stack spacing={1.5}>
                   <Stack direction="row" spacing={1.3} alignItems="center">
-                    <VerifiedRoundedIcon sx={{ color: "#d53636", fontSize: 18 }} />
+                    <VerifiedRoundedIcon sx={{ color: "error.main", fontSize: 18 }} />
                     <Box>
                       <Typography variant="body2" fontWeight={700}>Top Seller</Typography>
                       <Typography variant="caption" color="text.secondary">Top 5% in selling artworks</Typography>
@@ -384,7 +386,7 @@ export default function Profile() {
                   </Stack>
 
                   <Stack direction="row" spacing={1.3} alignItems="center">
-                    <VerifiedRoundedIcon sx={{ color: "#d53636", fontSize: 18 }} />
+                    <VerifiedRoundedIcon sx={{ color: "error.main", fontSize: 18 }} />
                     <Box>
                       <Typography variant="body2" fontWeight={700}>Featured Artist</Typography>
                       <Typography variant="caption" color="text.secondary">Featured in spring 2026</Typography>
@@ -403,8 +405,8 @@ export default function Profile() {
               sx={{
                 borderRadius: 3,
                 p: { xs: 2, md: 2.5 },
-                background: "#f8f4f2",
-                border: "1px solid rgba(130,99,88,0.15)",
+                bgcolor: "background.paper",
+                border: "1px solid", borderColor: "divider",
               }}
             >
               <Tabs
@@ -414,8 +416,9 @@ export default function Profile() {
                 indicatorColor="primary"
                 sx={{
                   mb: 3,
-                  borderBottom: "1px solid rgba(130,99,88,0.15)",
-                  ".MuiTab-root": { textTransform: "none", fontWeight: 700, color: "#533b36" },
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  ".MuiTab-root": { textTransform: "none", fontWeight: 700, color: "text.secondary", "&.Mui-selected": { color: "primary.main" } },
                 }}
               >
                 <Tab label="Artwork for Sale" />
@@ -447,14 +450,14 @@ export default function Profile() {
                   {!reviewsLoading && !reviewError && sellerReviews.length > 0 && (
                     <Paper
                       elevation={0}
-                      sx={{ p: 2, borderRadius: 2, bgcolor: "#fff", border: "1px solid rgba(130,99,88,0.12)" }}
+                      sx={{ p: 2, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}
                     >
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
                         <Typography variant="h4" fontWeight={800}>
                           {averageRating.toFixed(1)}
                         </Typography>
                         <Box>
-                          <Rating value={averageRating} precision={0.1} readOnly size="small" />
+                          <Rating sx={{ "& .MuiRating-iconEmpty": { color: "text.disabled" } }} value={averageRating} precision={0.1} readOnly size="small" />
                           <Typography variant="body2" color="text.secondary">
                             Based on {sellerReviews.length} {sellerReviews.length === 1 ? "review" : "reviews"}
                           </Typography>
@@ -481,14 +484,14 @@ export default function Profile() {
                       <Paper
                         key={review.id}
                         elevation={0}
-                        sx={{ p: 2.5, borderRadius: 2, bgcolor: "#fff", border: "1px solid rgba(130,99,88,0.12)" }}
+                        sx={{ p: 2.5, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
                           <Box>
                             <Typography variant="subtitle1" fontWeight={800}>
                               {review.reviewerName}
                             </Typography>
-                            <Rating value={Number(review.rating)} readOnly size="small" />
+                            <Rating sx={{ "& .MuiRating-iconEmpty": { color: "text.disabled" } }} value={Number(review.rating)} readOnly size="small" />
                           </Box>
                           <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                             {new Date(review.createdAt).toLocaleDateString()}
@@ -542,10 +545,10 @@ export default function Profile() {
                       sx={{
                         borderRadius: 3,
                         overflow: "hidden",
-                        background: "#fff",
-                        border: "1px solid rgba(130,99,88,0.12)",
+                        bgcolor: "background.paper",
+                        border: "1px solid", borderColor: "divider",
                         transition: "0.2s ease",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 12px 24px rgba(92,52,48,0.08)" },
+                        "&:hover": { transform: "translateY(-2px)", boxShadow: theme.shadows[4] },
                       }}
                     >
                       <Box sx={{ position: "relative" }}>
@@ -559,8 +562,8 @@ export default function Profile() {
                               left: 12,
                               zIndex: 1,
                               fontWeight: 700,
-                              bgcolor: "#1e1f87",
-                              color: "#fff",
+                              bgcolor: "primary.main",
+                              color: theme.palette.getContrastText(theme.palette.primary.main),
                             }}
                           />
                         )}
@@ -574,7 +577,7 @@ export default function Profile() {
 
                       <Box sx={{ p: 2 }}>
                         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", mb: 1 }}>
-                          <IconButton size="small" sx={{ color: "#6d4a45" }}>
+                          <IconButton size="small" sx={{ color: "text.secondary" }}>
                             <FavoriteBorderOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Box>
@@ -606,8 +609,8 @@ export default function Profile() {
               sx={{
                 p: 2.5,
                 borderRadius: 3,
-                background: "rgba(247,242,240,0.96)",
-                border: "1px solid rgba(130,99,88,0.15)",
+                bgcolor: "background.paper",
+                border: "1px solid", borderColor: "divider",
               }}
             >
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
@@ -631,8 +634,8 @@ export default function Profile() {
                         label={tag}
                         size="small"
                         sx={{
-                          background: "#f0e6e3",
-                          color: "#4b2d2c",
+                          bgcolor: "action.selected",
+                          color: "text.primary",
                           fontWeight: 700,
                           borderRadius: 999,
                         }}
@@ -648,7 +651,7 @@ export default function Profile() {
                 <Divider />
 
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <ShareOutlinedIcon fontSize="small" sx={{ color: "#5b3b35" }} />
+                  <ShareOutlinedIcon fontSize="small" sx={{ color: "text.primary" }} />
                   <Typography variant="body2" fontWeight={700}>Share profile</Typography>
                 </Stack>
 
@@ -657,7 +660,9 @@ export default function Profile() {
                   endIcon={<ArrowForwardIcon />}
                   sx={{
                     mt: 1,
-                    background: "linear-gradient(135deg, #d93d3d, #b81d1d)",
+                    bgcolor: "error.main",
+                    color: theme.palette.getContrastText(theme.palette.error.main),
+                    "&:hover": { bgcolor: "error.dark" },
                     borderRadius: 999,
                     textTransform: "none",
                     fontWeight: 700,
@@ -672,7 +677,7 @@ export default function Profile() {
         </Grid>
       </Container>
 
-      <Box sx={{ background: "linear-gradient(180deg, #b51a1a, #9c1818)", color: "#fff", py: 4, mt: 2 }}>
+      <Box sx={{ bgcolor: "background.footer", color: "#fff", py: 4, mt: 2 }}>
         <Container maxWidth="lg">
           <Grid container spacing={4} alignItems="flex-start">
             <Grid item xs={12} md={4}>

@@ -22,6 +22,7 @@ import StudentCard from "../../components/admin/Student/StudentCard";
 import StudentForm from "../../components/admin/Student/StudentForm";
 import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
 import StudentDelete from "../../components/admin/Student/StudentDelete";
+import { courseOptions, yearLevelOptions } from "../../components/admin/Student/studentOptions";
 import {
   addStudents,
   deleteStudent,
@@ -48,6 +49,7 @@ export default function Student() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
+  const [yearLevelFilter, setYearLevelFilter] = useState("all");
 
   const loadStudents = async () => {
     try {
@@ -148,10 +150,13 @@ export default function Student() {
       );
       const matchesCourse =
         courseFilter === "all" ||
-        String(student.course || "").includes(courseFilter);
-      return matchesSearch && matchesCourse;
+        String(student.course || "").trim() === courseFilter;
+      const matchesYearLevel =
+        yearLevelFilter === "all" ||
+        String(student.year_level || "").trim() === yearLevelFilter;
+      return matchesSearch && matchesCourse && matchesYearLevel;
     });
-  }, [courseFilter, searchQuery, students]);
+  }, [courseFilter, yearLevelFilter, searchQuery, students]);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
@@ -309,7 +314,15 @@ export default function Student() {
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
-          <FormControl
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <FormControl
             size="small"
             sx={{
               minWidth: { xs: "100%", sm: 220 },
@@ -336,12 +349,48 @@ export default function Student() {
               }}
             >
               <MenuItem value="all">All Courses</MenuItem>
-              <MenuItem value="BSA">Bachelor of Science in Arts</MenuItem>
-              <MenuItem value="BSCS">
-                Bachelor of Science in Computer Science
-              </MenuItem>
+              {courseOptions.map((course) => (
+                <MenuItem key={course} value={course}>
+                  {course}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
+          <FormControl
+            size="small"
+            sx={{ minWidth: 0, width: { xs: "100%", lg: 160 } }}
+          >
+            <InputLabel
+              id="student-year-level-filter-label"
+              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+            >
+              Year Level
+            </InputLabel>
+            <Select
+              labelId="student-year-level-filter-label"
+              value={yearLevelFilter}
+              label="Year Level"
+              onChange={(event) => setYearLevelFilter(event.target.value)}
+              sx={{
+                fontSize: 12,
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                borderRadius: 1.5,
+                ".MuiOutlinedInput-notchedOutline": {
+                  borderColor: theme.palette.divider,
+                },
+              }}
+            >
+              <MenuItem value="all">All Year Levels</MenuItem>
+              {yearLevelOptions.map((year) => (
+                <MenuItem key={year} value={year}>
+                  {year}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          </Box>
+          
         </Box>
       </Paper>
 

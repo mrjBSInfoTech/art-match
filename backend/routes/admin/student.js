@@ -235,17 +235,16 @@ const createStudentRecord = (studentData, adminId, callback) => {
   const requiredFields = [
     "first_name",
     "last_name",
-    "birthdate",
-    "email",
-    "address",
-    "phone_number",
     "year_level",
     "course",
     "student_number",
   ];
 
   const missingField = requiredFields.find(
-    (field) => studentData[field] === undefined || studentData[field] === null || studentData[field] === "",
+    (field) =>
+      studentData[field] === undefined ||
+      studentData[field] === null ||
+      studentData[field] === "",
   );
 
   if (missingField) {
@@ -260,6 +259,21 @@ const createStudentRecord = (studentData, adminId, callback) => {
 
   const now = formatDateTime();
   const password = studentData.password || "Admin123456";
+
+  /* // For future use: Use last name as default password
+  const password =
+  String(
+    studentData.last_name || "",
+  )
+    .trim()
+    .toUpperCase();
+
+const passwordHash =
+  bcrypt.hashSync(
+    password,
+    10,
+  );
+  */
   const passwordHash = bcrypt.hashSync(password, 10);
 
   const studentSql = `
@@ -285,10 +299,10 @@ const createStudentRecord = (studentData, adminId, callback) => {
       studentData.first_name,
       studentData.middle_name || null,
       studentData.last_name,
-      studentData.birthdate,
-      studentData.email,
-      studentData.address,
-      studentData.phone_number,
+      studentData.birthdate || null,
+      studentData.email || null,
+      studentData.address || null,
+      studentData.phone_number || null,
       studentData.cor || null,
       studentData.year_level,
       studentData.course,
