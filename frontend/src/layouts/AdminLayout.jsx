@@ -32,6 +32,7 @@ import Nexus from "../assets/Nexus.png";
 import SidebarNavigationHeader from "./SidebarNavigationHeader";
 import { clearAuthData } from "../../utils/auth";
 import { recordLogout } from "../api/admin/adminAuthenticationAPI";
+import PasswordWarning from "../components/admin/Dashboard/PasswordWarning";
 //Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -86,7 +87,7 @@ function AdminLayoutContent({ children }) {
   const [canDelete, setCanDelete] = useState(false);
   const [canPromote, setCanPromote] = useState(false);
   const [canDemote, setCanDemote] = useState(false);
-  const [passwordChanged, setPasswordChanged] = useState(false);
+  const [openPasswordWarning, setOpenPasswordWarning] = useState(false);
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
 
@@ -114,9 +115,6 @@ function AdminLayoutContent({ children }) {
       const storedCanDelete = localStorage.getItem("admin_can_delete");
       const storedCanPromote = localStorage.getItem("admin_can_promote");
       const storedCanDemote = localStorage.getItem("admin_can_demote");
-      const storedPasswordChanged = localStorage.getItem(
-        "admin_password_changed",
-      );
       const storedCreatedAt = localStorage.getItem("admin_created_at");
       const storedUpdatedAt = localStorage.getItem("admin_updated_at");
 
@@ -126,7 +124,6 @@ function AdminLayoutContent({ children }) {
       setEmail(storedEmail || "");
       setRole(storedRole || "");
       setImage(storedImage || "");
-      setPasswordChanged(storedPasswordChanged === "1");
       setCanAdd(storedCanAdd === "1");
       setCanEdit(storedCanEdit === "1");
       setCanDelete(storedCanDelete === "1");
@@ -143,6 +140,25 @@ function AdminLayoutContent({ children }) {
       window.removeEventListener("storage", loadAdminProfile);
     };
   }, []);
+
+  useEffect(() => {
+    const checkPasswordWarning = () => {
+      const passwordChanged = localStorage.getItem("admin_password_changed");
+      setOpenPasswordWarning(
+        location.pathname.replace(/\/+$/, "") !== "/admin/settings" &&
+          (passwordChanged === "0" || passwordChanged === "false"),
+      );
+    };
+
+    checkPasswordWarning();
+    window.addEventListener("storage", checkPasswordWarning);
+    window.addEventListener("admin-password-changed", checkPasswordWarning);
+
+    return () => {
+      window.removeEventListener("storage", checkPasswordWarning);
+      window.removeEventListener("admin-password-changed", checkPasswordWarning);
+    };
+  }, [location.pathname]);
 
   // Simulated router (for Toolpad)
   const router = {
@@ -367,6 +383,11 @@ function AdminLayoutContent({ children }) {
       }}
       theme={theme}
     >
+      <PasswordWarning
+        open={openPasswordWarning}
+        handleClose={() => setOpenPasswordWarning(false)}
+        navigate={navigate}
+      />
       <Dialog
         open={open}
         onClose={handleClose}

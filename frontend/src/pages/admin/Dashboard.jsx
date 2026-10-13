@@ -40,7 +40,6 @@ import { fetchStudents } from "../../api/admin/studentAPI";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import Export from "../../components/admin/Dashboard/Export";
-import PasswordWarning from "../../components/admin/Dashboard/PasswordWarning";
 // Icons
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
@@ -67,14 +66,6 @@ export default function Dashboard() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openExportDialog, setOpenExportDialog] = useState(false);
-  const [openPasswordWarning, setOpenPasswordWarning] = useState(false);
-  const passwordChanged = localStorage.getItem("admin_password_changed");
-
-  useEffect(() => {
-    if (passwordChanged === "0" || passwordChanged === "false") {
-      setOpenPasswordWarning(true);
-    }
-  }, [passwordChanged]);
 
   // Fetch all artworks from API
   const loadArtworks = async () => {
@@ -142,11 +133,6 @@ export default function Dashboard() {
   // Open Export Data Dialog
   const handleOpenExportDialog = () => {
     setOpenExportDialog(true);
-  };
-
-  // Open Password Warning Dialog
-  const handleOpenPasswordWarning = () => {
-    setOpenPasswordWarning(true);
   };
 
   const exportLogsCSV = () => {
@@ -1197,11 +1183,6 @@ export default function Dashboard() {
         handleClose={() => setOpenExportDialog(false)}
         onExportCSV={exportLogsCSV}
         onExportExcel={exportLogsExcel}
-      />
-      <PasswordWarning
-        open={openPasswordWarning}
-        handleClose={() => setOpenPasswordWarning(false)}
-        navigate={navigate}
       />
       {/* Snackbar Notification */}
       {/* //For Future Use 

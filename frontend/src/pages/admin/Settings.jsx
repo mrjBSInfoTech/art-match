@@ -90,6 +90,7 @@ export default function Settings() {
       if (currentPassword && newPassword) {
         await changePassword(currentPassword, newPassword);
         localStorage.setItem("admin_password_changed", "1");
+        window.dispatchEvent(new Event("admin-password-changed"));
       }
       showSnackbar("Password updated successfully", "success");
       setOpenPasswordForm(false);
