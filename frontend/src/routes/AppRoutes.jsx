@@ -22,6 +22,7 @@ import BuyerRoute from "../middleware/BuyerRoute";
 
 // Admin Pages
 import AdminDashboard from "../pages/admin/Dashboard";
+import AdminSystemSetting from "../pages/admin/SystemSetting";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
 import AdminArtwork from "../pages/admin/Artwork";
@@ -151,6 +152,10 @@ export default function AppRoutes() {
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route
+                  path="system-setting"
+                  element={<AdminSystemSetting />}
+                />
                 <Route path="profile" element={<AdminProfile />} />
                 <Route path="artwork" element={<AdminArtwork />} />
                 <Route path="manage/students" element={<AdminStudent />} />

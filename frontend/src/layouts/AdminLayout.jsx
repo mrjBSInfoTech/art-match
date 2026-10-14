@@ -212,6 +212,11 @@ function AdminLayoutContent({ children }) {
       icon: <DashboardIcon />,
     },
     {
+      segment: "system-setting",
+      title: "System Setting",
+      icon: <SettingsIcon />,
+    },
+    {
       segment: "sales",
       title: "Sales",
       icon: <TrendingUpIcon />,
