@@ -12,6 +12,7 @@ import {
   Grid,
   Paper,
   Snackbar,
+  Slide,
   Stack,
   TextField,
   Typography,
@@ -23,6 +24,10 @@ import {
   saveStorefront,
 } from "../../api/seller/storefrontAPI";
 import ArtworkInfo from "../../components/seller/Artwork/ArtworkInfo";
+
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
 
 const defaultSettings = {
   shopName: "",
@@ -86,11 +91,35 @@ export default function Storefront() {
   const [artworks, setArtworks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
   const [savingPinId, setSavingPinId] = useState(null);
   const [savingSpecialties, setSavingSpecialties] = useState(false);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
+
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
+    }
+  };
 
   const selectedSpecialties = settings.specialties || [];
   const customSpecialtyLimitReached = selectedSpecialties.length >= 3;
@@ -109,14 +138,14 @@ export default function Storefront() {
         ...current,
         specialties: savedSpecialties,
       }));
-      setSuccessMessage("Specialties updated.");
+      showSnackbar("Specialties updated.");
       return true;
     } catch (err) {
       setSettings((current) => ({
         ...current,
         specialties: previousSpecialties,
       }));
-      setError(err.message || "Unable to save specialties.");
+      showSnackbar(err.message || "Unable to save specialties.", "error");
       return false;
     } finally {
       setSavingSpecialties(false);
@@ -148,7 +177,7 @@ export default function Storefront() {
         (item) => item.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
       )
     ) {
-      setError("That specialty has already been selected.");
+      showSnackbar("That specialty has already been selected.", "error");
       return;
     }
 
@@ -282,9 +311,9 @@ export default function Storefront() {
       setPinnedArtworkIds(
         (saved?.pinned_artwork_ids || pinnedArtworkIds).map(String),
       );
-      setSuccessMessage("Storefront updated successfully.");
+      showSnackbar("Storefront updated successfully.");
     } catch (err) {
-      setError(err.message || "Unable to save storefront details.");
+      showSnackbar(err.message || "Unable to save storefront details.", "error");
     }
   };
 
@@ -303,9 +332,9 @@ export default function Storefront() {
       localStorage.removeItem("seller_pinned_artworks");
       localStorage.removeItem("seller_shop_name");
       localStorage.removeItem("seller_shop_description");
-      setSuccessMessage("Storefront reset successfully.");
+      showSnackbar("Storefront reset successfully.");
     } catch (err) {
-      setError(err.message || "Unable to reset storefront details.");
+      showSnackbar(err.message || "Unable to reset storefront details.", "error");
     }
   };
 
@@ -328,9 +357,9 @@ export default function Storefront() {
       setPinnedArtworkIds(
         (saved?.pinned_artwork_ids || next).map(String),
       );
-      setSuccessMessage("Pinned artworks updated.");
+      showSnackbar("Pinned artworks updated.");
     } catch (err) {
-      setError(err.message || "Unable to update pinned artworks.");
+      showSnackbar(err.message || "Unable to update pinned artworks.", "error");
     } finally {
       setSavingPinId(null);
     }
@@ -496,6 +525,7 @@ export default function Storefront() {
                     sx={{
                       fontWeight: 700,
                       borderRadius: 999,
+                      color: isSelected ? "#fff" : "inherit",
                     }}
                   />
                 );
@@ -537,6 +567,7 @@ export default function Storefront() {
                   textTransform: "none",
                   fontWeight: 700,
                   borderRadius: 2,
+                  color: "#fff",
                 }}
               >
                 Add
@@ -555,6 +586,7 @@ export default function Storefront() {
                     sx={{
                       fontWeight: 700,
                       borderRadius: 999,
+                      color: "#fff",
                     }}
                   />
                 ))}
@@ -731,18 +763,25 @@ export default function Storefront() {
       </Stack>
 
       <Snackbar
-        open={Boolean(successMessage)}
-        autoHideDuration={4000}
-        onClose={() => setSuccessMessage("")}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
       >
         <Alert
-          onClose={() => setSuccessMessage("")}
-          severity="success"
-          variant="filled"
-          sx={{ width: "100%" }}
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+            },
+          }}
         >
-          {successMessage}
+          {snackbarMessage}
         </Alert>
       </Snackbar>
 

@@ -29,6 +29,23 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
+function getColorChipStyles(value) {
+  const hex = String(value).match(/#(?:[a-f\d]{6}|[a-f\d]{3})\b/i)?.[0];
+  if (!hex) {
+    return { backgroundColor: "background.default", color: "text.primary" };
+  }
+
+  const raw = hex.slice(1);
+  const full = raw.length === 3 ? [...raw].map((c) => c + c).join("") : raw;
+  const channels = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  const isNearWhite = channels.every((channel) => channel >= 220);
+
+  return {
+    backgroundColor: hex,
+    color: isNearWhite ? "#000" : "#fff",
+  };
+}
+
 export default function ArtworkDetail() {
   const theme = useTheme();
   const { id } = useParams();
@@ -384,7 +401,7 @@ export default function ArtworkDetail() {
                         sx={{
                           borderRadius: 999,
                           fontSize: "0.75rem",
-                          backgroundColor: "theme.palette.background.chip",
+                          ...getColorChipStyles(c),
                           fontWeight: "bold",
                         }}
                       />

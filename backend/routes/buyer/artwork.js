@@ -83,6 +83,8 @@ router.get("/", (req, res) => {
       a.image,
       a.color_used,
       a.genre,
+      a.art_type,
+      a.product,
       a.art_size,
       a.date_created,
       f.mediums_used,

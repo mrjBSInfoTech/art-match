@@ -25,6 +25,59 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+async function scanArtwork(absoluteImagePath, art_type, product) {
+  let detectedColors = "Pending";
+  let detectedFeatures = null;
+  const isDigital = art_type.trim().toLowerCase() === "digital";
+  const isPhoto = ["photography", "photo", "image"].includes(art_type.trim().toLowerCase());
+  let detectedMediums = isDigital ? "Digital" : isPhoto ? "None" : null;
+
+  // Analyze colors, features, and mediums when the seller uploads artwork.
+  try {
+    const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_path: absoluteImagePath,
+        artwork_type: art_type.trim().toLowerCase(),
+        product: product.trim().toLowerCase(),
+      }),
+    });
+
+    if (mlResponse.ok) {
+      const mlData = await mlResponse.json();
+      if (
+        mlData.success &&
+        Array.isArray(mlData.colors) &&
+        mlData.colors.length > 0
+      ) {
+        detectedColors = mlData.colors.join(", ");
+        console.log("Detected colors:", detectedColors);
+      }
+
+      if (mlData.success) {
+        detectedFeatures = (Array.isArray(mlData.features)
+          ? mlData.features.join(", ") || "None"
+          : String(mlData.features || "None")).slice(0, 1000);
+        console.log("Detected features:", detectedFeatures);
+        detectedMediums = (isDigital
+          ? "Digital"
+          : isPhoto ? "None"
+          : Array.isArray(mlData.mediums)
+            ? mlData.mediums.join(", ") || "None"
+            : String(mlData.mediums || "None")).slice(0, 1000);
+        console.log("Detected mediums:", detectedMediums);
+      }
+    }
+  } catch (mlError) {
+    console.error(
+      "Python ML Service offline, saving default color status:",
+      mlError.message,
+    );
+  }
+  return { detectedColors, detectedFeatures, detectedMediums };
+}
+
 // Image upload configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -203,52 +256,8 @@ router.post(
       }
 
       const absoluteImagePath = path.join(uploadDir, req.file.filename);
-      let detectedColors = "Pending";
-      let detectedFeatures = null;
-      let detectedMediums = null;
-
-      // Analyze colors, features, and mediums when the seller uploads artwork.
-      try {
-        const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            image_path: absoluteImagePath,
-            artwork_type: art_type.trim().toLowerCase(),
-            product: product.trim().toLowerCase(),
-          }),
-        });
-
-        if (mlResponse.ok) {
-          const mlData = await mlResponse.json();
-          if (
-            mlData.success &&
-            Array.isArray(mlData.colors) &&
-            mlData.colors.length > 0
-          ) {
-            detectedColors = mlData.colors.join(", ");
-            console.log("Detected colors:", detectedColors);
-          }
-
-          if (mlData.success) {
-            detectedFeatures = (Array.isArray(mlData.features)
-              ? mlData.features.join(", ") || "None"
-              : String(mlData.features || "None")).slice(0, 1000);
-            console.log("Detected features:", detectedFeatures);
-            detectedMediums = (art_type.trim().toLowerCase() === "digital"
-              ? "Digital"
-              : Array.isArray(mlData.mediums)
-                ? mlData.mediums.join(", ") || "None"
-                : String(mlData.mediums || "None")).slice(0, 1000);
-            console.log("Detected mediums:", detectedMediums);
-          }
-        }
-      } catch (mlError) {
-        console.error(
-          "Python ML Service offline, saving default color status:",
-          mlError.message,
-        );
-      }
+      const { detectedColors, detectedFeatures, detectedMediums } =
+        await scanArtwork(absoluteImagePath, art_type, product);
 
       const imageName = req.file.filename;
       const sql = `
@@ -297,7 +306,7 @@ router.post(
               colors: detectedColors,
             });
 
-            if (detectedFeatures === null) {
+            if (detectedFeatures === null && detectedMediums === null) {
               return respond();
             }
 
@@ -338,23 +347,42 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
      WHERE a.artwork_id = ? AND a.student_id = ?
        AND LOWER(TRIM(au.request_status)) IN ('unverified', 'rejected')`,
     [req.params.id, studentId],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
+    async (err, result) => {
+      if (err) {
+        console.error("DB Error:", err);
+        return res.status(500).json({ error: err.message });
+      }
       if (result.affectedRows === 0) {
-        return res.status(409).json({
-          error: "Artwork must belong to you and be Unverified or Rejected to request verification.",
+        return res.status(404).json({ error: "Artwork not found" });
+      }
+      if (scan) {
+        try {
+          await new Promise((resolve, reject) => {
+            db.query(
+              `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
+               VALUES (?, ?, ?)
+               ON DUPLICATE KEY UPDATE feature_scanned = VALUES(feature_scanned), mediums_used = VALUES(mediums_used)`,
+              [id, scan.detectedFeatures, scan.detectedMediums],
+              (scanErr) => scanErr ? reject(scanErr) : resolve(),
+            );
+          });
+        } catch (scanErr) {
+          return res.status(500).json({ error: scanErr.message });
+        }
+      }
+      if (req.file && previous.image && previous.image !== req.file.filename) {
+        const oldImagePath = path.join(uploadDir, previous.image);
+        fs.unlink(oldImagePath, (unlinkErr) => {
+          if (unlinkErr && unlinkErr.code !== "ENOENT") console.warn("Unable to remove old artwork image:", unlinkErr.message);
         });
       }
-      return res.json({
-        message: "Artwork submitted for verification.",
-        request_status: "Pending",
-      });
+      res.json({ message: "Artwork updated successfully" });
     },
   );
 });
 
 // Update artwork
-router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
+router.put("/:id", authenticateSeller, upload.single("file"), async (req, res) => {
   const { id } = req.params;
   const studentId = req.user?.student_id || req.user?.id;
   const {
@@ -375,19 +403,24 @@ router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
     return res.status(400).json({ error: "Please fill all required fields." });
   }
 
-  if (req.file) {
-    db.query(
-      "SELECT image FROM artwork WHERE artwork_id = ? AND student_id = ?",
-      [id, studentId],
-      (err, results) => {
-        if (results && results[0]?.image) {
-          const oldImagePath = path.join(uploadDir, results[0].image);
-          if (fs.existsSync(oldImagePath)) {
-            fs.unlinkSync(oldImagePath);
-          }
-        }
-      },
-    );
+  let previous;
+  let scan = null;
+  try {
+    const rows = await new Promise((resolve, reject) => {
+      db.query(
+        "SELECT image, art_type, product, color_used FROM artwork WHERE artwork_id = ? AND student_id = ?",
+        [id, studentId],
+        (err, results) => err ? reject(err) : resolve(results),
+      );
+    });
+    previous = rows[0];
+    if (!previous) return res.status(404).json({ error: "Artwork not found" });
+    if (req.file || previous.art_type !== art_type || previous.product !== product) {
+      const filename = req.file?.filename || previous.image;
+      scan = await scanArtwork(path.join(uploadDir, filename), art_type, product);
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 
   const imageName = req.file ? req.file.filename : null;
@@ -405,7 +438,7 @@ router.put("/:id", authenticateSeller, upload.single("file"), (req, res) => {
       art_type.trim(),
       product.trim(),
       genre.trim(),
-      (color_used || "").trim(),
+      scan?.detectedColors || (color_used || previous.color_used || "").trim(),
       price,
       description.trim(),
       imageName,

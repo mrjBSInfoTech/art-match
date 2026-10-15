@@ -88,8 +88,10 @@ CREATE TABLE IF NOT EXISTS artwork (
   student_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
   art_size VARCHAR(100) NOT NULL,
+  art_type VARCHAR(50) NOT NULL,
+  status ENUM('Available','Reserved','Sold') NOT NULL DEFAULT 'Available',
+  is_sold TINYINT(1) NOT NULL DEFAULT 0,
   genre VARCHAR(100) NOT NULL,
-  color_used TEXT NULL,
   price DECIMAL(12, 2) NOT NULL,
   description TEXT NOT NULL,
   image VARCHAR(255) NOT NULL,
@@ -118,6 +120,7 @@ CREATE TABLE IF NOT EXISTS artupload (
 CREATE TABLE IF NOT EXISTS feature (
   feature_id INT AUTO_INCREMENT PRIMARY KEY,
   artwork_id INT NOT NULL UNIQUE,
+  color_used TEXT NULL,
   feature_scanned TEXT NULL,
   mediums_used TEXT NULL,
   CONSTRAINT fk_feature_artwork

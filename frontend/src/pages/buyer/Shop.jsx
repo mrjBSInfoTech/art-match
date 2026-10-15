@@ -22,6 +22,11 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 
+import { getSearchColor, artworkMatchesColor } from "../../utils/artworkColors";
+
+import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from "../../utils/artworkPrice";
+import { matchTwoDimensionalType } from "../../utils/artworkType";
+
 const PAGE_SIZE = 8;
 
 const shortcuts = [
@@ -235,7 +240,11 @@ export default function Shop() {
   const navigate = useNavigate();
   const { genre } = useParams();
   const [searchParams] = useSearchParams();
+  const [minimumPrice, maximumPrice] = readPriceRange(searchParams);
+  const hasPriceFilter = minimumPrice > 0 || maximumPrice < PRICE_LIMIT;
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
+  const searchColor = getSearchColor(searchQuery);
+  const searchLabel = searchColor || searchParams.get("q") || "";
   const selectedGenre = genre ? decodeURIComponent(genre).toLowerCase() : "";
   const [artworks, setArtworks] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
@@ -306,6 +315,7 @@ export default function Shop() {
   const visibleArtworks = useMemo(
     () =>
       artworks.filter((artwork) => {
+        const matchesType = matchTwoDimensionalType(artwork, searchQuery);
         const matchesGenre =
           !selectedGenre ||
           String(artwork.genre || "").toLowerCase() === selectedGenre;
@@ -314,6 +324,9 @@ export default function Shop() {
           artwork.artist,
           artwork.student_name,
           artwork.genre,
+          artwork.art_type,
+          artwork.product,
+          artwork.mediums_used,
           artwork.artwork_id,
           artwork.id,
         ]
@@ -321,10 +334,12 @@ export default function Shop() {
           .join(" ")
           .toLowerCase();
         return (
-          matchesGenre && (!searchQuery || searchableText.includes(searchQuery))
+          matchesGenre && matchesPriceRange(artwork.price, minimumPrice, maximumPrice) && (searchColor
+            ? artworkMatchesColor(artwork.color_used, searchColor)
+            : matchesType ?? (!searchQuery || searchableText.includes(searchQuery)))
         );
       }),
-    [artworks, searchQuery, selectedGenre],
+    [artworks, searchQuery, searchColor, selectedGenre, minimumPrice, maximumPrice],
   );
   const pageCount = Math.max(1, Math.ceil(visibleArtworks.length / PAGE_SIZE));
   const pageArtworks = visibleArtworks.slice(
@@ -334,7 +349,7 @@ export default function Shop() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedGenre]);
+  }, [searchQuery, selectedGenre, minimumPrice, maximumPrice]);
 
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
@@ -437,7 +452,7 @@ export default function Shop() {
           ))}
         </Box>
 
-        {(selectedGenre || searchQuery) && (
+        {(selectedGenre || searchQuery || hasPriceFilter) && (
           <Typography
             sx={{
               mb: 1.5,
@@ -448,7 +463,8 @@ export default function Shop() {
           >
             {selectedGenre
               ? `Shop / ${genre}`
-              : `Search results for “${searchParams.get("q") || ""}”`}
+              : searchQuery ? `Search results for \u201c${searchLabel}\u201d` : "All artworks"}
+            {hasPriceFilter && ` - ${formatPriceRange([minimumPrice, maximumPrice])}`}
             <Typography
               component="span"
               sx={{

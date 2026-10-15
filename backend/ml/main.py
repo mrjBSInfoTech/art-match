@@ -30,7 +30,7 @@ app = FastAPI()
 
 class ImageRequest(BaseModel):
     image_path: str
-    artwork_type: str = "auto"  # frontend values: "physical" or "digital"; legacy values still supported
+    artwork_type: str = "auto"  # Art Type from the artwork form; legacy physical values supported
     product: str = ""            # "painting" or "3d_object"
 
 class RecommendationRequest(BaseModel):
@@ -795,39 +795,16 @@ def analyze_artwork(req: ImageRequest):
     user_selection = (req.artwork_type or "auto").strip().lower()
     product_selection = (req.product or "").strip().lower()
 
-    # --------------------------------------------------------
-    # Frontend selection rules
-    # --------------------------------------------------------
-    # Digital artwork:
-    #   - never run the medium classifier
-    #   - medium is always Digital
-    #
-    # Physical + 3D Object:
-    #   - remove background in memory for ML analysis
-    #   - run the 3D medium scanner
-    #
-    # Physical + Painting:
-    #   - keep the original image
-    #   - run the 2D medium scanner
-    # --------------------------------------------------------
-
+    # Art type takes precedence over the legacy product field.
     is_digital = user_selection == "digital"
-
-    explicit_3d = (
-        not is_digital
-        and (
-            user_selection in {"physical_art", "3d_object"}
-            or product_selection == "3d_object"
-        )
+    is_photo = user_selection in {"photography", "photo", "image"} or (
+        user_selection in {"auto", "physical"} and product_selection == "image"
     )
-
-    explicit_2d = (
-        is_digital
-        or user_selection in {"2d_art", "painting"}
-        or product_selection == "painting"
+    is_painting = user_selection == "painting" or (
+        user_selection in {"auto", "physical", "2d_art"}
+        and product_selection == "painting"
     )
-
-    is_3d = explicit_3d
+    is_3d = not (is_digital or is_photo or is_painting)
 
     # The original uploaded file is never overwritten.
     scan_img = original_rgb
@@ -839,24 +816,14 @@ def analyze_artwork(req: ImageRequest):
     # Feature scanning still runs for every artwork type.
     final_features = extract_features(scan_img)
 
-    # Digital is a user-declared art type, so its medium is deterministic.
     if is_digital:
         final_mediums = ["Digital"]
-        print("Medium mode: Digital art selected by user")
-        print("Selected Medium: Digital (forced by art type)")
+    elif is_photo:
+        # Photographs use the 2D feature scan without medium classification.
+        final_mediums = []
     else:
+        # Only paintings use the 2D medium model; physical objects use 3D.
         final_mediums = extract_mediums(scan_img, is_3d)
-
-    # Only use automatic 2D/3D inference when the request did not explicitly
-    # tell us whether this is a painting/digital work or a 3D object.
-    if not explicit_2d and not explicit_3d:
-        inferred_3d = is_three_d_artwork(final_features, final_mediums)
-
-        if inferred_3d and not is_3d:
-            is_3d = True
-            scan_img, color_img = prepare_physical_art_scan(original_rgba)
-            final_features = extract_features(scan_img)
-            final_mediums = extract_mediums(scan_img, is_3d=True)
 
     # Keep the prediction vocabulary scoped to the selected artwork type.
     if is_3d:

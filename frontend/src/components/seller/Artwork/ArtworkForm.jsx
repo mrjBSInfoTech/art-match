@@ -22,6 +22,7 @@ import { styled } from "@mui/material/styles";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import { ART_TYPES, ART_STYLES } from "../../../constants/artworkOptions";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive" && prop !== "hasError",
@@ -67,7 +68,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
   const [formData, setFormData] = useState({
     title: "",
-    art_type: "physical",
+    art_type: "",
     product: "",
     art_size: "",
     genre: "",
@@ -84,14 +85,15 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
   const [uploadError, setUploadError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const uploadReminder =
-    formData.art_type && formData.product === "painting"
-      ? formData.art_type === "digital"
-        ? "Upload the complete digital artwork. Avoid screenshots with app controls, borders, or other background content so the artwork fills the image."
-        : "Take a straight-on photo of the entire painting and crop out the surrounding background. A scanner app such as CamScanner can help make the painting fill the image."
-      : formData.art_type && formData.product === "3d_object"
-        ? "Upload a clear, well-lit image of the 3D object. Use a plain, uncluttered background and keep other objects out of the frame because they can affect the machine-learning scan."
-        : "";
+  const uploadReminder = formData.art_type === "digital"
+    ? "Upload the complete digital artwork without app controls or borders. Its medium will be set to Digital automatically."
+    : formData.art_type === "photography"
+      ? "Upload the complete photograph. Colors and image features will be detected; no medium will be assigned."
+      : formData.art_type === "painting" || formData.product === "painting"
+        ? "Take a straight-on photo of the entire painting and crop out the surrounding background. A scanner app such as CamScanner can help make the painting fill the image."
+        : formData.art_type
+          ? "Upload a clear, well-lit image of the physical artwork. Use a plain background and keep other objects out of the frame."
+          : "";
 
   useEffect(() => {
     if (selectedArtwork) {
@@ -99,7 +101,10 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
         title: selectedArtwork.title || "",
         art_size: selectedArtwork.art_size || "",
         art_type: selectedArtwork.art_type || "",
-        product: selectedArtwork.product || "",
+        product: selectedArtwork.art_type === "photography" ? "image"
+          : ["painting", "digital"].includes(selectedArtwork.art_type) ? "painting"
+          : ART_TYPES.some((type) => type.toLowerCase() === selectedArtwork.art_type) ? "3d_object"
+          : selectedArtwork.product || "",
         genre: selectedArtwork.genre || selectedArtwork.color_used || "",
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
@@ -130,7 +135,14 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "art_type" ? {
+        product: value === "photography" ? "image"
+          : ["painting", "digital"].includes(value) ? "painting" : "3d_object",
+      } : {}),
+    }));
     setError("");
   };
 
@@ -366,8 +378,17 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
                 value={formData.art_type}
                 onChange={handleChange}
               >
-                <MenuItem value="physical">Physical</MenuItem>
-                <MenuItem value="digital">Digital</MenuItem>
+                {formData.art_type &&
+                  !ART_TYPES.some((type) => type.toLowerCase() === formData.art_type) && (
+                    <MenuItem value={formData.art_type}>
+                      {formData.art_type === "physical" ? "Physical (legacy)" : formData.art_type}
+                    </MenuItem>
+                  )}
+                {ART_TYPES.map((type) => (
+                  <MenuItem key={type} value={type.toLowerCase()}>
+                    {type}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 
@@ -377,10 +398,12 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               <Select
                 label="Product Type"
                 name="product"
+                disabled={ART_TYPES.some((type) => type.toLowerCase() === formData.art_type)}
                 value={formData.product}
                 onChange={handleChange}
               >
-                <MenuItem value="painting">Painting</MenuItem>
+                <MenuItem value="painting">{formData.art_type === "digital" ? "Digital Artwork" : "Painting"}</MenuItem>
+                <MenuItem value="image">Image / Photograph</MenuItem>
                 <MenuItem value="3d_object">3D Object</MenuItem>
               </Select>
             </FormControl>
@@ -401,12 +424,14 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
                 value={formData.genre}
                 onChange={handleChange}
               >
-                <MenuItem value="Abstract">Abstract</MenuItem>
-                <MenuItem value="Realism">Realism</MenuItem>
-                <MenuItem value="Surrealism">Surrealism</MenuItem>
-                <MenuItem value="Impressionism">Impressionism</MenuItem>
-                <MenuItem value="Portrait">Portrait</MenuItem>
-                <MenuItem value="Landscape">Landscape</MenuItem>
+                {formData.genre && !ART_STYLES.includes(formData.genre) && (
+                  <MenuItem value={formData.genre}>{formData.genre}</MenuItem>
+                )}
+                {ART_STYLES.map((style) => (
+                  <MenuItem key={style} value={style}>
+                    {style}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 

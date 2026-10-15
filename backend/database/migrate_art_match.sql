@@ -129,6 +129,7 @@ CREATE TABLE `artwork` (
   `genre` varchar(100) DEFAULT NULL,
   `color_used` varchar(255) DEFAULT NULL,
   `art_size` varchar(100) DEFAULT NULL,
+  `art_type` VARCHAR(50) NOT NULL,
   `status` enum('Available','Reserved','Sold') DEFAULT 'Available',
   `is_sold` tinyint(1) NOT NULL DEFAULT 0,
   `date_created` date DEFAULT NULL,

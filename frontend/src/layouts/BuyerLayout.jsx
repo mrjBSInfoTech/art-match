@@ -54,6 +54,9 @@ import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import logo from "../assets/Nexus.png";
 import Footer from "../pages/buyer/Footer";
+import { COLOR_PALETTE } from "../utils/artworkColors";
+import { PRICE_LIMIT, readPriceRange, formatPriceRange } from "../utils/artworkPrice";
+import { ART_TYPES, ART_STYLES, ART_MATERIALS } from "../constants/artworkOptions";
 import { fetchCart } from "../api/buyer/cartAPI";
 import {
   fetchBuyerConversations,
@@ -272,45 +275,33 @@ function BuyerLayoutContent({ children }) {
   }, [activeIndex]);
 
   const categoryGroups = [
-    {
-      title: "Art Type",
-      options: [
-        "Painting",
-        "Sculpture",
-        "Architecture",
-        "Digital",
-        "Photography",
-        "Print",
-        "Mixed Media",
-      ],
-    },
-    {
-      title: "Style",
-      options: [
-        "Modern",
-        "Abstract",
-        "Traditional",
-        "Minimalist",
-        "Pop Art",
-        "Conceptual",
-        "Cute",
-      ],
-    },
-    {
-      title: "Materials",
-      options: ["Oil on Canvas", "Acrylic", "Watercolor", "Clay", "Metal"],
-    },
+    { title: "Art Type", options: ART_TYPES },
+    { title: "Style", options: ART_STYLES },
+    { title: "Materials", options: ART_MATERIALS },
   ];
-  const paletteColors = [
-    "#f52245",
-    "#ffe3bb",
-    "#1464ed",
-    "#16b978",
-    "#9c332b",
-    "#151632",
-    "#f5f1ea",
-    "#1f1f1f",
-  ];
+  const selectedCategory = new URLSearchParams(location.search).get("q") || "";
+  const [priceRange, setPriceRange] = useState(() => readPriceRange(new URLSearchParams(location.search)));
+  useEffect(() => {
+    setPriceRange(readPriceRange(new URLSearchParams(location.search)));
+  }, [location.search]);
+
+  const applyPriceRange = (range) => {
+    setPriceRange(range);
+    const params = new URLSearchParams(location.search);
+    if (range[0] > 0) params.set("minPrice", String(range[0]));
+    else params.delete("minPrice");
+    if (range[1] < PRICE_LIMIT) params.set("maxPrice", String(range[1]));
+    else params.delete("maxPrice");
+    const pathname = location.pathname.startsWith("/buyer/shop") ? location.pathname : "/buyer/shop";
+    navigate(`${pathname}${params.size ? `?${params}` : ""}`);
+    void recordRecommendationEvent({
+      event_type: "filter",
+      filter_type: "price",
+      min_price: range[0],
+      max_price: range[1] === PRICE_LIMIT ? null : range[1],
+      source_page: "buyer_layout",
+    });
+  };
   const handleCategoriesOpen = (event) => {
     const buttonRect = event.currentTarget.getBoundingClientRect();
     const navigationRect = event.currentTarget
@@ -324,6 +315,13 @@ function BuyerLayoutContent({ children }) {
   const handleCategoryOption = (option, filterType) => {
     setCategoriesAnchorPosition(null);
 
+    if (selectedCategory.toLowerCase() === option.toLowerCase()) {
+      const params = new URLSearchParams(location.search);
+      params.delete("q");
+      navigate(`/buyer/shop${params.size ? `?${params}` : ""}`);
+      return;
+    }
+
     void recordRecommendationEvent({
       event_type: "filter",
       filter_type: filterType,
@@ -331,7 +329,9 @@ function BuyerLayoutContent({ children }) {
       source_page: "buyer_layout",
     });
 
-    navigate(`/buyer/shop?q=${encodeURIComponent(option)}`);
+    const params = new URLSearchParams(location.search);
+    params.set("q", option);
+    navigate(`/buyer/shop?${params}`);
   };
 
   return (
@@ -954,9 +954,9 @@ function BuyerLayoutContent({ children }) {
           sx: {
             width: "100vw",
             maxWidth: "100vw",
-            maxHeight: "calc(100vh - 150px)",
+            maxHeight: `calc(100dvh - ${categoriesAnchorPosition?.top ?? 150}px - 12px)`,
             overflowY: "auto",
-            p: { xs: 2, md: 3 },
+            p: { xs: 2, md: 2.5 },
             borderRadius: "0 0 20px 20px",
             border: `1px solid ${theme.palette.divider}`,
             backgroundColor: theme.palette.background.paper,
@@ -970,15 +970,16 @@ function BuyerLayoutContent({ children }) {
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              md: "repeat(3, minmax(0, 1fr))",
-              lg: "repeat(5, minmax(0, 1fr))",
+              md: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+              xl: "repeat(3, minmax(0, 2fr)) repeat(2, minmax(0, 1fr))",
             },
-            gap: { xs: 2, md: 3.5 },
+            alignItems: "start",
+            gap: { xs: 2.5, md: 3 },
           }}
         >
           {categoryGroups.map((group) => (
-            <Box key={group.title}>
+            <Box key={group.title} sx={{ minWidth: 0 }}>
               <Typography
                 variant="subtitle2"
                 sx={{
@@ -990,42 +991,53 @@ function BuyerLayoutContent({ children }) {
               >
                 {group.title}
               </Typography>
-              {group.options.map((option, index) => (
-                <FormControlLabel
-                  key={option}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={index === 0 && group.title === "Art Type"}
-                      onChange={() =>
-                        handleCategoryOption(
-                          option,
-                          group.title === "Art Type"
-                            ? "art_type"
-                            : group.title === "Style"
-                              ? "style"
-                              : "material"
-                        )
-                      }
-                      sx={{
-                        p: 0.75,
-                        color: theme.palette.divider,
-                        "&.Mui-checked": { color: theme.palette.error.main },
-                      }}
-                    />
-                  }
-                  label={option}
-                  sx={{
-                    display: "flex",
-                    m: 0,
-                    minHeight: 32,
-                    ".MuiFormControlLabel-label": {
-                      fontSize: 14,
-                      color: theme.palette.text.secondary,
-                    },
-                  }}
-                />
-              ))}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateRows: `repeat(${Math.min(6, group.options.length)}, minmax(32px, auto))`,
+                  gridAutoFlow: "column",
+                  gridAutoColumns: "minmax(0, 1fr)",
+                  columnGap: 1,
+                }}
+              >
+                {group.options.map((option) => (
+                  <FormControlLabel
+                    key={option}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={selectedCategory.toLowerCase() === option.toLowerCase()}
+                        onChange={() =>
+                          handleCategoryOption(
+                            option,
+                            group.title === "Art Type"
+                              ? "art_type"
+                              : group.title === "Style"
+                                ? "style"
+                                : "material"
+                          )
+                        }
+                        sx={{
+                          p: 0.75,
+                          color: theme.palette.divider,
+                          "&.Mui-checked": { color: theme.palette.error.main },
+                        }}
+                      />
+                    }
+                    label={option}
+                    sx={{
+                      display: "flex",
+                      m: 0,
+                      minWidth: 0,
+                      minHeight: 32,
+                      ".MuiFormControlLabel-label": {
+                        fontSize: 14,
+                        color: theme.palette.text.secondary,
+                      },
+                    }}
+                  />
+                ))}
+              </Box>
             </Box>
           ))}
 
@@ -1042,13 +1054,14 @@ function BuyerLayoutContent({ children }) {
               Color Palette
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {paletteColors.map((color) => (
+              {COLOR_PALETTE.map(({ hex: color, name }) => (
                 <Box
                   key={color}
-                  onClick={() => handleCategoryOption(color, "color")}
+                  onClick={() => handleCategoryOption(name, "color")}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Filter by ${color}`}
+                  aria-label={`Filter by ${name}`}
+                  title={name}
                   sx={{
                     width: 22,
                     height: 22,
@@ -1079,22 +1092,29 @@ function BuyerLayoutContent({ children }) {
               >
                 Price Range
               </Typography>
-              <Typography
-                variant="body2"
-                color="error.main"
-                sx={{ fontWeight: 600 }}
-              >
-                ₱10,000+
-              </Typography>
             </Stack>
-            <Typography variant="body2" color="text.secondary">
-              ₱100
+            <Typography variant="body2" color="error.main" sx={{ mt: 1, fontWeight: 600 }}>
+              {formatPriceRange(priceRange)}
             </Typography>
-            <Slider
-              defaultValue={35}
-              aria-label="Price range"
-              sx={{ color: theme.palette.error.main, mt: 1, px: 0.5 }}
-            />
+            <Box sx={{ px: 1 }}>
+              <Slider
+                value={priceRange}
+                min={0}
+                max={PRICE_LIMIT}
+                step={100}
+                disableSwap
+                getAriaLabel={(index) => index === 0 ? "Minimum price" : "Maximum price"}
+                getAriaValueText={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
+                onChange={(_, range) => setPriceRange(range)}
+                onChangeCommitted={(_, range) => applyPriceRange(range)}
+                sx={{ color: theme.palette.error.main, mt: 1 }}
+              />
+            </Box>
+            <Button size="small" onClick={() => applyPriceRange([0, PRICE_LIMIT])} sx={{ textTransform: "none" }}>
+              Clear price filter
+            </Button>
           </Box>
         </Box>
       </Popover>
