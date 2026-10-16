@@ -6,6 +6,13 @@ const api = axios.create({
   timeout: 5000,
 });
 
+export const fetchRecentlyViewedArtworks = async (excludeArtworkId, limit = 4) => {
+  const response = await api.get("/recently-viewed", {
+    params: { exclude_artwork_id: excludeArtworkId, limit },
+  });
+  return Array.isArray(response.data.artworks) ? response.data.artworks : [];
+};
+
 export const fetchRecommendations = async (
   topK = 4,
 ) => {

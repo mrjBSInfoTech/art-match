@@ -485,7 +485,7 @@ function BuyerLayoutContent({ children }) {
                 inputRef={searchInputRef}
                 fullWidth
                 size="small"
-                placeholder="Search..."
+                placeholder="Search art, mediums, features..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 inputProps={{ "aria-label": "Search artworks" }}

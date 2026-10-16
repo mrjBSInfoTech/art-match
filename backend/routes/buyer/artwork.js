@@ -87,6 +87,7 @@ router.get("/", (req, res) => {
       a.product,
       a.art_size,
       a.date_created,
+      f.feature_scanned,
       f.mediums_used,
       s.first_name,
       s.last_name,

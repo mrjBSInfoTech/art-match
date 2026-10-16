@@ -1,10 +1,14 @@
 {
   "raw_to_sasrec": {
     "customer:1": 1,
-    "guest:d2ff6b26-eac4-4353-a23b-001d17a222c9": 2
+    "guest:d2ff6b26-eac4-4353-a23b-001d17a222c9": 2,
+    "guest:ff269c54-ac9b-47b1-914b-8a406d706fad": 3,
+    "guest:636a4a53-6a9a-4da5-8092-726a051508e9": 4
   },
   "sasrec_to_raw": {
     "1": "customer:1",
-    "2": "guest:d2ff6b26-eac4-4353-a23b-001d17a222c9"
+    "2": "guest:d2ff6b26-eac4-4353-a23b-001d17a222c9",
+    "3": "guest:ff269c54-ac9b-47b1-914b-8a406d706fad",
+    "4": "guest:636a4a53-6a9a-4da5-8092-726a051508e9"
   }
 }

@@ -22,10 +22,10 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 
-import { getSearchColor, artworkMatchesColor } from "../../utils/artworkColors";
+import { getSearchColor } from "../../utils/artworkColors";
 
 import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from "../../utils/artworkPrice";
-import { matchTwoDimensionalType } from "../../utils/artworkType";
+import { scoreArtworkSearch } from "../../utils/artworkSearch";
 
 const PAGE_SIZE = 8;
 
@@ -314,32 +314,16 @@ export default function Shop() {
 
   const visibleArtworks = useMemo(
     () =>
-      artworks.filter((artwork) => {
-        const matchesType = matchTwoDimensionalType(artwork, searchQuery);
-        const matchesGenre =
-          !selectedGenre ||
-          String(artwork.genre || "").toLowerCase() === selectedGenre;
-        const searchableText = [
-          artwork.title,
-          artwork.artist,
-          artwork.student_name,
-          artwork.genre,
-          artwork.art_type,
-          artwork.product,
-          artwork.mediums_used,
-          artwork.artwork_id,
-          artwork.id,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return (
-          matchesGenre && matchesPriceRange(artwork.price, minimumPrice, maximumPrice) && (searchColor
-            ? artworkMatchesColor(artwork.color_used, searchColor)
-            : matchesType ?? (!searchQuery || searchableText.includes(searchQuery)))
-        );
-      }),
-    [artworks, searchQuery, searchColor, selectedGenre, minimumPrice, maximumPrice],
+      artworks
+        .filter((artwork) =>
+          (!selectedGenre || String(artwork.genre || "").toLowerCase() === selectedGenre) &&
+          matchesPriceRange(artwork.price, minimumPrice, maximumPrice),
+        )
+        .map((artwork) => ({ artwork, score: scoreArtworkSearch(artwork, searchQuery) }))
+        .filter(({ score }) => score >= 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ artwork }) => artwork),
+    [artworks, searchQuery, selectedGenre, minimumPrice, maximumPrice],
   );
   const pageCount = Math.max(1, Math.ceil(visibleArtworks.length / PAGE_SIZE));
   const pageArtworks = visibleArtworks.slice(

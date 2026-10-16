@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
+  Alert,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -15,6 +16,7 @@ import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
+import { getSellerProfile } from "../../../api/seller/sellerAPI";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -29,24 +31,46 @@ function ArtworkInfo({
   canEdit,
 }) {
   const theme = useTheme();
-  const [artwork, setArtwork] = useState(null);
+  const artwork = selectedArtwork;
+  const [sellerDetails, setSellerDetails] = useState(null);
+  const ownerId = artwork?.student_id;
+  const needsProfile = Boolean(artwork) &&
+    (!artwork.first_name || !artwork.last_name || !artwork.student_number || !artwork.course);
 
   useEffect(() => {
-    if (selectedArtwork) {
-      setArtwork(selectedArtwork);
-    } else {
-      setArtwork(null);
-    }
-  }, [selectedArtwork, open]);
+    if (!open || !needsProfile || !ownerId) return;
+    let active = true;
+    getSellerProfile()
+      .then((profile) => {
+        if (String(profile.student_id) !== String(ownerId)) {
+          throw new Error("Seller profile does not match this artwork's owner.");
+        }
+        if (active) setSellerDetails({ ownerId, profile });
+      })
+      .catch((error) => {
+        if (active) setSellerDetails({ ownerId, error: error.message });
+      });
+    return () => { active = false; };
+  }, [open, ownerId, needsProfile]);
 
-  const formatList = (value) => {
-    if (!value) return "N/A";
+  const profileState = sellerDetails && String(sellerDetails.ownerId) === String(ownerId)
+    ? sellerDetails : null;
+  const sellerProfile = profileState?.profile;
+  const profileFallback = needsProfile && open && ownerId && !profileState
+    ? "Loading seller details..." : "Not provided";
+  const sellerName = [
+    artwork?.first_name || sellerProfile?.first_name,
+    artwork?.last_name || sellerProfile?.last_name,
+  ].filter(Boolean).join(" ");
+
+  const formatList = (value, fallback = "Not provided") => {
+    if (!value) return fallback;
 
     let list = value;
     if (typeof value === "string") {
       try {
         const parsed = JSON.parse(value);
-        list = Array.isArray(parsed) ? parsed : value.split(",");
+        list = Array.isArray(parsed) ? parsed : typeof parsed === "string" ? parsed.split(",") : value.split(",");
       } catch {
         list = value.split(",");
       }
@@ -70,7 +94,7 @@ function ArtworkInfo({
       })
       .filter(Boolean);
 
-    return formatted.length > 0 ? formatted.join(", ") : "N/A";
+    return formatted.length > 0 ? formatted.join(", ") : fallback;
   };
 
   const toColorList = (value) => {
@@ -147,6 +171,8 @@ function ArtworkInfo({
     fontSize: 12,
     fontWeight: 600,
     lineHeight: 1.35,
+    overflowWrap: "anywhere",
+    whiteSpace: "pre-wrap",
   };
 
   return (
@@ -197,6 +223,11 @@ function ArtworkInfo({
       </DialogTitle>
 
       <DialogContent dividers>
+        {needsProfile && profileState?.error && (
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            Unable to load seller information: {profileState.error}
+          </Alert>
+        )}
         {artwork ? (
           <Box>
             <Box
@@ -258,57 +289,57 @@ function ArtworkInfo({
               <Box>
                 <Typography sx={detailLabelSx}>Name</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.first_name || "N/A"} {artwork.last_name || ""}
+                  {sellerName || profileFallback}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>School Number</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.student_number || "N/A"}
+                  {artwork.student_number || sellerProfile?.student_number || profileFallback}
                 </Typography>
               </Box>
               <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
                 <Typography sx={detailLabelSx}>Course</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.course || "N/A"}
+                  {artwork.course || sellerProfile?.course || profileFallback}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Title</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.title || "N/A"}
+                  {artwork.title || "Not provided"}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Genre</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.genre || "N/A"}
+                  {artwork.genre || "Not provided"}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Size</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.art_size || "N/A"}
+                  {artwork.art_size || "Not provided"}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Price</Typography>
                 <Typography sx={{ ...detailValueSx, color: "#dc2626" }}>
-                  {artwork.price
-                    ? `₱${Number(artwork.price).toLocaleString()}`
-                    : "N/A"}
+                  {artwork.price !== null && artwork.price !== undefined && artwork.price !== "" && Number.isFinite(Number(artwork.price))
+                    ? new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(artwork.price))
+                    : "Not provided"}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Art Type</Typography>
                 <Typography sx={detailValueSx}>
-                  {formatList(artwork.art_type) || "N/A"}
+                  {formatList(artwork.art_type) || "Not provided"}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Product</Typography>
                 <Typography sx={detailValueSx}>
-                  {formatList(artwork.product) || "N/A"}
+                  {formatList(artwork.product) || "Not provided"}
                 </Typography>
               </Box>
 
@@ -334,26 +365,26 @@ function ArtworkInfo({
                     ))}
                   </Stack>
                 ) : (
-                  <Typography sx={detailValueSx}>N/A</Typography>
+                  <Typography sx={detailValueSx}>No color results available</Typography>
                 )}
               </Box>
 
               <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
                 <Typography sx={detailLabelSx}>Description</Typography>
                 <Typography sx={detailValueSx}>
-                  {artwork.description || "N/A"}
+                  {artwork.description || "Not provided"}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Features</Typography>
                 <Typography sx={detailValueSx}>
-                  {formatList(artwork.feature_scanned || artwork.features)}
+                  {formatList(artwork.feature_scanned || artwork.features, "No scan results available")}
                 </Typography>
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Mediums Used</Typography>
                 <Typography sx={detailValueSx}>
-                  {formatList(artwork.mediums_used || artwork.mediums)}
+                  {formatList(artwork.mediums_used || artwork.mediums, "No scan results available")}
                 </Typography>
               </Box>
               <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
@@ -364,7 +395,7 @@ function ArtworkInfo({
                         "en-US",
                         { month: "long", day: "numeric", year: "numeric" },
                       )
-                    : "N/A"}
+                    : "Not provided"}
                 </Typography>
               </Box>
             </Box>

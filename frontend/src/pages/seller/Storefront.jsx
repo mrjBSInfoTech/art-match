@@ -4,12 +4,8 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardMedia,
   Chip,
   CircularProgress,
-  Grid,
   Paper,
   Snackbar,
   Slide,
@@ -23,7 +19,7 @@ import {
   fetchStorefront,
   saveStorefront,
 } from "../../api/seller/storefrontAPI";
-import ArtworkInfo from "../../components/seller/Artwork/ArtworkInfo";
+import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -58,13 +54,6 @@ const specialtyOptions = [
   "Minimalism",
 ];
 
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-
 const parseArray = (value) => {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string") return [];
@@ -97,7 +86,6 @@ export default function Storefront() {
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
   const [savingPinId, setSavingPinId] = useState(null);
   const [savingSpecialties, setSavingSpecialties] = useState(false);
-  const [selectedArtwork, setSelectedArtwork] = useState(null);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
@@ -363,20 +351,6 @@ export default function Storefront() {
     } finally {
       setSavingPinId(null);
     }
-  };
-
-  const getArtworkImageUrl = (artwork) => {
-    const imageName = artwork?.image || artwork?.image_url;
-
-    if (!imageName) {
-      return "https://placehold.co/1200x900/111827/ffffff?text=Artwork";
-    }
-
-    if (imageName.startsWith("http://") || imageName.startsWith("https://")) {
-      return imageName;
-    }
-
-    return `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(imageName)}`;
   };
 
   return (
@@ -646,102 +620,12 @@ export default function Storefront() {
                 <CircularProgress />
               </Box>
             ) : artworks.length > 0 ? (
-              <Grid container spacing={2}>
-                {artworks.map((artwork) => {
-                  const artworkId = String(
-                    artwork.artwork_id || artwork.id,
-                  );
-                  const isPinned = pinnedArtworkIds.includes(artworkId);
-
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={artworkId}>
-                      <Card
-                        variant="outlined"
-                        sx={{
-                          height: "100%",
-                          borderRadius: 3,
-                          overflow: "hidden",
-                          borderColor: isPinned ? "primary.main" : "divider",
-                          boxShadow: isPinned ? 2 : 0,
-                        }}
-                      >
-                        <CardMedia
-                          component="img"
-                          image={getArtworkImageUrl(artwork)}
-                          alt={artwork.title || "Artwork"}
-                          onError={(event) => {
-                            event.currentTarget.src =
-                              "https://placehold.co/1200x900/111827/ffffff?text=Artwork";
-                          }}
-                          sx={{ height: 220, objectFit: "cover" }}
-                        />
-
-                        <CardContent sx={{ pb: 1.5 }}>
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            spacing={1}
-                          >
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                              {artwork.title || "Untitled artwork"}
-                            </Typography>
-                            {isPinned && (
-                              <Chip
-                                label="Pinned"
-                                size="small"
-                                color="primary"
-                              />
-                            )}
-                          </Stack>
-
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: 1 }}
-                          >
-                            {artwork.genre || "General"}
-                          </Typography>
-
-                          <Typography
-                            variant="h6"
-                            sx={{ mt: 1.5, fontWeight: 800 }}
-                          >
-                            {formatCurrency(artwork.price)}
-                          </Typography>
-
-                          <Stack spacing={1} sx={{ mt: 2 }}>
-                            <Button
-                              fullWidth
-                              variant="outlined"
-                              sx={{
-                                textTransform: "none",
-                                fontWeight: 700,
-                              }}
-                              onClick={() => setSelectedArtwork(artwork)}
-                            >
-                              View info
-                            </Button>
-
-                            <Button
-                              fullWidth
-                              variant={isPinned ? "contained" : "outlined"}
-                              color={isPinned ? "primary" : "inherit"}
-                              sx={{
-                                textTransform: "none",
-                                fontWeight: 700,
-                              }}
-                              onClick={() => handlePinToggle(artworkId)}
-                            >
-                              {isPinned ? "Unpin artwork" : "Pin to storefront"}
-                            </Button>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
+              <StorefrontCard
+                artworks={artworks}
+                pinnedArtworkIds={pinnedArtworkIds}
+                savingPinId={savingPinId}
+                onPinToggle={handlePinToggle}
+              />
             ) : (
               <Box
                 sx={{
@@ -785,12 +669,7 @@ export default function Storefront() {
         </Alert>
       </Snackbar>
 
-      <ArtworkInfo
-        open={Boolean(selectedArtwork)}
-        handleClose={() => setSelectedArtwork(null)}
-        selectedArtwork={selectedArtwork}
-        canEdit={false}
-      />
+
     </Box>
   );
 }

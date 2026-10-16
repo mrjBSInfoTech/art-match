@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -17,12 +18,15 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
-import { recordRecommendationEvent } from "../../api/buyer/recommendationAPI";
+import {
+  fetchRecentlyViewedArtworks,
+  getRecommendationSessionId,
+  recordRecommendationEvent,
+} from "../../api/buyer/recommendationAPI";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -47,7 +51,6 @@ function getColorChipStyles(value) {
 }
 
 export default function ArtworkDetail() {
-  const theme = useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
   const [artworks, setArtworks] = useState([]);
@@ -57,35 +60,53 @@ export default function ArtworkDetail() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [recentHistory, setRecentHistory] = useState(null);
+  const currentRecentHistory = recentHistory && recentHistory.artworkId === id ? recentHistory : null;
+  const recentlyViewed = currentRecentHistory?.artworks || [];
+  const recentHistoryError = currentRecentHistory?.error || "";
 
   // Fetch artwork detail and also the list for related items
   useEffect(() => {
     let mounted = true;
+    const loadRecentlyViewed = async () => {
+      // Tracking and history are optional and must not interrupt the detail page.
+      try {
+        const customerId = localStorage.getItem("buyer_token") && localStorage.getItem("buyer_customer_id");
+        const viewer = customerId ? `buyer-${customerId}` : `guest-${getRecommendationSessionId()}`;
+        const viewKey = `recommendation_view_${viewer}_${id}`;
+        const now = Date.now();
+        const lastView = Number(sessionStorage.getItem(viewKey) || 0);
+        if (now - lastView >= 30000) {
+          const result = await recordRecommendationEvent({
+            event_type: "view",
+            artwork_id: Number(id),
+            source_page: "artwork_detail",
+          });
+          if (result?.duplicate || (result?.recorded && result.interaction_id != null)) {
+            sessionStorage.setItem(viewKey, String(now));
+          }
+        }
+      } catch {
+        // Storage restrictions should not prevent loading server-side history.
+      }
+      if (!mounted) return;
+      try {
+        const items = await fetchRecentlyViewedArtworks(id);
+        if (mounted) setRecentHistory({ artworkId: id, artworks: items, error: "" });
+      } catch {
+        if (mounted) setRecentHistory({ artworkId: id, artworks: [], error: "Recently viewed artworks could not be loaded." });
+      }
+    };
     const load = async () => {
       try {
         setLoading(true);
         setArtworkErrorMessage("");
 
-        // fetch detail
-        const detail = await fetchArtworkById(id);
-
-        const viewKey = `recommendation_view_${id}`;
-        const now = Date.now();
-
-        const lastView = Number(sessionStorage.getItem(viewKey) || 0);
-
-        if (now - lastView >= 30000) {
-          sessionStorage.setItem(viewKey, String(now));
-
-          void recordRecommendationEvent({
-            event_type: "view",
-            artwork_id: Number(id),
-            source_page: "artwork_detail",
-          });
-        }
-
-        // fetch list for related/same-artist
-        const listResp = await fetchArtworks();
+        const [detail, listResp] = await Promise.all([
+          fetchArtworkById(id),
+          // Related items are optional and must not hide the detail or history.
+          fetchArtworks().catch(() => []),
+        ]);
 
         const list = Array.isArray(listResp)
           ? listResp
@@ -96,6 +117,7 @@ export default function ArtworkDetail() {
         if (!mounted) return;
         setArtworks(list);
         setArtwork(detail || null);
+        if (detail) void loadRecentlyViewed();
       } catch (err) {
         if (!mounted) return;
         setArtworks([]);
@@ -131,7 +153,8 @@ export default function ArtworkDetail() {
         if (!trimmed) return "";
 
         return trimmed
-          .split(" ")
+          .replace(/_/g, " ")
+          .split(/\s+/)
           .map(
             (word) =>
               word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
@@ -312,7 +335,7 @@ export default function ArtworkDetail() {
                       setAddingToCart(true);
                       await addToCart(artwork.artwork_id || artwork.id);
                       setCartMessage("Added to cart");
-                    } catch (error) {
+                    } catch {
                       setCartMessage("Unable to add to cart");
                       setTimeout(() => {
                         setCartMessage("");
@@ -571,6 +594,35 @@ export default function ArtworkDetail() {
         </DialogContent>
       </Dialog>
 
+      <Box component="section" aria-labelledby="recently-viewed-title" sx={{ mt: { xs: 5, md: 8 } }}>
+        <Typography id="recently-viewed-title" variant="h5" fontWeight={700} mb={3}>
+          Recently viewed artworks
+        </Typography>
+        {!currentRecentHistory ? (
+          <Stack direction="row" alignItems="center" spacing={1.5} role="status" sx={{ py: 3 }}>
+            <CircularProgress size={22} aria-label="Loading recent history" />
+            <Typography color="text.secondary">Loading your recent history...</Typography>
+          </Stack>
+        ) : recentHistoryError ? (
+          <Alert severity="error">{recentHistoryError}</Alert>
+        ) : recentlyViewed.length > 0 ? (
+          <Grid container spacing={3}>
+            {recentlyViewed.map((item) => (
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={item.artwork_id}>
+                <ArtworkCard artwork={item} showAddToCart={false} />
+              </Grid>
+            ))}
+          </Grid>
+        ) : (
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
+            <Typography color="text.secondary">
+              No other recently viewed artworks yet. Open another artwork to start your history.
+            </Typography>
+            <Button onClick={() => navigate("/buyer/shop")} sx={{ mt: 1 }}>Browse artworks</Button>
+          </Paper>
+        )}
+      </Box>
+
       {related.length > 0 && (
         <Box sx={{ mt: 10 }}>
           <Typography variant="h5" fontWeight={700} mb={3}>
@@ -610,6 +662,8 @@ export default function ArtworkDetail() {
           </Grid>
         </Box>
       )}
+
+
     </Container>
   );
 }

@@ -118,6 +118,7 @@ export default function Cart() {
     <Box
       sx={{
         py: { xs: 2, md: 3, lg: 4 },
+        minHeight: "100vh",
         backgroundColor: "background.default",
         color: "text.primary",
       }}
@@ -126,17 +127,6 @@ export default function Cart() {
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Cart</title>
         </Helmet>
-        <Typography
-          variant="h3"
-          sx={{
-            fontSize: { xs: 28, sm: 32, md: 40 },
-            fontWeight: 700,
-            mb: { xs: 2, md: 4 },
-            textAlign: { xs: "left", md: "left" },
-          }}
-        >
-          Shopping cart
-        </Typography>
 
         {cartItems.length === 0 ? (
           <Paper
@@ -155,6 +145,7 @@ export default function Cart() {
               Browse artworks and add your favorites to the cart.
             </Typography>
             <Button
+              color="error"
               variant="contained"
               component={Link}
               to="/artworks"
@@ -164,6 +155,7 @@ export default function Cart() {
                 textTransform: "none",
                 px: 3,
                 color: "white",
+                fontWeight: "bold",
               }}
             >
               Explore artworks

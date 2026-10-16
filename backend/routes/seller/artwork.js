@@ -105,6 +105,7 @@ const upload = multer({ storage });
 
 // Get artworks for the current user
 router.get("/", authenticateSeller, (req, res) => {
+  res.set("Cache-Control", "no-store");
   try {
     const studentId = req.user?.student_id || req.user?.id;
     if (!studentId) {
@@ -124,10 +125,19 @@ router.get("/", authenticateSeller, (req, res) => {
         a.art_type,
         a.product,
         au.request_status,
+        au.request_date,
+        au.approved_date,
+        au.rejection_date,
+        au.rejection_reason,
         a.date_created,
         f.feature_scanned,
-        f.mediums_used
+        f.mediums_used,
+        s.first_name,
+        s.last_name,
+        s.student_number,
+        s.course
       FROM artwork a
+      LEFT JOIN student s ON s.student_id = a.student_id
       LEFT JOIN artupload au ON a.artwork_id = au.artwork_id
       LEFT JOIN feature f ON a.artwork_id = f.artwork_id
       WHERE a.student_id = ?
@@ -149,6 +159,7 @@ router.get("/", authenticateSeller, (req, res) => {
 
 // Get single artwork by ID
 router.get("/:id", authenticateSeller, (req, res) => {
+  res.set("Cache-Control", "no-store");
   try {
     const { id } = req.params;
     const studentId = req.user?.student_id || req.user?.id;
@@ -169,10 +180,19 @@ router.get("/:id", authenticateSeller, (req, res) => {
         a.art_type,
         a.product,
         au.request_status,
+        au.request_date,
+        au.approved_date,
+        au.rejection_date,
+        au.rejection_reason,
         a.date_created,
         f.feature_scanned,
-        f.mediums_used
+        f.mediums_used,
+        s.first_name,
+        s.last_name,
+        s.student_number,
+        s.course
       FROM artwork a
+      LEFT JOIN student s ON s.student_id = a.student_id
       LEFT JOIN artupload au ON a.artwork_id = au.artwork_id
       LEFT JOIN feature f ON a.artwork_id = f.artwork_id
       WHERE a.artwork_id = ? AND a.student_id = ?
@@ -347,34 +367,13 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
      WHERE a.artwork_id = ? AND a.student_id = ?
        AND LOWER(TRIM(au.request_status)) IN ('unverified', 'rejected')`,
     [req.params.id, studentId],
-    async (err, result) => {
+    (err, result) => {
       if (err) {
         console.error("DB Error:", err);
         return res.status(500).json({ error: err.message });
       }
       if (result.affectedRows === 0) {
         return res.status(404).json({ error: "Artwork not found" });
-      }
-      if (scan) {
-        try {
-          await new Promise((resolve, reject) => {
-            db.query(
-              `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
-               VALUES (?, ?, ?)
-               ON DUPLICATE KEY UPDATE feature_scanned = VALUES(feature_scanned), mediums_used = VALUES(mediums_used)`,
-              [id, scan.detectedFeatures, scan.detectedMediums],
-              (scanErr) => scanErr ? reject(scanErr) : resolve(),
-            );
-          });
-        } catch (scanErr) {
-          return res.status(500).json({ error: scanErr.message });
-        }
-      }
-      if (req.file && previous.image && previous.image !== req.file.filename) {
-        const oldImagePath = path.join(uploadDir, previous.image);
-        fs.unlink(oldImagePath, (unlinkErr) => {
-          if (unlinkErr && unlinkErr.code !== "ENOENT") console.warn("Unable to remove old artwork image:", unlinkErr.message);
-        });
       }
       res.json({ message: "Artwork updated successfully" });
     },
@@ -445,13 +444,34 @@ router.put("/:id", authenticateSeller, upload.single("file"), async (req, res) =
       id,
       studentId,
     ],
-    (err, result) => {
+    async (err, result) => {
       if (err) {
         console.error("DB Error:", err);
         return res.status(500).json({ error: err.message });
       }
       if (result.affectedRows === 0) {
         return res.status(404).json({ error: "Artwork not found" });
+      }
+      if (scan) {
+        try {
+          await new Promise((resolve, reject) => {
+            db.query(
+              `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
+               VALUES (?, ?, ?)
+               ON DUPLICATE KEY UPDATE feature_scanned = VALUES(feature_scanned), mediums_used = VALUES(mediums_used)`,
+              [id, scan.detectedFeatures, scan.detectedMediums],
+              (scanErr) => scanErr ? reject(scanErr) : resolve(),
+            );
+          });
+        } catch (scanErr) {
+          return res.status(500).json({ error: scanErr.message });
+        }
+      }
+      if (req.file && previous.image && previous.image !== req.file.filename) {
+        const oldImagePath = path.join(uploadDir, previous.image);
+        fs.unlink(oldImagePath, (unlinkErr) => {
+          if (unlinkErr && unlinkErr.code !== "ENOENT") console.warn("Unable to remove old artwork image:", unlinkErr.message);
+        });
       }
       res.json({ message: "Artwork updated successfully" });
     },

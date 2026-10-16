@@ -837,6 +837,118 @@ const rerankRecommendationCandidates = ({
   }));
 };
 
+router.get("/recently-viewed", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  const customerId = optionalCustomerId(req);
+  const sessionId = cleanSessionId(req.get("x-recommendation-session"));
+
+  if (!customerId && !sessionId) {
+    return res.status(400).json({
+      message: "A recommendation session is required.",
+    });
+  }
+
+  const limit = Number(req.query.limit ?? 4);
+  if (
+    (req.query.limit !== undefined && typeof req.query.limit !== "string") ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 12
+  ) {
+    return res.status(400).json({ message: "Limit must be between 1 and 12." });
+  }
+
+  const excludeArtworkId =
+    req.query.exclude_artwork_id === undefined
+      ? null
+      : Number(req.query.exclude_artwork_id);
+
+  if (
+    excludeArtworkId !== null &&
+    (typeof req.query.exclude_artwork_id !== "string" ||
+      !Number.isSafeInteger(excludeArtworkId) ||
+      excludeArtworkId <= 0)
+  ) {
+    return res.status(400).json({ message: "Invalid excluded artwork id." });
+  }
+
+  // Account histories stay separate from the shared browser's guest history.
+  const identitySql = customerId
+    ? "customer_id = ?"
+    : "customer_id IS NULL AND session_id = ?";
+  const params = [customerId || sessionId];
+  const excludeSql = excludeArtworkId === null ? "" : "AND a.artwork_id <> ?";
+  if (excludeArtworkId !== null) params.push(excludeArtworkId);
+  params.push(limit);
+
+  try {
+    const [artworks] = await db.promise().query(
+      `SELECT
+         a.artwork_id,
+         a.student_id,
+         a.title,
+         a.price,
+         a.description,
+         a.image,
+         a.color_used,
+         a.genre,
+         a.art_size,
+         a.art_type,
+         a.product,
+         a.status,
+         a.is_sold,
+         a.date_created,
+         CONCAT(s.first_name, ' ', s.last_name) AS artist,
+         s.profile_image,
+         s.course,
+         s.year_level,
+         sf.shop_name,
+         sf.shop_description,
+         history.last_viewed_at
+       FROM (
+         SELECT artwork_id,
+                MAX(created_at) AS last_viewed_at,
+                MAX(interaction_id) AS last_view_interaction_id
+         FROM recommendation_interaction
+         WHERE ${identitySql}
+           AND event_type = 'view'
+           AND artwork_id IS NOT NULL
+         GROUP BY artwork_id
+       ) history
+       JOIN artwork a ON a.artwork_id = history.artwork_id
+       LEFT JOIN student s ON s.student_id = a.student_id
+       LEFT JOIN storefront sf ON sf.student_id = a.student_id
+       WHERE (
+         NOT EXISTS (
+           SELECT 1 FROM accregistration ac WHERE ac.student_id = a.student_id
+         )
+         OR EXISTS (
+           SELECT 1 FROM accregistration ac
+           WHERE ac.student_id = a.student_id
+             AND (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
+         )
+       )
+         AND EXISTS (
+           SELECT 1 FROM artupload au
+           WHERE au.artwork_id = a.artwork_id
+             AND LOWER(au.request_status) = 'verified'
+         )
+         ${excludeSql}
+       ORDER BY history.last_viewed_at DESC, history.last_view_interaction_id DESC
+       LIMIT ?`,
+      params,
+    );
+
+    return res.json({ artworks });
+  } catch (error) {
+    console.error("Recently viewed artwork retrieval error:", error);
+    return res.status(500).json({
+      message: "Unable to load recently viewed artworks.",
+    });
+  }
+});
+
 router.get("/", async (req, res) => {
   const customerId =
     optionalCustomerId(req);

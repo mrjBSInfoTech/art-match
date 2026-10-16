@@ -60,10 +60,26 @@ export default function Artwork() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("az");
   const [priceOption, setPriceOption] = useState("lthPrice");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const filteredArtworks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     let list = [...artworks];
+
+    if (statusFilter !== "all") {
+      list = list.filter((artwork) => {
+        const status = String(
+          artwork.request_status || artwork.status || "Unverified",
+        )
+          .trim()
+          .toLowerCase();
+        if (statusFilter === "approved")
+          return ["verified", "approved"].includes(status);
+        if (statusFilter === "pending")
+          return ["pending", "requested"].includes(status);
+        return status === statusFilter;
+      });
+    }
 
     if (query) {
       list = list.filter((artwork) => {
@@ -102,7 +118,7 @@ export default function Artwork() {
     }
 
     return list;
-  }, [artworks, searchQuery, sortOption, priceOption]);
+  }, [artworks, searchQuery, sortOption, priceOption, statusFilter]);
 
   // Fetch all artworks from API
   const loadArtworks = async () => {
@@ -175,7 +191,7 @@ export default function Artwork() {
         showSnackbar("Artwork updated successfully", "success");
       } else {
         // Add new artwork (server returns colors and id)
-        const res = await addArtwork(formData);
+        await addArtwork(formData);
         // Ensure artwork list includes the newly created item (with color_used)
         await loadArtworks();
         showSnackbar("Artwork added successfully", "success");
@@ -196,7 +212,10 @@ export default function Artwork() {
       await verifyArtwork(id);
       await loadArtworks();
       setOpenArtworkVerify(false);
-      showSnackbar("Artwork will be verified. Please wait for confirmation.", "success");
+      showSnackbar(
+        "Artwork will be verified. Please wait for confirmation.",
+        "success",
+      );
       setLoading(false);
     } catch (err) {
       console.error("Error verifying artwork:", err, "error");
@@ -427,16 +446,29 @@ export default function Artwork() {
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
+          containerType: "inline-size",
+          containerName: "artwork-filters",
+          minWidth: 0,
         }}
         variant="outlined"
       >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ display: "block", mb: 1.5 }}
+        >
+          <strong>{filteredArtworks.length}</strong> artworks shown
+        </Typography>
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
+            flexDirection: { xs: "column", md: "row" },
             justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            alignItems: { xs: "stretch", md: "center" },
+            gap: 2,
+            mb: 2,
+            mt: 2,
           }}
         >
           <TextField
@@ -444,14 +476,10 @@ export default function Artwork() {
             placeholder="Search artworks..."
             size="small"
             sx={{
-              width: { xs: "100%", lg: 255 },
-              "& .MuiOutlinedInput-root": {
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": {
-                  borderColor: theme.palette.text.secondary,
-                },
+              minWidth: 0,
+              gridColumn: "1 / -1",
+              "@container artwork-filters (min-width: 900px)": {
+                gridColumn: "auto",
               },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
@@ -467,55 +495,75 @@ export default function Artwork() {
             }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            inputProps={{ "aria-label": "Search artworks" }}
           />
+
           <Box
             sx={{
               display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
             }}
           >
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
+            <FormControl
+              size="small"
+              fullWidth
+              sx={{
+                gridColumn: "1 / -1",
+                "@container artwork-filters (min-width: 600px)": {
+                  gridColumn: "auto",
+                },
+              }}
+            >
+              <InputLabel id="seller-artwork-status-label">Status</InputLabel>
               <Select
+                labelId="seller-artwork-status-label"
+                id="seller-artwork-status"
+                name="status"
+                label="Status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="all">All statuses</MenuItem>
+                <MenuItem value="unverified">Unverified</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="rejected">Rejected</MenuItem>
+                <MenuItem value="approved">Approved</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="seller-artwork-title-sort-label">
+                Title
+              </InputLabel>
+              <Select
+                labelId="seller-artwork-title-sort-label"
+                id="seller-artwork-title-sort"
                 name="sort"
+                label="Title"
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
                 startAdornment={
                   <SwapVertIcon
-                    sx={{
-                      mr: 0.5,
-                      fontSize: 17,
-                      color: theme.palette.text.secondary,
-                    }}
+                    sx={{ mr: 0.5, fontSize: 17, color: "text.secondary" }}
                   />
                 }
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="seller-artwork-price-sort-label">
+                Price
+              </InputLabel>
               <Select
+                labelId="seller-artwork-price-sort-label"
+                id="seller-artwork-price-sort"
                 name="price"
+                label="Price"
                 value={priceOption}
                 onChange={(e) => setPriceOption(e.target.value)}
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
               >
                 <MenuItem value="lthPrice">Lowest to Highest</MenuItem>
                 <MenuItem value="htlPrice">Highest to Lowest</MenuItem>
@@ -555,8 +603,8 @@ export default function Artwork() {
             color="text.secondary"
             sx={{ textAlign: "center", py: 4 }}
           >
-            {searchQuery
-              ? "No artworks match your search."
+            {searchQuery || statusFilter !== "all"
+              ? "No artworks match your search and filters."
               : "No artworks found. Add your first artwork!"}
           </Typography>
         )}

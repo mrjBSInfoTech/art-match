@@ -298,11 +298,7 @@ export default function Artwork() {
                   borderColor: theme.palette.divider,
                   backgroundColor: theme.palette.background.default,
                 },
-                "& .MuiToggleButton-root.Mui-selected": {
-                  color: theme.palette.primary.contrastText,
-                  backgroundColor: theme.palette.primary.main,
-                  borderColor: theme.palette.primary.main,
-                },
+                "& .MuiToggleButton-root.Mui-selected": { bgcolor: "primary.main", color: "#fff" },
                 "& .MuiToggleButton-root.Mui-selected:hover": {
                   backgroundColor: theme.palette.primary.dark,
                 },

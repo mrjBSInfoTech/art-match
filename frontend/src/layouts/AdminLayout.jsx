@@ -14,7 +14,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import Drawer from "@mui/material/Drawer";
-import Fade from "@mui/material/Fade";
 import Slide from "@mui/material/Slide";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
@@ -27,6 +26,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  useMediaQuery,
 } from "@mui/material";
 import Nexus from "../assets/Nexus.png";
 import SidebarNavigationHeader from "./SidebarNavigationHeader";
@@ -36,8 +36,6 @@ import PasswordWarning from "../components/admin/Dashboard/PasswordWarning";
 //Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import HourglassBottomRoundedIcon from "@mui/icons-material/HourglassBottomRounded";
-import LocalMallIcon from "@mui/icons-material/LocalMall";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PaletteIcon from "@mui/icons-material/Palette";
@@ -74,63 +72,37 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function AdminLayoutContent({ children }) {
+function AdminLayoutContent() {
   //Info
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [image, setImage] = useState("");
-  const [role, setRole] = useState("");
   const [canAdd, setCanAdd] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
-  const [canDelete, setCanDelete] = useState(false);
-  const [canPromote, setCanPromote] = useState(false);
-  const [canDemote, setCanDemote] = useState(false);
   const [openPasswordWarning, setOpenPasswordWarning] = useState(false);
-  const [createdAt, setCreatedAt] = useState("");
-  const [updatedAt, setUpdatedAt] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const [openInfoDialog, setOpenInfoDialog] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [manageUsersExpanded, setManageUsersExpanded] = useState(true);
 
   useEffect(() => {
     const loadAdminProfile = () => {
-      const storedUsername = localStorage.getItem("admin_username");
       const storedFirstName = localStorage.getItem("admin_first_name");
       const storedLastName = localStorage.getItem("admin_last_name");
-      const storedEmail = localStorage.getItem("admin_email");
       const storedImage = localStorage.getItem("admin_image");
-      const storedRole = localStorage.getItem("admin_role");
       const storedCanAdd = localStorage.getItem("admin_can_add");
       const storedCanEdit = localStorage.getItem("admin_can_edit");
-      const storedCanDelete = localStorage.getItem("admin_can_delete");
-      const storedCanPromote = localStorage.getItem("admin_can_promote");
-      const storedCanDemote = localStorage.getItem("admin_can_demote");
-      const storedCreatedAt = localStorage.getItem("admin_created_at");
-      const storedUpdatedAt = localStorage.getItem("admin_updated_at");
 
       setFirstName(storedFirstName || "");
       setLastName(storedLastName || "");
-      setUsername(storedUsername || "");
-      setEmail(storedEmail || "");
-      setRole(storedRole || "");
       setImage(storedImage || "");
       setCanAdd(storedCanAdd === "1");
       setCanEdit(storedCanEdit === "1");
-      setCanDelete(storedCanDelete === "1");
-      setCanPromote(storedCanPromote === "1");
-      setCanDemote(storedCanDemote === "1");
-      setCreatedAt(storedCreatedAt || "");
-      setUpdatedAt(storedUpdatedAt || "");
     };
 
     loadAdminProfile();
@@ -271,13 +243,16 @@ function AdminLayoutContent({ children }) {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
+          flexShrink: 0,
+          "& img": {
+            width: { xs: 24, sm: 30 },
+            height: { xs: 32, sm: 40 },
+            objectFit: "contain",
+            display: "block",
+          },
         }}
       >
-        <img
-          src={Nexus}
-          alt="logo"
-          style={{ width: 30, height: 50, position: "relative", bottom: 2 }}
-        />
+        <img src={Nexus} alt="Red Nexus logo" />
       </Box>
     ),
     title: (
@@ -285,7 +260,9 @@ function AdminLayoutContent({ children }) {
         sx={{
           color: "text.primary",
           fontWeight: "bold",
-          fontSize: 22,
+          fontSize: { xs: 16, sm: 20, lg: 22 },
+          lineHeight: 1.2,
+          whiteSpace: "nowrap",
         }}
       >
         Red <span style={{ color: "#ff0000" }}>Nexus</span>
@@ -295,26 +272,29 @@ function AdminLayoutContent({ children }) {
   };
 
   const { theme, mode, setMode } = useThemeMode();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const toggleTheme = () =>
     setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
 
   const CustomHeader = () => (
-    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pr: 1 }}>
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={{ xs: 0.5, sm: 1 }}
+      sx={{ minWidth: 0, flexShrink: 0 }}
+    >
       <IconButton
         onClick={toggleTheme}
         aria-label="Toggle light and dark mode"
-        sx={{ color: "text.secondary" }}
+        sx={{ color: "text.secondary", width: 40, height: 40 }}
       >
         {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
       </IconButton>
 
       <IconButton
-        onClick={() => {
-          setNotificationDrawerOpen(true);
-          setProfileDrawerOpen(false);
-        }}
+        onClick={handleNotificationClick}
         aria-label="Open notifications"
-        sx={{ color: "text.secondary" }}
+        sx={{ color: "text.secondary", width: 40, height: 40 }}
       >
         <NotificationsNoneIcon sx={{ fontSize: 22 }} />
       </IconButton>
@@ -322,36 +302,39 @@ function AdminLayoutContent({ children }) {
       <Divider
         orientation="vertical"
         flexItem
-        sx={{ mx: 0.5, height: 40, my: "auto" }}
+        sx={{ display: { xs: "none", sm: "block" }, height: 32, my: "auto" }}
       />
 
-      <Box
-        onClick={() => {
-          setProfileDrawerOpen(true);
-          setNotificationDrawerOpen(false);
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label="Open profile menu"
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            setProfileDrawerOpen(true);
-          }
-        }}
+      <Button
+        onClick={handleProfileClick}
+        aria-label={`Open profile menu for ${firstName || "Admin"}`}
+        aria-haspopup="dialog"
+        aria-expanded={profileDrawerOpen}
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 1.5,
-          backgroundColor: "#f0f2f5",
+          gap: 1,
+          minWidth: 40,
+          maxWidth: { xs: 40, sm: 164, lg: 208 },
+          color: "text.primary",
+          backgroundColor: alpha(theme.palette.text.primary, 0.05),
           borderRadius: "24px",
-          px: 2,
+          px: { xs: 0.5, sm: 1.5 },
           py: 0.5,
-          cursor: "pointer",
           transition: "background-color 0.2s",
-          "&:hover": { backgroundColor: "#e4e6ea" },
+          "&:hover": { backgroundColor: alpha(theme.palette.text.primary, 0.1) },
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 600, color: "#1c1e21" }}>
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{
+            display: { xs: "none", sm: "block" },
+            minWidth: 0,
+            maxWidth: { sm: 96, lg: 140 },
+            fontWeight: 600,
+          }}
+        >
           {firstName || "Admin"}
         </Typography>
         <Avatar
@@ -371,7 +354,7 @@ function AdminLayoutContent({ children }) {
         >
           {firstName ? firstName.charAt(0).toUpperCase() : "A"}
         </Avatar>
-      </Box>
+      </Button>
     </Stack>
   );
 
@@ -429,8 +412,11 @@ function AdminLayoutContent({ children }) {
         anchor="right"
         open={profileDrawerOpen}
         onClose={() => setProfileDrawerOpen(false)}
+        sx={{ zIndex: theme.zIndex.modal }}
         slotProps={{
           paper: {
+            role: "dialog",
+            "aria-label": "Admin profile menu",
             sx: {
               width: { xs: "min(320px, 88vw)", sm: 340 },
               backgroundColor: theme.palette.background.drawer,
@@ -440,7 +426,24 @@ function AdminLayoutContent({ children }) {
           },
         }}
       >
-        <Stack sx={{ height: "100%", mt: 9 }}>
+        <Stack sx={{ minHeight: "100%", pt: "env(safe-area-inset-top)" }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ px: 2, py: 1 }}
+          >
+            <Typography component="h2" variant="h6">
+              Profile
+            </Typography>
+            <IconButton
+              onClick={() => setProfileDrawerOpen(false)}
+              aria-label="Close profile menu"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+          <Divider />
           <Stack
             direction="row"
             spacing={1.5}
@@ -454,12 +457,12 @@ function AdminLayoutContent({ children }) {
                   : "http://localhost:5000/uploads/profile.jpg"
               }
               alt={firstName}
-              sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
+              sx={{ width: 48, height: 48, flexShrink: 0, bgcolor: "#f6f6f6" }}
             >
               {firstName ? firstName.charAt(0).toUpperCase() : "A"}
             </Avatar>
-            <Stack>
-              <Typography sx={{ fontWeight: 700 }}>
+            <Stack sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                 {firstName} {lastName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -511,8 +514,11 @@ function AdminLayoutContent({ children }) {
         anchor="right"
         open={notificationDrawerOpen}
         onClose={() => setNotificationDrawerOpen(false)}
+        sx={{ zIndex: theme.zIndex.modal }}
         slotProps={{
           paper: {
+            role: "dialog",
+            "aria-label": "Admin notifications",
             sx: {
               width: { xs: "min(320px, 88vw)", sm: 340 },
               backgroundColor: theme.palette.background.drawer,
@@ -522,7 +528,24 @@ function AdminLayoutContent({ children }) {
           },
         }}
       >
-        <Stack sx={{ height: "100%", mt: 9 }}>
+        <Stack sx={{ minHeight: "100%", pt: "env(safe-area-inset-top)" }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ px: 2, py: 1 }}
+          >
+            <Typography component="h2" variant="h6">
+              Notifications
+            </Typography>
+            <IconButton
+              onClick={() => setNotificationDrawerOpen(false)}
+              aria-label="Close notifications"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+          <Divider />
           <Stack
             alignItems="center"
             justifyContent="center"
@@ -537,10 +560,12 @@ function AdminLayoutContent({ children }) {
       </Drawer>
       <MuiDashboardLayout
         sidebarExpandedWidth={240}
+        disableCollapsibleSidebar={!isDesktop}
         slots={{
           header: SidebarNavigationHeader,
-          toolbarAccount: CustomHeader,
+          toolbarActions: CustomHeader,
         }}
+        slotProps={{ header: { branding } }}
         renderPageItem={(item) => {
           if (item.segment !== "manage") {
             return <DashboardSidebarPageItem item={item} />;
@@ -555,17 +580,16 @@ function AdminLayoutContent({ children }) {
           );
         }}
         sx={{
+          width: "100%",
+          maxWidth: "100%",
+          height: "100dvh",
+          minHeight: 0,
           backgroundColor: theme.palette.background.default,
           "& .MuiDrawer-paper": {
             backgroundColor: "#a3181f",
             color: "#ffffff",
             border: "none",
-            top: { xs: "64px", sm: "72px" },
-            height: { xs: "calc(100% - 64px)", sm: "calc(100% - 72px)" },
             overflow: "hidden",
-          },
-          "& .MuiDrawer-paper > .MuiToolbar-root": {
-            display: "none",
           },
           "& .MuiDrawer-paper.MuiDrawer-paperAnchorLeft": {
             borderTopRightRadius: "24px !important",
@@ -573,9 +597,6 @@ function AdminLayoutContent({ children }) {
           },
           "& .MuiAppBar-root .MuiIconButton-root": {
             color: "#6b7280",
-          },
-          "& .MuiAppBar-root button[aria-label$='navigation menu']": {
-            display: { xs: "inline-flex", md: "none" },
           },
           "& .MuiAppBar-root .MuiSvgIcon-root": {
             color: "#6b7280",
@@ -591,7 +612,7 @@ function AdminLayoutContent({ children }) {
             letterSpacing: 0,
             height: 56,
             lineHeight: "56px",
-            paddingLeft: "64px",
+            paddingLeft: "20px",
             fontFamily: "inherit",
           },
           "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
@@ -650,6 +671,11 @@ function AdminLayoutContent({ children }) {
           "& .MuiAppBar-root .MuiToolbar-root": {
             borderBottom: "none",
           },
+          "& main": {
+            minWidth: 0,
+            minHeight: 0,
+            overscrollBehavior: "contain",
+          },
 
           "& .MuiListItemButton-root": {
             marginTop: "5px",
@@ -659,8 +685,16 @@ function AdminLayoutContent({ children }) {
       >
         <Box
           sx={{
-            p: "clamp(20px, 2vw, 28px)",
-            zoom: { xs: 1, md: 1.15, lg: 1.18 },
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: { xs: 1.5, sm: 2, lg: 3 },
+            p: { xs: 1, sm: 2, md: 2.5, lg: 3 },
+            "& > *": { minWidth: 0, maxWidth: "100%" },
           }}
         >
           <Outlet />

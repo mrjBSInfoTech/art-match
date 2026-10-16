@@ -1,14 +1,29 @@
 {
-  "exported_at": "2026-10-10T08:16:48.765Z",
-  "total_database_rows": 28,
-  "positive_item_rows_seen": 17,
-  "search_filter_rows_exported_separately": 5,
-  "ignored_non_positive_item_rows": 6,
+  "exported_at": "2026-10-16T16:08:49.325Z",
+  "total_database_rows": 141,
+  "positive_item_rows_seen": 81,
+  "search_filter_rows_exported_separately": 42,
+  "ignored_non_positive_item_rows": 18,
   "invalid_rows_ignored": 0,
-  "sasrec_users": 2,
-  "sasrec_items": 8,
-  "sasrec_interaction_lines": 11,
-  "users_with_at_least_4_items": 1,
-  "excluded_users_with_less_than_2_items": 0,
-  "excluded_short_sequences": []
+  "sasrec_users": 4,
+  "sasrec_items": 21,
+  "sasrec_interaction_lines": 58,
+  "users_with_at_least_4_items": 3,
+  "excluded_users_with_less_than_2_items": 2,
+  "excluded_short_sequences": [
+    {
+      "identity": "guest:efc00274-8edb-4141-ad33-ae4dc205d9a7",
+      "sequence_length": 1,
+      "raw_artwork_ids": [
+        32
+      ]
+    },
+    {
+      "identity": "guest:193a9cc3-2979-4546-a9d7-b41bd1839778",
+      "sequence_length": 1,
+      "raw_artwork_ids": [
+        32
+      ]
+    }
+  ]
 }

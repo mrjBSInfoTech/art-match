@@ -12,11 +12,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
-import Fade from "@mui/material/Fade";
 import Slide from "@mui/material/Slide";
-import Modal from "@mui/material/Modal";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import { clearAuthData } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
 import {
@@ -27,6 +23,7 @@ import {
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Stack,
+  useMediaQuery,
   Avatar,
   Typography,
   Divider,
@@ -42,7 +39,6 @@ import SidebarNavigationHeader from "./SidebarNavigationHeader";
 //Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import LocalMallIcon from "@mui/icons-material/LocalMall";
 import MessageIcon from "@mui/icons-material/Message";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import PaletteIcon from "@mui/icons-material/Palette";
@@ -54,7 +50,6 @@ import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import { alpha } from "@mui/material/styles";
 import {
   ThemeModeProvider,
   useThemeMode,
@@ -76,23 +71,13 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function SellerLayoutContent({ children }) {
-  //Seller's Info
-  const [firstName, setFirstName] = useState();
-  const [lastName, setLastName] = useState();
-  const [birthdate, setBirthdate] = useState();
-  const [email, setEmail] = useState();
-  const [phoneNumber, setPhoneNumber] = useState();
-  const [cor, setCor] = useState();
-  const [yearLevel, setYearLevel] = useState();
-  const [course, setCourse] = useState();
-  const [studentNumber, setStudentNumber] = useState();
-  const [registerStatus, setRegisterStatus] = useState();
-  const [registeredDate, setRegisteredDate] = useState();
-  const [approvedDate, setApprovedDate] = useState();
-  const [profileImage, setProfileImage] = useState();
+function SellerLayoutContent() {
+  const { theme, mode, setMode } = useThemeMode();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [profileImage, setProfileImage] = useState("");
 
-  const [anchorEl, setAnchorEl] = useState(null);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -102,41 +87,12 @@ function SellerLayoutContent({ children }) {
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const [openInfoDialog, setOpenInfoDialog] = useState(false);
 
   useEffect(() => {
     const loadSellerProfile = () => {
-      const storedFirstName = localStorage.getItem("seller_first_name");
-      const storedLastName = localStorage.getItem("seller_last_name");
-      const storedBirthdate = localStorage.getItem("seller_birthdate");
-      const storedEmail = localStorage.getItem("seller_email");
-      const storedPhoneNumber = localStorage.getItem("seller_phone_number");
-      const storedCor = localStorage.getItem("seller_cor");
-      const storedYearLevel = localStorage.getItem("seller_year_level");
-      const storedCourse = localStorage.getItem("seller_course");
-      const storedStudentNumber = localStorage.getItem("seller_student_number");
-      const storedRegisterStatus = localStorage.getItem(
-        "seller_register_status",
-      );
-      const storedRegisteredDate = localStorage.getItem(
-        "seller_registered_date",
-      );
-      const storedApprovedDate = localStorage.getItem("seller_approved_date");
-      const storedProfileImage = localStorage.getItem("seller_profile_image");
-
-      setFirstName(storedFirstName || "");
-      setLastName(storedLastName || "");
-      setBirthdate(storedBirthdate || "");
-      setEmail(storedEmail || "");
-      setPhoneNumber(storedPhoneNumber || "");
-      setCor(storedCor || "");
-      setYearLevel(storedYearLevel || "");
-      setCourse(storedCourse || "");
-      setStudentNumber(storedStudentNumber || "");
-      setRegisterStatus(storedRegisterStatus || "");
-      setRegisteredDate(storedRegisteredDate || "");
-      setApprovedDate(storedApprovedDate || "");
-      setProfileImage(storedProfileImage || "");
+      setFirstName(localStorage.getItem("seller_first_name") || "");
+      setLastName(localStorage.getItem("seller_last_name") || "");
+      setProfileImage(localStorage.getItem("seller_profile_image") || "");
     };
 
     loadSellerProfile();
@@ -172,16 +128,6 @@ function SellerLayoutContent({ children }) {
     const intervalId = window.setInterval(loadBadgeCounts, 5000);
     return () => window.clearInterval(intervalId);
   }, [location.pathname]);
-
-  const openMenu = Boolean(anchorEl);
-
-  // Open/Close option handlers
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
 
   // Simulated router (for Toolpad)
   const router = {
@@ -297,37 +243,16 @@ function SellerLayoutContent({ children }) {
   ];
 
   const branding = {
-    logo: (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <img
-          src={Nexus}
-          alt="logo"
-          style={{ width: 30, height: 50, position: "relative", bottom: 2 }}
-        />
-      </Box>
-    ),
+    logo: <Box component="img" src={Nexus} alt="" sx={{ width: { xs: 24, sm: 30 }, height: { xs: 32, sm: 40 }, objectFit: "contain" }} />,
     title: (
-      <Typography
-        sx={{
-          color: "text.primary",
-          fontWeight: "bold",
-          fontSize: 22,
-        }}
-      >
-        Red <span style={{ color: "#ff0000" }}>Nexus</span>
+      <Typography component="span" noWrap sx={{ color: "text.primary", fontWeight: 700, fontSize: { xs: 16, sm: 20, lg: 22 } }}>
+        Red <Box component="span" sx={{ color: "#ff0000" }}>Nexus</Box>
       </Typography>
     ),
     homeUrl: "/seller/dashboard",
   };
 
   // Custom header matching the admin layout
-  const { theme, mode, setMode } = useThemeMode();
   const toggleTheme = () =>
     setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
 
@@ -336,25 +261,20 @@ function SellerLayoutContent({ children }) {
       direction="row"
       alignItems="center"
       justifyContent="flex-end"
-      width="100%"
-      spacing={1.5}
-      sx={{ pr: 1 }}
+      sx={{ gap: { xs: 0.5, sm: 1 }, flexShrink: 0, minWidth: 0 }}
     >
       <IconButton
         onClick={toggleTheme}
         aria-label="Toggle light and dark mode"
-        sx={{ color: "text.secondary" }}
+        sx={{ color: "text.secondary", width: 40, height: 40, flexShrink: 0 }}
       >
         {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
       </IconButton>
 
       <IconButton
-        onClick={() => {
-          navigate("/seller/notifications");
-          setNotificationDrawerOpen(false);
-        }}
+        onClick={handleNotificationClick}
         aria-label="Open notifications"
-        sx={{ color: "#6b7280" }}
+        sx={{ color: "text.secondary", width: 40, height: 40, flexShrink: 0 }}
       >
         <Badge
           badgeContent={notifications.filter((notification) => !Number(notification.is_read)).length}
@@ -369,36 +289,22 @@ function SellerLayoutContent({ children }) {
       <Divider
         orientation="vertical"
         flexItem
-        sx={{ mx: 0.5, height: 40, my: "auto" }}
+        sx={{ display: { xs: "none", sm: "block" }, height: 32, my: "auto" }}
       />
 
-      <Box
-        onClick={() => {
-          setProfileDrawerOpen(true);
-          setNotificationDrawerOpen(false);
-        }}
-        role="button"
-        tabIndex={0}
+      <Button
+        onClick={handleProfileClick}
         aria-label="Open seller profile"
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            setProfileDrawerOpen(true);
-          }
-        }}
+        aria-haspopup="dialog"
+        aria-expanded={profileDrawerOpen}
         sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          backgroundColor: "#f0f2f5",
-          borderRadius: "24px",
-          px: 2,
-          py: 0.5,
-          cursor: "pointer",
-          transition: "background-color 0.2s",
-          "&:hover": { backgroundColor: "#e4e6ea" },
+          minWidth: 40, height: 40, flexShrink: 0, gap: 1,
+          borderRadius: 6, px: { xs: 0.5, sm: 1.5 }, py: 0.5,
+          color: "text.primary", bgcolor: "action.hover",
+          "&:hover": { bgcolor: "action.selected" },
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 600, color: "#1c1e21" }}>
+        <Typography variant="body2" noWrap sx={{ display: { xs: "none", sm: "block" }, fontWeight: 600, maxWidth: { sm: 96, lg: 140 } }}>
           {firstName || "Seller"}
         </Typography>
         <Avatar
@@ -412,7 +318,7 @@ function SellerLayoutContent({ children }) {
         >
           {firstName ? firstName.charAt(0).toUpperCase() : "S"}
         </Avatar>
-      </Box>
+      </Button>
     </Stack>
   );
 
@@ -463,6 +369,8 @@ function SellerLayoutContent({ children }) {
       </Dialog>
       <Drawer
         anchor="right"
+        variant="temporary"
+        sx={{ zIndex: theme.zIndex.modal }}
         open={profileDrawerOpen}
         onClose={() => setProfileDrawerOpen(false)}
         slotProps={{
@@ -476,7 +384,12 @@ function SellerLayoutContent({ children }) {
           },
         }}
       >
-        <Stack sx={{ height: "100%", mt: 9 }}>
+        <Stack sx={{ height: "100%", minHeight: 0 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Seller profile</Typography>
+            <IconButton onClick={() => setProfileDrawerOpen(false)} aria-label="Close seller profile"><CloseIcon /></IconButton>
+          </Stack>
+          <Divider />
           <Stack
             direction="row"
             spacing={1.5}
@@ -494,8 +407,8 @@ function SellerLayoutContent({ children }) {
             >
               {firstName ? firstName.charAt(0).toUpperCase() : "S"}
             </Avatar>
-            <Stack>
-              <Typography sx={{ fontWeight: 700 }}>
+            <Stack sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                 {firstName} {lastName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -545,6 +458,8 @@ function SellerLayoutContent({ children }) {
       </Drawer>
       <Drawer
         anchor="right"
+        variant="temporary"
+        sx={{ zIndex: theme.zIndex.modal }}
         open={notificationDrawerOpen}
         onClose={() => setNotificationDrawerOpen(false)}
         slotProps={{
@@ -558,9 +473,14 @@ function SellerLayoutContent({ children }) {
           },
         }}
       >
-        <Stack sx={{ height: "100%", mt: 9 }}>
+        <Stack sx={{ height: "100%", minHeight: 0 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Notifications</Typography>
+            <IconButton onClick={() => setNotificationDrawerOpen(false)} aria-label="Close notifications"><CloseIcon /></IconButton>
+          </Stack>
+          <Divider />
           {notifications.length ? (
-            <List sx={{ overflowY: "auto", p: 0 }}>
+            <List sx={{ overflowY: "auto", p: 0, minHeight: 0, flex: 1, overflowWrap: "anywhere" }}>
               {notifications.map((notification) => (
                 <ListItemButton key={notification.notification_id}>
                   <ListItemText
@@ -584,26 +504,29 @@ function SellerLayoutContent({ children }) {
               <Typography color="text.secondary">No new notifications</Typography>
             </Stack>
           )}
+          <Button sx={{ m: 2, flexShrink: 0 }} onClick={() => {
+            setNotificationDrawerOpen(false);
+            navigate("/seller/notifications");
+          }}>View all notifications</Button>
         </Stack>
       </Drawer>
       <MuiDashboardLayout
         sidebarExpandedWidth={240}
+        disableCollapsibleSidebar={!isDesktop}
+        slotProps={{ header: { branding } }}
         slots={{
           header: SidebarNavigationHeader,
-          toolbarAccount: CustomHeader,
+          toolbarActions: CustomHeader,
         }}
         sx={{
           backgroundColor: theme.palette.background.default,
+          width: "100%", maxWidth: "100%", height: "100dvh", minWidth: 0,
+          "& main": { minWidth: 0, minHeight: 0 },
           "& .MuiDrawer-paper": {
             backgroundColor: "#a3181f",
             color: "#ffffff",
             border: "none",
-            top: { xs: "64px", sm: "72px" },
-            height: { xs: "calc(100% - 64px)", sm: "calc(100% - 72px)" },
             overflow: "hidden",
-          },
-          "& .MuiDrawer-paper > .MuiToolbar-root": {
-            display: "none",
           },
           "& .MuiDrawer-paper.MuiDrawer-paperAnchorLeft": {
             borderTopRightRadius: "24px !important",
@@ -611,9 +534,6 @@ function SellerLayoutContent({ children }) {
           },
           "& .MuiAppBar-root .MuiIconButton-root": {
             color: "#6b7280",
-          },
-          "& .MuiAppBar-root button[aria-label$='navigation menu']": {
-            display: { xs: "inline-flex", md: "none" },
           },
           "& .MuiAppBar-root .MuiSvgIcon-root": {
             color: "#6b7280",
@@ -629,7 +549,7 @@ function SellerLayoutContent({ children }) {
             letterSpacing: 0,
             height: 56,
             lineHeight: "56px",
-            paddingLeft: "64px",
+            paddingLeft: "24px",
             fontFamily: "inherit",
           },
           "& .MuiDrawer-paper .Mui-selected .MuiListItemText-primary": {
@@ -697,8 +617,10 @@ function SellerLayoutContent({ children }) {
       >
         <Box
           sx={{
-            p: "clamp(20px, 2vw, 28px)",
-            zoom: { xs: 1, md: 1.15, lg: 1.18 },
+            p: { xs: 1, sm: 2, md: 2.5, lg: 3 },
+            width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", flex: 1,
+            display: "flex", flexDirection: "column", gap: { xs: 1.5, sm: 2, lg: 3 },
+            "& > *": { minWidth: 0, maxWidth: "100%" },
           }}
         >
           <Outlet />
