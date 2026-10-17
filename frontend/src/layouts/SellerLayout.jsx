@@ -310,8 +310,8 @@ function SellerLayoutContent() {
         <Avatar
           src={
             profileImage
-              ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
-              : "http://localhost:5000/uploads/profile.jpg"
+              ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+              : "http://localhost:5000/uploads/seller/profile.jpg"
           }
           alt={firstName || "Seller"}
           sx={{ width: 32, height: 32, bgcolor: "#232b38" }}
@@ -399,8 +399,8 @@ function SellerLayoutContent() {
             <Avatar
               src={
                 profileImage
-                  ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`
-                  : "http://localhost:5000/uploads/profile.jpg"
+                  ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+                  : "http://localhost:5000/uploads/seller/profile.jpg"
               }
               alt={firstName || "Seller"}
               sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}

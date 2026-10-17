@@ -89,7 +89,7 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
           src={
             profileImage
               ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
-              : undefined
+              : "http://localhost:5000/uploads/buyer/profile.jpg"
           }
           sx={{ width: 48, height: 48, flexShrink: 0 }}
         >

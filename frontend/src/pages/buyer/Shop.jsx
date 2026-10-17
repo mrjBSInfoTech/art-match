@@ -20,6 +20,7 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 
 import { getSearchColor } from "../../utils/artworkColors";
@@ -240,6 +241,7 @@ export default function Shop() {
   const navigate = useNavigate();
   const { genre } = useParams();
   const [searchParams] = useSearchParams();
+  const recommendationsOnly = searchParams.get("recommendations") === "1";
   const [minimumPrice, maximumPrice] = readPriceRange(searchParams);
   const hasPriceFilter = minimumPrice > 0 || maximumPrice < PRICE_LIMIT;
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
@@ -259,8 +261,13 @@ export default function Shop() {
       try {
         setLoading(true);
         setError("");
-        const response = await fetchArtworks();
-        const list = Array.isArray(response) ? response : response?.data || [];
+        const response = recommendationsOnly
+          ? await fetchRecommendations("all") : await fetchArtworks();
+        if (recommendationsOnly && response?.mode === "unavailable") {
+          throw new Error("Unable to load recommendations. Please try again.");
+        }
+        const list = recommendationsOnly ? response?.recommendations || []
+          : Array.isArray(response) ? response : response?.data || [];
         if (active) setArtworks(list);
       } catch (loadError) {
         if (active) setError(loadError.message || "Failed to load artworks.");
@@ -289,7 +296,7 @@ export default function Shop() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [recommendationsOnly]);
 
   const handleFavoriteToggle = async (artworkId) => {
     const artworkKey = String(artworkId);
@@ -333,7 +340,7 @@ export default function Shop() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedGenre, minimumPrice, maximumPrice]);
+  }, [searchQuery, selectedGenre, minimumPrice, maximumPrice, recommendationsOnly]);
 
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
@@ -347,7 +354,7 @@ export default function Shop() {
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
-        <title>Shop</title>
+        <title>{recommendationsOnly ? "Recommended for You" : "Shop"}</title>
       </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
@@ -436,7 +443,7 @@ export default function Shop() {
           ))}
         </Box>
 
-        {(selectedGenre || searchQuery || hasPriceFilter) && (
+        {(recommendationsOnly || selectedGenre || searchQuery || hasPriceFilter) && (
           <Typography
             sx={{
               mb: 1.5,
@@ -445,7 +452,7 @@ export default function Shop() {
               fontWeight: 700,
             }}
           >
-            {selectedGenre
+            {recommendationsOnly ? "Recommended for You" : selectedGenre
               ? `Shop / ${genre}`
               : searchQuery ? `Search results for \u201c${searchLabel}\u201d` : "All artworks"}
             {hasPriceFilter && ` - ${formatPriceRange([minimumPrice, maximumPrice])}`}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -26,6 +26,7 @@ import {
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
+import { addToCart } from "../../api/buyer/cartAPI";
 import artGenres from "../../data/artGenres";
 import Footer from "./Footer";
 // Icons
@@ -39,8 +40,8 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 
-const getProfileFallback = (name = "Artist") =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
+const getProfileFallback = () =>
+  "http://localhost:5000/uploads/seller/profile.jpg";
 
 const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
@@ -53,7 +54,7 @@ const getProfileImage = (artist) => {
     return imageName;
   }
 
-  return `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(imageName)}`;
+  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
 };
 
 const buildArtistSummaries = (artworks = []) => {
@@ -133,6 +134,23 @@ export default function Main() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const theme = useTheme();
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  
+  const handleAddToCart = async (artworkId) => {
+    try {
+      const result = await addToCart(artworkId);
+      showSnackbar(result?.message || "Artwork added to cart", "success");
+      return result;
+    } catch (error) {
+      showSnackbar(
+        error.message || "Unable to add artwork to cart",
+        error.status === 409 ? "warning" : "error",
+      );
+      throw error;
+    }
+  };
 
   const loadArtworks = async () => {
     try {
@@ -155,11 +173,14 @@ export default function Main() {
     }
   };
 
-  const loadRecommendations = async () => {
+  const recommendationRequest = useRef(0);
+  const loadRecommendations = useCallback(async () => {
+    const requestId = ++recommendationRequest.current;
     try {
       setRecommendationsLoading(true);
 
-      const response = await fetchRecommendations(20);
+      const response = await fetchRecommendations(4);
+      if (requestId !== recommendationRequest.current) return;
 
       const list = Array.isArray(response?.recommendations)
         ? response.recommendations
@@ -180,20 +201,40 @@ export default function Main() {
         },
       );
     } catch (error) {
+      if (requestId !== recommendationRequest.current) return;
       console.warn("Recommendation section error:", error);
 
       setRecommendedArtworks([]);
 
       setRecommendationMode("unavailable");
     } finally {
-      setRecommendationsLoading(false);
+      if (requestId === recommendationRequest.current)
+        setRecommendationsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadArtworks();
-    loadRecommendations();
   }, []);
+
+  useEffect(() => {
+    let refreshTimer;
+    const refresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loadRecommendations, 350);
+    };
+    loadRecommendations();
+    window.addEventListener("recommendation-updated", refresh);
+    window.addEventListener("cart-updated", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearTimeout(refreshTimer);
+      recommendationRequest.current += 1;
+      window.removeEventListener("recommendation-updated", refresh);
+      window.removeEventListener("cart-updated", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [loadRecommendations]);
 
   const genres = artGenres;
   const popularArtists = useMemo(
@@ -285,6 +326,31 @@ export default function Main() {
     }
 
     return "Discover recent and popular artworks while we learn your preferences.";
+  };
+
+  // Snackbar handlers
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity); 
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "warning":
+        return "warning.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
+    }
   };
 
   return (
@@ -476,6 +542,7 @@ export default function Main() {
           >
             {artworks.slice(0, 4).map((artwork) => (
               <ArtworkCard
+                onAddToCart={handleAddToCart}
                 key={artwork.artwork_id || artwork.id}
                 artwork={artwork}
               />
@@ -818,6 +885,7 @@ export default function Main() {
             >
               {artworks.slice(0, 12).map((artwork) => (
                 <ArtworkCard
+                  onAddToCart={handleAddToCart}
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                 />
@@ -844,39 +912,26 @@ export default function Main() {
               variant="overline"
               sx={{
                 color: theme.palette.error.main,
-
                 fontWeight: 800,
                 letterSpacing: 1.5,
               }}
             >
               PERSONALIZED
             </Typography>
-
-            <Typography
-              variant="h4"
-              sx={{
-                mt: 0.5,
-                fontSize: {
-                  xs: 22,
-                  sm: 26,
-                  md: 30,
-                },
-                fontWeight: 800,
-              }}
-            >
-              Recommended for You
-            </Typography>
-
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{
-                mt: 0.75,
                 maxWidth: 650,
               }}
             >
               {getRecommendationMessage()}
             </Typography>
+
+            <SectionHeader
+              title="Recommended for You"
+              to="/buyer/shop?recommendations=1"
+            />
           </Box>
 
           {recommendationsLoading ? (
@@ -905,6 +960,7 @@ export default function Main() {
             >
               {recommendedArtworks.map((artwork) => (
                 <ArtworkCard
+                  onAddToCart={handleAddToCart}
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                 />
@@ -913,6 +969,26 @@ export default function Main() {
           )}
         </Box>
       )}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": { color: "#fff" },
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

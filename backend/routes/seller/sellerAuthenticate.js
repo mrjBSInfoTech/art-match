@@ -58,7 +58,7 @@ const profileUploadDir = path.join(
   "..",
   "uploads",
   "seller",
-  "profile",
+  "uploadProfile",
 );
 if (!fs.existsSync(profileUploadDir))
   fs.mkdirSync(profileUploadDir, { recursive: true });

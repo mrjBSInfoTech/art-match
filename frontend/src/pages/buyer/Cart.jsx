@@ -153,6 +153,7 @@ export default function Cart() {
                 mt: 3,
                 borderRadius: 999,
                 textTransform: "none",
+                
                 px: 3,
                 color: "white",
                 fontWeight: "bold",

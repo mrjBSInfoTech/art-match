@@ -606,6 +606,7 @@ export default function Storefront() {
                 label={`${pinnedArtworkIds.length} pinned`}
                 color={pinnedArtworkIds.length > 0 ? "primary" : "default"}
                 variant={pinnedArtworkIds.length > 0 ? "filled" : "outlined"}
+                sx={{color: "#fff"}}
               />
             </Box>
 

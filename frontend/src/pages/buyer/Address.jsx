@@ -123,7 +123,7 @@ export default function Address() {
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
-    setSnackbarSeverity(severity); // Set it to "success" or "error"
+    setSnackbarSeverity(severity); 
     setSnackbarOpen(true);
   };
 
@@ -135,11 +135,11 @@ export default function Address() {
   const getSeverityColor = (severity) => {
     switch (severity) {
       case "success":
-        return "success.light"; // Green
+        return "success.light"; 
       case "error":
-        return "error.light"; // Red
+        return "error.light"; 
       default:
-        return "primary.light"; //
+        return "primary.light"; 
     }
   };
 
@@ -204,8 +204,13 @@ export default function Address() {
         onSubmit={handleSubmitAddress}
         selectedAddress={selectedAddress}
       />
+      <AddressDelete
+        open={openAddressDelete}
+        handleClose={() => setOpenAddressDelete(false)}
+        onSubmit={handleDeleteAddress}
+        selectedAddress={selectedAddress}
+      />
       {/* Snackbar Notification */}
-      {/* //For Future Use 
       <Snackbar
         open={snackbarOpen}
         severity={snackbarSeverity}
@@ -221,16 +226,13 @@ export default function Address() {
           sx={{
             width: "100%",
             backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "primary.contrastText",
-            "& .MuiAlert-icon": {
-              color: "primary.contrastText",
-            },
+            color: "#fff",
+            "& .MuiAlert-icon": { color: "#fff" },
           }}
         >
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    */}
     </Box>
   );
 }

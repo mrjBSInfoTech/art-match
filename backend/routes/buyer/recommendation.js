@@ -145,6 +145,16 @@ const getAvailableCandidateArtworkIds = async () => {
   return rows.map((row) => Number(row.artwork_id));
 };
 
+const getPurchasedArtworkIds = async ({ customerId, sessionId }) => {
+  const identity = buildRecommendationIdentityCondition({ customerId, sessionId });
+  const [rows] = await db.promise().query(
+    `SELECT DISTINCT artwork_id FROM recommendation_interaction
+     WHERE ${identity.sql} AND event_type = 'purchase' AND artwork_id IS NOT NULL`,
+    identity.params,
+  );
+  return new Set(rows.map((row) => Number(row.artwork_id)));
+};
+
 const callLocalSasrec = async ({ artworkIds, candidateArtworkIds, topK }) => {
   const controller = new AbortController();
 
@@ -223,6 +233,7 @@ const attachArtworkDetails = async (recommendations) => {
           a.date_created,
 
           f.mediums_used,
+          f.feature_scanned,
 
           s.first_name,
           s.last_name,
@@ -239,6 +250,7 @@ const attachArtworkDetails = async (recommendations) => {
 
           sf.shop_name,
           sf.shop_description,
+          sf.specialties AS seller_specialties,
 
           ac.register_status
             AS seller_status,
@@ -285,6 +297,7 @@ const attachArtworkDetails = async (recommendations) => {
 
       return {
         ...artwork,
+        seller_specialties: parseSellerSpecialties(artwork.seller_specialties),
 
         rank: recommendation.rank ?? null,
 
@@ -392,6 +405,182 @@ const getRecommendationPreferenceEvents = async ({ customerId, sessionId }) => {
 // ARTIST AFFINITY
 // ============================================================
 
+const normalizeSpecialty = (value) =>
+  normalizeRecommendationText(value)
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const parseSellerSpecialties = (value) => {
+  // Drivers may return JSON already decoded or as a JSON string.
+  try {
+    for (let depth = 0; depth < 2 && typeof value === "string"; depth += 1) {
+      value = JSON.parse(value);
+    }
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(value)) return [];
+  return [...new Map(
+    value.filter((item) => typeof item === "string" && normalizeSpecialty(item))
+      .map((item) => [normalizeSpecialty(item), item.trim()]),
+  ).values()].slice(0, 3);
+};
+
+const specialtyMatchesText = (specialty, text) => {
+  const specialtyWords = new Set(normalizeSpecialty(specialty).split(" "));
+  return normalizeSpecialty(text).split(" ")
+    .some((word) => word.length >= 2 && specialtyWords.has(word));
+};
+
+const getActivityRecencyWeight = (event, index = 0, now = Date.now()) => {
+  const timestamp = new Date(event.created_at).getTime();
+  const ageDays = Number.isFinite(timestamp)
+    ? Math.max(0, now - timestamp) / 86400000 : 0;
+  // No permanent minimum: old activity remains eligible but gradually fades.
+  return Math.pow(0.75, index) * Math.pow(0.5, ageDays / 7);
+};
+
+const getRecentRecommendationActivity = async ({ customerId, sessionId }) => {
+  const identity = buildRecommendationIdentityCondition({ customerId, sessionId }, "ri");
+  const [rows] = await db.promise().query(
+    `SELECT ri.event_type, ri.search_query, ri.filter_type, ri.filter_value,
+            ri.min_price, ri.max_price, ri.created_at, ri.artwork_id,
+            a.student_id, a.genre, a.art_type, a.product, f.mediums_used, f.feature_scanned,
+            sf.specialties AS seller_specialties
+     FROM recommendation_interaction ri
+     LEFT JOIN artwork a ON a.artwork_id = ri.artwork_id
+     LEFT JOIN feature f ON f.artwork_id = a.artwork_id
+     LEFT JOIN storefront sf ON sf.student_id = a.student_id
+     WHERE ${identity.sql}
+       AND ri.event_type IN ('view', 'favorite', 'cart', 'purchase',
+                            'unfavorite', 'remove_cart', 'search', 'filter')
+     ORDER BY ri.created_at DESC, ri.interaction_id DESC
+     LIMIT 20`,
+    identity.params,
+  );
+  return rows.map((event) => ({
+    ...event,
+    seller_specialties: parseSellerSpecialties(event.seller_specialties),
+  }));
+};
+
+const getRecentActivityBoost = (artwork, recentActivity, now) => {
+  let boost = 0;
+  // Removal actions cancel the corresponding older favorite/cart signal.
+  const canceledEvents = new Set();
+  recentActivity.forEach((event, index) => {
+    if (event.event_type === "unfavorite" || event.event_type === "remove_cart") {
+      canceledEvents.add(`${event.artwork_id}:${event.event_type === "unfavorite" ? "favorite" : "cart"}`);
+      return;
+    }
+    if (canceledEvents.has(`${event.artwork_id}:${event.event_type}`)) return;
+    let match = 0;
+    if (event.event_type === "search") {
+      match = getSearchPreferenceBoost(artwork, [event]) > 0 ? 1 : 0;
+    } else if (event.event_type === "filter") {
+      match = getFilterPreferenceBoost(artwork, [event]) > 0 ? 1 : 0;
+    } else {
+      const sameArtist = event.student_id != null
+        && Number(event.student_id) === Number(artwork.student_id);
+      const sameMetadata = ["genre", "mediums_used", "product"].some((field) => {
+        const value = normalizeSpecialty(event[field]);
+        return value && value === normalizeSpecialty(artwork[field]);
+      });
+      const sameSpecialty = event.seller_specialties.some((specialty) =>
+        artwork.seller_specialties.some((candidate) =>
+          normalizeSpecialty(candidate) === normalizeSpecialty(specialty)));
+      const featureTags = normalizeRecommendationText(event.feature_scanned)
+        .split(/[,;]+/).map((tag) => tag.trim())
+        .filter((tag) => tag && tag !== "no feature detected");
+      const candidateTags = new Set(normalizeRecommendationText(artwork.feature_scanned)
+        .split(/[,;]+/).map((tag) => tag.trim()));
+      const sameSubject = featureTags.some((tag) => candidateTags.has(tag));
+      // Subject matches are stronger than merely sharing a seller or medium.
+      match = sameSubject ? 1 : sameArtist || sameMetadata || sameSpecialty ? 0.5 : 0;
+    }
+    // Use the strongest recent match so repeated old actions cannot pile up.
+    boost = Math.max(boost, 6 * match * getActivityRecencyWeight(event, index, now));
+  });
+  return boost;
+};
+
+const getSpecialtyPreferences = async ({ customerId, sessionId, preferenceEvents }) => {
+  const identity = buildRecommendationIdentityCondition({ customerId, sessionId }, "ri");
+  const [behaviorRows] = await db.promise().query(
+    `SELECT sf.specialties, SUM(CASE ri.event_type
+       WHEN 'view' THEN 0.5 WHEN 'favorite' THEN 3
+       WHEN 'cart' THEN 4 WHEN 'purchase' THEN 6
+       WHEN 'unfavorite' THEN -3 WHEN 'remove_cart' THEN -4 ELSE 0
+     END * POWER(0.5, GREATEST(0, TIMESTAMPDIFF(SECOND, ri.created_at, NOW())) / 604800)) AS specialty_score
+     FROM recommendation_interaction ri
+     JOIN artwork a ON a.artwork_id = ri.artwork_id
+     JOIN storefront sf ON sf.student_id = a.student_id
+     WHERE ${identity.sql}
+       AND ri.event_type IN ('view', 'favorite', 'cart', 'purchase', 'unfavorite', 'remove_cart')
+     GROUP BY sf.storefront_id, sf.specialties`,
+    identity.params,
+  );
+  const preferences = new Map();
+  for (const row of behaviorRows) {
+    for (const specialty of parseSellerSpecialties(row.specialties)) {
+      const key = normalizeSpecialty(specialty);
+      preferences.set(key, (preferences.get(key) ?? 0) + Number(row.specialty_score));
+    }
+  }
+
+  // One catalog query, only when text preferences exist; never one query per seller.
+  if (preferenceEvents.length) {
+    const [storefronts] = await db.promise().query(
+      "SELECT specialties FROM storefront WHERE specialties IS NOT NULL",
+    );
+    const specialties = new Set(storefronts.flatMap((row) =>
+      parseSellerSpecialties(row.specialties).map(normalizeSpecialty)));
+    for (const specialty of specialties) {
+      for (const [index, event] of preferenceEvents.entries()) {
+        const text = event.event_type === "search" ? event.search_query : event.filter_value;
+        if (specialtyMatchesText(specialty, text)) {
+          const weight = event.event_type === "search" ? 2 : 2.5;
+          preferences.set(specialty, (preferences.get(specialty) ?? 0)
+            + weight * getActivityRecencyWeight(event, index));
+        }
+      }
+    }
+  }
+  return new Map([...preferences].filter(([, score]) => score > 0));
+};
+
+const getSpecialtyMatch = (artwork, specialtyPreferences) => {
+  const matchedSpecialties = artwork.seller_specialties.filter((specialty) =>
+    (specialtyPreferences.get(normalizeSpecialty(specialty)) ?? 0) > 0);
+  const score = matchedSpecialties.reduce((total, specialty) =>
+    total + specialtyPreferences.get(normalizeSpecialty(specialty)), 0);
+  return {
+    matched_specialties: matchedSpecialties,
+    specialty_boost: Math.min(4, Math.log1p(score) * 1.5),
+  };
+};
+
+const selectSpecialtyCandidates = (artworks, specialtyPreferences, topK) => {
+  const scored = artworks.map((artwork) => ({
+    artwork_id: Number(artwork.artwork_id),
+    ...getSpecialtyMatch(artwork, specialtyPreferences),
+  }));
+  const matches = scored.filter((artwork) => artwork.specialty_boost > 0)
+    .sort((a, b) => b.specialty_boost - a.specialty_boost);
+  const desiredCandidatePool = Math.max(topK * 3, 20);
+  // Sparse matches retain the full pool. All candidates also remain in Node fallback.
+  const candidates = specialtyPreferences.size && matches.length >= topK
+    ? [...matches, ...scored.filter((artwork) => artwork.specialty_boost === 0)]
+      .slice(0, desiredCandidatePool)
+    : scored;
+  return {
+    artworkIds: candidates.map((artwork) => artwork.artwork_id),
+    matchedCandidates: matches.length,
+  };
+};
+
 const getArtistAffinity = async ({ customerId, sessionId }) => {
   const identity = buildRecommendationIdentityCondition(
     {
@@ -427,7 +616,7 @@ const getArtistAffinity = async ({ customerId, sessionId }) => {
                   THEN 6.00
 
                 ELSE 0
-              END
+              END * POWER(0.5, GREATEST(0, TIMESTAMPDIFF(SECOND, ri.created_at, NOW())) / 604800)
             ) AS affinity_score
 
           FROM recommendation_interaction ri
@@ -534,6 +723,7 @@ const getSearchPreferenceBoost = (artwork, preferenceEvents) => {
       artwork.artist,
       artwork.genre,
       artwork.mediums_used,
+      artwork.feature_scanned,
       artwork.art_type,
       artwork.product,
       artwork.shop_name,
@@ -557,7 +747,7 @@ const getSearchPreferenceBoost = (artwork, preferenceEvents) => {
     }
 
     // Newest searches are stronger.
-    const recencyWeight = Math.max(0.35, 1 - index * 0.05);
+    const recencyWeight = getActivityRecencyWeight(event, index);
 
     // Exact title search.
     if (title === query) {
@@ -639,7 +829,7 @@ const getFilterPreferenceBoost = (artwork, preferenceEvents) => {
 
     const filterValue = normalizeRecommendationText(event.filter_value);
 
-    const recencyWeight = Math.max(0.35, 1 - index * 0.05);
+    const recencyWeight = getActivityRecencyWeight(event, index);
 
     let matched = false;
 
@@ -727,11 +917,15 @@ const rerankRecommendationCandidates = ({
   artworks,
   sasrecByArtworkId,
   preferenceEvents,
+  specialtyPreferences,
+  recentActivity = [],
+  seenArtworkIds = new Set(),
   artistAffinity,
   popularityByArtworkId,
   recencyRankByArtworkId,
   topK,
 }) => {
+  const now = Date.now();
   const popularityValues = [...popularityByArtworkId.values()];
 
   const maxPopularity = popularityValues.length
@@ -755,6 +949,9 @@ const rerankRecommendationCandidates = ({
     const filterBoost = getFilterPreferenceBoost(artwork, preferenceEvents);
 
     const preferenceBoost = searchBoost + filterBoost;
+    const specialtyMatch = getSpecialtyMatch(artwork, specialtyPreferences);
+    const specialtyBoost = specialtyMatch.specialty_boost;
+    const recentActivityBoost = getRecentActivityBoost(artwork, recentActivity, now);
 
     const rawArtistAffinity =
       artistAffinity.get(Number(artwork.student_id)) ?? 0;
@@ -774,19 +971,26 @@ const rerankRecommendationCandidates = ({
     const recencyRank = recencyRankByArtworkId.get(artworkId) ?? 999999;
 
     const recencyBoost = 1.25 / Math.sqrt(recencyRank);
+    const seenPenalty = seenArtworkIds.has(artworkId) ? 0.75 : 0;
 
     const rankingScore =
       sasrecBoost +
       preferenceBoost +
+      specialtyBoost +
+      recentActivityBoost +
       artistBoost +
       popularityBoost +
-      recencyBoost;
+      recencyBoost - seenPenalty;
 
     let recommendationSource = "recent_popular";
 
     if (sasrec) {
       recommendationSource =
-        preferenceBoost > 0 || artistBoost > 0 ? "sasrec_reranked" : "sasrec";
+        specialtyBoost > 0 ? "sasrec_specialty_reranked"
+          : preferenceBoost > 0 || artistBoost > 0 ? "sasrec_reranked" : "sasrec";
+    } else if (specialtyBoost > 0) {
+      recommendationSource = artistBoost > 0
+        ? "specialty_artist_fallback" : "specialty_fallback";
     } else if (preferenceBoost > 0 && artistBoost > 0) {
       recommendationSource = "preference_artist_fallback";
     } else if (preferenceBoost > 0) {
@@ -803,6 +1007,11 @@ const rerankRecommendationCandidates = ({
       sasrec_score: sasrec?.score ?? null,
 
       recommendation_source: recommendationSource,
+      matched_specialties: specialtyMatch.matched_specialties,
+      specialty_boost: Number(specialtyBoost.toFixed(4)),
+      recent_activity_boost: Number(recentActivityBoost.toFixed(4)),
+      previously_seen: seenArtworkIds.has(artworkId),
+      seen_penalty: seenPenalty,
 
       preference_boost: Number(preferenceBoost.toFixed(4)),
 
@@ -970,12 +1179,13 @@ router.get("/", async (req, res) => {
       });
   }
 
+  const allRecommendations = req.query.top_k === "all";
   const requestedTopK =
     Number(
       req.query.top_k ?? 8,
     );
 
-  const topK =
+  let topK =
     Number.isInteger(
       requestedTopK,
     )
@@ -994,6 +1204,8 @@ router.get("/", async (req, res) => {
       candidateArtworkIds,
       preferenceEvents,
       artistAffinity,
+      recentActivity,
+      purchasedArtworkIds,
     ] =
       await Promise.all([
         getLiveArtworkHistory({
@@ -1012,7 +1224,12 @@ router.get("/", async (req, res) => {
           customerId,
           sessionId,
         }),
+        getRecentRecommendationActivity({ customerId, sessionId }),
+        getPurchasedArtworkIds({ customerId, sessionId }),
       ]);
+
+    // The artwork page requests the full ranked list; homepage keeps its preview limit.
+    if (allRecommendations) topK = Math.max(1, candidateArtworkIds.length);
 
     // --------------------------------
     // EMPTY CATALOG
@@ -1050,12 +1267,13 @@ router.get("/", async (req, res) => {
           ),
       );
 
-    // There is a hard limit:
-    // if the user has seen the whole
-    // available catalog, there are no
-    // unseen recommendations left.
+    // Views/favorites express interest, not permanent exclusions. Keep them
+    // available to Node fallback; SASRec still excludes its previously seen items.
+    const rankingArtworkIds = candidateArtworkIds.filter(
+      (artworkId) => !purchasedArtworkIds.has(artworkId),
+    );
     if (
-      !unseenArtworkIds.length
+      !rankingArtworkIds.length
     ) {
       return res.json({
         mode:
@@ -1074,7 +1292,7 @@ router.get("/", async (req, res) => {
     // existing catalog query.
     const recencyRankByArtworkId =
       new Map(
-        unseenArtworkIds.map(
+        rankingArtworkIds.map(
           (
             artworkId,
             index,
@@ -1091,8 +1309,22 @@ router.get("/", async (req, res) => {
 
     const popularityByArtworkId =
       await getArtworkPopularity(
-        unseenArtworkIds,
+        rankingArtworkIds,
       );
+
+    // Hydrate once before ML selection, including previously viewed candidates.
+    const candidateArtworks = await attachArtworkDetails(
+      rankingArtworkIds.map((artworkId) => ({ artwork_id: artworkId })),
+    );
+    const specialtyPreferences = await getSpecialtyPreferences({
+      customerId,
+      sessionId,
+      preferenceEvents,
+    });
+    const specialtyCandidates = selectSpecialtyCandidates(
+      candidateArtworks.filter((artwork) => !seenArtworkIds.has(Number(artwork.artwork_id))),
+      specialtyPreferences, topK,
+    );
 
     // --------------------------------
     // SASREC
@@ -1101,7 +1333,7 @@ router.get("/", async (req, res) => {
     let sasrecResults = [];
 
     if (
-      artworkIds.length
+      artworkIds.length && specialtyCandidates.artworkIds.length
     ) {
       try {
         // Ask SASRec for more than
@@ -1110,7 +1342,7 @@ router.get("/", async (req, res) => {
         // a larger personalized pool.
         const sasrecTopK =
           Math.min(
-            unseenArtworkIds.length,
+            specialtyCandidates.artworkIds.length,
             Math.max(
               topK * 3,
               20,
@@ -1122,7 +1354,7 @@ router.get("/", async (req, res) => {
             artworkIds,
 
             candidateArtworkIds:
-              unseenArtworkIds,
+              specialtyCandidates.artworkIds,
 
             topK:
               sasrecTopK,
@@ -1150,41 +1382,12 @@ router.get("/", async (req, res) => {
         ),
       );
 
-    // --------------------------------
-    // HYDRATE EVERY UNSEEN CANDIDATE
-    // --------------------------------
-
-    const candidateSeeds =
-      unseenArtworkIds.map(
-        (artworkId) => {
-          const sasrec =
-            sasrecByArtworkId.get(
-              artworkId,
-            );
-
-          return {
-            artwork_id:
-              artworkId,
-
-            rank:
-              sasrec?.rank ??
-              null,
-
-            score:
-              sasrec?.score ??
-              null,
-
-            sasrec_item_id:
-              sasrec?.sasrec_item_id ??
-              null,
-          };
-        },
-      );
-
-    const candidateArtworks =
-      await attachArtworkDetails(
-        candidateSeeds,
-      );
+    // Preserve existing ML metadata on the already hydrated candidates.
+    for (const artwork of candidateArtworks) {
+      const sasrec = sasrecByArtworkId.get(Number(artwork.artwork_id));
+      artwork.score = sasrec?.score ?? null;
+      artwork.sasrec_item_id = sasrec?.sasrec_item_id ?? null;
+    }
 
     // --------------------------------
     // FINAL RERANKING
@@ -1198,6 +1401,9 @@ router.get("/", async (req, res) => {
         sasrecByArtworkId,
 
         preferenceEvents,
+        specialtyPreferences,
+        recentActivity,
+        seenArtworkIds,
 
         artistAffinity,
 
@@ -1226,7 +1432,7 @@ router.get("/", async (req, res) => {
       preferenceEvents.length >
         0 ||
       artistAffinity.size >
-        0;
+        0 || specialtyPreferences.size > 0;
 
     let mode =
       "fallback_recent_popular";
@@ -1268,6 +1474,13 @@ router.get("/", async (req, res) => {
         artworkIds.length,
 
       signals: {
+        recent_activity_events: recentActivity.length,
+        eligible_candidates: rankingArtworkIds.length,
+        previously_seen_candidates: rankingArtworkIds.length - unseenArtworkIds.filter((id) => !purchasedArtworkIds.has(id)).length,
+        specialty_preferences: specialtyPreferences.size,
+        specialty_matched_candidates: specialtyCandidates.matchedCandidates,
+        sasrec_candidate_pool_before_specialty: unseenArtworkIds.length,
+        sasrec_candidate_pool_after_specialty: specialtyCandidates.artworkIds.length,
         search_filter_events:
           preferenceEvents.length,
 

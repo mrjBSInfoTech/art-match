@@ -58,7 +58,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
 
   const imageUrl = student?.image
     ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(student.image)}`
-    : "http://localhost:5000/uploads/profile.jpg";
+    : "http://localhost:5000/uploads/seller/profile.jpg";
 
   const status = student?.register_status || "Pending";
 
@@ -132,7 +132,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                 alt={`${student.first_name || "Student"} profile`}
                 onError={(event) => {
                   event.currentTarget.src =
-                    "http://localhost:5000/uploads/profile.jpg";
+                    "http://localhost:5000/uploads/seller/profile.jpg";
                 }}
                 sx={{
                   width: "100%",

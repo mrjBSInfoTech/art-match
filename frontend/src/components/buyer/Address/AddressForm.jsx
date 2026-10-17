@@ -15,7 +15,10 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  IconButton,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -167,9 +170,30 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
       keepMounted
       fullWidth
       maxWidth="sm"
+      aria-labelledby="buyer-address-dialog-title"
+      PaperProps={{
+        sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
+          m: 1.5,
+          borderRadius: 3,
+          overflow: "hidden",
+          bgcolor: "background.paper",
+        },
+      }}
     >
-      <DialogTitle sx={{ fontWeight: "bold" }}>
+      <DialogTitle id="buyer-address-dialog-title" sx={{
+        display: "flex", alignItems: "center", gap: 0.75,
+        px: 2.5, py: 1.75, color: "text.primary", fontSize: 16, fontWeight: 700,
+        borderBottom: "1px solid", borderColor: "divider",
+      }}>
+        <LocationOnOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
         {selectedAddress ? "Edit Address" : "Add Address"}
+        <IconButton aria-label="Close address form" onClick={handleClose} sx={{
+          width: 28, height: 28, ml: "auto", p: 0, color: "text.secondary",
+        }}>
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </IconButton>
       </DialogTitle>
 
       <DialogContent dividers>
@@ -254,7 +278,7 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
               <Switch
                 checked={formData.is_current}
                 onChange={handleDefaultChange}
-                color="primary"
+                color="error"
               />
             }
             label="Use as default address"
@@ -264,12 +288,15 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleClose} color="text.secondary">
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={handleClose} sx={{ color: "text.secondary" }}>
           Cancel
         </Button>
 
-        <Button onClick={handleSubmit} variant="contained" color="primary" sx={{ color: "primary.contrastText"  }}>
+        <Button onClick={handleSubmit} variant="contained" color="error" sx={{
+          borderRadius: 1.5, px: 2.5, textTransform: "none", fontWeight: 700,
+          color: "#fff",
+        }}>
           {selectedAddress ? "Update" : "Add Address"}
         </Button>
       </DialogActions>

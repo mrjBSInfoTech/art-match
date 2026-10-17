@@ -100,13 +100,13 @@ export default function StudentCard({ students = [], onEdit, onDelete }) {
                   image={
                     student.image
                       ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(student.image)}`
-                      : "http://localhost:5000/uploads/profile.jpg"
+                      : "http://localhost:5000/uploads/seller/profile.jpg"
                   }
                   alt={getName(student)}
                   onError={(event) => {
                     event.target.onerror = null;
                     event.target.src =
-                      "http://localhost:5000/uploads/profile.jpg";
+                      "http://localhost:5000/uploads/seller/profile.jpg";
                   }}
                 />
               </Box>

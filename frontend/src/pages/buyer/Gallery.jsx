@@ -27,10 +27,10 @@ const artworkImageUrl = (artwork) => {
 };
 
 const profileImageUrl = (image) => {
-  if (!image) return "";
+  if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
   return image.startsWith("http")
     ? image
-    : `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(image)}`;
+    : `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
 };
 
 const groupArtworksByArtist = (artworks) => {

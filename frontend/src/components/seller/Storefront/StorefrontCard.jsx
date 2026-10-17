@@ -61,7 +61,7 @@ export default function StorefrontCard({ artworks, pinnedArtworkIds, savingPinId
                       : statusColor === "error" ? "#d32f2f"
                         : statusColor === "warning" ? "#8a4b00" : "#475569",
                   }} />
-                {pinned && <Chip label="Pinned" icon={<PushPinOutlinedIcon />} size="small" color="primary"
+                {pinned && <Chip label="PINNED" size="small" color="primary"
                   sx={{ position: "absolute", left: 10, bottom: 10, fontSize: 10, fontWeight: 700, color: "#fff" }} />}
               </Box>
               <CardContent sx={{ p: 2, "&:last-child": { pb: 2 }, flex: 1, display: "flex", flexDirection: "column", gap: 1.25 }}>

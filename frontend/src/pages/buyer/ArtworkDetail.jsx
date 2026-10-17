@@ -15,6 +15,7 @@ import {
   IconButton,
   Paper,
   Slide,
+  Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
@@ -61,18 +62,31 @@ export default function ArtworkDetail() {
   const [cartMessage, setCartMessage] = useState("");
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [recentHistory, setRecentHistory] = useState(null);
-  const currentRecentHistory = recentHistory && recentHistory.artworkId === id ? recentHistory : null;
+  const currentRecentHistory =
+    recentHistory && recentHistory.artworkId === id ? recentHistory : null;
   const recentlyViewed = currentRecentHistory?.artworks || [];
   const recentHistoryError = currentRecentHistory?.error || "";
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+
+  useEffect(() => {
+    if (!cartMessage) return;
+    const timeoutId = setTimeout(() => setCartMessage(""), 1000);
+    return () => clearTimeout(timeoutId);
+  }, [cartMessage]);
 
   // Fetch artwork detail and also the list for related items
   useEffect(() => {
     let mounted = true;
     const loadRecentlyViewed = async () => {
-      // Tracking and history are optional and must not interrupt the detail page.
       try {
-        const customerId = localStorage.getItem("buyer_token") && localStorage.getItem("buyer_customer_id");
-        const viewer = customerId ? `buyer-${customerId}` : `guest-${getRecommendationSessionId()}`;
+        const customerId =
+          localStorage.getItem("buyer_token") &&
+          localStorage.getItem("buyer_customer_id");
+        const viewer = customerId
+          ? `buyer-${customerId}`
+          : `guest-${getRecommendationSessionId()}`;
         const viewKey = `recommendation_view_${viewer}_${id}`;
         const now = Date.now();
         const lastView = Number(sessionStorage.getItem(viewKey) || 0);
@@ -82,7 +96,10 @@ export default function ArtworkDetail() {
             artwork_id: Number(id),
             source_page: "artwork_detail",
           });
-          if (result?.duplicate || (result?.recorded && result.interaction_id != null)) {
+          if (
+            result?.duplicate ||
+            (result?.recorded && result.interaction_id != null)
+          ) {
             sessionStorage.setItem(viewKey, String(now));
           }
         }
@@ -92,9 +109,15 @@ export default function ArtworkDetail() {
       if (!mounted) return;
       try {
         const items = await fetchRecentlyViewedArtworks(id);
-        if (mounted) setRecentHistory({ artworkId: id, artworks: items, error: "" });
+        if (mounted)
+          setRecentHistory({ artworkId: id, artworks: items, error: "" });
       } catch {
-        if (mounted) setRecentHistory({ artworkId: id, artworks: [], error: "Recently viewed artworks could not be loaded." });
+        if (mounted)
+          setRecentHistory({
+            artworkId: id,
+            artworks: [],
+            error: "Recently viewed artworks could not be loaded.",
+          });
       }
     };
     const load = async () => {
@@ -240,6 +263,50 @@ export default function ArtworkDetail() {
     )
     .slice(0, 4);
 
+  const handleAddToCart = async (artworkId) => {
+    try {
+      setAddingToCart(true);
+      const result = await addToCart(artworkId);
+      setCartMessage("Added to cart");
+      showSnackbar(result?.message || "Artwork added to cart", "success");
+      return result;
+    } catch (error) {
+      setCartMessage(error.status === 409 ? "Already in cart" : "");
+      showSnackbar(
+        error.message || "Unable to add artwork to cart",
+        error.status === 409 ? "warning" : "error",
+      );
+      throw error;
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  // Snackbar handlers
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "warning":
+        return "warning.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
       <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
@@ -322,7 +389,7 @@ export default function ArtworkDetail() {
                   value={formatAndCapitalize(artwork.mediums_used)}
                 />
                 <Row label="Size" value={artwork.art_size || "Unknown"} />
-                <Row label="Genre" value={artwork.genre || "Unknown"} />
+                <Row label="Style" value={artwork.genre || "Unknown"} />
               </Stack>
               <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                 <Button
@@ -330,20 +397,11 @@ export default function ArtworkDetail() {
                   color="primary"
                   fullWidth
                   disabled={addingToCart}
-                  onClick={async () => {
-                    try {
-                      setAddingToCart(true);
-                      await addToCart(artwork.artwork_id || artwork.id);
-                      setCartMessage("Added to cart");
-                    } catch {
-                      setCartMessage("Unable to add to cart");
-                      setTimeout(() => {
-                        setCartMessage("");
-                      }, 3000);
-                    } finally {
-                      setAddingToCart(false);
-                    }
-                  }}
+                  onClick={() =>
+                    handleAddToCart(artwork.artwork_id || artwork.id).catch(
+                      () => {},
+                    )
+                  }
                   sx={{
                     padding: 1,
                     px: 3,
@@ -594,14 +652,31 @@ export default function ArtworkDetail() {
         </DialogContent>
       </Dialog>
 
-      <Box component="section" aria-labelledby="recently-viewed-title" sx={{ mt: { xs: 5, md: 8 } }}>
-        <Typography id="recently-viewed-title" variant="h5" fontWeight={700} mb={3}>
+      <Box
+        component="section"
+        aria-labelledby="recently-viewed-title"
+        sx={{ mt: { xs: 5, md: 8 } }}
+      >
+        <Typography
+          id="recently-viewed-title"
+          variant="h5"
+          fontWeight={700}
+          mb={3}
+        >
           Recently viewed artworks
         </Typography>
         {!currentRecentHistory ? (
-          <Stack direction="row" alignItems="center" spacing={1.5} role="status" sx={{ py: 3 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.5}
+            role="status"
+            sx={{ py: 3 }}
+          >
             <CircularProgress size={22} aria-label="Loading recent history" />
-            <Typography color="text.secondary">Loading your recent history...</Typography>
+            <Typography color="text.secondary">
+              Loading your recent history...
+            </Typography>
           </Stack>
         ) : recentHistoryError ? (
           <Alert severity="error">{recentHistoryError}</Alert>
@@ -614,11 +689,17 @@ export default function ArtworkDetail() {
             ))}
           </Grid>
         ) : (
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
+          <Paper
+            variant="outlined"
+            sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}
+          >
             <Typography color="text.secondary">
-              No other recently viewed artworks yet. Open another artwork to start your history.
+              No other recently viewed artworks yet. Open another artwork to
+              start your history.
             </Typography>
-            <Button onClick={() => navigate("/buyer/shop")} sx={{ mt: 1 }}>Browse artworks</Button>
+            <Button onClick={() => navigate("/buyer/shop")} sx={{ mt: 1 }}>
+              Browse artworks
+            </Button>
           </Paper>
         )}
       </Box>
@@ -636,7 +717,7 @@ export default function ArtworkDetail() {
                 size={{ xs: 12, sm: 6, md: 3 }}
                 key={item.id || item.artwork_id}
               >
-                <ArtworkCard artwork={item} />
+                <ArtworkCard artwork={item} onAddToCart={handleAddToCart} />
               </Grid>
             ))}
           </Grid>
@@ -656,14 +737,35 @@ export default function ArtworkDetail() {
                 size={{ xs: 12, sm: 6, md: 3 }}
                 key={item.id || item.artwork_id}
               >
-                <ArtworkCard artwork={item} />
+                <ArtworkCard artwork={item} onAddToCart={handleAddToCart} />
               </Grid>
             ))}
           </Grid>
         </Box>
       )}
-
-
+      {/* Snackbar Notification */}
+      <Snackbar
+        open={snackbarOpen}
+        severity={snackbarSeverity}
+        variant="filled"
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={Transition}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": { color: "#fff" },
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

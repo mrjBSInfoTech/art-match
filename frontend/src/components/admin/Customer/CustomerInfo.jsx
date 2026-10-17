@@ -53,7 +53,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
 
   const imageUrl = customer?.image
     ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(customer.image)}`
-    : "http://localhost:5000/uploads/profile.jpg";
+    : "http://localhost:5000/uploads/buyer/profile.jpg";
 
   return (
     <Dialog
@@ -125,7 +125,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                 alt={`${customer.first_name || customer.username || "Customer"} profile`}
                 onError={(event) => {
                   event.currentTarget.src =
-                    "http://localhost:5000/uploads/profile.jpg";
+                    "http://localhost:5000/uploads/buyer/profile.jpg";
                 }}
                 sx={{
                   width: "100%",

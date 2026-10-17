@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
   Chip,
   CircularProgress,
   Container,
@@ -30,17 +29,15 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { fetchStorefront } from "../../api/seller/storefrontAPI";
+import ProfileCard from "../../components/seller/Profile/ProfileCard";
 
-const getProfileFallback = (name = "Artist") =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6f1d1b&color=fff&size=200`;
-
-const formatPrice = (value) =>
-  `₱${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const getProfileFallback = () =>
+  "http://localhost:5000/uploads/seller/profile.jpg";
 
 const getProfileImage = (profileImage) => {
   if (!profileImage) return getProfileFallback("Artist");
   if (profileImage.startsWith("http")) return profileImage;
-  return `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(profileImage)}`;
+  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`;
 };
 
 const getArtworkImage = (image) => {
@@ -202,7 +199,7 @@ export default function Profile() {
   });
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary" }}>
+    <Box sx={{ width: "100%", minWidth: 0, bgcolor: "background.default", color: "text.primary" }}>
       <Helmet>
         <title>Seller Profile</title>
       </Helmet>
@@ -210,14 +207,16 @@ export default function Profile() {
       <Box
         sx={{
           background: "linear-gradient(180deg, rgba(146, 26, 26, 0.2), rgba(54, 11, 11, 0.5)), url('https://images.unsplash.com/photo-1515405295579-ba7b45403062?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat",
-          minHeight: 420,
+          minHeight: { xs: 240, sm: 280, md: 320 },
+          borderRadius: 3,
+          overflow: "hidden",
           position: "relative",
         }}
       >
         <Box sx={{ bgcolor: alpha(theme.palette.common.black, theme.palette.mode === "dark" ? 0.5 : 0.3), py: 2 }}>
           <Container maxWidth="lg">
             <Stack
-              direction="row"
+              direction={{ xs: "column", md: "row" }}
               alignItems="center"
               justifyContent="space-between"
               spacing={2}
@@ -249,6 +248,8 @@ export default function Profile() {
               <Box
                 sx={{
                   flex: 1,
+                  width: "100%",
+                  minWidth: 0,
                   maxWidth: 420,
                   display: "flex",
                   alignItems: "center",
@@ -276,7 +277,7 @@ export default function Profile() {
         </Box>
 
         <Container maxWidth="lg" sx={{ py: { xs: 4, md: 5 } }}>
-          <Box sx={{ display: "flex", gap: 2, mb: 2, color: "#fff", fontSize: 14 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2, color: "#fff", fontSize: 14 }}>
             <Box component="span" sx={{ opacity: 0.9 }}>All Categories</Box>
             <Box component="span" sx={{ opacity: 0.9 }}>Shop</Box>
             <Box component="span" sx={{ opacity: 0.9 }}>Artist Gallery</Box>
@@ -285,7 +286,7 @@ export default function Profile() {
 
       </Box>
 
-      <Container maxWidth="lg" sx={{ mt: -8, pb: 7 }}>
+      <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1, mt: { xs: -3, md: -6 }, pb: 4, px: { xs: 0, sm: 2, md: 3 } }}>
         <Paper
           elevation={0}
           sx={{
@@ -297,7 +298,7 @@ export default function Profile() {
           }}
         >
           <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 4 }} sx={{ minWidth: 0 }}>
               <Stack alignItems={{ xs: "center", md: "flex-start" }} spacing={1}>
                 <Avatar
                   src={getProfileImage(profileImage)}
@@ -323,7 +324,7 @@ export default function Profile() {
                     variant="body2"
                     color="text.secondary"
                     textAlign={{ xs: "center", md: "left" }}
-                    sx={{ maxWidth: 280, lineHeight: 1.5 }}
+                    sx={{ maxWidth: "100%", lineHeight: 1.5, overflowWrap: "anywhere" }}
                   >
                     {aboutMe}
                   </Typography>
@@ -331,7 +332,7 @@ export default function Profile() {
               </Stack>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 4 }} sx={{ minWidth: 0 }}>
               <Stack spacing={1}>
                 <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ xs: "flex-start", sm: "center" }} spacing={1.5}>
                   <Chip
@@ -342,6 +343,9 @@ export default function Profile() {
                       color: "text.primary",
                       fontWeight: 700,
                       borderRadius: 999,
+                      maxWidth: "100%",
+                      height: "auto",
+                      "& .MuiChip-label": { whiteSpace: "normal", py: 0.75 },
                     }}
                   />
                 </Stack>
@@ -362,7 +366,7 @@ export default function Profile() {
               </Stack>
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 4 }} sx={{ minWidth: 0 }}>
               <Paper
                 elevation={0}
                 sx={{
@@ -398,8 +402,8 @@ export default function Profile() {
           </Grid>
         </Paper>
 
-        <Grid container spacing={3} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} lg={8.5}>
+        <Grid container spacing={3} sx={{ mt: 3 }}>
+          <Grid size={{ xs: 12, lg: 8 }} sx={{ minWidth: 0 }}>
             <Paper
               elevation={0}
               sx={{
@@ -414,6 +418,10 @@ export default function Profile() {
                 onChange={(event, newValue) => setActiveTab(newValue)}
                 textColor="inherit"
                 indicatorColor="primary"
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                aria-label="Seller profile sections"
                 sx={{
                   mb: 3,
                   borderBottom: "1px solid",
@@ -436,7 +444,7 @@ export default function Profile() {
                       <CircularProgress size={28} />
                     </Box>
                   ) : aboutMe.trim() ? (
-                    <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
+                    <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8, overflowWrap: "anywhere" }}>
                       {aboutMe}
                     </Typography>
                   ) : (
@@ -486,8 +494,8 @@ export default function Profile() {
                         elevation={0}
                         sx={{ p: 2.5, borderRadius: 2, bgcolor: "background.paper", border: "1px solid", borderColor: "divider" }}
                       >
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                          <Box>
+                        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                          <Box sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
                             <Typography variant="subtitle1" fontWeight={800}>
                               {review.reviewerName}
                             </Typography>
@@ -497,7 +505,7 @@ export default function Profile() {
                             {new Date(review.createdAt).toLocaleDateString()}
                           </Typography>
                         </Stack>
-                        <Typography variant="body2" sx={{ mt: 1, lineHeight: 1.7 }}>
+                        <Typography variant="body2" sx={{ mt: 1, lineHeight: 1.7, overflowWrap: "anywhere" }}>
                           {review.comment}
                         </Typography>
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
@@ -539,62 +547,8 @@ export default function Profile() {
                     String(artwork.artwork_id),
                   );
                   return (
-                  <Grid item xs={12} sm={6} md={4} key={artwork.artwork_id}>
-                    <Card
-                      elevation={0}
-                      sx={{
-                        borderRadius: 3,
-                        overflow: "hidden",
-                        bgcolor: "background.paper",
-                        border: "1px solid", borderColor: "divider",
-                        transition: "0.2s ease",
-                        "&:hover": { transform: "translateY(-2px)", boxShadow: theme.shadows[4] },
-                      }}
-                    >
-                      <Box sx={{ position: "relative" }}>
-                        {isPinned && (
-                          <Chip
-                            label="Pinned"
-                            size="small"
-                            sx={{
-                              position: "absolute",
-                              top: 12,
-                              left: 12,
-                              zIndex: 1,
-                              fontWeight: 700,
-                              bgcolor: "primary.main",
-                              color: theme.palette.getContrastText(theme.palette.primary.main),
-                            }}
-                          />
-                        )}
-                        <Box
-                          component="img"
-                          src={getArtworkImage(artwork.image)}
-                          alt={artwork.title}
-                          sx={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
-                        />
-                      </Box>
-
-                      <Box sx={{ p: 2 }}>
-                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", mb: 1 }}>
-                          <IconButton size="small" sx={{ color: "text.secondary" }}>
-                            <FavoriteBorderOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-
-                        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.4 }}>
-                          {artwork.title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.1 }}>
-                          {[artwork.genre, artwork.art_size, artwork.date_created && new Date(artwork.date_created).getFullYear()]
-                            .filter(Boolean)
-                            .join(" | ")}
-                        </Typography>
-                        <Typography variant="h6" fontWeight={800} color="primary.main">
-                          {formatPrice(artwork.price)}
-                        </Typography>
-                      </Box>
-                    </Card>
+                  <Grid size={{ xs: 12, sm: 6, md: 4, lg: 6 }} key={artwork.artwork_id} sx={{ minWidth: 0 }}>
+                    <ProfileCard artwork={artwork} isPinned={isPinned} />
                   </Grid>
                   );
                 })}
@@ -603,7 +557,7 @@ export default function Profile() {
             </Paper>
           </Grid>
 
-          <Grid item xs={12} lg={3.5}>
+          <Grid size={{ xs: 12, lg: 4 }} sx={{ minWidth: 0 }}>
             <Paper
               elevation={0}
               sx={{
@@ -638,6 +592,9 @@ export default function Profile() {
                           color: "text.primary",
                           fontWeight: 700,
                           borderRadius: 999,
+                          maxWidth: "100%",
+                          height: "auto",
+                          "& .MuiChip-label": { whiteSpace: "normal", py: 0.5 },
                         }}
                       />
                     )) : (
@@ -680,7 +637,7 @@ export default function Profile() {
       <Box sx={{ bgcolor: "background.footer", color: "#fff", py: 4, mt: 2 }}>
         <Container maxWidth="lg">
           <Grid container spacing={4} alignItems="flex-start">
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                 <Box sx={{ width: 18, height: 18, borderRadius: 0.8, background: "linear-gradient(135deg,#fff,#f5cfcf)", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#b60d13", fontWeight: 800 }}>R</Box>
                 <Typography variant="h6" fontWeight={800}>RED NEXUS</Typography>
@@ -690,7 +647,7 @@ export default function Profile() {
               </Typography>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={2.5}>
+            <Grid size={{ xs: 12, sm: 4, md: 2.5 }}>
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>Acquire Art</Typography>
               <Stack spacing={0.8}>
                 {['Paintings', 'Sculptures', 'Photography', 'Fine Arts'].map((link) => (
@@ -699,7 +656,7 @@ export default function Profile() {
               </Stack>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={2.5}>
+            <Grid size={{ xs: 12, sm: 4, md: 2.5 }}>
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>Programs</Typography>
               <Stack spacing={0.8}>
                 {['Architecture', 'Interior Design', 'Exhibition Calendar', 'Academic Support'].map((link) => (
@@ -708,7 +665,7 @@ export default function Profile() {
               </Stack>
             </Grid>
 
-            <Grid item xs={12} sm={4} md={2.5}>
+            <Grid size={{ xs: 12, sm: 4, md: 2.5 }}>
               <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>Academy</Typography>
               <Stack spacing={0.8}>
                 {['About CAA', 'Support Desk', 'Vacancies', 'Contact'].map((link) => (

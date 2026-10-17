@@ -631,7 +631,7 @@ function BuyerLayoutContent({ children }) {
                     src={
                       profileImage
                         ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
-                        : undefined
+                        : "http://localhost:5000/uploads/buyer/profile.jpg"
                     }
                     sx={{ width: 60, height: 60, flexShrink: 0 }}
                   >

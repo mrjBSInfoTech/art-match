@@ -1,5 +1,5 @@
 import { Link as RouterLink } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardMedia,
@@ -24,6 +24,11 @@ export default function ArtworkCard({
   const artworkId = artwork?.id || artwork?.artwork_id;
   const [isAdding, setIsAdding] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
+  useEffect(() => {
+    if (!cartMessage) return;
+    const timeoutId = setTimeout(() => setCartMessage(""), 1000);
+    return () => clearTimeout(timeoutId);
+  }, [cartMessage]);
 
   const handleAddToCart = async () => {
     if (isAdding) return;
@@ -32,7 +37,7 @@ export default function ArtworkCard({
       await (onAddToCart ? onAddToCart(artworkId) : addToCart(artworkId));
       setCartMessage("Added");
     } catch (error) {
-      setCartMessage("Need to login");
+      setCartMessage(error.status === 409 ? "Already in cart" : "Try again");
     } finally {
       setIsAdding(false);
     }
@@ -131,7 +136,7 @@ export default function ArtworkCard({
               disabled={isAdding}
               sx={{ fontSize: 10 }}
             >
-              {isAdding ? "Adding..." : cartMessage || "Add to Cart"}
+              {isAdding ? "Adding..." : cartMessage || "Add to cart"}
             </Button>
           ) : (
             <Button

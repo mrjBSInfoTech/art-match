@@ -81,10 +81,13 @@ const toAbsoluteMediaUrl = (url) => {
 };
 
 const toAbsoluteProfileImageUrl = (image, accountType) => {
-  if (!image) return "";
+  if (!image) return accountType === "seller"
+    ? "http://localhost:5000/uploads/seller/profile.jpg"
+    : "http://localhost:5000/uploads/buyer/profile.jpg";
   if (/^https?:\/\//i.test(image)) return image;
   if (image.startsWith("/")) return `http://localhost:5000${image}`;
-  return `http://localhost:5000/uploads/${accountType}/profile/${encodeURIComponent(image)}`;
+  const folder = accountType === "seller" ? "uploadProfile" : "profile";
+  return `http://localhost:5000/uploads/${accountType}/${folder}/${encodeURIComponent(image)}`;
 };
 
 export default function Messages() {

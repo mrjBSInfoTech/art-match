@@ -14,7 +14,9 @@ api.interceptors.request.use((config) => {
 });
 
 const handleError = (error) => {
-  throw new Error(error.response?.data?.message || "Unable to update cart");
+  const cartError = new Error(error.response?.data?.message || "Unable to update cart");
+  cartError.status = error.response?.status;
+  throw cartError;
 };
 
 export const fetchCart = async () => {

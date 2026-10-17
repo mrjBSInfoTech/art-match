@@ -3,7 +3,7 @@ import axios from "axios";
 const api = axios.create({
   baseURL:
     "http://localhost:5000/api/buyer/recommendation",
-  timeout: 5000,
+  timeout: 10000,
 });
 
 export const fetchRecentlyViewedArtworks = async (excludeArtworkId, limit = 4) => {
@@ -87,6 +87,9 @@ export const recordRecommendationEvent = async (
       },
     );
 
+    if (response.data?.recorded && response.data.interaction_id != null) {
+      window.dispatchEvent(new Event("recommendation-updated"));
+    }
     return response.data;
   } catch (error) {
     // Tracking should never stop normal shopping.

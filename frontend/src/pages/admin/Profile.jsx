@@ -178,6 +178,7 @@ export default function Profile() {
             bgcolor: "action.selected",
             display: "flex",
             alignItems: "center",
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -186,13 +187,13 @@ export default function Profile() {
           <Typography variant="caption" color="text.secondary" display="block">
             {label}
           </Typography>
-          <Typography variant="body2" fontWeight="500" noWrap>
+          <Typography variant="body2" fontWeight="500" sx={{ overflowWrap: "anywhere" }}>
             {value || "N/A"}
           </Typography>
         </Box>
         {onCopy && value && (
           <Tooltip title="Copy">
-            <IconButton size="small" onClick={onCopy}>
+            <IconButton size="small" onClick={onCopy} aria-label={`Copy ${label.toLowerCase()}`} sx={{ flexShrink: 0 }}>
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -213,7 +214,7 @@ export default function Profile() {
   };
 
   return (
-    <Box sx={{ maxWidth: 1100, mx: "auto", pb: 5 }}>
+    <Box sx={{ width: "100%", minWidth: 0, maxWidth: 1100, mx: "auto", pb: 5 }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Profile</title>
       </Helmet>
@@ -226,11 +227,11 @@ export default function Profile() {
           borderRadius: 3,
           border: "1px solid",
           borderColor: "divider",
-          background: "background.paper",
+          bgcolor: "background.paper",
         }}
       >
         <Grid container spacing={3} alignItems="center">
-          <Grid item>
+          <Grid size={{ xs: 12, sm: "auto" }} sx={{ display: "flex", justifyContent: { xs: "center", sm: "flex-start" } }}>
             <Avatar
               sx={{
                 width: 90,
@@ -250,30 +251,27 @@ export default function Profile() {
           </Grid>
 
           <Grid
-            item
-            xs={12}
-            sm={6}
-            md={6}
-            sx={{ display: "flex", flexDirection: "column" }}
+            size={{ xs: 12, sm: "grow" }}
+            sx={{ display: "flex", flexDirection: "column", minWidth: 0, textAlign: { xs: "center", sm: "left" } }}
           >
             <Stack spacing={0.5}>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Typography variant="h5" fontWeight="700">
+              <Stack direction="row" alignItems="center" justifyContent={{ xs: "center", sm: "flex-start" }} spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", minWidth: 0 }}>
+                <Typography component="h1" variant="h5" fontWeight="700" sx={{ overflowWrap: "anywhere", minWidth: 0 }}>
                   {`${firstName} ${lastName}`.trim() || "Admin Name"}
                 </Typography>
                 <Chip
                   color={getRoleColor(role)}
                   label={formatAndCapitalize(role)}
                   size="small"
-                  sx={{ fontWeight: 600 }}
+                  sx={{ fontWeight: 600, maxWidth: "100%", height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.5 } }}
                 />
               </Stack>
 
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                 {username || "admin"}
               </Typography>
 
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
                 Email: <strong>{email || "N/A"}</strong>
               </Typography>
             </Stack>
@@ -287,27 +285,21 @@ export default function Profile() {
         spacing={3}
         sx={{
           width: "100%",
-          m: 0,
-          justifyContent: { md: "space-between" },
           alignItems: "stretch",
         }}
       >
         <Grid
-          item
-          xs={12}
-          sm={6}
-          md={6}
+          size={{ xs: 12, md: 6 }}
           sx={{
             display: "flex",
-            flex: { xs: "0 0 100%", sm: "0 0 48.5%" },
-            maxWidth: { xs: "100%", sm: "48.5%" },
+            minWidth: 0,
             boxSizing: "border-box",
           }}
         >
           <Paper
             elevation={0}
             sx={{
-              p: 3,
+              p: { xs: 2, sm: 3 },
               width: "100%",
               display: "flex",
               flexDirection: "column",
@@ -344,21 +336,17 @@ export default function Profile() {
         </Grid>
 
         <Grid
-          item
-          xs={12}
-          sm={6}
-          md={6}
+          size={{ xs: 12, md: 6 }}
           sx={{
             display: "flex",
-            flex: { xs: "0 0 100%", sm: "0 0 48.5%" },
-            maxWidth: { xs: "100%", sm: "48.5%" },
+            minWidth: 0,
             boxSizing: "border-box",
           }}
         >
           <Paper
             elevation={0}
             sx={{
-              p: 3,
+              p: { xs: 2, sm: 3 },
               width: "100%",
               display: "flex",
               flexDirection: "column",
@@ -405,30 +393,9 @@ export default function Profile() {
               >
                 Admin Actions
               </Typography>
-              <Card
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  bgcolor: "action.hover",
-                  cursor: "pointer",
-                  transition: "0.2s",
-                  "&:hover": { borderColor: "primary.main" },
-                }}
-              >
-                <CardContent
-                  sx={{
-                    py: 1.5,
-                    px: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Button size="small" startIcon={<VisibilityIcon />}>
-                    View Activity
-                  </Button>
-                </CardContent>
-              </Card>
+              <Button size="small" fullWidth variant="outlined" startIcon={<VisibilityIcon />}>
+                View Activity
+              </Button>
             </Box>
           </Paper>
         </Grid>

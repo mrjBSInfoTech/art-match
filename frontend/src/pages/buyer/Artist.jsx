@@ -15,14 +15,14 @@ import {
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 
-const getProfileFallback = (name = "Artist") =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
+const getProfileFallback = () =>
+  "http://localhost:5000/uploads/seller/profile.jpg";
 
 const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
   if (!imageName) return getProfileFallback(artist?.name || "Artist");
   if (imageName.startsWith("http")) return imageName;
-  return `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(imageName)}`;
+  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
 };
 
 const buildArtistSummaries = (artworks = []) => {

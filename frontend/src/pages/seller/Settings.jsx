@@ -256,8 +256,8 @@ export default function Settings() {
             component="img"
             src={
               localStorage.getItem("seller_profile_image")
-                ? `http://localhost:5000/uploads/seller/profile/${encodeURIComponent(localStorage.getItem("seller_profile_image"))}`
-                : "http://localhost:5000/uploads/profile.jpg"
+                ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(localStorage.getItem("seller_profile_image"))}`
+                : "http://localhost:5000/uploads/seller/profile.jpg"
             }
             alt="Seller profile"
             sx={{

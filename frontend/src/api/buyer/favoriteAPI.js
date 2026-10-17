@@ -34,6 +34,7 @@ export const fetchFavorites = async () => {
 export const toggleFavorite = async (artworkId) => {
   try {
     const response = await api.post(`/${artworkId}`);
+    window.dispatchEvent(new Event("recommendation-updated"));
     return response.data;
   } catch (error) {
     handleError(error);
@@ -43,6 +44,7 @@ export const toggleFavorite = async (artworkId) => {
 export const removeFavorite = async (artworkId) => {
   try {
     const response = await api.delete(`/${artworkId}`);
+    window.dispatchEvent(new Event("recommendation-updated"));
     return response.data;
   } catch (error) {
     handleError(error);
