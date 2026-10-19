@@ -25,6 +25,7 @@ import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
+import { ensureArtworkSchema } from "./database/artwork.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -129,6 +130,7 @@ ensureBuyerPrivacyColumn()
   .then(() => ensureFavoriteTable())
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
+  .then(() => ensureArtworkSchema())
   .then(() => ensureConversationReadStateTable())
   .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
   .catch((error) => {

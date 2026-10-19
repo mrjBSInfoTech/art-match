@@ -564,9 +564,19 @@ function SellerLayoutContent({ children }) {
               {notifications.map((notification) => (
                 <ListItemButton key={notification.notification_id}>
                   <ListItemText
+                    primaryTypographyProps={{
+                      variant: "body2",
+                      fontWeight: Number(notification.is_read) ? 400 : 700,
+                    }}
                     primary={notification.message}
-                    secondary={new Date(notification.created_at).toLocaleString()}
-                    primaryTypographyProps={{ variant: "body2" }}
+                    secondary={[
+                      notification.notification_type === "artwork_status"
+                        ? "Artwork review"
+                        : null,
+                      new Date(notification.created_at).toLocaleString(),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                     secondaryTypographyProps={{ variant: "caption" }}
                   />
                 </ListItemButton>

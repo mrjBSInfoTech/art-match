@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS artwork (
   price DECIMAL(12, 2) NOT NULL,
   description TEXT NOT NULL,
   image VARCHAR(255) NOT NULL,
+  art_type VARCHAR(50) NULL,
+  product VARCHAR(50) NULL,
   date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_artwork_student
     FOREIGN KEY (student_id) REFERENCES student (student_id) ON DELETE CASCADE,

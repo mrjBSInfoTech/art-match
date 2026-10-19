@@ -29,6 +29,8 @@ const getNotificationTypeLabel = (notificationType) => {
       return "Account notice";
     case "strike":
       return "Account alert";
+    case "artwork_status":
+      return "Artwork review";
     default:
       return "Account update";
   }
@@ -86,7 +88,7 @@ export default function SellerNotifications() {
               Notifications
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              See customer updates, order shipping changes, and account alerts.
+              See artwork review decisions, order updates, and account alerts.
             </Typography>
           </Box>
 
@@ -107,7 +109,7 @@ export default function SellerNotifications() {
           <Paper variant="outlined" sx={{ p: 4, borderRadius: 3, textAlign: "center" }}>
             <Typography variant="h6" fontWeight={700}>No notifications yet</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              When your orders or account are updated, they will appear here.
+              Artwork review decisions, order updates, and account alerts will appear here.
             </Typography>
           </Paper>
         ) : (

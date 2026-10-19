@@ -282,7 +282,7 @@ router.post(
 
           const artUploadSql = `
           INSERT INTO artupload (artwork_id, request_status, request_date)
-          VALUES (?, 'Unverified', ?)
+          VALUES (?, 'Pending', ?)
         `;
 
           db.query(artUploadSql, [artworkId, createdAt], (uploadErr) => {
@@ -294,6 +294,7 @@ router.post(
             const respond = () => res.json({
               message: "Artwork added successfully!",
               id: artworkId,
+              request_status: "Pending",
               colors: detectedColors,
             });
 

@@ -5,6 +5,20 @@ import { requireAdminPermission } from "../../middleware/adminPermissionMiddlewa
 
 const router = express.Router();
 
+const createArtworkReviewNotification = (sellerId, artworkTitle, status, rejectionReason) =>
+  new Promise((resolve, reject) => {
+    const title = artworkTitle || "your artwork";
+    const message = status === "verified"
+      ? `Your artwork "${title}" has been accepted by an admin.`
+      : `Your artwork "${title}" was rejected by an admin. Reason: ${rejectionReason}`;
+
+    db.query(
+      "INSERT INTO account_notifications (role, account_id, notification_type, message) VALUES (?, ?, ?, ?)",
+      ["seller", sellerId, "artwork_status", message],
+      (error) => (error ? reject(error) : resolve()),
+    );
+  });
+
 // List artwork submitted for review, approved, or rejected.
 router.get("/", authenticateAdmin, (req, res) => {
   const { status } = req.query;
@@ -22,7 +36,12 @@ router.get("/", authenticateAdmin, (req, res) => {
       a.color_used,
       a.art_size,
       a.date_created,
-      au.request_status AS status,
+      CASE
+        WHEN au.request_status IS NULL
+          OR LOWER(TRIM(au.request_status)) IN ('pending', 'unverified')
+        THEN 'Pending'
+        ELSE au.request_status
+      END AS status,
       au.request_date,
       au.approved_date,
       au.rejection_date,
@@ -39,14 +58,17 @@ router.get("/", authenticateAdmin, (req, res) => {
     LEFT JOIN student s ON s.student_id = a.student_id
     LEFT JOIN artupload au ON au.artwork_id = a.artwork_id
     LEFT JOIN feature f ON f.artwork_id = a.artwork_id
-    WHERE LOWER(TRIM(au.request_status)) IN ('pending', 'verified', 'rejected')
   `;
 
   const params = [];
 
   if (statusFilter && statusFilter !== "all") {
-    sql += " AND LOWER(TRIM(au.request_status)) = ?";
-    params.push(statusFilter);
+    if (statusFilter === "pending") {
+      sql += " WHERE (au.request_status IS NULL OR LOWER(TRIM(au.request_status)) IN ('', 'pending', 'unverified'))";
+    } else {
+      sql += " WHERE LOWER(TRIM(au.request_status)) = ?";
+      params.push(statusFilter);
+    }
   }
 
   const orderBy =
@@ -136,11 +158,30 @@ router.put(
       return res.status(400).json({ error: "Rejection reason must be 5000 characters or fewer." });
     }
 
-    const selectSql = "SELECT artwork_id FROM artwork WHERE artwork_id = ?";
+    const selectSql = "SELECT artwork_id, student_id, title FROM artwork WHERE artwork_id = ?";
     db.query(selectSql, [id], (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       if (results.length === 0)
         return res.status(404).json({ error: "Artwork not found" });
+
+      const artwork = results[0];
+      const respondAfterStatusUpdate = () => {
+        if (status !== "verified" && status !== "rejected") {
+          return res.json({ message: "Artwork status updated successfully" });
+        }
+
+        createArtworkReviewNotification(
+          artwork.student_id,
+          artwork.title,
+          status,
+          rejectionReason,
+        )
+          .then(() => res.json({ message: "Artwork status updated and seller notified successfully" }))
+          .catch((notificationError) => {
+            console.error("Unable to notify seller about artwork review:", notificationError.message);
+            res.status(500).json({ error: "Artwork status updated, but seller notification could not be created." });
+          });
+      };
 
       const approvedDate = status === "verified" ? new Date() : null;
       const rejectionDate = status === "rejected" ? new Date() : null;
@@ -165,9 +206,7 @@ router.put(
               if (updateErr)
                 return res.status(500).json({ error: updateErr.message });
 
-              return res.json({
-                message: "Artwork status updated successfully",
-              });
+              return respondAfterStatusUpdate();
             },
           );
         } else {
@@ -183,9 +222,7 @@ router.put(
               if (insertErr)
                 return res.status(500).json({ error: insertErr.message });
 
-              return res.json({
-                message: "Artwork status updated successfully",
-              });
+              return respondAfterStatusUpdate();
             },
           );
         }
