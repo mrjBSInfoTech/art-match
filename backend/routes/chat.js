@@ -121,8 +121,18 @@ const fetchConversationList = (role, userId) =>
             AND unread.sender_type = '${isBuyer ? "seller" : "buyer"}'
             AND unread.message_id > COALESCE(read_state.last_read_message_id, 0)
         ) AS unread_count,
-        CASE WHEN m.encryption_iv IS NULL THEN m.message_data ELSE '[Encrypted message]' END AS last_message,
+        CASE
+          WHEN m.message_id IS NULL THEN NULL
+          WHEN TRIM(COALESCE(m.message_data, '')) <> '' THEN m.message_data
+          WHEN m.image IS NOT NULL THEN 'Attachment'
+          ELSE NULL
+        END AS last_message,
+        m.message_id AS last_message_id,
         m.image AS last_image,
+        m.encryption_iv AS last_message_encryption_iv,
+        m.sender_public_key AS last_message_sender_public_key,
+        m.sender_type AS last_message_sender_type,
+        (m.encryption_iv IS NOT NULL) AS last_message_encrypted,
         m.date_created AS last_message_time
       FROM conversation c
       ${isBuyer ? "LEFT JOIN student s ON s.student_id = c.student_id" : "LEFT JOIN customer cu ON cu.customer_id = c.customer_id"}
@@ -134,7 +144,7 @@ const fetchConversationList = (role, userId) =>
         SELECT m2.message_id
         FROM message m2
         WHERE m2.conversation_id = c.conversation_id
-        ORDER BY m2.date_created DESC
+        ORDER BY m2.date_created DESC, m2.message_id DESC
         LIMIT 1
       )
       WHERE c.${isBuyer ? "customer_id" : "student_id"} = ?
@@ -549,6 +559,63 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
     }
   });
 
+const sendLatestConversationMessage = (role, accountId, conversationId, res) => {
+  if (!conversationId) {
+    return res.status(400).json({ message: "Invalid conversation id" });
+  }
+
+  const accountColumn = role === "buyer" ? "customer_id" : "student_id";
+  db.query(
+    `SELECT conversation_id FROM conversation
+     WHERE conversation_id = ? AND ${accountColumn} = ? LIMIT 1`,
+    [conversationId, accountId],
+    (accessError, accessRows) => {
+      if (accessError) {
+        console.error("Latest message access check failed:", accessError);
+        return res.status(500).json({ message: "Unable to load latest message" });
+      }
+      if (accessRows.length === 0) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      db.query(
+        `SELECT message_id, conversation_id, sender_type, message_data, image,
+                sender_public_key, encryption_iv, attachment_iv, media_type, date_created
+         FROM message
+         WHERE conversation_id = ?
+         ORDER BY date_created DESC, message_id DESC
+         LIMIT 1`,
+        [conversationId],
+        (messageError, rows) => {
+          if (messageError) {
+            console.error("Latest message fetch failed:", messageError);
+            return res.status(500).json({ message: "Unable to load latest message" });
+          }
+          res.json(rows[0] || null);
+        },
+      );
+    },
+  );
+};
+
+router.get("/buyer/conversations/:conversationId/latest-message", authenticateBuyer, (req, res) => {
+  sendLatestConversationMessage(
+    "buyer",
+    req.user.customer_id || req.user.id,
+    Number(req.params.conversationId),
+    res,
+  );
+});
+
+router.get("/seller/conversations/:conversationId/latest-message", authenticateSeller, (req, res) => {
+  sendLatestConversationMessage(
+    "seller",
+    req.user.student_id || req.user.id,
+    Number(req.params.conversationId),
+    res,
+  );
+});
+
 router.get("/buyer/conversations/:conversationId/messages", authenticateBuyer, (req, res) => {
   const buyerId = req.user.customer_id || req.user.id;
   const conversationId = Number(req.params.conversationId);
@@ -578,7 +645,7 @@ router.get("/buyer/conversations/:conversationId/messages", authenticateBuyer, (
       SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
-      ORDER BY date_created ASC
+      ORDER BY date_created ASC, message_id ASC
     `;
 
     markConversationRead(conversationId, "buyer", buyerId)
@@ -628,7 +695,7 @@ router.get("/seller/conversations/:conversationId/messages", authenticateSeller,
       SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
-      ORDER BY date_created ASC
+      ORDER BY date_created ASC, message_id ASC
     `;
 
     markConversationRead(conversationId, "seller", sellerId)
