@@ -8,6 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
+import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
 
 const router = express.Router();
 
@@ -389,80 +390,404 @@ router.put(
   authenticateSeller,
   profileUpload.single("profile_image"),
   async (req, res) => {
-    const actor = req.user?.student_number || req.user?.student_id || "Unknown";
-    const fields = [
-      "student_number",
-      "first_name",
-      "middle_name",
-      "last_name",
-      "birthdate",
-      "email",
-      "address",
-      "phone_number",
-      "year_level",
-      "course",
-    ];
-    const updates = fields.filter((field) => Object.hasOwn(req.body, field));
-    const values = updates.map((field) => req.body[field]);
-    if (req.file) {
-      updates.push("profile_image");
-      values.push(req.file.filename);
-    }
-    if (req.body.password) {
-      updates.push("password");
-      values.push(bcrypt.hashSync(req.body.password, 10));
-    }
-    if (!updates.length) {
-      await logAudit({
-        action: "UPDATE_ACCOUNT_INFORMATION",
-        actor,
-        role: "Student",
-        status: "FAILED",
-        information: "No profile changes supplied for seller account update.",
-      }).catch((auditError) =>
-        console.error("Unable to record update audit:", auditError.message),
-      );
-      return res.status(400).json({ message: "No profile changes supplied." });
-    }
+    const actor =
+      req.user?.student_number ||
+      req.user?.student_id ||
+      "Unknown";
 
-    db.query(
-      `UPDATE student SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE student_id = ?`,
-      [...values, req.user.student_id],
-      async (err) => {
-        if (err) {
+    const studentId =
+      req.user?.student_id;
+
+    const temporaryProfilePath =
+      req.file
+        ? path.join(
+            profileUploadDir,
+            req.file.filename,
+          )
+        : null;
+
+    let newB2Key = null;
+
+    try {
+      /*
+       * Get the existing profile image first.
+       * We need this so we can remove the old
+       * B2 image after the database update succeeds.
+       */
+      const currentStudent =
+        await new Promise(
+          (resolve, reject) => {
+            db.query(
+              `SELECT profile_image
+               FROM student
+               WHERE student_id = ?
+               LIMIT 1`,
+              [studentId],
+              (error, rows) => {
+                if (error) {
+                  reject(error);
+                  return;
+                }
+
+                resolve(
+                  rows?.[0] || null,
+                );
+              },
+            );
+          },
+        );
+
+      if (!currentStudent) {
+        if (
+          temporaryProfilePath &&
+          fs.existsSync(
+            temporaryProfilePath,
+          )
+        ) {
+          fs.unlinkSync(
+            temporaryProfilePath,
+          );
+        }
+
+        return res.status(404).json({
+          message:
+            "Seller not found.",
+        });
+      }
+
+      /*
+       * Upload the new profile image
+       * to B2 before changing the database.
+       */
+      if (req.file) {
+        newB2Key =
+          `app-uploads/seller/uploadProfile/${req.file.filename}`;
+
+        try {
+          await uploadToB2({
+            key: newB2Key,
+
+            body:
+              fs.readFileSync(
+                temporaryProfilePath,
+              ),
+
+            contentType:
+              req.file.mimetype ||
+              "application/octet-stream",
+          });
+
+          console.log(
+            "Seller profile uploaded to B2:",
+            newB2Key,
+          );
+        } catch (b2Error) {
+          console.error(
+            "Seller profile B2 upload failed:",
+            b2Error.message,
+          );
+
+          if (
+            temporaryProfilePath &&
+            fs.existsSync(
+              temporaryProfilePath,
+            )
+          ) {
+            fs.unlinkSync(
+              temporaryProfilePath,
+            );
+          }
+
           await logAudit({
-            action: "UPDATE_ACCOUNT_INFORMATION",
+            action:
+              "UPDATE_ACCOUNT_INFORMATION",
             actor,
             role: "Student",
             status: "FAILED",
-            information: `Seller account update failed: ${err.code === "ER_DUP_ENTRY" ? "Student number or email already exists." : "Database error"}`,
-          }).catch((auditError) =>
-            console.error("Unable to record update audit:", auditError.message),
-          );
-          if (err.code === "ER_DUP_ENTRY")
-            return res
-              .status(409)
-              .json({ message: "Student number or email already exists." });
-          return res.status(500).json({ message: "Database error" });
-        }
+            information:
+              "Seller profile image could not be uploaded to cloud storage.",
+          }).catch(() => {});
 
-        await logAudit({
-          action: "UPDATE_ACCOUNT_INFORMATION",
-          actor,
-          role: "Student",
-          status: "SUCCESS",
-          information:
-            "Seller account information updated successfully from settings.",
-        }).catch((auditError) =>
-          console.error("Unable to record update audit:", auditError.message),
+          return res.status(502).json({
+            message:
+              "Profile image could not be uploaded to cloud storage.",
+          });
+        }
+      }
+
+      const fields = [
+        "student_number",
+        "first_name",
+        "middle_name",
+        "last_name",
+        "birthdate",
+        "email",
+        "address",
+        "phone_number",
+        "year_level",
+        "course",
+      ];
+
+      const updates =
+        fields.filter((field) =>
+          Object.hasOwn(
+            req.body,
+            field,
+          ),
         );
 
-        res.json({
-          message: "Seller profile updated successfully.",
-          profile_image: req.file?.filename,
+      const values =
+        updates.map(
+          (field) =>
+            req.body[field],
+        );
+
+      if (req.file) {
+        updates.push(
+          "profile_image",
+        );
+
+        values.push(
+          req.file.filename,
+        );
+      }
+
+      if (req.body.password) {
+        updates.push(
+          "password",
+        );
+
+        values.push(
+          bcrypt.hashSync(
+            req.body.password,
+            10,
+          ),
+        );
+      }
+
+      if (!updates.length) {
+        await logAudit({
+          action:
+            "UPDATE_ACCOUNT_INFORMATION",
+          actor,
+          role: "Student",
+          status: "FAILED",
+          information:
+            "No profile changes supplied for seller account update.",
+        }).catch(
+          (auditError) =>
+            console.error(
+              "Unable to record update audit:",
+              auditError.message,
+            ),
+        );
+
+        return res.status(400).json({
+          message:
+            "No profile changes supplied.",
         });
-      },
-    );
+      }
+
+      /*
+       * Update MySQL only after the
+       * new cloud image is available.
+       */
+      await new Promise(
+        (resolve, reject) => {
+          db.query(
+            `UPDATE student
+             SET ${updates
+               .map(
+                 (field) =>
+                   `${field} = ?`,
+               )
+               .join(", ")}
+             WHERE student_id = ?`,
+            [
+              ...values,
+              studentId,
+            ],
+            (error, result) => {
+              if (error) {
+                reject(error);
+                return;
+              }
+
+              resolve(result);
+            },
+          );
+        },
+      );
+
+      /*
+       * Database now points to the new
+       * image, so the old B2 image can
+       * safely be deleted.
+       */
+      if (
+        req.file &&
+        currentStudent.profile_image &&
+        currentStudent.profile_image !==
+          req.file.filename
+      ) {
+        const oldB2Key =
+          `app-uploads/seller/uploadProfile/${currentStudent.profile_image}`;
+
+        try {
+          await deleteFromB2(
+            oldB2Key,
+          );
+
+          console.log(
+            "Old seller profile deleted from B2:",
+            oldB2Key,
+          );
+        } catch (
+          deleteError
+        ) {
+          console.warn(
+            "Could not delete old seller profile from B2:",
+            deleteError.message,
+          );
+        }
+
+        /*
+         * Clean an old local copy too,
+         * if one still exists.
+         */
+        const oldLocalPath =
+          path.join(
+            profileUploadDir,
+            currentStudent.profile_image,
+          );
+
+        if (
+          fs.existsSync(
+            oldLocalPath,
+          )
+        ) {
+          fs.unlinkSync(
+            oldLocalPath,
+          );
+        }
+      }
+
+      /*
+       * New image was only temporarily
+       * stored locally for multer.
+       */
+      if (
+        temporaryProfilePath &&
+        fs.existsSync(
+          temporaryProfilePath,
+        )
+      ) {
+        fs.unlinkSync(
+          temporaryProfilePath,
+        );
+      }
+
+      await logAudit({
+        action:
+          "UPDATE_ACCOUNT_INFORMATION",
+        actor,
+        role: "Student",
+        status: "SUCCESS",
+        information:
+          "Seller account information updated successfully from settings.",
+      }).catch(
+        (auditError) =>
+          console.error(
+            "Unable to record update audit:",
+            auditError.message,
+          ),
+      );
+
+      return res.json({
+        message:
+          "Seller profile updated successfully.",
+
+        profile_image:
+          req.file?.filename,
+      });
+    } catch (error) {
+      console.error(
+        "Seller profile update error:",
+        error,
+      );
+
+      /*
+       * If B2 upload succeeded but the
+       * database update failed, clean up
+       * the newly uploaded B2 file.
+       */
+      if (newB2Key) {
+        try {
+          await deleteFromB2(
+            newB2Key,
+          );
+        } catch (
+          cleanupError
+        ) {
+          console.warn(
+            "Unable to clean failed B2 profile upload:",
+            cleanupError.message,
+          );
+        }
+      }
+
+      if (
+        temporaryProfilePath &&
+        fs.existsSync(
+          temporaryProfilePath,
+        )
+      ) {
+        fs.unlinkSync(
+          temporaryProfilePath,
+        );
+      }
+
+      await logAudit({
+        action:
+          "UPDATE_ACCOUNT_INFORMATION",
+        actor,
+        role: "Student",
+        status: "FAILED",
+        information:
+          `Seller account update failed: ${
+            error.code ===
+            "ER_DUP_ENTRY"
+              ? "Student number or email already exists."
+              : error.message ||
+                "Database error"
+          }`,
+      }).catch(
+        (auditError) =>
+          console.error(
+            "Unable to record update audit:",
+            auditError.message,
+          ),
+      );
+
+      if (
+        error.code ===
+        "ER_DUP_ENTRY"
+      ) {
+        return res
+          .status(409)
+          .json({
+            message:
+              "Student number or email already exists.",
+          });
+      }
+
+      return res
+        .status(500)
+        .json({
+          message:
+            "Unable to update seller profile.",
+        });
+    }
   },
 );
 

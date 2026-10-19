@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import {
+  Alert,
   Avatar,
   Box,
   Button,
@@ -14,7 +15,13 @@ import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
+import { cacheBuyerProfile, getBuyerSecuritySettings, updateBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
+
 export default function Profile() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -22,21 +29,72 @@ export default function Profile() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [profileImage, setProfileImage] = useState("");
 
-  useEffect(() => {
-    const storedUsername = localStorage.getItem("buyer_username");
-    const storedFirstName = localStorage.getItem("buyer_first_name");
-    const storedLastName = localStorage.getItem("buyer_last_name");
-    const storedEmail = localStorage.getItem("buyer_email");
-    const storedPhoneNumber = localStorage.getItem("buyer_phone_number");
-    const storedProfileImage = localStorage.getItem("buyer_profile_image");
+  const applyProfile = (profile) => {
+    setUsername(profile.username || "");
+    setFirstName(profile.first_name || "");
+    setLastName(profile.last_name || "");
+    setEmail(profile.email || "");
+    setPhoneNumber(profile.phone_number || "");
+    setProfileImage(profile.profile_image || "");
+    cacheBuyerProfile(profile);
+  };
 
-    setUsername(storedUsername || "N/A");
-    setFirstName(storedFirstName || "N/A");
-    setLastName(storedLastName || "N/A");
-    setEmail(storedEmail || "N/A");
-    setPhoneNumber(storedPhoneNumber || "N/A");
-    setProfileImage(storedProfileImage || "");
+  useEffect(() => {
+    let active = true;
+    getBuyerSecuritySettings().then((profile) => {
+      if (active) applyProfile(profile);
+    }).catch((err) => {
+      if (active) setError(err.message);
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    const profile = {
+      username: username.trim(), first_name: firstName.trim(),
+      last_name: lastName.trim(), email: email.trim(), phone_number: phoneNumber.trim(),
+    };
+    try {
+      await updateBuyerProfile(profile);
+      applyProfile({ ...profile, profile_image: profileImage });
+      setSuccess("Personal information updated successfully.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError("");
+    setSuccess("");
+    if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) {
+      setError("Choose an image of 2MB or smaller.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.append("profile_image", file);
+      const result = await updateBuyerProfile(form);
+      setProfileImage(result.profile_image);
+      cacheBuyerProfile({ profile_image: result.profile_image });
+      setSuccess("Profile photo updated successfully.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Box
@@ -50,6 +108,8 @@ export default function Profile() {
       </Helmet>
 
       <Box sx={{ maxWidth: 1120, mx: "auto" }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
         <Typography
           variant="overline"
           sx={{ color: "error.main", fontWeight: 800, letterSpacing: 1.5 }}
@@ -92,7 +152,7 @@ export default function Profile() {
               <Avatar
                 src={
                   profileImage
-                    ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
+                    ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
                     : "http://localhost:5000/uploads/buyer/profile.jpg"
                 }
                 sx={{
@@ -106,6 +166,11 @@ export default function Profile() {
               >
                 {username ? username.charAt(0).toUpperCase() : "U"}
               </Avatar>
+              <Button component="label" variant="outlined" color="inherit" disabled={loading || saving}>
+                {saving ? "Saving..." : "Upload photo"}
+                <input hidden type="file" accept="image/*" onChange={handleUpload} disabled={loading || saving} />
+              </Button>
+              <Typography variant="caption">Images up to 2MB</Typography>
               <Box>
                 <Typography
                   variant="h5"
@@ -135,6 +200,8 @@ export default function Profile() {
           </Box>
 
           <Box
+            component="form"
+            onSubmit={handleSave}
             sx={{
               p: { xs: 2.5, sm: 3.5 },
               border: "1px solid",
@@ -158,7 +225,7 @@ export default function Profile() {
                   color="text.secondary"
                   sx={{ mt: 0.5 }}
                 >
-                  Review the details connected to your account.
+                  Edit the details connected to your account.
                 </Typography>
               </Box>
               <EditOutlinedIcon sx={{ color: "error.main" }} />
@@ -178,20 +245,27 @@ export default function Profile() {
                 fullWidth
                 label="First name"
                 value={firstName}
-                InputProps={{ readOnly: true }}
+                onChange={(event) => setFirstName(event.target.value)}
+                required
+                disabled={loading || saving}
               />
               <TextField
                 fullWidth
                 label="Last name"
                 value={lastName}
-                InputProps={{ readOnly: true }}
+                onChange={(event) => setLastName(event.target.value)}
+                required
+                disabled={loading || saving}
               />
               <TextField
                 fullWidth
                 label="Email"
+                type="email"
                 value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                disabled={loading || saving}
                 InputProps={{
-                  readOnly: true,
                   startAdornment: (
                     <EmailOutlinedIcon
                       sx={{ mr: 1, color: "text.secondary" }}
@@ -202,9 +276,12 @@ export default function Profile() {
               <TextField
                 fullWidth
                 label="Phone number"
+                type="tel"
                 value={phoneNumber}
+                onChange={(event) => setPhoneNumber(event.target.value)}
+                required
+                disabled={loading || saving}
                 InputProps={{
-                  readOnly: true,
                   startAdornment: (
                     <PhoneOutlinedIcon
                       sx={{ mr: 1, color: "text.secondary" }}
@@ -216,18 +293,22 @@ export default function Profile() {
                 fullWidth
                 label="Username"
                 value={username}
-                InputProps={{ readOnly: true }}
+                onChange={(event) => setUsername(event.target.value)}
+                required
+                disabled={loading || saving}
                 sx={{ gridColumn: { sm: "1 / -1" } }}
               />
             </Box>
 
             <Button
+              type="submit"
+              disabled={loading || saving}
               variant="contained"
               color="error"
               startIcon={<EditOutlinedIcon />}
               sx={{ mt: 3, minWidth: 170 }}
             >
-              Update profile
+              {loading ? "Loading..." : saving ? "Saving..." : "Update profile"}
             </Button>
           </Box>
         </Box>

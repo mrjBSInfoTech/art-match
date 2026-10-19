@@ -174,7 +174,7 @@ export default function CustomerCard({
                   }}
                   image={
                     customer.image
-                      ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(customer.image)}`
+                      ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(customer.image)}`
                       : "http://localhost:5000/uploads/buyer/profile.jpg"
                   }
                   alt={getName(customer)}

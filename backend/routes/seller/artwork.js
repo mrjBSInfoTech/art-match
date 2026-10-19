@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
+import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
 
 const router = express.Router();
 
@@ -29,7 +30,9 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
   let detectedColors = "Pending";
   let detectedFeatures = null;
   const isDigital = art_type.trim().toLowerCase() === "digital";
-  const isPhoto = ["photography", "photo", "image"].includes(art_type.trim().toLowerCase());
+  const isPhoto = ["photography", "photo", "image"].includes(
+    art_type.trim().toLowerCase(),
+  );
   let detectedMediums = isDigital ? "Digital" : isPhoto ? "None" : null;
 
   // Analyze colors, features, and mediums when the seller uploads artwork.
@@ -56,16 +59,21 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
       }
 
       if (mlData.success) {
-        detectedFeatures = (Array.isArray(mlData.features)
-          ? mlData.features.join(", ") || "None"
-          : String(mlData.features || "None")).slice(0, 1000);
+        detectedFeatures = (
+          Array.isArray(mlData.features)
+            ? mlData.features.join(", ") || "None"
+            : String(mlData.features || "None")
+        ).slice(0, 1000);
         console.log("Detected features:", detectedFeatures);
-        detectedMediums = (isDigital
-          ? "Digital"
-          : isPhoto ? "None"
-          : Array.isArray(mlData.mediums)
-            ? mlData.mediums.join(", ") || "None"
-            : String(mlData.mediums || "None")).slice(0, 1000);
+        detectedMediums = (
+          isDigital
+            ? "Digital"
+            : isPhoto
+              ? "None"
+              : Array.isArray(mlData.mediums)
+                ? mlData.mediums.join(", ") || "None"
+                : String(mlData.mediums || "None")
+        ).slice(0, 1000);
         console.log("Detected mediums:", detectedMediums);
       }
     }
@@ -89,13 +97,13 @@ const storage = multer.diskStorage({
     const safeName = originalName.replace(/[^a-zA-Z0-9_-]/g, "_");
 
     // Check if file exists and generate unique name if needed
-    let filename = `${safeName}${ext}`;
-    let counter = 1;
+    const uniquePart =
+  `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
 
-    while (fs.existsSync(path.join(uploadDir, filename))) {
-      filename = `${safeName}_${counter}${ext}`;
-      counter++;
-    }
+    const filename =`${uniquePart}-${safeName}${ext}`; 
+    let counter = 1;
 
     cb(null, filename);
   },
@@ -280,6 +288,24 @@ router.post(
         await scanArtwork(absoluteImagePath, art_type, product);
 
       const imageName = req.file.filename;
+
+      const b2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
+
+      try {
+        await uploadToB2({
+          key: b2Key,
+          body: fs.readFileSync(absoluteImagePath),
+          contentType: req.file.mimetype || "application/octet-stream",
+        });
+
+        console.log("Artwork uploaded to B2:", b2Key);
+      } catch (b2Error) {
+        console.error("B2 artwork upload failed:", b2Error.message);
+
+        return res.status(502).json({
+          error: "Artwork image could not be uploaded to cloud storage.",
+        });
+      }
       const sql = `
       INSERT INTO artwork
       (student_id, title, art_size, art_type, product, genre, color_used, price, description, image, date_created)
@@ -320,11 +346,15 @@ router.post(
               return res.status(500).json({ error: uploadErr.message });
             }
 
-            const respond = () => res.json({
-              message: "Artwork added successfully!",
-              id: artworkId,
-              colors: detectedColors,
-            });
+            if (fs.existsSync(absoluteImagePath)) {
+              fs.unlinkSync(absoluteImagePath);
+            }
+            const respond = () =>
+              res.json({
+                message: "Artwork added successfully!",
+                id: artworkId,
+                colors: detectedColors,
+              });
 
             if (detectedFeatures === null && detectedMediums === null) {
               return respond();
@@ -381,142 +411,266 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
 });
 
 // Update artwork
-router.put("/:id", authenticateSeller, upload.single("file"), async (req, res) => {
-  const { id } = req.params;
-  const studentId = req.user?.student_id || req.user?.id;
-  const {
-    title,
-    art_size,
-    art_type,
-    product,
-    genre,
-    price,
-    description,
-    color_used,
-  } = req.body;
+router.put(
+  "/:id",
+  authenticateSeller,
+  upload.single("file"),
+  async (req, res) => {
+    const { id } = req.params;
 
-  if (!studentId) {
-    return res.status(403).json({ error: "Unable to identify seller" });
-  }
-  if (!title || !art_size || !genre || !price || !description) {
-    return res.status(400).json({ error: "Please fill all required fields." });
-  }
+    const studentId = req.user?.student_id || req.user?.id;
 
-  let previous;
-  let scan = null;
-  try {
-    const rows = await new Promise((resolve, reject) => {
-      db.query(
-        "SELECT image, art_type, product, color_used FROM artwork WHERE artwork_id = ? AND student_id = ?",
-        [id, studentId],
-        (err, results) => err ? reject(err) : resolve(results),
-      );
-    });
-    previous = rows[0];
-    if (!previous) return res.status(404).json({ error: "Artwork not found" });
-    if (req.file || previous.art_type !== art_type || previous.product !== product) {
-      const filename = req.file?.filename || previous.image;
-      scan = await scanArtwork(path.join(uploadDir, filename), art_type, product);
-    }
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-
-  const imageName = req.file ? req.file.filename : null;
-  const sql = `
-    UPDATE artwork
-    SET title = ?, art_size = ?, art_type = ?, product = ?, genre = ?, color_used = ?, price = ?, description = ?, image = COALESCE(?, image)
-    WHERE artwork_id = ? AND student_id = ?
-  `;
-
-  db.query(
-    sql,
-    [
-      title.trim(),
-      art_size.trim(),
-      art_type.trim(),
-      product.trim(),
-      genre.trim(),
-      scan?.detectedColors || (color_used || previous.color_used || "").trim(),
+    const {
+      title,
+      art_size,
+      art_type,
+      product,
+      genre,
       price,
-      description.trim(),
-      imageName,
-      id,
-      studentId,
-    ],
-    async (err, result) => {
-      if (err) {
-        console.error("DB Error:", err);
-        return res.status(500).json({ error: err.message });
-      }
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Artwork not found" });
-      }
-      if (scan) {
-        try {
-          await new Promise((resolve, reject) => {
-            db.query(
-              `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
-               VALUES (?, ?, ?)
-               ON DUPLICATE KEY UPDATE feature_scanned = VALUES(feature_scanned), mediums_used = VALUES(mediums_used)`,
-              [id, scan.detectedFeatures, scan.detectedMediums],
-              (scanErr) => scanErr ? reject(scanErr) : resolve(),
-            );
-          });
-        } catch (scanErr) {
-          return res.status(500).json({ error: scanErr.message });
-        }
-      }
-      if (req.file && previous.image && previous.image !== req.file.filename) {
-        const oldImagePath = path.join(uploadDir, previous.image);
-        fs.unlink(oldImagePath, (unlinkErr) => {
-          if (unlinkErr && unlinkErr.code !== "ENOENT") console.warn("Unable to remove old artwork image:", unlinkErr.message);
+      description,
+      color_used,
+    } = req.body;
+
+    if (!studentId) {
+      return res.status(403).json({
+        error: "Unable to identify seller",
+      });
+    }
+
+    if (!title || !art_size || !genre || !price || !description) {
+      return res.status(400).json({
+        error: "Please fill all required fields.",
+      });
+    }
+
+    const temporaryImagePath = req.file
+      ? path.join(uploadDir, req.file.filename)
+      : null;
+
+    try {
+      // Get current artwork/image.
+      const currentArtwork = await new Promise((resolve, reject) => {
+        db.query(
+          `SELECT image
+               FROM artwork
+               WHERE artwork_id = ?
+                 AND student_id = ?`,
+          [id, studentId],
+          (err, rows) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            resolve(rows?.[0] || null);
+          },
+        );
+      });
+
+      if (!currentArtwork) {
+        return res.status(404).json({
+          error: "Artwork not found",
         });
       }
-      res.json({ message: "Artwork updated successfully" });
-    },
-  );
-});
 
-// Delete artwork
-router.delete("/:id", authenticateSeller, (req, res) => {
-  const { id } = req.params;
-  const studentId = req.user?.student_id || req.user?.id;
-  if (!studentId) {
-    return res.status(403).json({ error: "Unable to identify seller" });
-  }
+      let imageName = null;
 
-  db.query(
-    "SELECT image FROM artwork WHERE artwork_id = ? AND student_id = ?",
-    [id, studentId],
-    (err, results) => {
-      if (err) {
-        console.error("DB Error:", err);
-        return res.status(500).json({ error: err.message });
+      // If seller selected a new image,
+      // upload it to B2 first.
+      if (req.file) {
+        imageName = req.file.filename;
+
+        const newB2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
+
+        await uploadToB2({
+          key: newB2Key,
+
+          body: fs.readFileSync(temporaryImagePath),
+
+          contentType: req.file.mimetype || "application/octet-stream",
+        });
+
+        console.log("Updated artwork image uploaded to B2:", newB2Key);
       }
-      if (results.length === 0) {
-        return res.status(404).json({ error: "Artwork not found" });
-      }
-      if (results && results[0]?.image) {
-        const imagePath = path.join(uploadDir, results[0].image);
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
+
+      const sql = `
+        UPDATE artwork
+        SET
+          title = ?,
+          art_size = ?,
+          art_type = ?,
+          product = ?,
+          genre = ?,
+          color_used = ?,
+          price = ?,
+          description = ?,
+          image = COALESCE(?, image)
+        WHERE artwork_id = ?
+          AND student_id = ?
+      `;
+
+      await new Promise((resolve, reject) => {
+        db.query(
+          sql,
+          [
+            title.trim(),
+            art_size.trim(),
+            art_type.trim(),
+            product.trim(),
+            genre.trim(),
+            (color_used || "").trim(),
+            price,
+            description.trim(),
+            imageName,
+            id,
+            studentId,
+          ],
+          (err, result) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            resolve(result);
+          },
+        );
+      });
+
+      // New image successfully saved
+      // to DB, so remove old B2 image.
+      if (
+        req.file &&
+        currentArtwork.image &&
+        currentArtwork.image !== imageName
+      ) {
+        const oldB2Key = `app-uploads/seller/uploadArtwork/${currentArtwork.image}`;
+
+        try {
+          await deleteFromB2(oldB2Key);
+
+          console.log("Old artwork image deleted from B2:", oldB2Key);
+        } catch (deleteError) {
+          console.warn("Could not delete old B2 image:", deleteError.message);
         }
       }
 
+      // Remove temporary local file.
+      if (temporaryImagePath && fs.existsSync(temporaryImagePath)) {
+        fs.unlinkSync(temporaryImagePath);
+      }
+
+      return res.json({
+        message: "Artwork updated successfully",
+      });
+    } catch (error) {
+      console.error("Artwork update error:", error);
+
+      // Clean temporary file
+      // even when update fails.
+      if (temporaryImagePath && fs.existsSync(temporaryImagePath)) {
+        fs.unlinkSync(temporaryImagePath);
+      }
+
+      return res.status(500).json({
+        error: "Failed to update artwork.",
+      });
+    }
+  },
+);
+
+// Delete artwork
+router.delete("/:id", authenticateSeller, async (req, res) => {
+  const { id } = req.params;
+
+  const studentId = req.user?.student_id || req.user?.id;
+
+  if (!studentId) {
+    return res.status(403).json({
+      error: "Unable to identify seller",
+    });
+  }
+
+  try {
+    const artwork = await new Promise((resolve, reject) => {
       db.query(
-        "DELETE FROM artwork WHERE artwork_id = ? AND student_id = ?",
+        `SELECT image
+               FROM artwork
+               WHERE artwork_id = ?
+                 AND student_id = ?`,
         [id, studentId],
-        (err) => {
+        (err, rows) => {
           if (err) {
-            console.error("DB Error:", err);
-            return res.status(500).json({ error: err.message });
+            reject(err);
+            return;
           }
-          res.json({ message: "Artwork deleted successfully" });
+
+          resolve(rows?.[0] || null);
         },
       );
-    },
-  );
+    });
+
+    if (!artwork) {
+      return res.status(404).json({
+        error: "Artwork not found",
+      });
+    }
+
+    // Delete database record first.
+    await new Promise((resolve, reject) => {
+      db.query(
+        `DELETE FROM artwork
+             WHERE artwork_id = ?
+               AND student_id = ?`,
+        [id, studentId],
+        (err, result) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          resolve(result);
+        },
+      );
+    });
+
+    // Then remove its cloud image.
+    if (artwork.image) {
+      const b2Key = `app-uploads/seller/uploadArtwork/${artwork.image}`;
+
+      try {
+        await deleteFromB2(b2Key);
+
+        console.log("Artwork image deleted from B2:", b2Key);
+      } catch (b2Error) {
+        // DB deletion already succeeded,
+        // so don't fail the whole request.
+        console.warn(
+          "Artwork deleted, but B2 cleanup failed:",
+          b2Error.message,
+        );
+      }
+    }
+
+    // Also clean an old local copy
+    // if one happens to exist.
+    if (artwork.image) {
+      const localPath = path.join(uploadDir, artwork.image);
+
+      if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+      }
+    }
+
+    return res.json({
+      message: "Artwork deleted successfully",
+    });
+  } catch (error) {
+    console.error("Artwork delete error:", error);
+
+    return res.status(500).json({
+      error: "Failed to delete artwork.",
+    });
+  }
 });
 
 export default router;

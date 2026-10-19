@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Avatar,
@@ -88,7 +88,7 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
         <Avatar
           src={
             profileImage
-              ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
+              ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
               : "http://localhost:5000/uploads/buyer/profile.jpg"
           }
           sx={{ width: 48, height: 48, flexShrink: 0 }}
@@ -135,6 +135,12 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [, refreshProfile] = useState(0);
+  useEffect(() => {
+    const refresh = () => refreshProfile((value) => value + 1);
+    window.addEventListener("buyer-profile-updated", refresh);
+    return () => window.removeEventListener("buyer-profile-updated", refresh);
+  }, []);
   const username = localStorage.getItem("buyer_username") || "";
   const buyerName =
     [

@@ -46,6 +46,9 @@ import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 // Routes (Chat of both buyer and seller)
 import chatRoutes from "./routes/chat.js";
 
+// Backblaze B2
+import { getFromB2 } from "./utils/b2Storage.js";
+
 dotenv.config();
 
 // ES Module fix for __dirname
@@ -70,6 +73,262 @@ const upload = multer({
   },
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
+
+// Artwork images stored in
+// private Backblaze B2.
+app.get(
+  "/uploads/seller/uploadArtwork/:filename",
+
+  async (req, res, next) => {
+    try {
+      const fileName = path.basename(req.params.filename);
+
+      const key = `app-uploads/seller/uploadArtwork/${fileName}`;
+
+      const object = await getFromB2(key);
+
+      if (object.ContentType) {
+        res.setHeader("Content-Type", object.ContentType);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=3600");
+
+      if (object.Body && typeof object.Body.pipe === "function") {
+        object.Body.pipe(res);
+
+        return;
+      }
+
+      const bytes = await object.Body.transformToByteArray();
+
+      res.send(Buffer.from(bytes));
+    } catch (error) {
+      // If B2 does not have this
+      // image yet, allow the old
+      // local folder to handle it.
+      const status = error?.$metadata?.httpStatusCode;
+
+      if (status === 404 || error?.name === "NoSuchKey") {
+        return next();
+      }
+
+      console.error("B2 artwork download error:", error.message);
+
+      return next();
+    }
+  },
+);
+
+// Seller profile images stored
+// in private Backblaze B2.
+//
+// Support BOTH URLs because older frontend
+// pages use /profile while newer pages
+// use /uploadProfile.
+app.get(
+  [
+    "/uploads/seller/uploadProfile/:filename",
+    "/uploads/seller/profile/:filename",
+  ],
+
+  async (req, res, next) => {
+    try {
+      const fileName = path.basename(req.params.filename);
+
+      // Actual B2 folder name
+      const key = `app-uploads/seller/uploadProfile/${fileName}`;
+
+      const object = await getFromB2(key);
+
+      if (object.ContentType) {
+        res.setHeader("Content-Type", object.ContentType);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=3600");
+
+      if (object.Body && typeof object.Body.pipe === "function") {
+        object.Body.pipe(res);
+        return;
+      }
+
+      const bytes = await object.Body.transformToByteArray();
+
+      res.send(Buffer.from(bytes));
+    } catch (error) {
+      const status = error?.$metadata?.httpStatusCode;
+
+      if (status === 404 || error?.name === "NoSuchKey") {
+        return next();
+      }
+
+      console.error("B2 seller profile download error:", error.message);
+
+      return next();
+    }
+  },
+);
+
+// Match the seller profile storage flow while preserving existing buyer URLs.
+app.get(
+  [
+    "/uploads/buyer/uploadProfile/:filename",
+    "/uploads/buyer/profile/:filename",
+  ],
+  async (req, res, next) => {
+    try {
+      const filename = path.basename(req.params.filename);
+      let object;
+      try {
+        object = await getFromB2(`app-uploads/buyer/uploadProfile/${filename}`);
+      } catch (error) {
+        if (
+          error?.$metadata?.httpStatusCode !== 404 &&
+          error?.name !== "NoSuchKey"
+        )
+          throw error;
+        object = await getFromB2(`app-uploads/buyer/profile/${filename}`);
+      }
+      if (object.ContentType) res.setHeader("Content-Type", object.ContentType);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      if (object.Body && typeof object.Body.pipe === "function") {
+        object.Body.pipe(res);
+        return;
+      }
+      res.send(Buffer.from(await object.Body.transformToByteArray()));
+    } catch (error) {
+      if (
+        error?.$metadata?.httpStatusCode !== 404 &&
+        error?.name !== "NoSuchKey"
+      ) {
+        console.error("B2 buyer profile download error:", error.message);
+      }
+      next();
+    }
+  },
+);
+
+// Keep older buyer image URLs working with the renamed uploadProfile folder.
+app.use(
+  "/uploads/buyer/profile",
+  express.static(path.join(__dirname, "uploads", "buyer", "uploadProfile")),
+);
+
+// Buyer profile images stored
+// in private Backblaze B2.
+//
+// Support BOTH URLs because the
+// frontend currently uses /profile,
+// while the real folder is uploadProfile.
+app.get(
+  [
+    "/uploads/buyer/uploadProfile/:filename",
+    "/uploads/buyer/profile/:filename",
+  ],
+
+  async (req, res, next) => {
+    try {
+      const fileName = path.basename(req.params.filename);
+
+      const key = `app-uploads/buyer/uploadProfile/${fileName}`;
+
+      const object = await getFromB2(key);
+
+      if (object.ContentType) {
+        res.setHeader("Content-Type", object.ContentType);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=3600");
+
+      if (object.Body && typeof object.Body.pipe === "function") {
+        object.Body.pipe(res);
+        return;
+      }
+
+      const bytes = await object.Body.transformToByteArray();
+
+      res.send(Buffer.from(bytes));
+    } catch (error) {
+      const status = error?.$metadata?.httpStatusCode;
+
+      if (status === 404 || error?.name === "NoSuchKey") {
+        return next();
+      }
+
+      console.error("B2 buyer profile download error:", error.message);
+
+      return next();
+    }
+  },
+);
+
+// Admin profile images stored
+// in private Backblaze B2.
+app.get(
+  "/uploads/admin/uploadAdmin/:filename",
+
+  async (req, res, next) => {
+    try {
+      const fileName =
+        path.basename(
+          req.params.filename,
+        );
+
+      const key =
+        `app-uploads/admin/uploadAdmin/${fileName}`;
+
+      const object =
+        await getFromB2(key);
+
+      if (object.ContentType) {
+        res.setHeader(
+          "Content-Type",
+          object.ContentType,
+        );
+      }
+
+      res.setHeader(
+        "Cache-Control",
+        "private, max-age=3600",
+      );
+
+      if (
+        object.Body &&
+        typeof object.Body.pipe ===
+          "function"
+      ) {
+        object.Body.pipe(res);
+        return;
+      }
+
+      const bytes =
+        await object.Body
+          .transformToByteArray();
+
+      res.send(
+        Buffer.from(bytes),
+      );
+    } catch (error) {
+      const status =
+        error?.$metadata
+          ?.httpStatusCode;
+
+      if (
+        status === 404 ||
+        error?.name ===
+          "NoSuchKey"
+      ) {
+        return next();
+      }
+
+      console.error(
+        "B2 admin profile download error:",
+        error.message,
+      );
+
+      return next();
+    }
+  },
+);
 
 // Serve static files with absolute path
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -130,7 +389,9 @@ ensureBuyerPrivacyColumn()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureConversationReadStateTable())
-  .then(() => app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)))
+  .then(() =>
+    app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)),
+  )
   .catch((error) => {
     console.error("Unable to initialize database schema:", error.message);
     process.exit(1);

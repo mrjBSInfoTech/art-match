@@ -127,21 +127,26 @@ function BuyerLayoutContent({ children }) {
   const handleCloseDialog = () => setOpenDialog(false);
 
   useEffect(() => {
-    const storedLoggedIn = localStorage.getItem("buyer_token");
-    const storedUsername = localStorage.getItem("buyer_username");
-    const storedFirstName = localStorage.getItem("buyer_first_name");
-    const storedLastName = localStorage.getItem("buyer_last_name");
-    const storedEmail = localStorage.getItem("buyer_email");
-    const storedPhoneNumber = localStorage.getItem("buyer_phone_number");
-    const storedProfileImage = localStorage.getItem("buyer_profile_image");
-
-    setUsername(storedUsername || "");
-    setFirstName(storedFirstName || "");
-    setLastName(storedLastName || "");
-    setEmail(storedEmail || "");
-    setPhoneNumber(storedPhoneNumber || "");
-    setProfileImage(storedProfileImage || "");
-    setLoggedIn(!!storedLoggedIn);
+    const refreshProfile = () => {
+      const storedLoggedIn = localStorage.getItem("buyer_token");
+      const storedUsername = localStorage.getItem("buyer_username");
+      const storedFirstName = localStorage.getItem("buyer_first_name");
+      const storedLastName = localStorage.getItem("buyer_last_name");
+      const storedEmail = localStorage.getItem("buyer_email");
+      const storedPhoneNumber = localStorage.getItem("buyer_phone_number");
+      const storedProfileImage = localStorage.getItem("buyer_profile_image");
+  
+      setUsername(storedUsername || "");
+      setFirstName(storedFirstName || "");
+      setLastName(storedLastName || "");
+      setEmail(storedEmail || "");
+      setPhoneNumber(storedPhoneNumber || "");
+      setProfileImage(storedProfileImage || "");
+      setLoggedIn(!!storedLoggedIn);
+    };
+    refreshProfile();
+    window.addEventListener("buyer-profile-updated", refreshProfile);
+    return () => window.removeEventListener("buyer-profile-updated", refreshProfile);
   }, []);
 
   useEffect(() => {
@@ -630,7 +635,7 @@ function BuyerLayoutContent({ children }) {
                   <Avatar
                     src={
                       profileImage
-                        ? `http://localhost:5000/uploads/buyer/profile/${encodeURIComponent(profileImage)}`
+                        ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
                         : "http://localhost:5000/uploads/buyer/profile.jpg"
                     }
                     sx={{ width: 60, height: 60, flexShrink: 0 }}

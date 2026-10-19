@@ -58,6 +58,29 @@ const authenticatedConfig = () => ({
   },
 });
 
+export const cacheBuyerProfile = (profile) => {
+  for (const field of ["username", "first_name", "last_name", "email", "phone_number", "profile_image"]) {
+    if (Object.hasOwn(profile, field)) {
+      localStorage.setItem(`buyer_${field}`, profile[field] || "");
+    }
+  }
+  window.dispatchEvent(new Event("buyer-profile-updated"));
+};
+
+export const updateBuyerProfile = async (profile) => {
+  try {
+    const config = authenticatedConfig();
+    if (profile instanceof FormData) {
+      config.headers["Content-Type"] = "multipart/form-data";
+      config.timeout = 30000;
+    }
+    const res = await api.put("/me", profile, config);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const getBuyerSecuritySettings = async () => {
   try {
     const res = await api.get("/me", authenticatedConfig());

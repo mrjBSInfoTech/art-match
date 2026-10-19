@@ -5,6 +5,7 @@ import db from "../../database/db.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import multer from "multer";
+import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -19,7 +20,7 @@ const profileUploadDir = path.join(
   "..",
   "uploads",
   "buyer",
-  "profile",
+  "uploadProfile",
 );
 fs.mkdirSync(profileUploadDir, { recursive: true });
 const profileUpload = multer({
@@ -32,7 +33,10 @@ const profileUpload = multer({
       ),
   }),
   limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith("image/")),
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) return cb(new Error("Only image files are allowed."));
+    cb(null, true);
+  },
 });
 
 // Register route
@@ -170,48 +174,81 @@ router.get("/me", authenticateBuyer, (req, res) => {
 router.put(
   "/me",
   authenticateBuyer,
-  profileUpload.single("profile_image"),
+  (req, res, next) => {
+    profileUpload.single("profile_image")(req, res, (error) => {
+      if (error) return res.status(400).json({
+        message: error.code === "LIMIT_FILE_SIZE" ? "Image must be 2MB or smaller." : error.message,
+      });
+      next();
+    });
+  },
   async (req, res) => {
-    const fields = [
-      "username",
-      "first_name",
-      "last_name",
-      "email",
-      "phone_number",
-    ];
-    const updates = fields.filter((field) => Object.hasOwn(req.body, field));
-    const values = updates.map((field) => req.body[field]);
-    if (Object.hasOwn(req.body, "is_private")) {
-      if (typeof req.body.is_private !== "boolean") {
-        return res.status(400).json({ message: "Privacy setting must be a boolean." });
-      }
-      updates.push("is_private");
-      values.push(req.body.is_private ? 1 : 0);
-    }
-    if (req.file) {
-      updates.push("profile_image");
-      values.push(req.file.filename);
-    }
-    if (!updates.length)
-      return res.status(400).json({ message: "No profile changes supplied." });
-
-    db.query(
-      `UPDATE customer SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`,
-      [...values, req.user.customer_id],
-      (err) => {
-        if (err) {
-          if (err.code === "ER_DUP_ENTRY")
-            return res
-              .status(409)
-              .json({ message: "Username or email already exists." });
-          return res.status(500).json({ message: "Database error" });
+    let uploadedKey = null;
+    let committed = false;
+    const removeCloudImage = async (key) => {
+      try { await deleteFromB2(key); }
+      catch (error) { console.warn("Buyer profile image cleanup failed:", error.message); }
+    };
+    try {
+      const fields = ["username", "first_name", "last_name", "email", "phone_number"];
+      const updates = fields.filter((field) => Object.hasOwn(req.body, field));
+      for (const field of updates) {
+        if (typeof req.body[field] !== "string" || !req.body[field].trim()) {
+          return res.status(400).json({ message: "Personal information fields cannot be empty." });
         }
-        res.json({
-          message: "Buyer profile updated successfully.",
-          profile_image: req.file?.filename,
-        });
-      },
-    );
+        req.body[field] = req.body[field].trim();
+      }
+      if (updates.includes("email") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email)) {
+        return res.status(400).json({ message: "Enter a valid email address." });
+      }
+      const values = updates.map((field) => req.body[field]);
+      if (Object.hasOwn(req.body, "is_private")) {
+        if (typeof req.body.is_private !== "boolean") {
+          return res.status(400).json({ message: "Privacy setting must be a boolean." });
+        }
+        updates.push("is_private");
+        values.push(req.body.is_private ? 1 : 0);
+      }
+      if (!updates.length && !req.file) {
+        return res.status(400).json({ message: "No profile changes supplied." });
+      }
+      const [rows] = await db.promise().query(
+        "SELECT profile_image FROM customer WHERE customer_id = ? LIMIT 1",
+        [req.user.customer_id],
+      );
+      if (!rows.length) return res.status(404).json({ message: "Buyer not found." });
+      if (req.file) {
+        const key = `app-uploads/buyer/uploadProfile/${req.file.filename}`;
+        try {
+          await uploadToB2({ key, body: await fs.promises.readFile(req.file.path), contentType: req.file.mimetype });
+          uploadedKey = key;
+        } catch (error) {
+          console.error("Buyer profile upload failed:", error.message);
+          return res.status(502).json({ message: "Profile image could not be uploaded to cloud storage." });
+        }
+        updates.push("profile_image");
+        values.push(req.file.filename);
+      }
+      await db.promise().query(
+        `UPDATE customer SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`,
+        [...values, req.user.customer_id],
+      );
+      committed = true;
+      if (req.file && rows[0].profile_image) {
+        await removeCloudImage(`app-uploads/buyer/uploadProfile/${path.basename(rows[0].profile_image)}`);
+      }
+      await logAudit({ action: "UPDATE_ACCOUNT_INFORMATION", actor: req.user.customer_id,
+        role: "Customer", status: "SUCCESS", information: "Buyer profile updated successfully." }).catch(() => {});
+      res.json({ message: "Buyer profile updated successfully.", profile_image: req.file?.filename });
+    } catch (error) {
+      if (uploadedKey && !committed) await removeCloudImage(uploadedKey);
+      console.error("Buyer profile update failed:", error.message);
+      res.status(error.code === "ER_DUP_ENTRY" ? 409 : 500).json({
+        message: error.code === "ER_DUP_ENTRY" ? "Username or email already exists." : "Unable to update buyer profile.",
+      });
+    } finally {
+      if (req.file) await fs.promises.unlink(req.file.path).catch(() => {});
+    }
   },
 );
 

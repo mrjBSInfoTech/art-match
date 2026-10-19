@@ -86,7 +86,7 @@ const toAbsoluteProfileImageUrl = (image, accountType) => {
     : "http://localhost:5000/uploads/buyer/profile.jpg";
   if (/^https?:\/\//i.test(image)) return image;
   if (image.startsWith("/")) return `http://localhost:5000${image}`;
-  const folder = accountType === "seller" ? "uploadProfile" : "profile";
+  const folder = "uploadProfile";
   return `http://localhost:5000/uploads/${accountType}/${folder}/${encodeURIComponent(image)}`;
 };
 
