@@ -5,3 +5,4 @@ frontend/.env
 !.env.example
 node_modules/
 dist/gi
+backend/.cache/

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -77,260 +78,326 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
-// Artwork images stored in
-// private Backblaze B2.
-app.get(
-  "/uploads/seller/uploadArtwork/:filename",
+// =====================================================
+// Backblaze B2 local disk cache
+// =====================================================
 
+const B2_CACHE_ROOT = path.join(__dirname, ".cache", "b2");
+
+fs.mkdirSync(B2_CACHE_ROOT, {
+  recursive: true,
+});
+
+/*
+ * Prevent several simultaneous requests
+ * for the same uncached B2 object from
+ * downloading the same file repeatedly.
+ */
+const b2InFlight = new Map();
+
+/*
+ * If the B2 download cap has been reached,
+ * temporarily stop hammering B2 on every
+ * image request.
+ */
+let b2DownloadBlockedUntil = 0;
+
+const B2_CAP_COOLDOWN_MS = 15 * 60 * 1000;
+
+const isB2CapError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    message.includes("cap exceeded") ||
+    message.includes("transaction (class b) cap") ||
+    message.includes("download bandwidth")
+  );
+};
+
+const getCachePath = (key) => {
+  const parts = key
+    .split("/")
+    .filter(Boolean)
+    .map((part) => path.basename(part));
+
+  return path.join(B2_CACHE_ROOT, ...parts);
+};
+
+const bodyToBuffer = async (body) => {
+  if (!body) {
+    throw new Error("B2 returned an empty file body.");
+  }
+
+  if (typeof body.transformToByteArray === "function") {
+    const bytes = await body.transformToByteArray();
+
+    return Buffer.from(bytes);
+  }
+
+  const chunks = [];
+
+  for await (const chunk of body) {
+    chunks.push(Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
+};
+
+/*
+ * Download one B2 object and store it
+ * in the local cache.
+ *
+ * Multiple simultaneous requests for
+ * the same key share the same download.
+ */
+const downloadAndCacheB2 = async (key, cachePath) => {
+  if (b2InFlight.has(key)) {
+    return b2InFlight.get(key);
+  }
+
+  const operation = (async () => {
+    const object = await getFromB2(key);
+
+    const body = await bodyToBuffer(object.Body);
+
+    await fs.promises.mkdir(path.dirname(cachePath), {
+      recursive: true,
+    });
+
+    await fs.promises.writeFile(cachePath, body);
+
+    return {
+      body,
+      contentType: object.ContentType || null,
+    };
+  })();
+
+  b2InFlight.set(key, operation);
+
+  try {
+    return await operation;
+  } finally {
+    b2InFlight.delete(key);
+  }
+};
+
+/*
+ * Creates a normal Express middleware
+ * for cached private B2 objects.
+ */
+const serveB2Cached =
+  ({
+    keyPrefix,
+    localFolder,
+    label,
+    cacheControl = "private, max-age=86400",
+  }) =>
   async (req, res, next) => {
+    const fileName = path.basename(req.params.filename);
+
+    const key = `${keyPrefix}/${fileName}`;
+
+    const cachePath = getCachePath(key);
+
+    /*
+     * 1. Already cached locally.
+     *
+     * No B2 request required.
+     */
+    if (fs.existsSync(cachePath)) {
+      res.setHeader("Cache-Control", cacheControl);
+
+      res.setHeader("X-ArtMatch-Storage", "cache");
+
+      return res.sendFile(cachePath);
+    }
+
+    /*
+     * 2. Check whether an old local
+     * copy still exists.
+     *
+     * This is useful for files migrated
+     * to B2 but intentionally not deleted
+     * from the old uploads folder.
+     */
+    if (localFolder) {
+      const localPath = path.join(localFolder, fileName);
+
+      if (fs.existsSync(localPath)) {
+        try {
+          await fs.promises.mkdir(path.dirname(cachePath), {
+            recursive: true,
+          });
+
+          await fs.promises.copyFile(localPath, cachePath);
+
+          console.log(`${label} cached from old local copy:`, fileName);
+        } catch (cacheError) {
+          console.warn(`${label} local cache copy failed:`, cacheError.message);
+        }
+
+        res.setHeader("Cache-Control", cacheControl);
+
+        res.setHeader("X-ArtMatch-Storage", "local");
+
+        return res.sendFile(localPath);
+      }
+    }
+
+    /*
+     * 3. If we recently detected the
+     * B2 cap, don't repeatedly send
+     * doomed requests for 60 seconds.
+     */
+    if (Date.now() < b2DownloadBlockedUntil) {
+      return next();
+    }
+
+    /*
+     * 4. Not available locally.
+     * Download it from B2 once.
+     */
     try {
-      const fileName = path.basename(req.params.filename);
+      const result = await downloadAndCacheB2(key, cachePath);
 
-      const key = `app-uploads/seller/uploadArtwork/${fileName}`;
-
-      const object = await getFromB2(key);
-
-      if (object.ContentType) {
-        res.setHeader("Content-Type", object.ContentType);
+      if (result.contentType) {
+        res.setHeader("Content-Type", result.contentType);
       }
 
-      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.setHeader("Cache-Control", cacheControl);
 
-      if (object.Body && typeof object.Body.pipe === "function") {
-        object.Body.pipe(res);
+      res.setHeader("X-ArtMatch-Storage", "b2");
 
-        return;
-      }
+      console.log(`${label} downloaded and cached:`, key);
 
-      const bytes = await object.Body.transformToByteArray();
-
-      res.send(Buffer.from(bytes));
+      return res.send(result.body);
     } catch (error) {
-      // If B2 does not have this
-      // image yet, allow the old
-      // local folder to handle it.
       const status = error?.$metadata?.httpStatusCode;
 
       if (status === 404 || error?.name === "NoSuchKey") {
         return next();
       }
 
-      console.error("B2 artwork download error:", error.message);
+      if (isB2CapError(error)) {
+        const wasAlreadyBlocked = Date.now() < b2DownloadBlockedUntil;
+
+        b2DownloadBlockedUntil = Math.max(
+          b2DownloadBlockedUntil,
+          Date.now() + B2_CAP_COOLDOWN_MS,
+        );
+
+        /*
+         * Only print the warning once.
+         * Other image requests may already
+         * have been in flight when the cap
+         * was detected.
+         */
+        if (!wasAlreadyBlocked) {
+          console.error("");
+          console.error("⚠️ B2 download cap is currently exceeded.");
+
+          console.error("B2 downloads are temporarily paused for 15 minutes.");
+
+          console.error("Cached/local images will continue working.");
+
+          console.error("");
+        }
+
+        return next();
+      }
+
+      console.error(`${label} B2 download error:`, error.message);
 
       return next();
     }
-  },
+  };
+
+// =====================================================
+// Artwork images
+// =====================================================
+
+app.get(
+  "/uploads/seller/uploadArtwork/:filename",
+
+  serveB2Cached({
+    keyPrefix: "app-uploads/seller/uploadArtwork",
+
+    localFolder: path.join(__dirname, "uploads", "seller", "uploadArtwork"),
+
+    label: "Artwork",
+
+    cacheControl: "public, max-age=86400",
+  }),
 );
 
-// Seller profile images stored
-// in private Backblaze B2.
-//
-// Support BOTH URLs because older frontend
-// pages use /profile while newer pages
-// use /uploadProfile.
+// =====================================================
+// Seller profile images
+// =====================================================
+
 app.get(
   [
     "/uploads/seller/uploadProfile/:filename",
     "/uploads/seller/profile/:filename",
   ],
 
-  async (req, res, next) => {
-    try {
-      const fileName = path.basename(req.params.filename);
+  serveB2Cached({
+    keyPrefix: "app-uploads/seller/uploadProfile",
 
-      // Actual B2 folder name
-      const key = `app-uploads/seller/uploadProfile/${fileName}`;
+    localFolder: path.join(__dirname, "uploads", "seller", "uploadProfile"),
 
-      const object = await getFromB2(key);
-
-      if (object.ContentType) {
-        res.setHeader("Content-Type", object.ContentType);
-      }
-
-      res.setHeader("Cache-Control", "public, max-age=3600");
-
-      if (object.Body && typeof object.Body.pipe === "function") {
-        object.Body.pipe(res);
-        return;
-      }
-
-      const bytes = await object.Body.transformToByteArray();
-
-      res.send(Buffer.from(bytes));
-    } catch (error) {
-      const status = error?.$metadata?.httpStatusCode;
-
-      if (status === 404 || error?.name === "NoSuchKey") {
-        return next();
-      }
-
-      console.error("B2 seller profile download error:", error.message);
-
-      return next();
-    }
-  },
+    label: "Seller profile",
+  }),
 );
 
-// Match the seller profile storage flow while preserving existing buyer URLs.
-app.get(
-  [
-    "/uploads/buyer/uploadProfile/:filename",
-    "/uploads/buyer/profile/:filename",
-  ],
-  async (req, res, next) => {
-    try {
-      const filename = path.basename(req.params.filename);
-      let object;
-      try {
-        object = await getFromB2(`app-uploads/buyer/uploadProfile/${filename}`);
-      } catch (error) {
-        if (
-          error?.$metadata?.httpStatusCode !== 404 &&
-          error?.name !== "NoSuchKey"
-        )
-          throw error;
-        object = await getFromB2(`app-uploads/buyer/profile/${filename}`);
-      }
-      if (object.ContentType) res.setHeader("Content-Type", object.ContentType);
-      res.setHeader("Cache-Control", "public, max-age=3600");
-      if (object.Body && typeof object.Body.pipe === "function") {
-        object.Body.pipe(res);
-        return;
-      }
-      res.send(Buffer.from(await object.Body.transformToByteArray()));
-    } catch (error) {
-      if (
-        error?.$metadata?.httpStatusCode !== 404 &&
-        error?.name !== "NoSuchKey"
-      ) {
-        console.error("B2 buyer profile download error:", error.message);
-      }
-      next();
-    }
-  },
-);
+// =====================================================
+// Buyer profile images
+// =====================================================
 
-// Keep older buyer image URLs working with the renamed uploadProfile folder.
-app.use(
-  "/uploads/buyer/profile",
-  express.static(path.join(__dirname, "uploads", "buyer", "uploadProfile")),
-);
-
-// Buyer profile images stored
-// in private Backblaze B2.
-//
-// Support BOTH URLs because the
-// frontend currently uses /profile,
-// while the real folder is uploadProfile.
 app.get(
   [
     "/uploads/buyer/uploadProfile/:filename",
     "/uploads/buyer/profile/:filename",
   ],
 
-  async (req, res, next) => {
-    try {
-      const fileName = path.basename(req.params.filename);
+  serveB2Cached({
+    keyPrefix: "app-uploads/buyer/uploadProfile",
 
-      const key = `app-uploads/buyer/uploadProfile/${fileName}`;
+    localFolder: path.join(__dirname, "uploads", "buyer", "uploadProfile"),
 
-      const object = await getFromB2(key);
-
-      if (object.ContentType) {
-        res.setHeader("Content-Type", object.ContentType);
-      }
-
-      res.setHeader("Cache-Control", "public, max-age=3600");
-
-      if (object.Body && typeof object.Body.pipe === "function") {
-        object.Body.pipe(res);
-        return;
-      }
-
-      const bytes = await object.Body.transformToByteArray();
-
-      res.send(Buffer.from(bytes));
-    } catch (error) {
-      const status = error?.$metadata?.httpStatusCode;
-
-      if (status === 404 || error?.name === "NoSuchKey") {
-        return next();
-      }
-
-      console.error("B2 buyer profile download error:", error.message);
-
-      return next();
-    }
-  },
+    label: "Buyer profile",
+  }),
 );
 
-// Admin profile images stored
-// in private Backblaze B2.
+// =====================================================
+// Admin profile images
+// =====================================================
+
 app.get(
   "/uploads/admin/uploadAdmin/:filename",
 
-  async (req, res, next) => {
-    try {
-      const fileName =
-        path.basename(
-          req.params.filename,
-        );
+  serveB2Cached({
+    keyPrefix: "app-uploads/admin/uploadAdmin",
 
-      const key =
-        `app-uploads/admin/uploadAdmin/${fileName}`;
+    localFolder: path.join(__dirname, "uploads", "admin", "uploadAdmin"),
 
-      const object =
-        await getFromB2(key);
+    label: "Admin profile",
+  }),
+);
 
-      if (object.ContentType) {
-        res.setHeader(
-          "Content-Type",
-          object.ContentType,
-        );
-      }
+// =====================================================
+// Chat attachments
+// =====================================================
 
-      res.setHeader(
-        "Cache-Control",
-        "private, max-age=3600",
-      );
+app.get(
+  "/uploads/chat/:filename",
 
-      if (
-        object.Body &&
-        typeof object.Body.pipe ===
-          "function"
-      ) {
-        object.Body.pipe(res);
-        return;
-      }
+  serveB2Cached({
+    keyPrefix: "app-uploads/chat",
 
-      const bytes =
-        await object.Body
-          .transformToByteArray();
+    localFolder: path.join(__dirname, "uploads", "chat"),
 
-      res.send(
-        Buffer.from(bytes),
-      );
-    } catch (error) {
-      const status =
-        error?.$metadata
-          ?.httpStatusCode;
-
-      if (
-        status === 404 ||
-        error?.name ===
-          "NoSuchKey"
-      ) {
-        return next();
-      }
-
-      console.error(
-        "B2 admin profile download error:",
-        error.message,
-      );
-
-      return next();
-    }
-  },
+    label: "Chat attachment",
+  }),
 );
 
 // Serve static files with absolute path

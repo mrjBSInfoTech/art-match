@@ -2,6 +2,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
+import { rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 
 const router = express.Router();
 const CLIENT_EVENTS = new Set(["view", "search", "filter"]);
@@ -1155,6 +1156,63 @@ router.get("/recently-viewed", async (req, res) => {
     return res.status(500).json({
       message: "Unable to load recently viewed artworks.",
     });
+  }
+});
+
+router.get("/seller/:sellerId", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const sellerId = Number(req.params.sellerId);
+  if (!/^\d+$/.test(req.params.sellerId) || !Number.isSafeInteger(sellerId) || sellerId <= 0) {
+    return res.status(400).json({ message: "Invalid seller id." });
+  }
+  const topK = Number(req.query.top_k ?? 8);
+  if ((req.query.top_k !== undefined &&
+    (typeof req.query.top_k !== "string" || !/^\d+$/.test(req.query.top_k))) ||
+    !Number.isInteger(topK) || topK < 1 || topK > 20) {
+    return res.status(400).json({ message: "Top k must be between 1 and 20." });
+  }
+
+  try {
+    const [sellers] = await db.promise().query(
+      `SELECT s.student_id, sf.specialties
+       FROM student s
+       LEFT JOIN storefront sf ON sf.student_id = s.student_id
+       LEFT JOIN accregistration ac ON ac.student_id = s.student_id
+       WHERE s.student_id = ?
+         AND (ac.register_status IS NULL OR LOWER(ac.register_status) = 'verified')
+       LIMIT 1`,
+      [sellerId],
+    );
+    if (!sellers.length) return res.status(404).json({ message: "Seller not found." });
+
+    // Sold/unavailable works still describe this seller, but only approved works
+    // contribute context. Recommendations use the existing available catalog.
+    const [[sellerArtworks], candidateIds] = await Promise.all([
+      db.promise().query(
+        `SELECT a.artwork_id, a.student_id, a.art_type, a.genre, a.color_used,
+                f.mediums_used, f.feature_scanned
+         FROM artwork a
+         LEFT JOIN feature f ON f.artwork_id = a.artwork_id
+         WHERE a.student_id = ?
+           AND EXISTS (
+             SELECT 1 FROM artupload au
+             WHERE au.artwork_id = a.artwork_id
+               AND LOWER(au.request_status) = 'verified'
+           )`,
+        [sellerId],
+      ),
+      getAvailableCandidateArtworkIds(),
+    ]);
+    const candidates = await attachArtworkDetails(
+      candidateIds.map((artworkId) => ({ artwork_id: artworkId })),
+    );
+    const recommendations = rankSellerRelatedArtworks({
+      sellerId, specialties: sellers[0].specialties, sellerArtworks, candidates, topK,
+    });
+    return res.json({ mode: "seller_related", seller_id: sellerId, recommendations });
+  } catch (error) {
+    console.error("Seller recommendation retrieval error:", error);
+    return res.status(500).json({ message: "Unable to load related artworks." });
   }
 });
 

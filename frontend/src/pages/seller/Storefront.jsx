@@ -20,6 +20,7 @@ import {
   saveStorefront,
 } from "../../api/seller/storefrontAPI";
 import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
+import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -39,20 +40,10 @@ const defaultSettings = {
   pickupEnabled: true,
 };
 
-const specialtyOptions = [
-  "Oil Painting",
-  "Acrylic Painting",
-  "Watercolor",
-  "Landscape",
-  "Portrait",
-  "Abstract",
-  "Impressionism",
-  "Still Life",
-  "Mixed Media",
-  "Surrealism",
-  "Digital Art",
-  "Minimalism",
-];
+const specialtyOptions = [...new Set([
+  ...ART_2D_MATERIALS.map((material) => `${material} Painting`),
+  ...ART_STYLES,
+])];
 
 const parseArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -86,6 +77,9 @@ export default function Storefront() {
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
   const [savingPinId, setSavingPinId] = useState(null);
   const [savingSpecialties, setSavingSpecialties] = useState(false);
+  const visiblePinnedCount = artworks.filter((artwork) =>
+    pinnedArtworkIds.includes(String(artwork.artwork_id ?? artwork.id)),
+  ).length;
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
@@ -252,7 +246,11 @@ export default function Storefront() {
           : response?.data && Array.isArray(response.data)
             ? response.data
             : [];
-        setArtworks(data);
+        setArtworks(data.filter((artwork) =>
+          ["verified", "approved"].includes(
+            String(artwork.request_status ?? artwork.status ?? "").trim().toLowerCase(),
+          ),
+        ));
       } catch (err) {
         setArtworks([]);
         setError(err?.message || "Failed to load artworks.");
@@ -475,7 +473,7 @@ export default function Storefront() {
           </Typography>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Choose up to 3 art styles that best describe your work.
+            Choose up to 3 materials or art styles that best describe your work.
           </Typography>
 
           <Stack spacing={2}>
@@ -523,7 +521,7 @@ export default function Storefront() {
                     customSpecialty: e.target.value,
                   }))
                 }
-                placeholder="Add custom art style"
+                placeholder="Add custom specialty"
                 sx={{ flex: 1, minWidth: 220 }}
                 disabled={savingSpecialties}
               />
@@ -569,8 +567,8 @@ export default function Storefront() {
 
             <Typography variant="caption" color="text.secondary">
               {customSpecialtyLimitReached
-                ? "You have reached the maximum of 3 styles."
-                : `${3 - selectedSpecialties.length} style slots remaining.`}
+                ? "You have reached the maximum of 3 specialties."
+                : `${3 - selectedSpecialties.length} specialty slots remaining.`}
             </Typography>
           </Stack>
         </Paper>
@@ -596,17 +594,17 @@ export default function Storefront() {
             >
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Your artworks
+                  Verified artworks
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Pin the pieces you want to feature most prominently.
+                  Pin verified pieces you want to feature most prominently.
                 </Typography>
               </Box>
               <Chip
-                label={`${pinnedArtworkIds.length} pinned`}
-                color={pinnedArtworkIds.length > 0 ? "primary" : "default"}
-                variant={pinnedArtworkIds.length > 0 ? "filled" : "outlined"}
-                sx={{color: "#fff"}}
+                label={`${visiblePinnedCount} pinned`}
+                color={visiblePinnedCount > 0 ? "primary" : "default"}
+                variant={visiblePinnedCount > 0 ? "filled" : "outlined"}
+                sx={{color: "text.primary", fontWeight: 700, borderRadius: 999}}
               />
             </Box>
 
@@ -637,9 +635,9 @@ export default function Storefront() {
                   textAlign: "center",
                 }}
               >
-                <Typography variant="h6">No artwork found</Typography>
+                <Typography variant="h6">No verified artworks yet</Typography>
                 <Typography color="text.secondary">
-                  Upload an artwork to start building your storefront.
+                  Artworks will appear here after they are verified.
                 </Typography>
               </Box>
             )}

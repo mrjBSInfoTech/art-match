@@ -23,6 +23,7 @@ import { styled } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import { ART_TYPES, ART_STYLES } from "../../../constants/artworkOptions";
+import { changeArtworkFormField, getArtworkFormOptions } from "../../../utils/artworkFormOptions";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive" && prop !== "hasError",
@@ -78,6 +79,15 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
     file: null,
     date_posted: "",
   });
+  const typeOptions = getArtworkFormOptions(formData.art_type);
+  const hasArtType = Boolean(formData.art_type);
+  const needsProductChoice = !typeOptions || Boolean(typeOptions.productOptions);
+  const showDetails = hasArtType && (!needsProductChoice || Boolean(formData.product));
+  const productOptions = typeOptions?.productOptions || [
+    { value: "painting", label: "Painting" },
+    { value: "image", label: "Image / Photograph" },
+    { value: "3d_object", label: "3D Object" },
+  ];
   const theme = useTheme();
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
@@ -87,8 +97,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
 
   const uploadReminder = formData.art_type === "digital"
     ? "Upload the complete digital artwork without app controls or borders. Its medium will be set to Digital automatically."
-    : formData.art_type === "photography"
-      ? "Upload the complete photograph. Colors and image features will be detected; no medium will be assigned."
+    : ["photography", "print"].includes(formData.art_type)
+      ? "Upload the complete photograph or print. Colors and image features will be detected; no medium will be assigned."
       : formData.art_type === "painting" || formData.product === "painting"
         ? "Take a straight-on photo of the entire painting and crop out the surrounding background. A scanner app such as CamScanner can help make the painting fill the image."
         : formData.art_type
@@ -101,10 +111,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
         title: selectedArtwork.title || "",
         art_size: selectedArtwork.art_size || "",
         art_type: selectedArtwork.art_type || "",
-        product: selectedArtwork.art_type === "photography" ? "image"
-          : ["painting", "digital"].includes(selectedArtwork.art_type) ? "painting"
-          : ART_TYPES.some((type) => type.toLowerCase() === selectedArtwork.art_type) ? "3d_object"
-          : selectedArtwork.product || "",
+        product: getArtworkFormOptions(selectedArtwork.art_type)?.product || selectedArtwork.product || "",
         genre: selectedArtwork.genre || selectedArtwork.color_used || "",
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
@@ -135,14 +142,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-      ...(name === "art_type" ? {
-        product: value === "photography" ? "image"
-          : ["painting", "digital"].includes(value) ? "painting" : "3d_object",
-      } : {}),
-    }));
+    setFormData((prev) => changeArtworkFormField(prev, name, value));
     setError("");
   };
 
@@ -179,7 +179,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
       setError("Art type is required");
       return;
     }
-    if (!formData.product.trim()) {
+    const product = typeOptions?.product || formData.product;
+    if (!product.trim()) {
       setError("Product type is required");
       return;
     }
@@ -202,7 +203,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
 
     try {
       setIsSubmitting(true);
-      await onSubmit?.({ ...formData, price: Number(formData.price) });
+      await onSubmit?.({ ...formData, product, price: Number(formData.price) });
       handleClose();
     } catch (submissionError) {
       setError(submissionError.message || "Unable to save artwork");
@@ -300,6 +301,33 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
         )}
 
         <Stack spacing={2.5}>
+          {/* Art Type Selection */}
+          <FormControl fullWidth>
+            <InputLabel>Art Type</InputLabel>
+            <Select
+              label="Art Type"
+              name="art_type"
+              value={formData.art_type}
+              onChange={handleChange}
+            >
+              {formData.art_type &&
+                !ART_TYPES.some((type) => type.toLowerCase() === formData.art_type) && (
+                  <MenuItem value={formData.art_type}>
+                    {formData.art_type === "physical" ? "Physical (legacy)" : formData.art_type}
+                  </MenuItem>
+                )}
+              {ART_TYPES.map((type) => (
+                <MenuItem key={type} value={type.toLowerCase()}>
+                  {type}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {!hasArtType && (
+            <Typography variant="body2" color="text.secondary">
+              Choose an art type to see its size and style fields.
+            </Typography>
+          )}
           <DropZone
             isDragActive={isDragActive}
             hasError={Boolean(uploadError)}
@@ -356,7 +384,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" },
+              alignItems: "start",
+              "& > *": { minWidth: 0 },
               gap: 2,
             }}
           >
@@ -366,77 +396,61 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               value={formData.title}
               onChange={handleChange}
               fullWidth
-              autoFocus
+              sx={{ gridColumn: "1 / -1" }}
             />
 
-            {/* Art Type Selection */}
-            <FormControl fullWidth>
-              <InputLabel>Art Type</InputLabel>
-              <Select
-                label="Art Type"
-                name="art_type"
-                value={formData.art_type}
+            {/* Mixed media can be either flat artwork or a physical object. */}
+            {hasArtType && needsProductChoice && (
+              <FormControl fullWidth sx={{ gridColumn: "1 / -1" }}>
+                <InputLabel>Product Type</InputLabel>
+                <Select
+                  label="Product Type"
+                  name="product"
+                  value={formData.product}
+                  onChange={handleChange}
+                >
+                  {productOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {showDetails && (
+              <TextField
+                label={typeOptions?.sizeLabel || (formData.product === "3d_object" ? "Object dimensions" : "Artwork dimensions")}
+                helperText={typeOptions?.sizeHint || (formData.product === "3d_object" ? "Width x height x depth, including units" : "Width x height, including units")}
+                name="art_size"
+                value={formData.art_size}
                 onChange={handleChange}
-              >
-                {formData.art_type &&
-                  !ART_TYPES.some((type) => type.toLowerCase() === formData.art_type) && (
-                    <MenuItem value={formData.art_type}>
-                      {formData.art_type === "physical" ? "Physical (legacy)" : formData.art_type}
-                    </MenuItem>
+                fullWidth
+              />
+            )}
+
+            {showDetails && (
+               <FormControl fullWidth>
+                <InputLabel>Style</InputLabel>
+                <Select
+                  label="Style"
+                  name="genre"
+                  value={formData.genre}
+                  onChange={handleChange}
+                >
+                  {formData.genre && !ART_STYLES.includes(formData.genre) && (
+                    <MenuItem value={formData.genre}>{formData.genre}</MenuItem>
                   )}
-                {ART_TYPES.map((type) => (
-                  <MenuItem key={type} value={type.toLowerCase()}>
-                    {type}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* Product Selection */}
-            <FormControl fullWidth>
-              <InputLabel>Product Type</InputLabel>
-              <Select
-                label="Product Type"
-                name="product"
-                disabled={ART_TYPES.some((type) => type.toLowerCase() === formData.art_type)}
-                value={formData.product}
-                onChange={handleChange}
-              >
-                <MenuItem value="painting">{formData.art_type === "digital" ? "Digital Artwork" : "Painting"}</MenuItem>
-                <MenuItem value="image">Image / Photograph</MenuItem>
-                <MenuItem value="3d_object">3D Object</MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              label="Art size"
-              name="art_size"
-              value={formData.art_size}
-              onChange={handleChange}
-              fullWidth
-            />
-
-            <FormControl fullWidth>
-              <InputLabel>Style</InputLabel>
-              <Select
-                label="Style"
-                name="genre"
-                value={formData.genre}
-                onChange={handleChange}
-              >
-                {formData.genre && !ART_STYLES.includes(formData.genre) && (
-                  <MenuItem value={formData.genre}>{formData.genre}</MenuItem>
-                )}
-                {ART_STYLES.map((style) => (
-                  <MenuItem key={style} value={style}>
-                    {style}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                  {ART_STYLES.map((style) => (
+                    <MenuItem key={style} value={style}>
+                      {style}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
             <TextField
               label="Price"
+              sx={{ gridColumn: "1 / -1" }}
               name="price"
               type="number"
               value={formData.price}
@@ -452,7 +466,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               fullWidth
               multiline
               rows={3}
-              sx={{ gridColumn: { xs: "auto", md: "1 / -1" } }}
+              sx={{ gridColumn: "1 / -1" }}
             />
           </Box>
         </Stack>

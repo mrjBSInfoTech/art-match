@@ -30,10 +30,10 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
   let detectedColors = "Pending";
   let detectedFeatures = null;
   const isDigital = art_type.trim().toLowerCase() === "digital";
-  const isPhoto = ["photography", "photo", "image"].includes(
-    art_type.trim().toLowerCase(),
-  );
-  let detectedMediums = isDigital ? "Digital" : isPhoto ? "None" : null;
+  const type = art_type.trim().toLowerCase();
+  const featuresOnly = ["photography", "photo", "image", "print"].includes(type)
+    || (["auto", "physical"].includes(type) && product.trim().toLowerCase() === "image");
+  let detectedMediums = isDigital ? "Digital" : featuresOnly ? "None" : null;
 
   // Analyze colors, features, and mediums when the seller uploads artwork.
   try {
@@ -68,7 +68,7 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
         detectedMediums = (
           isDigital
             ? "Digital"
-            : isPhoto
+            : featuresOnly
               ? "None"
               : Array.isArray(mlData.mediums)
                 ? mlData.mediums.join(", ") || "None"

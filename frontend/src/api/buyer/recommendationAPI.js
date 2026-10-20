@@ -13,18 +13,29 @@ export const fetchRecentlyViewedArtworks = async (excludeArtworkId, limit = 4) =
   return Array.isArray(response.data.artworks) ? response.data.artworks : [];
 };
 
+export const fetchSellerRecommendations = async (sellerId, topK = 8, signal) => {
+  const response = await api.get(`/seller/${encodeURIComponent(sellerId)}`, {
+    params: { top_k: topK },
+    signal,
+  });
+  return Array.isArray(response.data.recommendations) ? response.data.recommendations : [];
+};
+
 export const fetchRecommendations = async (
   topK = 4,
+  signal,
 ) => {
   try {
     const response = await api.get("/", {
       params: {
         top_k: topK,
       },
+      signal,
     });
 
     return response.data;
   } catch (error) {
+    if (signal?.aborted) throw error;
     console.warn(
       "Unable to load recommendations:",
       error.response?.data?.message ||

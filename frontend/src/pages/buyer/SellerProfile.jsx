@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
   Container,
-  Divider,
   Grid,
   Paper,
   Rating,
@@ -20,6 +18,8 @@ import {
   useTheme,
 } from "@mui/material";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import SellerRecommendations from "../../components/buyer/Profile/SellerRecommendations";
+import SellerArtworkCard from "../../components/buyer/Seller/SellerArtworkCard";
 import {
   fetchArtworks,
   fetchPublicSellerProfile,
@@ -45,13 +45,6 @@ const getProfileImage = (artist) => {
   if (!imageName) return getProfileFallback(artist?.name || "Artist");
   if (imageName.startsWith("http")) return imageName;
   return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
-};
-
-const getArtworkImage = (artwork) => {
-  if (!artwork?.image) return "";
-  return artwork.image.startsWith("http")
-    ? artwork.image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`;
 };
 
 const buildSellerSummaries = (artworks = []) => {
@@ -107,9 +100,6 @@ const buildSellerSummaries = (artworks = []) => {
     .sort((a, b) => b.works - a.works || a.name.localeCompare(b.name));
 };
 
-const formatPrice = (value) =>
-  `₱${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-
 export default function SellerProfile() {
   const navigate = useNavigate();
   const theme = useTheme();
@@ -138,11 +128,13 @@ export default function SellerProfile() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let active = true;
     const loadSellers = async () => {
       try {
         setLoading(true);
         setError("");
         const response = await fetchArtworks();
+        if (!active) return;
         const list = Array.isArray(response) ? response : response?.data || [];
         const sellerSummaries = buildSellerSummaries(list);
         if (id) {
@@ -156,8 +148,12 @@ export default function SellerProfile() {
           } catch (profileError) {
             specialtiesLoadError =
               profileError.message || "Unable to load saved specialties.";
-            console.error("Unable to load public seller profile:", profileError);
+            console.error(
+              "Unable to load public seller profile:",
+              profileError,
+            );
           }
+          if (!active) return;
           const artworkSummary = buildSellerSummaries(filteredArtworks)[0];
           const artistName = publicProfile
             ? [publicProfile.first_name, publicProfile.last_name]
@@ -194,7 +190,9 @@ export default function SellerProfile() {
               artworkSummary?.shopDescription ||
               "",
             works: filteredArtworks.length,
-            sales: publicProfile ? Number(publicProfile.sales_count || 0) : null,
+            sales: publicProfile
+              ? Number(publicProfile.sales_count || 0)
+              : null,
             registeredDate: publicProfile?.registered_date || null,
             specialtiesLoadError,
             hasStorefrontSpecialties:
@@ -203,10 +201,11 @@ export default function SellerProfile() {
             specialties: publicProfile
               ? parseArray(publicProfile.specialties)
               : [],
-            pinnedArtworkIds: parseArray(
-              publicProfile?.pinned_artwork_ids,
-            ).map(String),
-            featuredArtwork: artworkSummary?.featuredArtwork || filteredArtworks[0] || null,
+            pinnedArtworkIds: parseArray(publicProfile?.pinned_artwork_ids).map(
+              String,
+            ),
+            featuredArtwork:
+              artworkSummary?.featuredArtwork || filteredArtworks[0] || null,
           };
           const pinOrder = new Map(
             profileSeller.pinnedArtworkIds.map((artworkId, index) => [
@@ -241,15 +240,19 @@ export default function SellerProfile() {
           setSellerArtworks(featuredArtworks);
         }
       } catch (err) {
+        if (!active) return;
         setError(err.message || "Failed to load seller profile data.");
         setSellerArtworks([]);
         setSelectedSeller(null);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     loadSellers();
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   useEffect(() => {
@@ -267,7 +270,8 @@ export default function SellerProfile() {
         if (active) setSellerReviews(Array.isArray(response) ? response : []);
       })
       .catch((error) => {
-        if (active) setReviewsError(error.message || "Unable to load seller reviews.");
+        if (active)
+          setReviewsError(error.message || "Unable to load seller reviews.");
       })
       .finally(() => {
         if (active) setReviewsLoading(false);
@@ -312,8 +316,10 @@ export default function SellerProfile() {
       ? "Saved specialties were not returned by the server. Restart the backend to apply the storefront updates."
       : "");
   const averageRating = sellerReviews.length
-    ? sellerReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) /
-      sellerReviews.length
+    ? sellerReviews.reduce(
+        (sum, review) => sum + Number(review.rating || 0),
+        0,
+      ) / sellerReviews.length
     : null;
   const memberSince = selectedSeller.registeredDate
     ? new Date(selectedSeller.registeredDate).toLocaleDateString("en", {
@@ -323,7 +329,17 @@ export default function SellerProfile() {
     : "Not available";
 
   return (
-    <Box sx={{ minHeight: "100vh", background: colors.page, color: colors.text, pb: 6 }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: colors.page,
+        color: colors.text,
+        pb: 6,
+      }}
+    >
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Seller Profile</title>
+      </Helmet>
       <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
         <Box
           sx={{
@@ -404,7 +420,8 @@ export default function SellerProfile() {
                     mb: 2,
                   }}
                 >
-                  {selectedSeller.bio || "This seller hasn’t added an About description yet."}
+                  {selectedSeller.bio ||
+                    "This seller hasn’t added an About description yet."}
                 </Typography>
 
                 <Stack
@@ -428,7 +445,9 @@ export default function SellerProfile() {
                       variant="h5"
                       sx={{ fontWeight: 800, color: colors.text }}
                     >
-                      {selectedSeller.sales == null ? "—" : selectedSeller.sales}
+                      {selectedSeller.sales == null
+                        ? "—"
+                        : selectedSeller.sales}
                     </Typography>
                     <Typography variant="caption" sx={{ color: colors.subtle }}>
                       Sales
@@ -446,7 +465,9 @@ export default function SellerProfile() {
                           : averageRating.toFixed(1)}
                     </Typography>
                     <Typography variant="caption" sx={{ color: colors.subtle }}>
-                      {sellerReviews.length ? `Rating (${sellerReviews.length})` : "Rating"}
+                      {sellerReviews.length
+                        ? `Rating (${sellerReviews.length})`
+                        : "Rating"}
                     </Typography>
                   </Box>
                 </Stack>
@@ -459,9 +480,14 @@ export default function SellerProfile() {
                       `/buyer/messages?seller=${encodeURIComponent(selectedSeller.student_id)}`,
                     )
                   }
-                  sx={{ mt: 2, textTransform: "none", fontWeight: 700 }}
+                  sx={{
+                    mt: 2,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    color: "#fff",
+                  }}
                 >
-                  Message artist
+                  Message Artist
                 </Button>
               </Box>
             </Box>
@@ -482,131 +508,76 @@ export default function SellerProfile() {
               <Tab label={`Reviews (${sellerReviews.length})`} />
             </Tabs>
 
-            {activeTab === 0 && <Grid container spacing={3} sx={{ mt: 0.5 }}>
-              {sellerArtworks.length === 0 ? (
-                <Grid item xs={12}>
-                  <Paper
-                    sx={{
-                      p: 4,
-                      borderRadius: 3,
-                      textAlign: "center",
-                      border: `1px solid ${colors.border}`,
-                      bgcolor: colors.card,
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      No artworks yet
-                    </Typography>
-                    <Typography color="text.secondary" sx={{ mt: 1 }}>
-                      This seller has not uploaded any work yet.
-                    </Typography>
-                  </Paper>
-                </Grid>
-              ) : (
-                sellerArtworks.map((artwork) => {
-                  const isPinned = selectedSeller.pinnedArtworkIds.includes(
-                    String(artwork.artwork_id),
-                  );
-                  return (
-                  <Grid item xs={12} sm={6} key={artwork.artwork_id}>
-                    <Card
-                      elevation={0}
+            {activeTab === 0 && (
+              <Grid
+                container
+                spacing={2.5}
+                sx={{ mt: 2.5, alignItems: "stretch" }}
+              >
+                {sellerArtworks.length === 0 ? (
+                  <Grid size={12}>
+                    <Paper
                       sx={{
+                        p: 4,
                         borderRadius: 3,
-                        overflow: "hidden",
+                        textAlign: "center",
                         border: `1px solid ${colors.border}`,
-                        background: colors.cardAlt,
-                        height: "100%",
-                        boxShadow: "none",
+                        bgcolor: colors.card,
                       }}
                     >
-                      <Box sx={{ position: "relative" }}>
-                        {isPinned && (
-                          <Chip
-                            label="Pinned"
-                            size="small"
-                            color="primary"
-                            sx={{
-                              position: "absolute",
-                              top: 12,
-                              left: 12,
-                              zIndex: 1,
-                              fontWeight: 700,
-                            }}
-                          />
-                        )}
-                        <Box
-                          component="img"
-                          src={getArtworkImage(artwork)}
-                          alt={artwork.title}
-                          sx={{
-                            width: "100%",
-                            height: 260,
-                            objectFit: "cover",
-                            display: "block",
-                          }}
-                        />
-                      </Box>
-
-                      <CardContent sx={{ p: 2.25 }}>
-                        <Typography
-                          variant="h6"
-                          sx={{ fontWeight: 800, mb: 0.5 }}
-                        >
-                          {artwork.title}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 1.5 }}
-                        >
-                          {selectedSeller.artistName}
-                          {artwork.genre ? ` · ${artwork.genre}` : ""}
-                        </Typography>
-                        {artwork.description && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mb: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
-                          >
-                            {artwork.description}
-                          </Typography>
-                        )}
-
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          justifyContent="space-between"
-                        >
-                          <Typography
-                            variant="h6"
-                            sx={{ fontWeight: 800, color: colors.accent }}
-                          >
-                            {formatPrice(artwork.price)}
-                          </Typography>
-                          {artwork.art_size && (
-                            <Typography variant="caption" color="text.secondary">
-                              {artwork.art_size}
-                            </Typography>
-                          )}
-                        </Stack>
-                      </CardContent>
-                    </Card>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        No artworks yet
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ mt: 1 }}>
+                        This seller has not uploaded any work yet.
+                      </Typography>
+                    </Paper>
                   </Grid>
-                  );
-                })
-              )}
-            </Grid>}
+                ) : (
+                  sellerArtworks.map((artwork) => (
+                    <Grid
+                      size={{ xs: 12, sm: 6 }}
+                      key={artwork.artwork_id}
+                      sx={{ minWidth: 0 }}
+                    >
+                      <SellerArtworkCard
+                        artwork={artwork}
+                        artistName={selectedSeller.artistName}
+                        isPinned={selectedSeller.pinnedArtworkIds.includes(
+                          String(artwork.artwork_id),
+                        )}
+                        colors={colors}
+                      />
+                    </Grid>
+                  ))
+                )}
+              </Grid>
+            )}
             {activeTab === 1 && (
               <Paper
                 elevation={0}
-                sx={{ mt: 2.5, p: { xs: 2, md: 3 }, border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.cardAlt, minHeight: 180 }}
+                sx={{
+                  mt: 2.5,
+                  p: { xs: 2, md: 3 },
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 3,
+                  bgcolor: colors.cardAlt,
+                  minHeight: 180,
+                }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
                   About {selectedSeller.artistName || selectedSeller.name}
                 </Typography>
-                <Typography color={selectedSeller.shopDescription ? "text.primary" : "text.secondary"} sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
-                  {selectedSeller.shopDescription || "This seller hasn’t added an About description yet."}
+                <Typography
+                  color={
+                    selectedSeller.shopDescription
+                      ? "text.primary"
+                      : "text.secondary"
+                  }
+                  sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}
+                >
+                  {selectedSeller.shopDescription ||
+                    "This seller hasn’t added an About description yet."}
                 </Typography>
               </Paper>
             )}
@@ -619,24 +590,62 @@ export default function SellerProfile() {
                 ) : reviewsError ? (
                   <Alert severity="error">{reviewsError}</Alert>
                 ) : sellerReviews.length === 0 ? (
-                  <Paper elevation={0} sx={{ p: 4, textAlign: "center", border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.card }}>
-                    <Typography color="text.secondary">No reviews yet.</Typography>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 4,
+                      textAlign: "center",
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 3,
+                      bgcolor: colors.card,
+                    }}
+                  >
+                    <Typography color="text.secondary">
+                      No reviews yet.
+                    </Typography>
                   </Paper>
                 ) : (
                   sellerReviews.map((review) => (
-                    <Paper key={review.id} elevation={0} sx={{ p: 2.5, border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.cardAlt }}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                    <Paper
+                      key={review.id}
+                      elevation={0}
+                      sx={{
+                        p: 2.5,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 3,
+                        bgcolor: colors.cardAlt,
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="flex-start"
+                        spacing={2}
+                      >
                         <Box>
-                          <Typography fontWeight={700}>{review.reviewer_name || "Buyer"}</Typography>
-                          <Rating value={Number(review.rating)} precision={0.5} readOnly size="small" />
+                          <Typography fontWeight={700}>
+                            {review.reviewer_name || "Buyer"}
+                          </Typography>
+                          <Rating
+                            value={Number(review.rating)}
+                            precision={0.5}
+                            readOnly
+                            size="small"
+                          />
                         </Box>
                         <Typography variant="caption" color="text.secondary">
                           {new Date(review.created_at).toLocaleDateString()}
                         </Typography>
                       </Stack>
-                      <Typography sx={{ mt: 1.5, whiteSpace: "pre-wrap" }}>{review.comment}</Typography>
+                      <Typography sx={{ mt: 1.5, whiteSpace: "pre-wrap" }}>
+                        {review.comment}
+                      </Typography>
                       {review.artwork_title && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", mt: 1.5 }}
+                        >
                           Review for {review.artwork_title}
                         </Typography>
                       )}
@@ -682,26 +691,28 @@ export default function SellerProfile() {
                   <Typography variant="body2" color="error">
                     {specialtiesLoadError}
                   </Typography>
-                ) : specialties.length > 0 ? <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ flexWrap: "wrap", rowGap: 1 }}
-                >
-                  {specialties.map((item) => (
-                    <Chip
-                      key={item}
-                      label={item}
-                      size="small"
-                      sx={{
-                        background: colors.chip,
-                        color: colors.muted,
-                        borderRadius: 999,
-                        fontWeight: 600,
-                        border: `1px solid ${colors.chipBorder}`,
-                      }}
-                    />
-                  ))}
-                </Stack> : (
+                ) : specialties.length > 0 ? (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ flexWrap: "wrap", rowGap: 1 }}
+                  >
+                    {specialties.map((item) => (
+                      <Chip
+                        key={item}
+                        label={item}
+                        size="small"
+                        sx={{
+                          background: colors.chip,
+                          color: colors.muted,
+                          borderRadius: 999,
+                          fontWeight: 600,
+                          border: `1px solid ${colors.chipBorder}`,
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
                   <Typography variant="body2" color="text.secondary">
                     No specialties selected yet.
                   </Typography>
@@ -710,6 +721,14 @@ export default function SellerProfile() {
             </Stack>
           </Box>
         </Box>
+        <SellerRecommendations
+          key={selectedSeller.student_id}
+          sellerId={selectedSeller.student_id}
+          sellerName={selectedSeller.shopName || selectedSeller.name}
+          hasSpecialties={specialties.some(
+            (specialty) => typeof specialty === "string" && specialty.trim(),
+          )}
+        />
       </Container>
     </Box>
   );

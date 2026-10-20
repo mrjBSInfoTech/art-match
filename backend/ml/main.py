@@ -800,11 +800,15 @@ def analyze_artwork(req: ImageRequest):
     is_photo = user_selection in {"photography", "photo", "image"} or (
         user_selection in {"auto", "physical"} and product_selection == "image"
     )
+    is_print = user_selection == "print"
+    features_only = is_photo or is_print
     is_painting = user_selection == "painting" or (
+        user_selection in {"mixed media", "mixed_media"} and product_selection == "painting"
+    ) or (
         user_selection in {"auto", "physical", "2d_art"}
         and product_selection == "painting"
     )
-    is_3d = not (is_digital or is_photo or is_painting)
+    is_3d = not (is_digital or features_only or is_painting)
 
     # The original uploaded file is never overwritten.
     scan_img = original_rgb
@@ -818,8 +822,8 @@ def analyze_artwork(req: ImageRequest):
 
     if is_digital:
         final_mediums = ["Digital"]
-    elif is_photo:
-        # Photographs use the 2D feature scan without medium classification.
+    elif features_only:
+        # Photos and prints have no reliable medium labels in these models.
         final_mediums = []
     else:
         # Only paintings use the 2D medium model; physical objects use 3D.
@@ -864,7 +868,7 @@ def analyze_artwork(req: ImageRequest):
     if not final_features or final_features == ["artwork"]:
         final_features = ["No feature detected"]
 
-    if not final_mediums:
+    if not final_mediums and not features_only:
         final_mediums = ["No medium detected"]
 
     return {

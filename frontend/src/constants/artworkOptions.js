@@ -19,7 +19,7 @@ export const ART_STYLES = [
   "Cute",
 ];
 
-export const ART_MATERIALS = [
+export const ART_2D_MATERIALS = [
   "Acrylic",
   "Charcoal",
   "Digital",
@@ -27,6 +27,10 @@ export const ART_MATERIALS = [
   "Pastel",
   "Pencil",
   "Watercolor",
+];
+
+export const ART_MATERIALS = [
+  ...ART_2D_MATERIALS,
   "Clay",
   "Metal",
   "Wood",

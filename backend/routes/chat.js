@@ -8,6 +8,7 @@ import { authenticateBuyer } from "../middleware/buyerAuthMiddleware.js";
 import { authenticateSeller } from "../middleware/sellerAuthMiddleware.js";
 import { getChatPublicKey, saveChatPublicKey } from "../database/chatKeys.js";
 import { addChatEventClient, publishChatMessage } from "../utils/chatEvents.js";
+import { uploadToB2, deleteFromB2 } from "../utils/b2Storage.js";
 
 const router = express.Router();
 
@@ -24,13 +25,23 @@ const __dirname = path.dirname(__filename);
 const chatUploadDir = path.join(__dirname, "..", "uploads", "chat");
 fs.mkdirSync(chatUploadDir, { recursive: true });
 
+const CHAT_B2_PREFIX = "app-uploads/chat";
+
 const chatUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, chatUploadDir),
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname || "image.png");
-      const safeBase = (file.originalname || "chat").replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-      cb(null, `${Date.now()}-${safeBase}${ext}`);
+
+      const safeBase = (file.originalname || "chat")
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+      const uniquePart = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+
+      cb(null, `${uniquePart}-${safeBase}${ext}`);
     },
   }),
   limits: { fileSize: 20 * 1024 * 1024 },
@@ -105,7 +116,7 @@ const getConversationAccessQuery = (role, userId) => {
   };
 };
 
-const fetchConversationList = (role, userId) => 
+const fetchConversationList = (role, userId) =>
   new Promise((resolve, reject) => {
     const isBuyer = role === "buyer";
     const sql = `
@@ -191,7 +202,16 @@ const getChatBlockStatus = (role, accountId, otherType, otherId) =>
           WHERE blocker_type = ? AND blocker_id = ?
             AND blocked_type = ? AND blocked_id = ?
         ) AS blocked_by_other`,
-      [role, accountId, otherType, otherId, otherType, otherId, role, accountId],
+      [
+        role,
+        accountId,
+        otherType,
+        otherId,
+        otherType,
+        otherId,
+        role,
+        accountId,
+      ],
       (error, rows) => {
         if (error) return reject(error);
         resolve(rows[0]);
@@ -250,7 +270,12 @@ const parsePublicKey = (value) => {
   }
   try {
     const parsed = JSON.parse(value);
-    if (parsed.kty !== "EC" || parsed.crv !== "P-256" || !parsed.x || !parsed.y) {
+    if (
+      parsed.kty !== "EC" ||
+      parsed.crv !== "P-256" ||
+      !parsed.x ||
+      !parsed.y
+    ) {
       return null;
     }
     return value;
@@ -283,7 +308,9 @@ const fetchPublicKey = (accountType, accountId, res) => {
       return;
     }
     if (!rows.length) {
-      res.status(404).json({ message: "The other account has not enabled secure messaging yet" });
+      res.status(404).json({
+        message: "The other account has not enabled secure messaging yet",
+      });
       return;
     }
     res.json({ publicKey: rows[0].public_key });
@@ -291,7 +318,12 @@ const fetchPublicKey = (accountType, accountId, res) => {
 };
 
 router.post("/buyer/keys", authenticateBuyer, (req, res) => {
-  registerPublicKey("buyer", req.user.customer_id || req.user.id, req.body.publicKey, res);
+  registerPublicKey(
+    "buyer",
+    req.user.customer_id || req.user.id,
+    req.body.publicKey,
+    res,
+  );
 });
 
 router.get("/buyer/keys/:sellerId", authenticateBuyer, (req, res) => {
@@ -299,7 +331,12 @@ router.get("/buyer/keys/:sellerId", authenticateBuyer, (req, res) => {
 });
 
 router.post("/seller/keys", authenticateSeller, (req, res) => {
-  registerPublicKey("seller", req.user.student_id || req.user.id, req.body.publicKey, res);
+  registerPublicKey(
+    "seller",
+    req.user.student_id || req.user.id,
+    req.body.publicKey,
+    res,
+  );
 });
 
 router.get("/seller/keys/:buyerId", authenticateSeller, (req, res) => {
@@ -328,47 +365,55 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
     });
 });
 
-  const fetchAccountNotifications = (role, accountId) =>
-    new Promise((resolve, reject) => {
-      db.query(
-        `SELECT notification_id, notification_type, message, is_read, created_at
+const fetchAccountNotifications = (role, accountId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      `SELECT notification_id, notification_type, message, is_read, created_at
          FROM account_notifications
          WHERE role = ? AND account_id = ?
          ORDER BY created_at DESC`,
-        [role, accountId],
-        (error, rows) => (error ? reject(error) : resolve(rows)),
-      );
-    });
-
-  const markAccountNotificationsRead = (role, accountId) =>
-    new Promise((resolve, reject) => {
-      db.query(
-        "UPDATE account_notifications SET is_read = TRUE WHERE role = ? AND account_id = ? AND is_read = FALSE",
-        [role, accountId],
-        (error) => (error ? reject(error) : resolve()),
-      );
-    });
-
-  router.post("/buyer/notifications/read", authenticateBuyer, (req, res) => {
-    markAccountNotificationsRead("buyer", req.user.customer_id || req.user.id)
-      .then(() => res.status(204).end())
-      .catch((error) => {
-        console.error("Buyer notification update failed:", error);
-        res.status(500).json({ message: "Unable to update notifications" });
-      });
+      [role, accountId],
+      (error, rows) => (error ? reject(error) : resolve(rows)),
+    );
   });
 
-  router.post("/seller/notifications/read", authenticateSeller, (req, res) => {
-    markAccountNotificationsRead("seller", req.user.student_id || req.user.id)
-      .then(() => res.status(204).end())
-      .catch((error) => {
-        console.error("Seller notification update failed:", error);
-        res.status(500).json({ message: "Unable to update notifications" });
-      });
+const markAccountNotificationsRead = (role, accountId) =>
+  new Promise((resolve, reject) => {
+    db.query(
+      "UPDATE account_notifications SET is_read = TRUE WHERE role = ? AND account_id = ? AND is_read = FALSE",
+      [role, accountId],
+      (error) => (error ? reject(error) : resolve()),
+    );
   });
 
-  const registerConversationActions = (role, authenticate, getAccountId, otherType) => {
-    router.get(`/${role}/conversations/:conversationId/block`, authenticate, async (req, res) => {
+router.post("/buyer/notifications/read", authenticateBuyer, (req, res) => {
+  markAccountNotificationsRead("buyer", req.user.customer_id || req.user.id)
+    .then(() => res.status(204).end())
+    .catch((error) => {
+      console.error("Buyer notification update failed:", error);
+      res.status(500).json({ message: "Unable to update notifications" });
+    });
+});
+
+router.post("/seller/notifications/read", authenticateSeller, (req, res) => {
+  markAccountNotificationsRead("seller", req.user.student_id || req.user.id)
+    .then(() => res.status(204).end())
+    .catch((error) => {
+      console.error("Seller notification update failed:", error);
+      res.status(500).json({ message: "Unable to update notifications" });
+    });
+});
+
+const registerConversationActions = (
+  role,
+  authenticate,
+  getAccountId,
+  otherType,
+) => {
+  router.get(
+    `/${role}/conversations/:conversationId/block`,
+    authenticate,
+    async (req, res) => {
       const conversationId = Number(req.params.conversationId);
       const accountId = getAccountId(req.user);
       if (!Number.isInteger(conversationId) || conversationId <= 0) {
@@ -376,17 +421,27 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       }
 
       try {
-        const conversation = await getConversationParticipants(role, conversationId, accountId);
-        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
-        const otherId = role === "buyer" ? conversation.student_id : conversation.customer_id;
+        const conversation = await getConversationParticipants(
+          role,
+          conversationId,
+          accountId,
+        );
+        if (!conversation)
+          return res.status(404).json({ message: "Conversation not found" });
+        const otherId =
+          role === "buyer" ? conversation.student_id : conversation.customer_id;
         res.json(await getChatBlockStatus(role, accountId, otherType, otherId));
       } catch (error) {
         console.error("Chat block status fetch failed:", error);
         res.status(500).json({ message: "Unable to load block status" });
       }
-    });
+    },
+  );
 
-    router.post(`/${role}/conversations/:conversationId/block`, authenticate, async (req, res) => {
+  router.post(
+    `/${role}/conversations/:conversationId/block`,
+    authenticate,
+    async (req, res) => {
       const conversationId = Number(req.params.conversationId);
       const accountId = getAccountId(req.user);
       if (!Number.isInteger(conversationId) || conversationId <= 0) {
@@ -394,9 +449,15 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       }
 
       try {
-        const conversation = await getConversationParticipants(role, conversationId, accountId);
-        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
-        const otherId = role === "buyer" ? conversation.student_id : conversation.customer_id;
+        const conversation = await getConversationParticipants(
+          role,
+          conversationId,
+          accountId,
+        );
+        if (!conversation)
+          return res.status(404).json({ message: "Conversation not found" });
+        const otherId =
+          role === "buyer" ? conversation.student_id : conversation.customer_id;
         await new Promise((resolve, reject) => {
           db.query(
             `INSERT INTO chat_blocks (blocker_type, blocker_id, blocked_type, blocked_id)
@@ -411,9 +472,13 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
         console.error("Chat block failed:", error);
         res.status(500).json({ message: "Unable to block user" });
       }
-    });
+    },
+  );
 
-    router.delete(`/${role}/conversations/:conversationId/block`, authenticate, async (req, res) => {
+  router.delete(
+    `/${role}/conversations/:conversationId/block`,
+    authenticate,
+    async (req, res) => {
       const conversationId = Number(req.params.conversationId);
       const accountId = getAccountId(req.user);
       if (!Number.isInteger(conversationId) || conversationId <= 0) {
@@ -421,9 +486,15 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       }
 
       try {
-        const conversation = await getConversationParticipants(role, conversationId, accountId);
-        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
-        const otherId = role === "buyer" ? conversation.student_id : conversation.customer_id;
+        const conversation = await getConversationParticipants(
+          role,
+          conversationId,
+          accountId,
+        );
+        if (!conversation)
+          return res.status(404).json({ message: "Conversation not found" });
+        const otherId =
+          role === "buyer" ? conversation.student_id : conversation.customer_id;
         await new Promise((resolve, reject) => {
           db.query(
             `DELETE FROM chat_blocks
@@ -437,9 +508,13 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
         console.error("Chat unblock failed:", error);
         res.status(500).json({ message: "Unable to unblock user" });
       }
-    });
+    },
+  );
 
-    router.delete(`/${role}/conversations/:conversationId`, authenticate, async (req, res) => {
+  router.delete(
+    `/${role}/conversations/:conversationId`,
+    authenticate,
+    async (req, res) => {
       const conversationId = Number(req.params.conversationId);
       const accountId = getAccountId(req.user);
       if (!Number.isInteger(conversationId) || conversationId <= 0) {
@@ -447,49 +522,58 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       }
 
       try {
-        const conversation = await getConversationParticipants(role, conversationId, accountId);
-        if (!conversation) return res.status(404).json({ message: "Conversation not found" });
+        const conversation = await getConversationParticipants(
+          role,
+          conversationId,
+          accountId,
+        );
+        if (!conversation)
+          return res.status(404).json({ message: "Conversation not found" });
         await hideConversationForAccount(conversationId, role, accountId);
         res.status(204).end();
       } catch (error) {
         console.error("Chat delete failed:", error);
         res.status(500).json({ message: "Unable to delete chat" });
       }
+    },
+  );
+};
+
+registerConversationActions(
+  "buyer",
+  authenticateBuyer,
+  (user) => user.customer_id || user.id,
+  "seller",
+);
+registerConversationActions(
+  "seller",
+  authenticateSeller,
+  (user) => user.student_id || user.id,
+  "buyer",
+);
+
+router.get("/buyer/notifications", authenticateBuyer, (req, res) => {
+  fetchAccountNotifications("buyer", req.user.customer_id || req.user.id)
+    .then((rows) => res.json(rows))
+    .catch((error) => {
+      console.error("Buyer notification fetch failed:", error);
+      res.status(500).json({ message: "Unable to load notifications" });
     });
-  };
+});
 
-  registerConversationActions(
-    "buyer",
-    authenticateBuyer,
-    (user) => user.customer_id || user.id,
-    "seller",
-  );
-  registerConversationActions(
-    "seller",
-    authenticateSeller,
-    (user) => user.student_id || user.id,
-    "buyer",
-  );
+router.get("/seller/notifications", authenticateSeller, (req, res) => {
+  fetchAccountNotifications("seller", req.user.student_id || req.user.id)
+    .then((rows) => res.json(rows))
+    .catch((error) => {
+      console.error("Seller notification fetch failed:", error);
+      res.status(500).json({ message: "Unable to load notifications" });
+    });
+});
 
-  router.get("/buyer/notifications", authenticateBuyer, (req, res) => {
-    fetchAccountNotifications("buyer", req.user.customer_id || req.user.id)
-      .then((rows) => res.json(rows))
-      .catch((error) => {
-        console.error("Buyer notification fetch failed:", error);
-        res.status(500).json({ message: "Unable to load notifications" });
-      });
-  });
-
-  router.get("/seller/notifications", authenticateSeller, (req, res) => {
-    fetchAccountNotifications("seller", req.user.student_id || req.user.id)
-      .then((rows) => res.json(rows))
-      .catch((error) => {
-        console.error("Seller notification fetch failed:", error);
-        res.status(500).json({ message: "Unable to load notifications" });
-      });
-  });
-
-  router.post("/buyer/conversations/:sellerId", authenticateBuyer, async (req, res) => {
+router.post(
+  "/buyer/conversations/:sellerId",
+  authenticateBuyer,
+  async (req, res) => {
     const buyerId = req.user.customer_id || req.user.id;
     const sellerIdentifier = String(req.params.sellerId || "").trim();
 
@@ -503,8 +587,8 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
           "SELECT student_id FROM student WHERE student_id = ? OR student_number = ? LIMIT 1",
           [sellerIdentifier, sellerIdentifier],
           (error, rows) => {
-          if (error) return reject(error);
-          resolve(rows.length > 0 ? rows[0].student_id : null);
+            if (error) return reject(error);
+            resolve(rows.length > 0 ? rows[0].student_id : null);
           },
         );
       });
@@ -514,7 +598,9 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       }
 
       if (await isChatBlocked(sellerId, buyerId)) {
-        return res.status(403).json({ message: "Messaging is unavailable for this account" });
+        return res
+          .status(403)
+          .json({ message: "Messaging is unavailable for this account" });
       }
 
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
@@ -524,9 +610,13 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       console.error("Buyer conversation creation failed:", error);
       res.status(500).json({ message: "Unable to start conversation" });
     }
-  });
+  },
+);
 
-  router.post("/seller/conversations/:buyerId", authenticateSeller, async (req, res) => {
+router.post(
+  "/seller/conversations/:buyerId",
+  authenticateSeller,
+  async (req, res) => {
     const sellerId = req.user.student_id || req.user.id;
     const buyerId = Number(req.params.buyerId);
 
@@ -536,10 +626,14 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
 
     try {
       const buyerExists = await new Promise((resolve, reject) => {
-        db.query("SELECT customer_id FROM customer WHERE customer_id = ? LIMIT 1", [buyerId], (error, rows) => {
-          if (error) return reject(error);
-          resolve(rows.length > 0);
-        });
+        db.query(
+          "SELECT customer_id FROM customer WHERE customer_id = ? LIMIT 1",
+          [buyerId],
+          (error, rows) => {
+            if (error) return reject(error);
+            resolve(rows.length > 0);
+          },
+        );
       });
 
       if (!buyerExists) {
@@ -547,7 +641,9 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       }
 
       if (await isChatBlocked(sellerId, buyerId)) {
-        return res.status(403).json({ message: "Messaging is unavailable for this account" });
+        return res
+          .status(403)
+          .json({ message: "Messaging is unavailable for this account" });
       }
 
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
@@ -557,9 +653,15 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
       console.error("Seller conversation creation failed:", error);
       res.status(500).json({ message: "Unable to start conversation" });
     }
-  });
+  },
+);
 
-const sendLatestConversationMessage = (role, accountId, conversationId, res) => {
+const sendLatestConversationMessage = (
+  role,
+  accountId,
+  conversationId,
+  res,
+) => {
   if (!conversationId) {
     return res.status(400).json({ message: "Invalid conversation id" });
   }
@@ -572,7 +674,9 @@ const sendLatestConversationMessage = (role, accountId, conversationId, res) => 
     (accessError, accessRows) => {
       if (accessError) {
         console.error("Latest message access check failed:", accessError);
-        return res.status(500).json({ message: "Unable to load latest message" });
+        return res
+          .status(500)
+          .json({ message: "Unable to load latest message" });
       }
       if (accessRows.length === 0) {
         return res.status(403).json({ message: "Access denied" });
@@ -589,7 +693,9 @@ const sendLatestConversationMessage = (role, accountId, conversationId, res) => 
         (messageError, rows) => {
           if (messageError) {
             console.error("Latest message fetch failed:", messageError);
-            return res.status(500).json({ message: "Unable to load latest message" });
+            return res
+              .status(500)
+              .json({ message: "Unable to load latest message" });
           }
           res.json(rows[0] || null);
         },
@@ -598,232 +704,466 @@ const sendLatestConversationMessage = (role, accountId, conversationId, res) => 
   );
 };
 
-router.get("/buyer/conversations/:conversationId/latest-message", authenticateBuyer, (req, res) => {
-  sendLatestConversationMessage(
-    "buyer",
-    req.user.customer_id || req.user.id,
-    Number(req.params.conversationId),
-    res,
-  );
-});
+router.get(
+  "/buyer/conversations/:conversationId/latest-message",
+  authenticateBuyer,
+  (req, res) => {
+    sendLatestConversationMessage(
+      "buyer",
+      req.user.customer_id || req.user.id,
+      Number(req.params.conversationId),
+      res,
+    );
+  },
+);
 
-router.get("/seller/conversations/:conversationId/latest-message", authenticateSeller, (req, res) => {
-  sendLatestConversationMessage(
-    "seller",
-    req.user.student_id || req.user.id,
-    Number(req.params.conversationId),
-    res,
-  );
-});
+router.get(
+  "/seller/conversations/:conversationId/latest-message",
+  authenticateSeller,
+  (req, res) => {
+    sendLatestConversationMessage(
+      "seller",
+      req.user.student_id || req.user.id,
+      Number(req.params.conversationId),
+      res,
+    );
+  },
+);
 
-router.get("/buyer/conversations/:conversationId/messages", authenticateBuyer, (req, res) => {
-  const buyerId = req.user.customer_id || req.user.id;
-  const conversationId = Number(req.params.conversationId);
+router.get(
+  "/buyer/conversations/:conversationId/messages",
+  authenticateBuyer,
+  (req, res) => {
+    const buyerId = req.user.customer_id || req.user.id;
+    const conversationId = Number(req.params.conversationId);
 
-  if (!conversationId) {
-    return res.status(400).json({ message: "Invalid conversation id" });
-  }
+    if (!conversationId) {
+      return res.status(400).json({ message: "Invalid conversation id" });
+    }
 
-  const accessSql = `
+    const accessSql = `
     SELECT conversation_id, student_id, customer_id
     FROM conversation
     WHERE conversation_id = ? AND customer_id = ?
     LIMIT 1
   `;
 
-  db.query(accessSql, [conversationId, buyerId], (accessErr, accessRows) => {
-    if (accessErr) {
-      console.error("Access check failed:", accessErr);
-      return res.status(500).json({ message: "Unable to load messages" });
-    }
+    db.query(accessSql, [conversationId, buyerId], (accessErr, accessRows) => {
+      if (accessErr) {
+        console.error("Access check failed:", accessErr);
+        return res.status(500).json({ message: "Unable to load messages" });
+      }
 
-    if (accessRows.length === 0) {
-      return res.status(403).json({ message: "Access denied" });
-    }
+      if (accessRows.length === 0) {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
-    const sql = `
+      const sql = `
       SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
       ORDER BY date_created ASC, message_id ASC
     `;
 
-    markConversationRead(conversationId, "buyer", buyerId)
-      .then(() => {
-        db.query(sql, [conversationId], (messageErr, rows) => {
-          if (messageErr) {
-            console.error("Message fetch failed:", messageErr);
-            return res.status(500).json({ message: "Unable to load messages" });
-          }
+      markConversationRead(conversationId, "buyer", buyerId)
+        .then(() => {
+          db.query(sql, [conversationId], (messageErr, rows) => {
+            if (messageErr) {
+              console.error("Message fetch failed:", messageErr);
+              return res
+                .status(500)
+                .json({ message: "Unable to load messages" });
+            }
 
-          res.json(rows);
+            res.json(rows);
+          });
+        })
+        .catch((error) => {
+          console.error("Message read update failed:", error);
+          res.status(500).json({ message: "Unable to load messages" });
         });
-      })
-      .catch((error) => {
-        console.error("Message read update failed:", error);
-        res.status(500).json({ message: "Unable to load messages" });
-      });
-  });
-});
+    });
+  },
+);
 
-router.get("/seller/conversations/:conversationId/messages", authenticateSeller, (req, res) => {
-  const sellerId = req.user.student_id || req.user.id;
-  const conversationId = Number(req.params.conversationId);
+router.get(
+  "/seller/conversations/:conversationId/messages",
+  authenticateSeller,
+  (req, res) => {
+    const sellerId = req.user.student_id || req.user.id;
+    const conversationId = Number(req.params.conversationId);
 
-  if (!conversationId) {
-    return res.status(400).json({ message: "Invalid conversation id" });
-  }
+    if (!conversationId) {
+      return res.status(400).json({ message: "Invalid conversation id" });
+    }
 
-  const accessSql = `
+    const accessSql = `
     SELECT conversation_id, student_id, customer_id
     FROM conversation
     WHERE conversation_id = ? AND student_id = ?
     LIMIT 1
   `;
 
-  db.query(accessSql, [conversationId, sellerId], (accessErr, accessRows) => {
-    if (accessErr) {
-      console.error("Access check failed:", accessErr);
-      return res.status(500).json({ message: "Unable to load messages" });
-    }
+    db.query(accessSql, [conversationId, sellerId], (accessErr, accessRows) => {
+      if (accessErr) {
+        console.error("Access check failed:", accessErr);
+        return res.status(500).json({ message: "Unable to load messages" });
+      }
 
-    if (accessRows.length === 0) {
-      return res.status(403).json({ message: "Access denied" });
-    }
+      if (accessRows.length === 0) {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
-    const sql = `
+      const sql = `
       SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
       ORDER BY date_created ASC, message_id ASC
     `;
 
-    markConversationRead(conversationId, "seller", sellerId)
-      .then(() => {
-        db.query(sql, [conversationId], (messageErr, rows) => {
-          if (messageErr) {
-            console.error("Message fetch failed:", messageErr);
-            return res.status(500).json({ message: "Unable to load messages" });
-          }
+      markConversationRead(conversationId, "seller", sellerId)
+        .then(() => {
+          db.query(sql, [conversationId], (messageErr, rows) => {
+            if (messageErr) {
+              console.error("Message fetch failed:", messageErr);
+              return res
+                .status(500)
+                .json({ message: "Unable to load messages" });
+            }
 
-          res.json(rows);
+            res.json(rows);
+          });
+        })
+        .catch((error) => {
+          console.error("Message read update failed:", error);
+          res.status(500).json({ message: "Unable to load messages" });
         });
-      })
-      .catch((error) => {
-        console.error("Message read update failed:", error);
-        res.status(500).json({ message: "Unable to load messages" });
-      });
-  });
-});
+    });
+  },
+);
 
-router.post("/buyer/conversations/:sellerId/messages", authenticateBuyer, chatUpload.single("image"), async (req, res) => {
-  const buyerId = req.user.customer_id || req.user.id;
-  const sellerId = Number(req.params.sellerId);
-  const messageText = typeof req.body.message === "string" ? req.body.message : "";
-  const savedMedia = req.file ? `http://localhost:5000/uploads/chat/${req.file.filename}` : null;
-  const mediaType = req.body.media_type || req.file?.mimetype || "";
-  const senderPublicKey = parsePublicKey(req.body.sender_public_key);
-  const encryptionIv = req.body.encryption_iv || null;
-  const attachmentIv = req.body.attachment_iv || null;
+router.post(
+  "/buyer/conversations/:sellerId/messages",
+  authenticateBuyer,
+  chatUpload.single("image"),
+  async (req, res) => {
+    const buyerId = req.user.customer_id || req.user.id;
 
-  if (!sellerId) {
-    return res.status(400).json({ message: "Invalid seller id" });
-  }
+    const sellerId = Number(req.params.sellerId);
 
-  if (!messageText.trim() && !savedMedia) {
-    return res.status(400).json({ message: "Message cannot be empty" });
-  }
+    const messageText =
+      typeof req.body.message === "string" ? req.body.message : "";
 
-  try {
-    if (await isChatBlocked(sellerId, buyerId)) {
-      return res.status(403).json({ message: "Messaging is unavailable for this account" });
-    }
+    const mediaType = req.body.media_type || req.file?.mimetype || "";
 
-    const conversationId = await getOrCreateConversation(sellerId, buyerId);
+    const senderPublicKey = parsePublicKey(req.body.sender_public_key);
 
-    const insertSql = `
-        INSERT INTO message (conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type)
-      VALUES (?, 'buyer', ?, ?, ?, ?, ?, ?)
-    `;
+    const encryptionIv = req.body.encryption_iv || null;
 
-    db.query(insertSql, [conversationId, messageText.trim() || "", savedMedia, senderPublicKey, encryptionIv, attachmentIv, mediaType], (insertErr, result) => {
-      if (insertErr) {
-        console.error("Buyer message insert failed:", insertErr);
-        return res.status(500).json({ message: "Unable to send message" });
+    const attachmentIv = req.body.attachment_iv || null;
+
+    const temporaryFilePath = req.file?.path || null;
+
+    let uploadedB2Key = null;
+
+    const savedMedia = req.file
+      ? `http://localhost:5000/uploads/chat/${req.file.filename}`
+      : null;
+
+    try {
+      if (!sellerId) {
+        return res.status(400).json({
+          message: "Invalid seller id",
+        });
       }
 
+      if (!messageText.trim() && !savedMedia) {
+        return res.status(400).json({
+          message: "Message cannot be empty",
+        });
+      }
+
+      if (await isChatBlocked(sellerId, buyerId)) {
+        return res.status(403).json({
+          message: "Messaging is unavailable for this account",
+        });
+      }
+
+      const conversationId = await getOrCreateConversation(sellerId, buyerId);
+
+      /*
+       * Upload chat attachment
+       * to B2 before inserting
+       * the message into MySQL.
+       */
+      if (req.file) {
+        uploadedB2Key = `${CHAT_B2_PREFIX}/${path.basename(req.file.filename)}`;
+
+        try {
+          await uploadToB2({
+            key: uploadedB2Key,
+
+            body: await fs.promises.readFile(temporaryFilePath),
+
+            contentType: req.file.mimetype || "application/octet-stream",
+          });
+
+          console.log("Buyer chat attachment uploaded to B2:", uploadedB2Key);
+        } catch (b2Error) {
+          console.error("Buyer chat B2 upload failed:", b2Error.message);
+
+          return res.status(502).json({
+            message: "Chat attachment could not be uploaded to cloud storage.",
+          });
+        }
+      }
+
+      const insertSql = `
+        INSERT INTO message
+        (
+          conversation_id,
+          sender_type,
+          message_data,
+          image,
+          sender_public_key,
+          encryption_iv,
+          attachment_iv,
+          media_type
+        )
+        VALUES (?, 'buyer', ?, ?, ?, ?, ?, ?)
+      `;
+
+      const result = await new Promise((resolve, reject) => {
+        db.query(
+          insertSql,
+          [
+            conversationId,
+            messageText.trim() || "",
+            savedMedia,
+            senderPublicKey,
+            encryptionIv,
+            attachmentIv,
+            mediaType,
+          ],
+          (insertErr, insertResult) => {
+            if (insertErr) {
+              reject(insertErr);
+              return;
+            }
+
+            resolve(insertResult);
+          },
+        );
+      });
+
       publishChatMessage(sellerId, buyerId, conversationId, result.insertId);
-      res.status(201).json({
+
+      return res.status(201).json({
         message_id: result.insertId,
+
         conversation_id: conversationId,
+
         sender_type: "buyer",
+
         message_data: messageText.trim() || "",
+
         image: savedMedia,
+
         sender_public_key: senderPublicKey,
+
         encryption_iv: encryptionIv,
+
         attachment_iv: attachmentIv,
+
         media_type: mediaType,
       });
-    });
-  } catch (error) {
-    console.error("Buyer send message failed:", error);
-    res.status(500).json({ message: "Unable to send message" });
-  }
-});
+    } catch (error) {
+      console.error("Buyer send message failed:", error);
 
-router.post("/seller/conversations/:buyerId/messages", authenticateSeller, chatUpload.single("image"), async (req, res) => {
-  const sellerId = req.user.student_id || req.user.id;
-  const buyerId = Number(req.params.buyerId);
-  const messageText = typeof req.body.message === "string" ? req.body.message : "";
-  const savedMedia = req.file ? `http://localhost:5000/uploads/chat/${req.file.filename}` : null;
-  const mediaType = req.body.media_type || req.file?.mimetype || "";
-  const senderPublicKey = parsePublicKey(req.body.sender_public_key);
-  const encryptionIv = req.body.encryption_iv || null;
-  const attachmentIv = req.body.attachment_iv || null;
-
-  if (!buyerId) {
-    return res.status(400).json({ message: "Invalid buyer id" });
-  }
-
-  if (!messageText.trim() && !savedMedia) {
-    return res.status(400).json({ message: "Message cannot be empty" });
-  }
-
-  try {
-    if (await isChatBlocked(sellerId, buyerId)) {
-      return res.status(403).json({ message: "Messaging is unavailable for this account" });
-    }
-
-    const conversationId = await getOrCreateConversation(sellerId, buyerId);
-
-    const insertSql = `
-        INSERT INTO message (conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type)
-      VALUES (?, 'seller', ?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(insertSql, [conversationId, messageText.trim() || "", savedMedia, senderPublicKey, encryptionIv, attachmentIv, mediaType], (insertErr, result) => {
-      if (insertErr) {
-        console.error("Seller message insert failed:", insertErr);
-        return res.status(500).json({ message: "Unable to send message" });
+      /*
+       * If the B2 upload worked
+       * but MySQL failed, remove
+       * the orphan cloud object.
+       */
+      if (uploadedB2Key) {
+        try {
+          await deleteFromB2(uploadedB2Key);
+        } catch (cleanupError) {
+          console.warn(
+            "Unable to clean failed buyer chat upload:",
+            cleanupError.message,
+          );
+        }
       }
 
+      return res.status(500).json({
+        message: "Unable to send message",
+      });
+    } finally {
+      /*
+       * Local chat attachment
+       * is temporary only.
+       */
+      if (temporaryFilePath) {
+        await fs.promises.unlink(temporaryFilePath).catch(() => {});
+      }
+    }
+  },
+);
+
+router.post(
+  "/seller/conversations/:buyerId/messages",
+  authenticateSeller,
+  chatUpload.single("image"),
+  async (req, res) => {
+    const sellerId = req.user.student_id || req.user.id;
+
+    const buyerId = Number(req.params.buyerId);
+
+    const messageText =
+      typeof req.body.message === "string" ? req.body.message : "";
+
+    const mediaType = req.body.media_type || req.file?.mimetype || "";
+
+    const senderPublicKey = parsePublicKey(req.body.sender_public_key);
+
+    const encryptionIv = req.body.encryption_iv || null;
+
+    const attachmentIv = req.body.attachment_iv || null;
+
+    const temporaryFilePath = req.file?.path || null;
+
+    let uploadedB2Key = null;
+
+    const savedMedia = req.file
+      ? `http://localhost:5000/uploads/chat/${req.file.filename}`
+      : null;
+
+    try {
+      if (!buyerId) {
+        return res.status(400).json({
+          message: "Invalid buyer id",
+        });
+      }
+
+      if (!messageText.trim() && !savedMedia) {
+        return res.status(400).json({
+          message: "Message cannot be empty",
+        });
+      }
+
+      if (await isChatBlocked(sellerId, buyerId)) {
+        return res.status(403).json({
+          message: "Messaging is unavailable for this account",
+        });
+      }
+
+      const conversationId = await getOrCreateConversation(sellerId, buyerId);
+
+      if (req.file) {
+        uploadedB2Key = `${CHAT_B2_PREFIX}/${path.basename(req.file.filename)}`;
+
+        try {
+          await uploadToB2({
+            key: uploadedB2Key,
+
+            body: await fs.promises.readFile(temporaryFilePath),
+
+            contentType: req.file.mimetype || "application/octet-stream",
+          });
+
+          console.log("Seller chat attachment uploaded to B2:", uploadedB2Key);
+        } catch (b2Error) {
+          console.error("Seller chat B2 upload failed:", b2Error.message);
+
+          return res.status(502).json({
+            message: "Chat attachment could not be uploaded to cloud storage.",
+          });
+        }
+      }
+
+      const insertSql = `
+        INSERT INTO message
+        (
+          conversation_id,
+          sender_type,
+          message_data,
+          image,
+          sender_public_key,
+          encryption_iv,
+          attachment_iv,
+          media_type
+        )
+        VALUES (?, 'seller', ?, ?, ?, ?, ?, ?)
+      `;
+
+      const result = await new Promise((resolve, reject) => {
+        db.query(
+          insertSql,
+          [
+            conversationId,
+            messageText.trim() || "",
+            savedMedia,
+            senderPublicKey,
+            encryptionIv,
+            attachmentIv,
+            mediaType,
+          ],
+          (insertErr, insertResult) => {
+            if (insertErr) {
+              reject(insertErr);
+              return;
+            }
+
+            resolve(insertResult);
+          },
+        );
+      });
+
       publishChatMessage(sellerId, buyerId, conversationId, result.insertId);
-      res.status(201).json({
+
+      return res.status(201).json({
         message_id: result.insertId,
+
         conversation_id: conversationId,
+
         sender_type: "seller",
+
         message_data: messageText.trim() || "",
+
         image: savedMedia,
+
         sender_public_key: senderPublicKey,
+
         encryption_iv: encryptionIv,
+
         attachment_iv: attachmentIv,
+
         media_type: mediaType,
       });
-    });
-  } catch (error) {
-    console.error("Seller send message failed:", error);
-    res.status(500).json({ message: "Unable to send message" });
-  }
-});
+    } catch (error) {
+      console.error("Seller send message failed:", error);
+
+      if (uploadedB2Key) {
+        try {
+          await deleteFromB2(uploadedB2Key);
+        } catch (cleanupError) {
+          console.warn(
+            "Unable to clean failed seller chat upload:",
+            cleanupError.message,
+          );
+        }
+      }
+
+      return res.status(500).json({
+        message: "Unable to send message",
+      });
+    } finally {
+      if (temporaryFilePath) {
+        await fs.promises.unlink(temporaryFilePath).catch(() => {});
+      }
+    }
+  },
+);
 
 export default router;
