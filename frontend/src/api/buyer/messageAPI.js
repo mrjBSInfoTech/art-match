@@ -36,6 +36,17 @@ export const fetchBuyerMessages = async (conversationId) => {
   }
 };
 
+export const fetchBuyerLatestMessage = async (conversationId) => {
+  try {
+    const res = await api.get(
+      `/buyer/conversations/${conversationId}/latest-message`,
+    );
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const deleteBuyerConversation = async (conversationId) => {
   try {
     await api.delete(`/buyer/conversations/${conversationId}`);

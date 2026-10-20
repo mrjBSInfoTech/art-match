@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -36,10 +36,12 @@ import PermMediaOutlinedIcon from "@mui/icons-material/PermMediaOutlined";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 
 import {
   fetchSellerConversations,
   fetchSellerMessages,
+  fetchSellerLatestMessage,
   fetchSellerNotifications,
   deleteSellerConversation,
   fetchSellerChatBlockStatus,
@@ -86,7 +88,7 @@ const toAbsoluteProfileImageUrl = (image, accountType) => {
     : "http://localhost:5000/uploads/buyer/profile.jpg";
   if (/^https?:\/\//i.test(image)) return image;
   if (image.startsWith("/")) return `http://localhost:5000${image}`;
-  const folder = accountType === "seller" ? "uploadProfile" : "profile";
+  const folder = "uploadProfile";
   return `http://localhost:5000/uploads/${accountType}/${folder}/${encodeURIComponent(image)}`;
 };
 
@@ -101,6 +103,7 @@ export default function Messages() {
   const [attachedPreview, setAttachedPreview] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [selectedMedia, setSelectedMedia] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +121,8 @@ export default function Messages() {
   const fileInputRef = useRef(null);
   const privateKeyRef = useRef(null);
   const publicKeyJwkRef = useRef("");
+  const previewPublicKeysRef = useRef(new Map());
+  const decryptedPreviewCacheRef = useRef(new Map());
   const messagesContainerRef = useRef(null);
   const shouldScrollToBottomRef = useRef(true);
   const lastMessageIdsRef = useRef(null);
@@ -153,9 +158,91 @@ export default function Messages() {
       ) || null,
     [conversations, selectedConversationId],
   );
-  const activeNotification = notifications.find(
-    (notification) => notification.notification_id === selectedNotificationId,
-  );
+  const loadConversationList = useCallback(async () => {
+    const conversationList = (await fetchSellerConversations()) || [];
+    if (!privateKeyRef.current) return conversationList;
+
+    return Promise.all(
+      conversationList.map(async (chat) => {
+        try {
+          const latestMessage = await fetchSellerLatestMessage(
+            chat.conversation_id,
+          );
+          if (!latestMessage) {
+            return { ...chat, last_message: "", last_message_encrypted: false };
+          }
+          if (!latestMessage.encryption_iv) {
+            return {
+              ...chat,
+              last_message:
+                latestMessage.message_data ||
+                (latestMessage.image ? "Attachment" : ""),
+              last_message_encrypted: false,
+            };
+          }
+
+          const cachedPreview = decryptedPreviewCacheRef.current.get(
+            String(chat.conversation_id),
+          );
+          if (
+            cachedPreview &&
+            String(cachedPreview.messageId) === String(latestMessage.message_id)
+          ) {
+            return {
+              ...chat,
+              last_message: cachedPreview.text,
+              last_message_encrypted: false,
+            };
+          }
+
+          let keyAgreementPublicKey = latestMessage.sender_public_key;
+          if (latestMessage.sender_type === "seller") {
+            const otherId = String(chat.other_id);
+            if (!previewPublicKeysRef.current.has(otherId)) {
+              const keyRequest = fetchBuyerChatKey(chat.other_id).catch(
+                (error) => {
+                  previewPublicKeysRef.current.delete(otherId);
+                  throw error;
+                },
+              );
+              previewPublicKeysRef.current.set(
+                otherId,
+                keyRequest,
+              );
+            }
+            keyAgreementPublicKey =
+              await previewPublicKeysRef.current.get(otherId);
+          }
+
+          const decrypted = await decryptChatMessage({
+            privateKey: privateKeyRef.current,
+            message: latestMessage,
+            keyAgreementPublicKey,
+          });
+          const previewText =
+            decrypted.text.trim() || (latestMessage.image ? "Attachment" : "");
+          decryptedPreviewCacheRef.current.set(
+            String(chat.conversation_id),
+            { messageId: latestMessage.message_id, text: previewText },
+          );
+
+          return {
+            ...chat,
+            last_message: previewText,
+            last_message_encrypted: false,
+          };
+        } catch {
+          return {
+            ...chat,
+            last_message: "Unable to decrypt this message on this device.",
+            last_message_encrypted: false,
+          };
+        }
+      }),
+    );
+  }, []);
+  const visibleNotifications = [];
+  const activeNotification = null;
   const isChatBlocked =
     String(blockStatusConversationId) === String(selectedConversationId) &&
     (Boolean(blockStatus.blocked_by_me) || Boolean(blockStatus.blocked_by_other));
@@ -191,8 +278,7 @@ export default function Messages() {
           setLoading(true);
           setError("");
         }
-        const data = await fetchSellerConversations();
-        const conversationList = data || [];
+        const conversationList = await loadConversationList();
         const nextSelectedConversationId =
           selectedConversationId ||
           (!selectedNotificationId
@@ -232,7 +318,12 @@ export default function Messages() {
     });
 
     return unsubscribe;
-  }, [selectedConversationId, selectedNotificationId]);
+  }, [
+    encryptionReady,
+    loadConversationList,
+    selectedConversationId,
+    selectedNotificationId,
+  ]);
 
   useEffect(() => {
     const loadNotifications = async () => {
@@ -314,6 +405,31 @@ export default function Messages() {
             lastMessageIdsRef.current === null || isNearBottom;
           lastMessageIdsRef.current = messageIds;
           setMessages(decryptedMessages);
+
+          const latestText = decryptedMessages.at(-1)?.text || "";
+          if (latestText) {
+            const latestMessage = data?.at(-1);
+            if (latestMessage) {
+              decryptedPreviewCacheRef.current.set(
+                String(selectedConversationId),
+                { messageId: latestMessage.message_id, text: latestText },
+              );
+            }
+            setConversations((current) =>
+              current.map((chat) =>
+                String(chat.conversation_id) === String(selectedConversationId)
+                  ? {
+                      ...chat,
+                      last_message: latestText,
+                      last_message_encrypted: false,
+                      last_message_time: decryptedMessages.at(-1)?.time
+                        ? new Date().toISOString()
+                        : chat.last_message_time,
+                    }
+                  : chat,
+              ),
+            );
+          }
         }
       } catch (err) {
         setError(err.message || "Unable to load messages");
@@ -328,13 +444,28 @@ export default function Messages() {
     };
   }, [selectedConversationId, encryptionReady]);
 
-  const filteredConversations = conversations.filter(
-    (chat) =>
-      (chat.other_name || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      String(chat.other_id || "").includes(searchQuery.trim()),
-  );
+  const normalizeConversationPreview = (value, chat) => {
+    const text = String(value ?? "").trim();
+    if (chat?.last_message_encrypted) return "Loading message...";
+    if (!text || /^\[?encrypted message\]?$/i.test(text)) return "No messages yet";
+    return text;
+  };
+
+  const activePlaceholder = "Type a message...";
+
+  const filteredConversations = [...conversations]
+    .filter(
+      (chat) =>
+        (chat.other_name || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        String(chat.other_id || "").includes(searchQuery.trim()),
+    )
+    .sort((a, b) => {
+      const aTime = a.last_message_time ? new Date(a.last_message_time).getTime() : 0;
+      const bTime = b.last_message_time ? new Date(b.last_message_time).getTime() : 0;
+      return bTime - aTime;
+    });
 
   const searchedBuyerId = searchQuery.trim();
   const canStartConversation =
@@ -345,7 +476,7 @@ export default function Messages() {
     try {
       setError("");
       const result = await startSellerConversation(searchedBuyerId);
-      const updated = await fetchSellerConversations();
+      const updated = await loadConversationList();
       setConversations(updated || []);
       setSelectedConversationId(result.conversation_id);
     } catch (err) {
@@ -353,11 +484,18 @@ export default function Messages() {
     }
   };
 
-  const handleSelectChat = (conversationId) => {
+  const handleSelectChat = async (conversationId) => {
     setConversations((current) =>
       clearConversationUnreadCount(current, conversationId),
     );
     setSelectedConversationId(conversationId);
+
+    try {
+      const updated = await loadConversationList();
+      setConversations(updated || []);
+    } catch {
+      // keep the current thread list if preview hydration fails
+    }
   };
 
   const handleDeleteChat = async () => {
@@ -457,7 +595,7 @@ export default function Messages() {
       );
       setInputMessage("");
       handleRemoveImage();
-      const updated = await fetchSellerConversations();
+      const updated = await loadConversationList();
       setConversations(updated || []);
     } catch (err) {
       setError(err.message || "Unable to send message");
@@ -580,7 +718,7 @@ export default function Messages() {
               </Box>
             ) : (
               <List sx={{ flexGrow: 1, overflowY: "auto", p: 0 }}>
-                {notifications.map((notification) => (
+                {visibleNotifications.map((notification) => (
                   <Box key={notification.notification_id}>
                     <ListItemButton
                       selected={
@@ -640,7 +778,19 @@ export default function Messages() {
                             handleSelectChat(chat.conversation_id);
                             setSelectedNotificationId(null);
                           }}
-                          sx={{ py: 1.5, px: 2 }}
+                          sx={{
+                            py: 1.5,
+                            px: 2,
+                            backgroundColor:
+                              Number(chat.unread_count || 0) > 0 && !isSelected
+                                ? "rgba(25, 118, 210, 0.06)"
+                                : "transparent",
+                            borderLeft:
+                              Number(chat.unread_count || 0) > 0 && !isSelected
+                                ? "3px solid"
+                                : "none",
+                            borderColor: "primary.main",
+                          }}
                         >
                           <ListItemAvatar>
                             <Badge
@@ -667,13 +817,19 @@ export default function Messages() {
                               >
                                 <Typography
                                   variant="subtitle2"
-                                  fontWeight={600}
+                                  fontWeight={
+                                    Number(chat.unread_count || 0) > 0 ? 800 : 600
+                                  }
                                 >
                                   {chat.other_name || "Buyer"}
                                 </Typography>
                                 <Typography
                                   variant="caption"
                                   color="text.secondary"
+                                  sx={{
+                                    fontWeight:
+                                      Number(chat.unread_count || 0) > 0 ? 700 : 400,
+                                  }}
                                 >
                                   {chat.last_message_time
                                     ? formatMessageTime(chat.last_message_time)
@@ -690,11 +846,18 @@ export default function Messages() {
                               >
                                 <Typography
                                   variant="body2"
-                                  color="text.secondary"
+                                  color={
+                                    Number(chat.unread_count || 0) > 0
+                                      ? "text.primary"
+                                      : "text.secondary"
+                                  }
+                                  fontWeight={
+                                    Number(chat.unread_count || 0) > 0 ? 600 : 400
+                                  }
                                   noWrap
                                   sx={{ maxWidth: 180 }}
                                 >
-                                  {chat.last_message || "No messages yet"}
+                                  {normalizeConversationPreview(chat.last_message, chat)}
                                 </Typography>
                                 {Number(chat.unread_count || 0) > 0 && (
                                   <Box
@@ -898,6 +1061,7 @@ export default function Messages() {
                           msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
                             <Box
                               sx={{
+                                position: "relative",
                                 width: "100%",
                                 maxHeight: 250,
                                 borderRadius: 2,
@@ -908,6 +1072,7 @@ export default function Messages() {
                               <video
                                 src={msg.image}
                                 controls
+                                onClick={(event) => event.stopPropagation()}
                                 style={{
                                   display: "block",
                                   width: "100%",
@@ -916,12 +1081,39 @@ export default function Messages() {
                                   background: "#000",
                                 }}
                               />
+                              <IconButton
+                                aria-label="Enlarge video"
+                                onClick={() =>
+                                  setSelectedMedia({
+                                    src: msg.image,
+                                    type: "video",
+                                    alt: "Message video",
+                                  })
+                                }
+                                sx={{
+                                  position: "absolute",
+                                  top: 6,
+                                  right: 6,
+                                  color: "#fff",
+                                  bgcolor: "rgba(0, 0, 0, 0.6)",
+                                  "&:hover": { bgcolor: "rgba(0, 0, 0, 0.8)" },
+                                }}
+                              >
+                                <OpenInFullIcon fontSize="small" />
+                              </IconButton>
                             </Box>
                           ) : (
                             <Box
                               component="img"
                               src={msg.image}
-                              alt="Attachment"
+                              alt="Attachment — click to enlarge"
+                              onClick={() =>
+                                setSelectedMedia({
+                                  src: msg.image,
+                                  type: "image",
+                                  alt: "Message attachment",
+                                })
+                              }
                               sx={{
                                 width: "100%",
                                 maxHeight: 250,
@@ -929,6 +1121,7 @@ export default function Messages() {
                                 borderRadius: 2,
                                 mb: msg.text ? 1 : 0,
                                 display: "block",
+                                cursor: "zoom-in",
                               }}
                             />
                           )
@@ -1050,7 +1243,7 @@ export default function Messages() {
                   <TextField
                     fullWidth
                     size="small"
-                    placeholder="Type a message..."
+                    placeholder={activePlaceholder}
                     value={inputMessage}
                     disabled={isChatBlocked}
                     onChange={(e) => setInputMessage(e.target.value)}
@@ -1126,23 +1319,53 @@ export default function Messages() {
                   media.mediaType?.startsWith("video/") ||
                   /\.(mp4|mov|webm|ogg|m4v)$/i.test(media.image);
                 return isVideo ? (
-                  <Box
-                    key={media.id}
-                    component="video"
-                    src={media.image}
-                    controls
-                    sx={{ width: "100%", aspectRatio: "1", bgcolor: "black" }}
-                  />
+                  <Box key={media.id} sx={{ position: "relative" }}>
+                    <Box
+                      component="video"
+                      src={media.image}
+                      controls
+                      onClick={(event) => event.stopPropagation()}
+                      sx={{ width: "100%", aspectRatio: "1", bgcolor: "black" }}
+                    />
+                    <IconButton
+                      aria-label="Enlarge video"
+                      onClick={() =>
+                        setSelectedMedia({
+                          src: media.image,
+                          type: "video",
+                          alt: "Shared video",
+                        })
+                      }
+                      sx={{
+                        position: "absolute",
+                        top: 6,
+                        right: 6,
+                        color: "#fff",
+                        bgcolor: "rgba(0, 0, 0, 0.6)",
+                        "&:hover": { bgcolor: "rgba(0, 0, 0, 0.8)" },
+                      }}
+                    >
+                      <OpenInFullIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 ) : (
                   <Box
                     key={media.id}
                     component="img"
                     src={media.image}
                     alt="Shared in this conversation"
+                    onClick={() =>
+                      setSelectedMedia({
+                        src: media.image,
+                        type: "image",
+                        alt: "Shared image",
+                      })
+                    }
                     sx={{
                       width: "100%",
                       aspectRatio: "1",
                       objectFit: "cover",
+                      cursor: "zoom-in",
                     }}
                   />
                 );
@@ -1157,6 +1380,54 @@ export default function Messages() {
         <DialogActions>
           <Button onClick={() => setMediaDialogOpen(false)}>Close</Button>
         </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(selectedMedia)}
+        onClose={() => setSelectedMedia(null)}
+        fullScreen={isMobile}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{ sx: { bgcolor: "common.black", color: "common.white" } }}
+      >
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between" }}>
+          {selectedMedia?.alt || "Media"}
+          <IconButton
+            aria-label="Close enlarged media"
+            onClick={() => setSelectedMedia(null)}
+            sx={{ color: "common.white" }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            display: "grid",
+            placeItems: "center",
+            p: { xs: 1, sm: 2 },
+          }}
+        >
+          {selectedMedia?.type === "video" ? (
+            <Box
+              component="video"
+              src={selectedMedia.src}
+              controls
+              autoPlay
+              sx={{ maxWidth: "100%", maxHeight: "80vh" }}
+            />
+          ) : selectedMedia ? (
+            <Box
+              component="img"
+              src={selectedMedia.src}
+              alt={selectedMedia.alt}
+              sx={{
+                maxWidth: "100%",
+                maxHeight: "80vh",
+                objectFit: "contain",
+              }}
+            />
+          ) : null}
+        </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(actionDialog)} onClose={() => setActionDialog("")}>
