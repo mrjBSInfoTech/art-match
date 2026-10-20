@@ -14,6 +14,7 @@ import adminCustomerRoutes from "./routes/admin/customer.js";
 import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
 import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import adminAdminRoutes from "./routes/admin/admin.js";
+import aboutContentRoutes from "./routes/aboutContent.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
 import { ensureChatPublicKeysTable } from "./database/chatKeys.js";
@@ -26,6 +27,7 @@ import { ensureOrderTables } from "./database/orders.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
 import { ensureArtworkSchema } from "./database/artwork.js";
+import { ensureAboutContentTable } from "./database/aboutContent.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -347,6 +349,7 @@ app.use("/api/admin/customer", adminCustomerRoutes);
 app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
 app.use("/api/admin/account-access", adminAccountAccessRoutes);
 app.use("/api/admin/admin", adminAdminRoutes);
+app.use("/api/about-content", aboutContentRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
@@ -390,6 +393,7 @@ ensureBuyerPrivacyColumn()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
+  .then(() => ensureAboutContentTable())
   .then(() => ensureConversationReadStateTable())
   .then(() =>
     app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)),
