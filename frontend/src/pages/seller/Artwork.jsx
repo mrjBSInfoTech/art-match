@@ -25,6 +25,7 @@ import ArtworkForm from "../../components/seller/Artwork/ArtworkForm";
 import ArtworkDelete from "../../components/seller/Artwork/ArtworkDelete";
 import ArtworkVerify from "../../components/seller/Artwork/ArtworkVerify";
 import ArtworkErrorAdd from "../../components/seller/Artwork/ArtworkErrorAdd";
+import ArtworkConfirm from "../../components/seller/Artwork/ArtworkConfirm";
 import {
   fetchArtworks,
   addArtwork,
@@ -48,6 +49,8 @@ export default function Artwork() {
   const theme = useTheme();
   const [artworks, setArtworks] = useState([]);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
+  const [pendingArtwork, setPendingArtwork] = useState(null);
+  const [openArtworkConfirm, setOpenArtworkConfirm] = useState(false);
   const [openArtworkDelete, setOpenArtworkDelete] = useState(false);
   const [openArtworkVerify, setOpenArtworkVerify] = useState(false);
   const [openArtworkErrorAdd, setOpenArtworkErrorAdd] = useState(false);
@@ -149,6 +152,7 @@ export default function Artwork() {
   // ➕ Open Add Artwork Modal
   const handleOpenArtworkAdd = () => {
     setSelectedArtwork(null);
+    setPendingArtwork(null);
     if (isVerified) {
       setOpenArtworkForm(true);
     } else {
@@ -156,9 +160,22 @@ export default function Artwork() {
     }
   };
 
+  // ✅ Open Confirm Artwork Modal
+  const handleOpenArtworkConfirm = (formData) => {
+    setPendingArtwork(formData);
+    setOpenArtworkForm(false);
+    setOpenArtworkConfirm(true);
+  };
+
+  const handleCancelArtworkConfirm = () => {
+    setOpenArtworkConfirm(false);
+    setOpenArtworkForm(true);
+  };
+
   // ✏️ Open Edit Artwork Modal
   const handleOpenArtworkEdit = (artwork) => {
     setSelectedArtwork(artwork);
+    setPendingArtwork(null);
     setOpenArtworkForm(true);
   };
 
@@ -185,7 +202,7 @@ export default function Artwork() {
       setLoading(true);
       if (selectedArtwork) {
         // Update existing artwork
-        await updateArtwork(selectedArtwork.artwork_id, formData);
+        await updateArtwork(selectedArtwork.artwork_id ?? selectedArtwork.id, formData);
         // refresh list and then close modal
         await loadArtworks();
         showSnackbar("Artwork updated successfully", "success");
@@ -197,11 +214,13 @@ export default function Artwork() {
         showSnackbar("Artwork added successfully", "success");
       }
       setOpenArtworkForm(false);
+      setOpenArtworkConfirm(false);
+      setPendingArtwork(null);
       setSelectedArtwork(null);
-      setLoading(false);
     } catch (err) {
       console.error("Error saving artwork:", err);
-      setArtworkErrorMessage(err.message || "Error saving artwork", "error");
+      throw err;
+    } finally {
       setLoading(false);
     }
   };
@@ -613,8 +632,16 @@ export default function Artwork() {
       <ArtworkForm
         open={openArtworkForm}
         handleClose={() => setOpenArtworkForm(false)}
-        onSubmit={handleSubmitArtwork}
+        onSubmit={handleOpenArtworkConfirm}
         selectedArtwork={selectedArtwork}
+        initialDraft={pendingArtwork}
+      />
+      <ArtworkConfirm
+        open={openArtworkConfirm}
+        handleClose={handleCancelArtworkConfirm}
+        onSubmit={handleSubmitArtwork}
+        formData={pendingArtwork}
+        isEditing={Boolean(selectedArtwork)}
       />
       <ArtworkDelete
         open={openArtworkDelete}

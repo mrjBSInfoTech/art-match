@@ -15,7 +15,7 @@ export function getArtworkFormOptions(artType) {
   if (type === "digital") {
     return { product: "painting", sizeLabel: "Digital dimensions", sizeHint: "Width × height in pixels, e.g. 3000 × 2000 px" };
   }
-  if (["painting", "photography", "print"].includes(type)) {
+  if (["painting", "architecture", "photography", "print"].includes(type)) {
     return {
       product: ["photography", "print"].includes(type) ? "image" : "painting",
       sizeLabel: type === "photography" ? "Photo dimensions" : "Artwork dimensions",

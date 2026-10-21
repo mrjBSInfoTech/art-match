@@ -13,7 +13,7 @@ export const ART_STYLES = [
   "Modern",
   "Abstract",
   "Traditional",
-  "Minimalist",
+  "Minimalism",
   "Pop Art",
   "Conceptual",
   "Cute",

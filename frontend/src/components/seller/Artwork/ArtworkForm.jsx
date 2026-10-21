@@ -66,7 +66,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
+function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, initialDraft = null }) {
   const [formData, setFormData] = useState({
     title: "",
     art_type: "",
@@ -97,6 +97,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
 
   const uploadReminder = formData.art_type === "digital"
     ? "Upload the complete digital artwork without app controls or borders. Its medium will be set to Digital automatically."
+    : formData.art_type === "architecture"
+      ? "Upload a clear, straight-on image of the complete architectural drawing. Its features, colors, and 2D mediums will be detected from the image."
     : ["photography", "print"].includes(formData.art_type)
       ? "Upload the complete photograph or print. Colors and image features will be detected; no medium will be assigned."
       : formData.art_type === "painting" || formData.product === "painting"
@@ -106,7 +108,11 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
           : "";
 
   useEffect(() => {
-    if (selectedArtwork) {
+    if (!open) return;
+    if (initialDraft) {
+      setFormData(initialDraft);
+      setImagePreview(initialDraft.image || null);
+    } else if (selectedArtwork) {
       setFormData({
         title: selectedArtwork.title || "",
         art_size: selectedArtwork.art_size || "",
@@ -138,7 +144,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
     setError("");
     setUploadError("");
     setIsSubmitting(false);
-  }, [selectedArtwork, open]);
+  }, [selectedArtwork, open, initialDraft]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -192,7 +198,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
       setError("Style is required");
       return;
     }
-    if (!formData.price || Number(formData.price) <= 0) {
+    if (!Number.isFinite(Number(formData.price)) || Number(formData.price) <= 0) {
       setError("Price must be greater than zero");
       return;
     }
@@ -203,44 +209,13 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
 
     try {
       setIsSubmitting(true);
-      await onSubmit?.({ ...formData, product, price: Number(formData.price) });
-      handleClose();
+      await onSubmit({ ...formData, product, price: Number(formData.price) });
     } catch (submissionError) {
-      setError(submissionError.message || "Unable to save artwork");
+      setError(submissionError.message || "Unable to open artwork confirmation");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Handle Enter key for submit
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Enter" && open) {
-        event.preventDefault();
-        handleSubmit();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, formData]);
-
-  // Handle Escape key
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        handleClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
 
   return (
     <Dialog
@@ -289,11 +264,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
         </Button>
       </DialogTitle>
       <DialogContent dividers>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
         {uploadError && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {uploadError}
@@ -453,6 +423,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
               sx={{ gridColumn: "1 / -1" }}
               name="price"
               type="number"
+              slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
               value={formData.price}
               onChange={handleChange}
               fullWidth
@@ -471,12 +442,18 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null }) {
           </Box>
         </Stack>
       </DialogContent>
+      {error && (
+        <Box sx={{ px: 3, pt: 2 }}>
+          <Alert severity="error">{error}</Alert>
+        </Box>
+      )}
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={handleClose} disabled={isSubmitting} color="text.secondary">
           Cancel
         </Button>
         <Button
           variant="contained"
+          type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
           sx={{

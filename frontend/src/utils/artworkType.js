@@ -9,7 +9,7 @@ export function matchTwoDimensionalType(artwork, query) {
 
   const type = normalize(artwork.art_type);
   const product = normalize(artwork.product);
-  if (["3d", "3d_object", "physical_art", "sculpture", "architecture", "product", "mixed_media"].includes(type)
+  if (["3d", "3d_object", "physical_art", "sculpture", "product", "mixed_media"].includes(type)
     || ["3d", "3d_object"].includes(product)) return false;
 
   if (isPainting) {

@@ -29,11 +29,11 @@ if (!fs.existsSync(uploadDir)) {
 async function scanArtwork(absoluteImagePath, art_type, product) {
   let detectedColors = "Pending";
   let detectedFeatures = null;
-  const isDigital = art_type.trim().toLowerCase() === "digital";
   const type = art_type.trim().toLowerCase();
+  const fixedMedium = type === "digital" ? "Digital" : null;
   const featuresOnly = ["photography", "photo", "image", "print"].includes(type)
     || (["auto", "physical"].includes(type) && product.trim().toLowerCase() === "image");
-  let detectedMediums = isDigital ? "Digital" : featuresOnly ? "None" : null;
+  let detectedMediums = fixedMedium || (featuresOnly ? "None" : null);
 
   // Analyze colors, features, and mediums when the seller uploads artwork.
   try {
@@ -42,7 +42,7 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image_path: absoluteImagePath,
-        artwork_type: art_type.trim().toLowerCase(),
+        artwork_type: type,
         product: product.trim().toLowerCase(),
       }),
     });
@@ -66,8 +66,8 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
         ).slice(0, 1000);
         console.log("Detected features:", detectedFeatures);
         detectedMediums = (
-          isDigital
-            ? "Digital"
+          fixedMedium
+            ? fixedMedium
             : featuresOnly
               ? "None"
               : Array.isArray(mlData.mediums)
@@ -337,7 +337,7 @@ router.post(
 
           const artUploadSql = `
           INSERT INTO artupload (artwork_id, request_status, request_date)
-          VALUES (?, 'Pending', ?)
+          VALUES (?, 'Unverified', ?)
         `;
 
           db.query(artUploadSql, [artworkId, createdAt], (uploadErr) => {
@@ -353,7 +353,7 @@ router.post(
               res.json({
                 message: "Artwork added successfully!",
                 id: artworkId,
-                request_status: "Pending",
+                request_status: "Unverified",
                 colors: detectedColors,
               });
 

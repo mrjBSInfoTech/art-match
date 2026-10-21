@@ -802,7 +802,7 @@ def analyze_artwork(req: ImageRequest):
     )
     is_print = user_selection == "print"
     features_only = is_photo or is_print
-    is_painting = user_selection == "painting" or (
+    is_painting = user_selection in {"painting", "architecture"} or (
         user_selection in {"mixed media", "mixed_media"} and product_selection == "painting"
     ) or (
         user_selection in {"auto", "physical", "2d_art"}
@@ -826,7 +826,7 @@ def analyze_artwork(req: ImageRequest):
         # Photos and prints have no reliable medium labels in these models.
         final_mediums = []
     else:
-        # Only paintings use the 2D medium model; physical objects use 3D.
+        # Paintings and architectural drawings use 2D mediums; physical objects use 3D.
         final_mediums = extract_mediums(scan_img, is_3d)
 
     # Keep the prediction vocabulary scoped to the selected artwork type.

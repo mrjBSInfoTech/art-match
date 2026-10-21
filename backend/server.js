@@ -185,6 +185,20 @@ const downloadAndCacheB2 = async (key, cachePath) => {
  * Creates a normal Express middleware
  * for cached private B2 objects.
  */
+const sendFileIfPresent = (res, filePath, options = {}) =>
+  new Promise((resolve, reject) => {
+    res.sendFile(filePath, options, (error) => {
+      if (!error || res.destroyed || error.code === "ECONNABORTED") {
+        resolve(true);
+      } else if (!res.headersSent &&
+        (error.status === 404 || error.code === "ENOENT" || error.code === "ENOTDIR")) {
+        resolve(false);
+      } else {
+        reject(error);
+      }
+    });
+  });
+
 const serveB2Cached =
   ({
     keyPrefix,
@@ -209,7 +223,11 @@ const serveB2Cached =
 
       res.setHeader("X-ArtMatch-Storage", "cache");
 
-      return res.sendFile(cachePath);
+      // A relative path keeps the trusted .cache root out of Express's
+      // hidden-file check, while hidden files within the cache stay blocked.
+      if (await sendFileIfPresent(res, path.relative(B2_CACHE_ROOT, cachePath), {
+        root: B2_CACHE_ROOT,
+      })) return;
     }
 
     /*
@@ -240,14 +258,14 @@ const serveB2Cached =
 
         res.setHeader("X-ArtMatch-Storage", "local");
 
-        return res.sendFile(localPath);
+        if (await sendFileIfPresent(res, localPath)) return;
       }
     }
 
     /*
      * 3. If we recently detected the
      * B2 cap, don't repeatedly send
-     * doomed requests for 60 seconds.
+     * doomed requests during the cooldown.
      */
     if (Date.now() < b2DownloadBlockedUntil) {
       return next();
@@ -445,6 +463,10 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err.status === 404 || err.statusCode === 404) {
+    return res.status(404).json({ message: "File not found" });
+  }
   console.error("Unhandled error:", err);
   res.status(500).json({ message: "Internal server error" });
 });

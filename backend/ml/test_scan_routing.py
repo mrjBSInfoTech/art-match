@@ -50,6 +50,20 @@ class ScanRoutingTests(unittest.TestCase):
         self.assertEqual(result["mediums"], ["Digital"])
         self.assertFalse(result["is_3d"])
 
+    def test_architecture_detects_2d_mediums_even_with_legacy_3d_product(self):
+        for product in ["painting", "3d_object"]:
+            with self.subTest(product=product):
+                result, calls = self.analyze("architecture", product)
+                calls["prepare_physical_art_scan"].assert_not_called()
+                calls["extract_features"].assert_called_once()
+                scan_img = calls["extract_features"].call_args.args[0]
+                calls["extract_mediums"].assert_called_once_with(scan_img, False)
+                calls["extract_all_detailed_colors"].assert_called_once_with(scan_img, is_3d=False)
+                self.assertEqual(result["mediums"], ["oil"])
+                self.assertEqual(result["features"], ["landscape"])
+                self.assertEqual(result["colors"], ["Blue"])
+                self.assertFalse(result["is_3d"])
+
     def test_painting_and_flat_mixed_media_use_2d(self):
         for category in ["painting", "mixed media"]:
             with self.subTest(category=category):
@@ -59,7 +73,7 @@ class ScanRoutingTests(unittest.TestCase):
                 self.assertFalse(result["is_3d"])
 
     def test_object_categories_use_3d(self):
-        for category in ["sculpture", "architecture", "product", "mixed media"]:
+        for category in ["sculpture", "product", "mixed media"]:
             with self.subTest(category=category):
                 result, calls = self.analyze(category, "3d_object")
                 calls["prepare_physical_art_scan"].assert_called_once()
