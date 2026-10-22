@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
+import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 
 const artwork = (id, values = {}) => ({
   artwork_id: id, student_id: 9, title: `Artwork ${id}`, price: 100,
@@ -167,6 +167,105 @@ test("equal scores use creation date then artwork ID and respect the requested c
   assert.deepEqual(rank([...candidates].reverse()), [3, 2]);
 });
 
+test("related artists remain diverse beyond the first twenty matching artworks", () => {
+  const candidates = [
+    ...Array.from({ length: 25 }, (_, index) => artwork(index + 1, { mediums_used: "Oil" })),
+    artwork(26, { student_id: 10, mediums_used: "Pastel" }),
+    artwork(27, { mediums_used: "Acrylic" }),
+    artwork(1, { student_id: "009", mediums_used: "Oil" }),
+    artwork(28, { student_id: 7, mediums_used: "Oil" }),
+  ];
+  const rankedArtworks = rankSellerRelatedArtworks({
+    sellerId: 7, specialties: ["Oil"], candidates, topK: candidates.length,
+  });
+  assert.ok(rankedArtworks.slice(0, 20).every((item) => item.student_id === 9));
+  const artists = buildSellerRelatedArtists({ sellerId: "007", rankedArtworks, candidates });
+  assert.deepEqual(artists.map((artist) => artist.student_id), [9, 10]);
+  assert.deepEqual(artists[0].artworks.map((item) => item.artwork_id), [25, 24, 23]);
+  assert.equal(artists[0].works, 26);
+  assert.equal(artists[1].works, 1);
+  assert.deepEqual(artists[1].specialties, ["Pastel"]);
+});
+
+test("artists without saved specialties display their own artwork labels rather than the source specialty", () => {
+  const candidates = [artwork(1, {
+    student_id: 10, mediums_used: "Pastel", genre: "Abstract", art_type: "Painting",
+  })];
+  const rankedArtworks = rankSellerRelatedArtworks({
+    sellerId: 7, specialties: ["Oil"], candidates, topK: candidates.length,
+  });
+  assert.deepEqual(rankedArtworks[0].related_specialties, ["Oil"]);
+  const artists = buildSellerRelatedArtists({ sellerId: 7, rankedArtworks, candidates });
+  assert.deepEqual(artists[0].specialties, ["Pastel", "Abstract", "Painting"]);
+  assert.ok(!artists[0].specialties.includes("Oil"));
+});
+
+test("artist summaries preserve matching preview order and supply card metadata", () => {
+  const values = {
+    first_name: " Alex ", last_name: " Cruz ", shop_name: " Alex Studio ",
+    course: " Fine Arts ", profile_image: "profile photo.jpg", shop_description: " Studio bio ",
+    seller_specialties: JSON.stringify('["Oil Painting","Oil","Pastels"]'),
+  };
+  const candidates = [
+    artwork(1, { ...values, mediums_used: "Acrylic" }),
+    artwork(2, { ...values, mediums_used: "Oil" }),
+    artwork(3, { ...values, mediums_used: "Pastel" }),
+    artwork(4, { ...values, mediums_used: "Oil" }),
+  ];
+  const rankedArtworks = rankSellerRelatedArtworks({
+    sellerId: 7, specialties: ["Oil"], candidates, topK: candidates.length,
+  });
+  const artists = buildSellerRelatedArtists({ sellerId: 7, rankedArtworks, candidates });
+  assert.equal(artists.length, 1);
+  assert.deepEqual(artists[0].artworks.map((item) => item.artwork_id), [4, 2, 3]);
+  assert.deepEqual({ ...artists[0], artworks: [] }, {
+    student_id: 9, name: "Alex Studio", artistName: "Alex Cruz", department: "Fine Arts",
+    profile_image: "profile photo.jpg", bio: "Studio bio", specialties: ["Oil Painting", "Pastels"],
+    works: 4, artworks: [],
+  });
+});
+
+test("related artist cards cap artists and previews while excluding duplicates and artwork-only similarity", () => {
+  const candidates = Array.from({ length: 8 }, (_, index) => artwork(index + 1, {
+    student_id: index + 8, mediums_used: "Oil",
+  }));
+  candidates.push(artwork(20, { student_id: 30, genre: "Landscape" }));
+  const rankedArtworks = rankSellerRelatedArtworks({
+    sellerId: 7, specialties: ["Oil"], candidates, topK: candidates.length,
+    sellerArtworks: [artwork(100, { student_id: 7, genre: "Landscape" })],
+  });
+  const artists = buildSellerRelatedArtists({
+    sellerId: 7, candidates, rankedArtworks: [...rankedArtworks, ...rankedArtworks],
+  });
+  assert.equal(artists.length, 6);
+  assert.deepEqual(artists.map((artist) => artist.student_id), [15, 14, 13, 12, 11, 10]);
+  assert.ok(artists.every((artist) => artist.artworks.length === 1 && artist.works === 1));
+});
+
+test("malformed related artist data cannot add sellers outside the available candidate pool", () => {
+  const candidates = [
+    null, {}, artwork(0), artwork(1, { student_id: 0 }), artwork(2, { student_id: 7 }),
+    artwork(3, { student_id: "009" }), artwork("003", { student_id: 9 }),
+  ];
+  const rankedArtworks = [
+    null, false, "invalid", {},
+    artwork(2, { student_id: 7, recommendation_source: "seller_specialties" }),
+    artwork(99, { student_id: 10, recommendation_source: "seller_specialties" }),
+    artwork(3, {
+      student_id: "009", recommendation_source: "seller_specialties",
+      seller_specialties: "[broken", matched_specialties: [null, 5, "Oil"],
+      related_specialties: {}, first_name: {}, course: [], profile_image: 4,
+    }),
+    artwork(3, { recommendation_source: "seller_specialties" }),
+  ];
+  assert.deepEqual(buildSellerRelatedArtists({ sellerId: 7, rankedArtworks, candidates }), [{
+    student_id: 9, name: "Unknown Artist", artistName: "Unknown Artist", department: "Independent Artist",
+    profile_image: "", bio: "", specialties: [], works: 1, artworks: [rankedArtworks[6]],
+  }]);
+  assert.deepEqual(buildSellerRelatedArtists({ sellerId: "invalid", rankedArtworks, candidates }), []);
+  assert.deepEqual(buildSellerRelatedArtists({ sellerId: 7 }), []);
+});
+
 const routeSource = readFileSync(new URL("./recommendation.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "")
   .replace("export default router;", "");
@@ -176,7 +275,7 @@ const setupRoute = (query) => {
   const context = vm.createContext({
     express: { Router: () => ({ get(path, handler) { routes.set(path, handler); }, post() {} }) },
     db: { promise: () => ({ query }) }, process: { env: {} }, console,
-    rankSellerRelatedArtworks,
+    buildSellerRelatedArtists, rankSellerRelatedArtworks,
   });
   vm.runInContext(routeSource, context);
   return async (sellerId = "7", topK) => {
@@ -218,6 +317,9 @@ test("seller endpoint uses approved context and available candidate filters with
   assert.equal(response.body.mode, "seller_related");
   assert.equal(response.body.seller_id, 7);
   assert.deepEqual(response.body.recommendations.map((item) => item.artwork_id), [2]);
+  assert.deepEqual(response.body.related_artists.map((item) => item.student_id), [9]);
+  assert.deepEqual(response.body.related_artists[0].artworks.map((item) => item.artwork_id), [2]);
+  assert.equal(response.body.related_artists[0].works, 2);
   assert.ok(queries.every(({ sql }) => sql.includes("?") || sql.includes("SELECT DISTINCT")));
   const sourceQuery = queries.find(({ sql }) => sql.includes("WHERE a.student_id = ?"));
   assert.match(sourceQuery.sql, /au.request_status\) = 'verified'/);
@@ -235,4 +337,23 @@ test("unknown sellers return 404 and known sellers with no matches return an emp
   const response = await route();
   assert.equal(response.status, 200);
   assert.deepEqual(response.body.recommendations, []);
+  assert.deepEqual(response.body.related_artists, []);
+});
+
+test("seller endpoint limits artworks without truncating the related artist pool", async () => {
+  const candidates = [
+    ...Array.from({ length: 25 }, (_, index) => artwork(index + 1, { mediums_used: "Oil" })),
+    artwork(26, { student_id: 10, mediums_used: "Pastel" }),
+  ];
+  const route = setupRoute(async (sql) => {
+    if (sql.includes("FROM student s")) return [[{ student_id: 7, specialties: '["Oil"]' }]];
+    if (sql.includes("SELECT DISTINCT")) return [candidates.map(({ artwork_id }) => ({ artwork_id }))];
+    if (sql.includes("a.artwork_id IN")) return [candidates];
+    return [[]];
+  });
+  const response = await route("7", "1");
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body.recommendations.map((item) => item.artwork_id), [25]);
+  assert.deepEqual(response.body.related_artists.map((artist) => artist.student_id), [9, 10]);
+  assert.equal(response.body.related_artists[0].artworks.length, 3);
 });

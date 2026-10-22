@@ -3,6 +3,7 @@ import json
 import torch
 from torchvision import datasets, transforms, models
 from torch import nn
+from dataset_sync import prepare_dataset
 
 # ============================================================
 # CONFIG
@@ -16,12 +17,8 @@ MODEL_PATH = os.path.join(
     "medium_3d_scanner.pth"
 )
 
-VAL_DIR = os.path.join(
-    BASE_DIR,
-    "datasets",
-    "mediums_3d",
-    "val"
-)
+DATASET_DIR = prepare_dataset("mediums_3d")
+VAL_DIR = str(DATASET_DIR / "val")
 
 OUTPUT_PATH = os.path.join(
     BASE_DIR,

@@ -2,7 +2,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
-import { rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
+import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 
 const router = express.Router();
 const CLIENT_EVENTS = new Set(["view", "search", "filter"]);
@@ -1206,10 +1206,15 @@ router.get("/seller/:sellerId", async (req, res) => {
     const candidates = await attachArtworkDetails(
       candidateIds.map((artworkId) => ({ artwork_id: artworkId })),
     );
-    const recommendations = rankSellerRelatedArtworks({
-      sellerId, specialties: sellers[0].specialties, sellerArtworks, candidates, topK,
+    const rankedArtworks = rankSellerRelatedArtworks({
+      sellerId, specialties: sellers[0].specialties, sellerArtworks, candidates,
+      topK: candidates.length,
     });
-    return res.json({ mode: "seller_related", seller_id: sellerId, recommendations });
+    const relatedArtists = buildSellerRelatedArtists({ sellerId, rankedArtworks, candidates });
+    return res.json({
+      mode: "seller_related", seller_id: sellerId,
+      recommendations: rankedArtworks.slice(0, topK), related_artists: relatedArtists,
+    });
   } catch (error) {
     console.error("Seller recommendation retrieval error:", error);
     return res.status(500).json({ message: "Unable to load related artworks." });

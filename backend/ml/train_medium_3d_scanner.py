@@ -4,6 +4,7 @@ import torch
 from torchvision import datasets, transforms, models
 from torch import nn, optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from dataset_sync import prepare_dataset
 
 # ============================================================
 # CONFIG
@@ -11,13 +12,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-TRAIN_DIR = os.path.join(
-    BASE_DIR, "datasets", "mediums_3d", "train"
-)
-
-VAL_DIR = os.path.join(
-    BASE_DIR, "datasets", "mediums_3d", "val"
-)
+DATASET_DIR = prepare_dataset("mediums_3d")
+TRAIN_DIR = str(DATASET_DIR / "train")
+VAL_DIR = str(DATASET_DIR / "val")
 
 MODEL_PATH = os.path.join(
     BASE_DIR, "models", "medium_3d_scanner.pth"

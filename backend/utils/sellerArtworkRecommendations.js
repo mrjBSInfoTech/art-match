@@ -164,3 +164,62 @@ export const rankSellerRelatedArtworks = ({
   return [...rankedById.values()].sort(compareRecommendations)
     .slice(0, topK).map((artwork, index) => ({ ...artwork, rank: index + 1 }));
 };
+
+const textValue = (value) => typeof value === "string" ? value.trim() : "";
+
+// Group the complete ranked pool before limiting artists so that a seller with
+// many matching works cannot hide other artists beyond the artwork page size.
+export const buildSellerRelatedArtists = ({
+  sellerId, rankedArtworks = [], candidates = [],
+}) => {
+  const sourceSellerId = positiveId(sellerId);
+  if (!sourceSellerId) return [];
+
+  const availableWorks = new Map();
+  for (const artwork of candidates) {
+    if (!artwork || typeof artwork !== "object") continue;
+    const artistId = positiveId(artwork.student_id);
+    const artworkId = positiveId(artwork.artwork_id);
+    if (!artistId || !artworkId || artistId === sourceSellerId) continue;
+    if (!availableWorks.has(artistId)) availableWorks.set(artistId, new Set());
+    availableWorks.get(artistId).add(artworkId);
+  }
+
+  const artists = new Map();
+  for (const artwork of rankedArtworks) {
+    if (!artwork || artwork.recommendation_source !== "seller_specialties") continue;
+    const artistId = positiveId(artwork.student_id);
+    const artworkId = positiveId(artwork.artwork_id);
+    if (!artistId || artistId === sourceSellerId || !artworkId ||
+      !availableWorks.get(artistId)?.has(artworkId)) continue;
+
+    if (!artists.has(artistId)) {
+      const artistName = [textValue(artwork.first_name), textValue(artwork.last_name)]
+        .filter(Boolean).join(" ") || textValue(artwork.artist) || "Unknown Artist";
+      const savedSpecialties = parseTags(artwork.seller_specialties, true);
+      const specialties = savedSpecialties.length ? savedSpecialties : parseTags([
+        ...["mediums_used", "genre", "art_type"]
+          .flatMap((field) => parseTags(artwork[field]).map(({ label }) => label)),
+      ], true);
+      artists.set(artistId, {
+        student_id: artistId,
+        name: textValue(artwork.shop_name) || artistName,
+        artistName,
+        department: textValue(artwork.course) || "Independent Artist",
+        profile_image: textValue(artwork.profile_image),
+        bio: textValue(artwork.shop_description),
+        specialties: specialties.map(({ label }) => label),
+        works: availableWorks.get(artistId).size,
+        artworks: [],
+      });
+    }
+
+    const artist = artists.get(artistId);
+    if (artist.artworks.length < 3 &&
+      !artist.artworks.some((preview) => positiveId(preview.artwork_id) === artworkId)) {
+      artist.artworks.push(artwork);
+    }
+  }
+
+  return [...artists.values()].slice(0, 6);
+};

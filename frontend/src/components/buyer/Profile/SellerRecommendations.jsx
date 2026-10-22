@@ -10,9 +10,10 @@ import {
 } from "@mui/material";
 import {
   fetchRecommendations,
-  fetchSellerRecommendations,
+  fetchSellerProfileRecommendations,
 } from "../../../api/buyer/recommendationAPI";
 import ArtworkCard from "../Artwork/ArtworkCard";
+import RelatedArtists from "../Artist/RelatedArtists";
 import { mergeSellerProfileRecommendations } from "../../../utils/sellerProfileRecommendations";
 //Icons
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -23,6 +24,7 @@ export default function SellerRecommendations({
   hasSpecialties,
 }) {
   const [artworks, setArtworks] = useState([]);
+  const [relatedArtists, setRelatedArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -38,28 +40,43 @@ export default function SellerRecommendations({
       setLoading(true);
       setError(false);
       setArtworks([]);
+      setRelatedArtists([]);
       try {
         const [sellerResult, buyerResult] = await Promise.allSettled([
           hasSpecialties
-            ? fetchSellerRecommendations(sellerId, 8, request.signal)
-            : Promise.resolve([]),
-          fetchRecommendations(hasSpecialties ? 12 : 4, request.signal),
+            ? fetchSellerProfileRecommendations(sellerId, 8, request.signal)
+            : Promise.resolve({ recommendations: [], relatedArtists: [] }),
+          fetchRecommendations(hasSpecialties ? 8 : 4, request.signal),
         ]);
         if (request.signal.aborted) return;
-        const sellerFailed = hasSpecialties && sellerResult.status === "rejected";
-        const buyerResponse = buyerResult.status === "fulfilled" ? buyerResult.value : null;
-        const buyerFailed = buyerResult.status === "rejected" || buyerResponse?.mode === "unavailable";
-        const sellerArtworks = sellerResult.status === "fulfilled" ? sellerResult.value : [];
-        const buyerArtworks = !buyerFailed && Array.isArray(buyerResponse?.recommendations)
-          ? buyerResponse.recommendations : [];
-        setArtworks(mergeSellerProfileRecommendations(sellerArtworks, buyerArtworks));
+        const sellerFailed =
+          hasSpecialties && sellerResult.status === "rejected";
+        const buyerResponse =
+          buyerResult.status === "fulfilled" ? buyerResult.value : null;
+        const buyerFailed =
+          buyerResult.status === "rejected" ||
+          buyerResponse?.mode === "unavailable";
+        const sellerResponse =
+          sellerResult.status === "fulfilled" ? sellerResult.value : null;
+        const sellerArtworks = sellerResponse?.recommendations || [];
+        const buyerArtworks =
+          !buyerFailed && Array.isArray(buyerResponse?.recommendations)
+            ? buyerResponse.recommendations
+            : [];
+        setArtworks(
+          mergeSellerProfileRecommendations(sellerArtworks, buyerArtworks),
+        );
+        setRelatedArtists(sellerResponse?.relatedArtists || []);
         setError(sellerFailed || buyerFailed);
         setHasBuyerActivity(
-          buyerResponse?.mode !== "fallback_recent_popular" && (
-            Number(buyerResponse?.history_length) > 0 ||
-            ["recent_activity_events", "search_filter_events", "preferred_artists", "specialty_preferences"]
-              .some((key) => Number(buyerResponse?.signals?.[key]) > 0)
-          ),
+          buyerResponse?.mode !== "fallback_recent_popular" &&
+            (Number(buyerResponse?.history_length) > 0 ||
+              [
+                "recent_activity_events",
+                "search_filter_events",
+                "preferred_artists",
+                "specialty_preferences",
+              ].some((key) => Number(buyerResponse?.signals?.[key]) > 0)),
         );
       } catch {
         if (!request.signal.aborted) setError(true);
@@ -81,88 +98,95 @@ export default function SellerRecommendations({
     };
   }, [sellerId, hasSpecialties, retry]);
 
-  if (!loading && !error && artworks.length === 0) return null;
+  if (!loading && !error && artworks.length === 0 && relatedArtists.length === 0) return null;
 
   return (
-    <Box
-      component="section"
-      aria-labelledby="seller-recommendations-title"
-      aria-busy={loading}
-      id="recommended"
-      sx={{ mt: 5, width: "100%", minWidth: 0 }}
-    >
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          variant="overline"
-          sx={{ color: "error.main", fontWeight: 800, letterSpacing: 1.5 }}
-        >
-          {hasSpecialties ? "Related artworks" : "Personalized"}
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ maxWidth: 650 }}
-        >
-          {hasSpecialties
-            ? `Artworks related to ${sellerName || "this seller"}'s specialties appear first.${hasBuyerActivity ? " Recommendations based on your activity follow." : " Additional recent and popular picks may follow."}`
-            : hasBuyerActivity
-              ? "Based on your browsing, searches, filters, and artist preferences."
-              : "Discover recent and popular artworks while we learn what you like."}
-        </Typography>
-        <SectionHeader
-          title="Recommended for You"
-          to="/buyer/shop?recommendations=1"
-        />
-      </Box>
-      {loading ? (
-        <Box
-          role="status"
-          aria-label="Loading recommended artworks"
-          sx={{ display: "flex", justifyContent: "center", py: 5 }}
-        >
-          <CircularProgress />
-        </Box>
-      ) : (
-        <>
-        {error && (
-        <Alert
-          severity="warning"
-          sx={{ mb: 2 }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => setRetry((value) => value + 1)}
-            >
-              Retry
-            </Button>
-          }
-        >
-          {artworks.length ? "Some recommendations could not be loaded. You can still browse the available results." : "Unable to load recommendations right now."}
-        </Alert>
-        )}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "minmax(0, 1fr)",
-              sm: "repeat(2, minmax(0, 1fr))",
-              md: "repeat(4, minmax(0, 1fr))",
-            },
-            gap: 3,
-            "& > *": { minWidth: 0 },
-          }}
-        >
-          {artworks.map((artwork) => (
-            <ArtworkCard
-              key={artwork.artwork_id || artwork.id}
-              artwork={artwork}
-            />
-          ))}
-        </Box>
-        </>
+    <>
+      {!loading && (
+        <RelatedArtists artists={relatedArtists} sellerName={sellerName} />
       )}
-    </Box>
+      <Box
+        component="section"
+        aria-labelledby="seller-recommendations-title"
+        aria-busy={loading}
+        id="recommended"
+        sx={{ mt: 5, width: "100%", minWidth: 0 }}
+      >
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: "error.main", fontWeight: 800, letterSpacing: 1.5 }}
+          >
+            {hasSpecialties ? "Related artworks" : "Personalized"}
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: 650 }}
+          >
+            {hasSpecialties
+              ? `Artworks related to ${sellerName || "this seller"}'s specialties appear first.${hasBuyerActivity ? " Recommendations based on your activity follow." : " Additional recent and popular picks may follow."}`
+              : hasBuyerActivity
+                ? "Based on your browsing, searches, filters, and artist preferences."
+                : "Discover recent and popular artworks while we learn what you like."}
+          </Typography>
+          <SectionHeader
+            title="Recommended for You"
+            to="/buyer/shop?recommendations=1"
+          />
+        </Box>
+        {loading ? (
+          <Box
+            role="status"
+            aria-label="Loading recommended artworks"
+            sx={{ display: "flex", justifyContent: "center", py: 5 }}
+          >
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            {error && (
+              <Alert
+                severity="warning"
+                sx={{ mb: 2 }}
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => setRetry((value) => value + 1)}
+                  >
+                    Retry
+                  </Button>
+                }
+              >
+                {artworks.length
+                  ? "Some recommendations could not be loaded. You can still browse the available results."
+                  : "Unable to load recommendations right now."}
+              </Alert>
+            )}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "repeat(4, minmax(0, 1fr))",
+                },
+                gap: 3,
+                "& > *": { minWidth: 0 },
+              }}
+            >
+              {artworks.map((artwork) => (
+                <ArtworkCard
+                  key={artwork.artwork_id || artwork.id}
+                  artwork={artwork}
+                />
+              ))}
+            </Box>
+          </>
+        )}
+      </Box>
+    </>
   );
 }
 function SectionHeader({ title, to }) {

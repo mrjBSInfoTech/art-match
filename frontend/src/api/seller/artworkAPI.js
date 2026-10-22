@@ -1,4 +1,6 @@
 import axios from "axios";
+import { getArtworkDetailDefaults, getArtworkDetailsErrors, getArtworkDetailsPayload } from "../../utils/artworkDetails.js";
+import { getArtworkScanErrors, getArtworkScanPayload } from "../../utils/artworkScanAttributes.js";
 
 const api = axios.create({
   baseURL: "http://localhost:5000/api/seller",
@@ -32,6 +34,47 @@ const handleError = (error) => {
   }
 };
 
+function optionalArtworkDetails(artworkData) {
+  const explicitDetails = Object.hasOwn(artworkData, "artwork_details") && artworkData.artwork_details !== undefined;
+  const hasValue = (value) => value != null && (typeof value !== "string" || value.trim() !== "");
+  const hasMaterials = Array.isArray(artworkData.material_composition)
+    ? artworkData.material_composition.length > 0 : hasValue(artworkData.material_composition);
+  const hasDetails = explicitDetails || hasMaterials
+    || ["stock_available", "resolution_width", "resolution_height", "file_format", "color_profile"]
+      .some((field) => hasValue(artworkData[field]))
+    || ["is_fragile", "humidity_sensitive", "light_sensitive"].some((field) => artworkData[field] === true);
+  if (!hasDetails) return null;
+
+  let details = {};
+  if (explicitDetails) {
+    details = artworkData.artwork_details;
+    if (typeof details === "string") {
+      try {
+        details = JSON.parse(details);
+      } catch {
+        throw new Error("Artwork details must be valid JSON.");
+      }
+    }
+    if (!details || typeof details !== "object" || Array.isArray(details)) {
+      throw new Error("Artwork details must be an object.");
+    }
+  }
+  const data = {
+    ...getArtworkDetailDefaults(), ...artworkData, ...details,
+    art_type: artworkData.art_type, product: artworkData.product,
+  };
+  const error = Object.values(getArtworkDetailsErrors(data))[0];
+  if (error) throw new Error(error);
+  return getArtworkDetailsPayload(data);
+}
+
+function appendArtworkAttributes(formData, artworkData, details) {
+  if (details !== null) formData.append("artwork_details", JSON.stringify(details));
+  const scan = getArtworkScanPayload(artworkData);
+  if (Object.hasOwn(scan, "mediums_used")) formData.append("mediums_used", scan.mediums_used);
+  if (Object.hasOwn(scan, "feature_scanned")) formData.append("feature_scanned", JSON.stringify(scan.feature_scanned));
+}
+
 // Fetch all artworks
 export const fetchArtworks = async () => {
   try {
@@ -60,6 +103,9 @@ export const fetchArtworkById = async (id) => {
 
 // Add new artwork
 export const addArtwork = async (artworkData) => {
+  const details = optionalArtworkDetails(artworkData);
+  const scanError = Object.values(getArtworkScanErrors(artworkData))[0];
+  if (scanError) throw new Error(scanError);
   try {
     if (!artworkData.title || !artworkData.title.trim()) {
       throw new Error("Title is required");
@@ -95,6 +141,7 @@ export const addArtwork = async (artworkData) => {
     formData.append("art_size", artworkData.art_size.trim());
     formData.append("art_type", artworkData.art_type.trim());
     formData.append("product", artworkData.product.trim());
+    appendArtworkAttributes(formData, artworkData, details);
 
     const res = await api.post("/artwork", formData);
     return res.data;
@@ -105,6 +152,9 @@ export const addArtwork = async (artworkData) => {
 
 // Update artwork
 export const updateArtwork = async (id, artworkData) => {
+  const details = optionalArtworkDetails(artworkData);
+  const scanError = Object.values(getArtworkScanErrors(artworkData))[0];
+  if (scanError) throw new Error(scanError);
   try {
     if (!artworkData.title || !artworkData.title.trim()) {
       throw new Error("Title is required");
@@ -133,6 +183,7 @@ export const updateArtwork = async (id, artworkData) => {
     formData.append("art_size", artworkData.art_size.trim());
     formData.append("art_type", artworkData.art_type.trim());
     formData.append("product", artworkData.product.trim());
+    appendArtworkAttributes(formData, artworkData, details);
 
     const res = await api.put(`/artwork/${id}`, formData);
     return res.data;

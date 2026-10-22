@@ -4,6 +4,7 @@ import torch
 from torchvision import datasets, transforms, models
 from torch import nn
 from collections import defaultdict
+from dataset_sync import prepare_dataset
 
 # ============================================================
 # CONFIG
@@ -17,12 +18,8 @@ MODEL_PATH = os.path.join(
     "medium_2d_scanner.pth"
 )
 
-VAL_DIR = os.path.join(
-    BASE_DIR,
-    "datasets",
-    "mediums_2d",
-    "val"
-)
+DATASET_DIR = prepare_dataset("mediums_2d")
+VAL_DIR = str(DATASET_DIR / "val")
 
 OUTPUT_PATH = os.path.join(
     BASE_DIR,

@@ -24,6 +24,37 @@ import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import { ART_TYPES, ART_STYLES } from "../../../constants/artworkOptions";
 import { changeArtworkFormField, getArtworkFormOptions } from "../../../utils/artworkFormOptions";
+import {
+  getArtworkDetailCategory,
+  getArtworkDetailDefaults,
+  getArtworkDetailsErrors,
+  getArtworkDetailsFromArtwork,
+  getArtworkDetailsPayload,
+} from "../../../utils/artworkDetails";
+import {
+  getArtworkScanDefaults,
+  getArtworkScanErrors,
+  getArtworkScanFromArtwork,
+  getArtworkScanPayload,
+  normalizeArtworkFeatures,
+} from "../../../utils/artworkScanAttributes";
+import ArtworkScanFields from "./ArtworkScanFields";
+import ArtworkDetailsFields from "./ArtworkDetailsFields";
+
+const createEmptyArtworkForm = () => ({
+  title: "",
+  art_type: "",
+  product: "",
+  art_size: "",
+  genre: "",
+  price: "",
+  description: "",
+  image: "",
+  file: null,
+  date_created: "",
+  ...getArtworkDetailDefaults(),
+  ...getArtworkScanDefaults(),
+});
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive" && prop !== "hasError",
@@ -67,22 +98,12 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, initialDraft = null }) {
-  const [formData, setFormData] = useState({
-    title: "",
-    art_type: "",
-    product: "",
-    art_size: "",
-    genre: "",
-    price: "",
-    description: "",
-    image: "",
-    file: null,
-    date_posted: "",
-  });
+  const [formData, setFormData] = useState(createEmptyArtworkForm);
   const typeOptions = getArtworkFormOptions(formData.art_type);
   const hasArtType = Boolean(formData.art_type);
   const needsProductChoice = !typeOptions || Boolean(typeOptions.productOptions);
   const showDetails = hasArtType && (!needsProductChoice || Boolean(formData.product));
+  const detailCategory = getArtworkDetailCategory(formData.art_type, typeOptions?.product || formData.product);
   const productOptions = typeOptions?.productOptions || [
     { value: "painting", label: "Painting" },
     { value: "image", label: "Image / Photograph" },
@@ -94,6 +115,10 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [featureInput, setFeatureInput] = useState("");
+  const [featureError, setFeatureError] = useState("");
+  const [materialInput, setMaterialInput] = useState("");
+  const [detailErrors, setDetailErrors] = useState({});
 
   const uploadReminder = formData.art_type === "digital"
     ? "Upload the complete digital artwork without app controls or borders. Its medium will be set to Digital automatically."
@@ -110,10 +135,16 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
   useEffect(() => {
     if (!open) return;
     if (initialDraft) {
-      setFormData(initialDraft);
+      setFormData({
+        ...createEmptyArtworkForm(),
+        ...initialDraft,
+        ...getArtworkDetailsFromArtwork(initialDraft),
+        ...(selectedArtwork ? getArtworkScanFromArtwork(initialDraft) : getArtworkScanDefaults()),
+      });
       setImagePreview(initialDraft.image || null);
     } else if (selectedArtwork) {
       setFormData({
+        ...createEmptyArtworkForm(),
         title: selectedArtwork.title || "",
         art_size: selectedArtwork.art_size || "",
         art_type: selectedArtwork.art_type || "",
@@ -124,31 +155,72 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         image: selectedArtwork.image || "",
         file: null,
         date_created: selectedArtwork.date_created || "",
+        ...getArtworkDetailsFromArtwork(selectedArtwork),
+        ...getArtworkScanFromArtwork(selectedArtwork),
       });
       setImagePreview(selectedArtwork.image || null);
     } else {
-      setFormData({
-        title: "",
-        art_size: "",
-        art_type: "",
-        product: "",
-        genre: "",
-        price: "",
-        description: "",
-        image: "",
-        file: null,
-        date_created: "",
-      });
+      setFormData(createEmptyArtworkForm());
       setImagePreview(null);
     }
     setError("");
     setUploadError("");
     setIsSubmitting(false);
+    setFeatureInput("");
+    setFeatureError("");
+    setMaterialInput("");
+    setDetailErrors({});
   }, [selectedArtwork, open, initialDraft]);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => changeArtworkFormField(prev, name, value));
+    const { name, value, type, checked } = event.target;
+    const fieldValue = type === "checkbox" ? checked : value;
+    setFormData((prev) => ({
+      ...changeArtworkFormField(prev, name, name === "mediums_used" && fieldValue === "" ? null : fieldValue),
+      artwork_details: undefined,
+    }));
+    if (name === "art_type" || name === "product") {
+      setFeatureInput("");
+      setFeatureError("");
+      setMaterialInput("");
+      setDetailErrors({});
+    } else {
+      setDetailErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+    setError("");
+  };
+
+  const handleAddFeature = () => {
+    const additions = normalizeArtworkFeatures(featureInput);
+    if (!additions.length) {
+      setFeatureError("Enter a feature name.");
+      return;
+    }
+    const features = normalizeArtworkFeatures([...(formData.feature_scanned || []), ...additions]);
+    const errors = getArtworkScanErrors({ ...formData, feature_scanned: features });
+    if (errors.feature_scanned) {
+      setFeatureError(errors.feature_scanned);
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      feature_scanned: normalizeArtworkFeatures([...(prev.feature_scanned || []), ...additions]),
+    }));
+    setFeatureInput("");
+    setFeatureError("");
+    setError("");
+  };
+
+  const handleRemoveFeature = (feature) => {
+    setFormData((prev) => ({
+      ...prev,
+      feature_scanned: (prev.feature_scanned || []).filter((value) => value !== feature),
+    }));
+    setFeatureError("");
     setError("");
   };
 
@@ -207,9 +279,52 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       return;
     }
 
+    const additions = selectedArtwork ? normalizeArtworkFeatures(featureInput) : [];
+    if (selectedArtwork && featureInput.trim() && !additions.length) {
+      setFeatureError("Enter a feature name.");
+      return;
+    }
+    const draft = {
+      ...formData,
+      product,
+      material_composition: ["fine_art", "product"].includes(detailCategory) && materialInput.trim()
+        ? [...formData.material_composition, materialInput.trim()]
+        : formData.material_composition,
+      ...(selectedArtwork ? {
+        feature_scanned: featureInput.trim()
+          ? normalizeArtworkFeatures([...(formData.feature_scanned || []), ...additions])
+          : formData.feature_scanned,
+      } : getArtworkScanDefaults()),
+    };
+    const detailsErrors = getArtworkDetailsErrors(draft);
+    setDetailErrors(detailsErrors);
+    if (Object.keys(detailsErrors).length) {
+      setError(Object.values(detailsErrors)[0]);
+      return;
+    }
+    const scanErrors = getArtworkScanErrors(draft);
+    setFeatureError(scanErrors.feature_scanned || "");
+    if (Object.keys(scanErrors).length) {
+      setError(Object.values(scanErrors)[0]);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      await onSubmit({ ...formData, product, price: Number(formData.price) });
+      const artworkDetails = getArtworkDetailsPayload(draft);
+      const submission = {
+        ...draft,
+        ...getArtworkDetailDefaults(),
+        ...artworkDetails,
+        artwork_details: artworkDetails,
+        ...getArtworkScanDefaults(),
+        ...getArtworkScanPayload(draft),
+        price: Number(formData.price),
+      };
+      setFormData(submission);
+      setFeatureInput("");
+      setMaterialInput("");
+      await onSubmit(submission);
     } catch (submissionError) {
       setError(submissionError.message || "Unable to open artwork confirmation");
     } finally {
@@ -416,6 +531,42 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                   ))}
                 </Select>
               </FormControl>
+            )}
+
+            {showDetails && detailCategory && (
+              <ArtworkDetailsFields
+                category={detailCategory}
+                formData={formData}
+                errors={detailErrors}
+                onChange={handleChange}
+                materialInput={materialInput}
+                onMaterialInputChange={(value) => {
+                  setMaterialInput(value);
+                  setDetailErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.material_composition;
+                    return next;
+                  });
+                  setError("");
+                }}
+              />
+            )}
+
+            {selectedArtwork && showDetails && (
+              <ArtworkScanFields
+                formData={formData}
+                onMediumChange={handleChange}
+                onRemoveFeature={handleRemoveFeature}
+                featureInput={featureInput}
+                onFeatureInputChange={(value) => {
+                  setFeatureInput(value);
+                  setFeatureError("");
+                  setError("");
+                }}
+                onAddFeature={handleAddFeature}
+                featureError={featureError}
+                isEditing={Boolean(selectedArtwork)}
+              />
             )}
 
             <TextField

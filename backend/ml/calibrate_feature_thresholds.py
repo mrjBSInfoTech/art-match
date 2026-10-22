@@ -7,16 +7,15 @@ import torch.nn as nn
 from PIL import Image, ImageFile
 from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
+from dataset_sync import prepare_dataset
 
 # Allow loading of truncated/incomplete image files
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-DATA_DIR = "datasets/features"
-VAL_CSV = os.path.join(DATA_DIR, "val_annotations.csv")
-VAL_IMAGE_ROOT = os.path.join(DATA_DIR, "val")
-MODEL_PATH = "models/feature_scanner.pth"
-OUTPUT_JSON = "models/feature_thresholds.json"
-OUTPUT_CSV = "models/feature_threshold_report.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "models", "feature_scanner.pth")
+OUTPUT_JSON = os.path.join(BASE_DIR, "models", "feature_thresholds.json")
+OUTPUT_CSV = os.path.join(BASE_DIR, "models", "feature_threshold_report.csv")
 
 BATCH_SIZE = 16
 
@@ -160,12 +159,15 @@ def calibrate_thresholds(y_true, y_probs, feature_names):
 
 
 def main():
+    dataset_dir = prepare_dataset("features")
+    val_csv = str(dataset_dir / "val_annotations.csv")
+    val_image_root = str(dataset_dir / "val")
     print("==================================================")
     print(" ArtMatch AI - Feature Threshold Calibration")
     print("==================================================")
 
-    if not os.path.exists(VAL_CSV):
-        raise FileNotFoundError(f"Validation CSV not found: {VAL_CSV}")
+    if not os.path.exists(val_csv):
+        raise FileNotFoundError(f"Validation CSV not found: {val_csv}")
 
     val_transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -177,8 +179,8 @@ def main():
     ])
 
     dataset = FeatureValidationDataset(
-        VAL_CSV,
-        VAL_IMAGE_ROOT,
+        val_csv,
+        val_image_root,
         transform=val_transform
     )
 
@@ -229,7 +231,7 @@ def main():
         dataset.feature_names
     )
 
-    os.makedirs("models", exist_ok=True)
+    os.makedirs(os.path.dirname(OUTPUT_JSON), exist_ok=True)
 
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(best_thresholds, f, indent=4)

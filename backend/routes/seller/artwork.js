@@ -6,6 +6,16 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import {
+  ArtworkDetailsValidationError,
+  resolveArtworkDetails,
+} from "../../utils/artworkDetails.js";
+import {
+  ArtworkScanValidationError,
+  applyArtworkScanOverrides,
+  parseArtworkScanOverrides,
+  resolveArtworkScanUpdate,
+} from "../../utils/artworkScanAttributes.js";
 
 const router = express.Router();
 
@@ -111,6 +121,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+function removeTemporaryUpload(file) {
+  if (!file) return;
+  const temporaryPath = path.join(uploadDir, file.filename);
+  if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+}
+
 // Get artworks for the current user
 router.get("/", authenticateSeller, (req, res) => {
   res.set("Cache-Control", "no-store");
@@ -132,6 +148,7 @@ router.get("/", authenticateSeller, (req, res) => {
         a.art_size,
         a.art_type,
         a.product,
+        a.artwork_details,
         au.request_status,
         au.request_date,
         au.approved_date,
@@ -187,6 +204,7 @@ router.get("/:id", authenticateSeller, (req, res) => {
         a.art_size,
         a.art_type,
         a.product,
+        a.artwork_details,
         au.request_status,
         au.request_date,
         au.approved_date,
@@ -275,17 +293,30 @@ router.post(
         date_posted || new Date().toISOString().slice(0, 19).replace("T", " ");
 
       if (!studentId) {
+        removeTemporaryUpload(req.file);
         return res.status(403).json({ error: "Unable to identify seller" });
       }
-      if (!title || !art_size || !genre || !price || !description) {
+      if (!title || !art_size || !art_type || !product || !genre || !price || !description) {
+        removeTemporaryUpload(req.file);
         return res
           .status(400)
           .json({ error: "Please fill all required fields." });
       }
 
+      const artworkDetails = resolveArtworkDetails({
+        rawDetails: req.body.artwork_details,
+        artType: art_type,
+        product,
+      });
+      const scanOverrides = parseArtworkScanOverrides(req.body, art_type, product);
+
       const absoluteImagePath = path.join(uploadDir, req.file.filename);
       const { detectedColors, detectedFeatures, detectedMediums } =
         await scanArtwork(absoluteImagePath, art_type, product);
+      const scanAttributes = applyArtworkScanOverrides({
+        feature_scanned: detectedFeatures,
+        mediums_used: detectedMediums,
+      }, scanOverrides);
 
       const imageName = req.file.filename;
 
@@ -308,8 +339,8 @@ router.post(
       }
       const sql = `
       INSERT INTO artwork
-      (student_id, title, art_size, art_type, product, genre, color_used, price, description, image, date_created)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (student_id, title, art_size, art_type, product, artwork_details, genre, color_used, price, description, image, date_created)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
       db.query(
@@ -320,6 +351,7 @@ router.post(
           art_size.trim(),
           art_type.trim(),
           product.trim(),
+          artworkDetails === null ? null : JSON.stringify(artworkDetails),
           genre.trim(),
           detectedColors,
           price,
@@ -357,14 +389,14 @@ router.post(
                 colors: detectedColors,
               });
 
-            if (detectedFeatures === null && detectedMediums === null) {
+            if (scanAttributes.feature_scanned === null && scanAttributes.mediums_used === null) {
               return respond();
             }
 
             db.query(
               `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
                VALUES (?, ?, ?)`,
-              [artworkId, detectedFeatures, detectedMediums],
+              [artworkId, scanAttributes.feature_scanned, scanAttributes.mediums_used],
               (featureErr) => {
                 if (featureErr) {
                   console.error("Feature scan DB Error:", featureErr);
@@ -377,6 +409,10 @@ router.post(
         },
       );
     } catch (error) {
+      if (error instanceof ArtworkDetailsValidationError || error instanceof ArtworkScanValidationError) {
+        removeTemporaryUpload(req.file);
+        return res.status(400).json({ error: error.message });
+      }
       console.error("Error creating artwork:", error);
       res.status(500).json({ error: "Failed to process artwork submission." });
     }
@@ -433,12 +469,14 @@ router.put(
     } = req.body;
 
     if (!studentId) {
+      removeTemporaryUpload(req.file);
       return res.status(403).json({
         error: "Unable to identify seller",
       });
     }
 
-    if (!title || !art_size || !genre || !price || !description) {
+    if (!title || !art_size || !art_type || !product || !genre || !price || !description) {
+      removeTemporaryUpload(req.file);
       return res.status(400).json({
         error: "Please fill all required fields.",
       });
@@ -449,10 +487,11 @@ router.put(
       : null;
 
     try {
+      const requestedScanOverrides = parseArtworkScanOverrides(req.body, art_type, product);
       // Get current artwork/image.
       const currentArtwork = await new Promise((resolve, reject) => {
         db.query(
-          `SELECT image
+          `SELECT image, art_type, product, artwork_details, color_used
                FROM artwork
                WHERE artwork_id = ?
                  AND student_id = ?`,
@@ -469,10 +508,21 @@ router.put(
       });
 
       if (!currentArtwork) {
+        removeTemporaryUpload(req.file);
         return res.status(404).json({
           error: "Artwork not found",
         });
       }
+
+      const artworkDetails = resolveArtworkDetails({
+        rawDetails: req.body.artwork_details,
+        artType: art_type,
+        product,
+        currentArtwork,
+      });
+      const scanOverrides = resolveArtworkScanUpdate(
+        requestedScanOverrides, art_type, product, currentArtwork,
+      );
 
       let imageName = null;
 
@@ -501,6 +551,7 @@ router.put(
           art_size = ?,
           art_type = ?,
           product = ?,
+          artwork_details = ?,
           genre = ?,
           color_used = ?,
           price = ?,
@@ -518,8 +569,9 @@ router.put(
             art_size.trim(),
             art_type.trim(),
             product.trim(),
+            artworkDetails === null ? null : JSON.stringify(artworkDetails),
             genre.trim(),
-            (color_used || "").trim(),
+            typeof color_used === "string" ? color_used.trim() : currentArtwork.color_used ?? "",
             price,
             description.trim(),
             imageName,
@@ -536,6 +588,45 @@ router.put(
           },
         );
       });
+
+      const scanFields = Object.keys(scanOverrides);
+      if (scanFields.length > 0) {
+        const existingFeature = await new Promise((resolve, reject) => {
+          db.query(
+            `SELECT f.feature_id
+             FROM feature f
+             JOIN artwork a ON a.artwork_id = f.artwork_id
+             WHERE f.artwork_id = ? AND a.student_id = ?
+             LIMIT 1`,
+            [id, studentId],
+            (error, rows) => error ? reject(error) : resolve(rows?.[0] || null),
+          );
+        });
+
+        await new Promise((resolve, reject) => {
+          const callback = (error, result) => error ? reject(error) : resolve(result);
+          if (existingFeature) {
+            // Update only supplied fields so one override cannot erase the other.
+            db.query(
+              `UPDATE feature f
+               JOIN artwork a ON a.artwork_id = f.artwork_id
+               SET ${scanFields.map((field) => `f.${field} = ?`).join(", ")}
+               WHERE f.artwork_id = ? AND a.student_id = ?`,
+              [...scanFields.map((field) => scanOverrides[field]), id, studentId],
+              callback,
+            );
+          } else {
+            const attributes = applyArtworkScanOverrides({}, scanOverrides);
+            db.query(
+              `INSERT INTO feature (artwork_id, feature_scanned, mediums_used)
+               SELECT a.artwork_id, ?, ? FROM artwork a
+               WHERE a.artwork_id = ? AND a.student_id = ?`,
+              [attributes.feature_scanned, attributes.mediums_used, id, studentId],
+              callback,
+            );
+          }
+        });
+      }
 
       // New image successfully saved
       // to DB, so remove old B2 image.
@@ -564,7 +655,11 @@ router.put(
         message: "Artwork updated successfully",
       });
     } catch (error) {
-      console.error("Artwork update error:", error);
+      const validationError = error instanceof ArtworkDetailsValidationError
+        || error instanceof ArtworkScanValidationError;
+      if (!validationError) {
+        console.error("Artwork update error:", error);
+      }
 
       // Clean temporary file
       // even when update fails.
@@ -572,8 +667,10 @@ router.put(
         fs.unlinkSync(temporaryImagePath);
       }
 
-      return res.status(500).json({
-        error: "Failed to update artwork.",
+      return res.status(validationError ? 400 : 500).json({
+        error: validationError
+          ? error.message
+          : "Failed to update artwork.",
       });
     }
   },

@@ -11,16 +11,13 @@ from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
 
 from PIL import Image, ImageFile
+from dataset_sync import prepare_dataset
 
 # ============================================================
 # CONFIG
 # ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TRAIN_DIR = os.path.join(BASE_DIR, "datasets", "features", "train")
-VAL_DIR = os.path.join(BASE_DIR, "datasets", "features", "val")
-TRAIN_CSV = os.path.join(BASE_DIR, "datasets", "features", "train_annotations.csv")
-VAL_CSV = os.path.join(BASE_DIR, "datasets", "features", "val_annotations.csv")
 MODEL_PATH = os.path.join(BASE_DIR, "models", "feature_scanner.pth")
 
 IMAGE_SIZE = 224
@@ -101,6 +98,12 @@ class FeatureDataset(Dataset):
 
 def train_feature_model():
 
+    dataset_dir = prepare_dataset("features")
+    train_dir = str(dataset_dir / "train")
+    val_dir = str(dataset_dir / "val")
+    train_csv = str(dataset_dir / "train_annotations.csv")
+    val_csv = str(dataset_dir / "val_annotations.csv")
+
     # ============================================================
     # INFO
     # ============================================================
@@ -109,8 +112,8 @@ def train_feature_model():
     print(" ArtMatch AI - Multi-Label Feature Scanner Training")
     print("=" * 60)
     print("Device:", DEVICE)
-    print("Training folder:", TRAIN_DIR)
-    print("Validation folder:", VAL_DIR)
+    print("Training folder:", train_dir)
+    print("Validation folder:", val_dir)
 
     # ============================================================
     # TRANSFORMS
@@ -161,14 +164,14 @@ def train_feature_model():
     # ============================================================
 
     train_dataset = FeatureDataset(
-        csv_file=TRAIN_CSV,
-        image_root=TRAIN_DIR,
+        csv_file=train_csv,
+        image_root=train_dir,
         transform=data_transforms["train"]
     )
 
     val_dataset = FeatureDataset(
-        csv_file=VAL_CSV,
-        image_root=VAL_DIR,
+        csv_file=val_csv,
+        image_root=val_dir,
         transform=data_transforms["val"]
     )
 

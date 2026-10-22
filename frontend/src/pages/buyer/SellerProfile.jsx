@@ -492,168 +492,6 @@ export default function SellerProfile() {
               </Box>
             </Box>
 
-            <Tabs
-              value={activeTab}
-              onChange={(event, value) => setActiveTab(value)}
-              sx={{
-                mt: 4,
-                borderBottom: `1px solid ${colors.border}`,
-                "& .MuiTab-root": { color: colors.muted },
-                "& .MuiTab-root.Mui-selected": { color: colors.accent },
-                "& .MuiTabs-indicator": { backgroundColor: colors.accent },
-              }}
-            >
-              <Tab label={`Artworks for Sale (${sellerArtworks.length})`} />
-              <Tab label="About" />
-              <Tab label={`Reviews (${sellerReviews.length})`} />
-            </Tabs>
-
-            {activeTab === 0 && (
-              <Grid
-                container
-                spacing={2.5}
-                sx={{ mt: 2.5, alignItems: "stretch" }}
-              >
-                {sellerArtworks.length === 0 ? (
-                  <Grid size={12}>
-                    <Paper
-                      sx={{
-                        p: 4,
-                        borderRadius: 3,
-                        textAlign: "center",
-                        border: `1px solid ${colors.border}`,
-                        bgcolor: colors.card,
-                      }}
-                    >
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        No artworks yet
-                      </Typography>
-                      <Typography color="text.secondary" sx={{ mt: 1 }}>
-                        This seller has not uploaded any work yet.
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                ) : (
-                  sellerArtworks.map((artwork) => (
-                    <Grid
-                      size={{ xs: 12, sm: 6 }}
-                      key={artwork.artwork_id}
-                      sx={{ minWidth: 0 }}
-                    >
-                      <SellerArtworkCard
-                        artwork={artwork}
-                        artistName={selectedSeller.artistName}
-                        isPinned={selectedSeller.pinnedArtworkIds.includes(
-                          String(artwork.artwork_id),
-                        )}
-                        colors={colors}
-                      />
-                    </Grid>
-                  ))
-                )}
-              </Grid>
-            )}
-            {activeTab === 1 && (
-              <Paper
-                elevation={0}
-                sx={{
-                  mt: 2.5,
-                  p: { xs: 2, md: 3 },
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 3,
-                  bgcolor: colors.cardAlt,
-                  minHeight: 180,
-                }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-                  About {selectedSeller.artistName || selectedSeller.name}
-                </Typography>
-                <Typography
-                  color={
-                    selectedSeller.shopDescription
-                      ? "text.primary"
-                      : "text.secondary"
-                  }
-                  sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}
-                >
-                  {selectedSeller.shopDescription ||
-                    "This seller hasn’t added an About description yet."}
-                </Typography>
-              </Paper>
-            )}
-            {activeTab === 2 && (
-              <Stack spacing={2} sx={{ mt: 2.5 }}>
-                {reviewsLoading ? (
-                  <Box sx={{ display: "grid", placeItems: "center", py: 5 }}>
-                    <CircularProgress size={28} />
-                  </Box>
-                ) : reviewsError ? (
-                  <Alert severity="error">{reviewsError}</Alert>
-                ) : sellerReviews.length === 0 ? (
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 4,
-                      textAlign: "center",
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: 3,
-                      bgcolor: colors.card,
-                    }}
-                  >
-                    <Typography color="text.secondary">
-                      No reviews yet.
-                    </Typography>
-                  </Paper>
-                ) : (
-                  sellerReviews.map((review) => (
-                    <Paper
-                      key={review.id}
-                      elevation={0}
-                      sx={{
-                        p: 2.5,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 3,
-                        bgcolor: colors.cardAlt,
-                      }}
-                    >
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                        spacing={2}
-                      >
-                        <Box>
-                          <Typography fontWeight={700}>
-                            {review.reviewer_name || "Buyer"}
-                          </Typography>
-                          <Rating
-                            value={Number(review.rating)}
-                            precision={0.5}
-                            readOnly
-                            size="small"
-                          />
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(review.created_at).toLocaleDateString()}
-                        </Typography>
-                      </Stack>
-                      <Typography sx={{ mt: 1.5, whiteSpace: "pre-wrap" }}>
-                        {review.comment}
-                      </Typography>
-                      {review.artwork_title && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", mt: 1.5 }}
-                        >
-                          Review for {review.artwork_title}
-                        </Typography>
-                      )}
-                    </Paper>
-                  ))
-                )}
-              </Stack>
-            )}
           </Box>
 
           <Box sx={{ width: { xs: "100%", md: 300 }, flexShrink: 0 }}>
@@ -720,6 +558,170 @@ export default function SellerProfile() {
               </Paper>
             </Stack>
           </Box>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(event, value) => setActiveTab(value)}
+            sx={{
+              mt: 4,
+              borderBottom: `1px solid ${colors.border}`,
+              "& .MuiTab-root": { color: colors.muted },
+              "& .MuiTab-root.Mui-selected": { color: colors.accent },
+              "& .MuiTabs-indicator": { backgroundColor: colors.accent },
+            }}
+          >
+            <Tab label={`Artworks for Sale (${sellerArtworks.length})`} />
+            <Tab label="About" />
+            <Tab label={`Reviews (${sellerReviews.length})`} />
+          </Tabs>
+
+          {activeTab === 0 && (
+            <Grid
+              container
+              spacing={2.5}
+              sx={{ mt: 2.5, alignItems: "stretch" }}
+            >
+              {sellerArtworks.length === 0 ? (
+                <Grid size={12}>
+                  <Paper
+                    sx={{
+                      p: 4,
+                      borderRadius: 3,
+                      textAlign: "center",
+                      border: `1px solid ${colors.border}`,
+                      bgcolor: colors.card,
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      No artworks yet
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>
+                      This seller has not uploaded any work yet.
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ) : (
+                sellerArtworks.map((artwork) => (
+                  <Grid
+                    size={{ xs: 12, sm: 6, md: 4 }}
+                    key={artwork.artwork_id}
+                    sx={{ minWidth: 0 }}
+                  >
+                    <SellerArtworkCard
+                      artwork={artwork}
+                      artistName={selectedSeller.artistName}
+                      isPinned={selectedSeller.pinnedArtworkIds.includes(
+                        String(artwork.artwork_id),
+                      )}
+                      colors={colors}
+                    />
+                  </Grid>
+                ))
+              )}
+            </Grid>
+          )}
+          {activeTab === 1 && (
+            <Paper
+              elevation={0}
+              sx={{
+                mt: 2.5,
+                p: { xs: 2, md: 3 },
+                border: `1px solid ${colors.border}`,
+                borderRadius: 3,
+                bgcolor: colors.cardAlt,
+                minHeight: 180,
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+                About {selectedSeller.artistName || selectedSeller.name}
+              </Typography>
+              <Typography
+                color={
+                  selectedSeller.shopDescription
+                    ? "text.primary"
+                    : "text.secondary"
+                }
+                sx={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}
+              >
+                {selectedSeller.shopDescription ||
+                  "This seller hasn’t added an About description yet."}
+              </Typography>
+            </Paper>
+          )}
+          {activeTab === 2 && (
+            <Stack spacing={2} sx={{ mt: 2.5 }}>
+              {reviewsLoading ? (
+                <Box sx={{ display: "grid", placeItems: "center", py: 5 }}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : reviewsError ? (
+                <Alert severity="error">{reviewsError}</Alert>
+              ) : sellerReviews.length === 0 ? (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 4,
+                    textAlign: "center",
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 3,
+                    bgcolor: colors.card,
+                  }}
+                >
+                  <Typography color="text.secondary">
+                    No reviews yet.
+                  </Typography>
+                </Paper>
+              ) : (
+                sellerReviews.map((review) => (
+                  <Paper
+                    key={review.id}
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 3,
+                      bgcolor: colors.cardAlt,
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="flex-start"
+                      spacing={2}
+                    >
+                      <Box>
+                        <Typography fontWeight={700}>
+                          {review.reviewer_name || "Buyer"}
+                        </Typography>
+                        <Rating
+                          value={Number(review.rating)}
+                          precision={0.5}
+                          readOnly
+                          size="small"
+                        />
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(review.created_at).toLocaleDateString()}
+                      </Typography>
+                    </Stack>
+                    <Typography sx={{ mt: 1.5, whiteSpace: "pre-wrap" }}>
+                      {review.comment}
+                    </Typography>
+                    {review.artwork_title && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", mt: 1.5 }}
+                      >
+                        Review for {review.artwork_title}
+                      </Typography>
+                    )}
+                  </Paper>
+                ))
+              )}
+            </Stack>
+          )}
         </Box>
         <SellerRecommendations
           key={selectedSeller.student_id}

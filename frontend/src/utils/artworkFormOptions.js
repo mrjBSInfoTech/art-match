@@ -1,4 +1,6 @@
 import { ART_TYPES } from "../constants/artworkOptions.js";
+import { getArtworkDetailDefaults } from "./artworkDetails.js";
+import { getArtworkScanDefaults } from "./artworkScanAttributes.js";
 
 export function getArtworkFormOptions(artType) {
   const type = String(artType || "").trim().toLowerCase();
@@ -33,10 +35,18 @@ export function getArtworkFormOptions(artType) {
 export function changeArtworkFormField(previous, name, value) {
   if (previous[name] === value) return previous;
   if (name === "art_type") {
-    return { ...previous, art_type: value, product: getArtworkFormOptions(value)?.product || "", art_size: "", genre: "" };
+    return {
+      ...previous,
+      ...getArtworkDetailDefaults(),
+      ...getArtworkScanDefaults(),
+      art_type: value,
+      product: getArtworkFormOptions(value)?.product || "",
+      art_size: "",
+      genre: "",
+    };
   }
   if (name === "product") {
-    return { ...previous, product: value, art_size: "", genre: "" };
+    return { ...previous, ...getArtworkDetailDefaults(), ...getArtworkScanDefaults(), product: value, art_size: "", genre: "" };
   }
   return { ...previous, [name]: value };
 }

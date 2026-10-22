@@ -15,7 +15,7 @@ export function mergeSellerProfileRecommendations(sellerArtworks = [], buyerArtw
       if (added === limit) break;
     }
   };
-  append(sellerArtworks, 8, "seller_specialty");
-  append(buyerArtworks, 4, "buyer_activity");
+  append(sellerArtworks, 6, "seller_specialty");
+  append(buyerArtworks, 2, "buyer_activity");
   return result;
 }

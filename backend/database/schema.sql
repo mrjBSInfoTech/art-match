@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS artwork (
   image VARCHAR(255) NOT NULL,
   art_type VARCHAR(50) NULL,
   product VARCHAR(50) NULL,
+  artwork_details JSON NULL,
   date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_artwork_student
     FOREIGN KEY (student_id) REFERENCES student (student_id) ON DELETE CASCADE,
