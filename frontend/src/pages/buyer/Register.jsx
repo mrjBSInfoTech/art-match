@@ -224,6 +224,13 @@ const Register = () => {
                 Fill in your details to get started
               </Typography>
             </Box>
+            <Alert severity="info">
+              Artwork images are shown with a subtle account-specific ID
+              watermark while signed in, including a machine-readable
+              frequency-domain mark. We record the watermark ID, artwork, and
+              view time to investigate unauthorized redistribution. Signed-out
+              visitors see a generic GUEST watermark.
+            </Alert>
 
             <Box>
               <Typography

@@ -17,17 +17,13 @@ import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlin
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useNavigate } from "react-router-dom";
 import { fetchBuyerOrders } from "../../api/buyer/orderAPI";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 const currency = new Intl.NumberFormat("en-PH", {
   style: "currency",
   currency: "PHP",
   maximumFractionDigits: 0,
 });
-
-const getArtworkImage = (image) =>
-  image?.startsWith("http")
-    ? image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image || "")}`;
 
 const getStatusLabel = (status) => {
   if (status === "Packed" || status === "Shipped") return "In transit";
@@ -276,9 +272,8 @@ export default function AccountOverview() {
                   spacing={1.5}
                   minWidth={0}
                 >
-                  <Box
-                    component="img"
-                    src={getArtworkImage(item.image)}
+                  <WatermarkedArtworkImage
+                    image={item.image}
                     alt={item.title}
                     sx={{
                       width: 56,

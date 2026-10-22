@@ -14,6 +14,7 @@ import StarIcon from "@mui/icons-material/Star";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 const tabs = ["All hearts", "Paintings", "Sculpture", "Photography"];
 
@@ -30,13 +31,6 @@ const normalizeGenre = (genre) => {
     return "Photography";
   }
   return value;
-};
-
-const artworkImageUrl = (image) => {
-  if (!image) return "";
-  return image.startsWith("http")
-    ? image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`;
 };
 
 export default function BuyerFavorites() {
@@ -246,9 +240,8 @@ export default function BuyerFavorites() {
                   boxShadow: 1,
                 }}
               >
-                <Box
-                  component="img"
-                  src={artworkImageUrl(artwork.image)}
+                <WatermarkedArtworkImage
+                  image={artwork.image}
                   alt={artwork.title}
                   sx={{
                     display: "block",

@@ -27,6 +27,7 @@ import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
 import Footer from "./Footer";
 // Icons
@@ -243,17 +244,7 @@ export default function Main() {
   );
   const featuredArtist = popularArtists[0];
   const galleryArtists = popularArtists.slice(1, 9);
-
-  const getArtworkImage = (artwork) => {
-    if (!artwork?.image) return "";
-    return artwork.image.startsWith("http")
-      ? artwork.image
-      : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(
-          artwork.image,
-        )}`;
-  };
-
-  const heroImage = artworks.slice(0, 1).map(getArtworkImage);
+  const heroArtwork = artworks[0];
   const warmSurface =
     theme.palette.mode === "light" ? "#fff9ef" : theme.palette.background.paper;
 
@@ -448,17 +439,27 @@ export default function Main() {
             >
               <Box
                 sx={{
+                  position: "relative",
                   borderRadius: 4,
                   overflow: "hidden",
                   border: "1px solid",
                   borderColor: "divider",
                   aspectRatio: "4 / 5",
-                  backgroundImage: heroImage ? `url(${heroImage})` : "none",
                   backgroundColor: "#e0e0e0",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
                 }}
-              />
+              >
+                <WatermarkedArtworkImage
+                  image={heroArtwork?.image}
+                  alt={heroArtwork?.title || "Featured artwork"}
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              </Box>
             </Grid>
           </Grid>
         </Container>
@@ -683,15 +684,37 @@ export default function Main() {
         >
           <Box
             sx={{
+              position: "relative",
               height: { xs: 220, md: 240 },
               borderRadius: 2,
-              backgroundImage: `url(${getArtworkImage(featuredArtist?.featuredArtwork || artworks[0]) || featuredArtist?.image})`,
+              backgroundImage: !featuredArtist?.featuredArtwork?.image && featuredArtist?.image
+                ? `url(${featuredArtist.image})`
+                : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: theme.shadows[2],
             }}
-          />
+          >
+            <WatermarkedArtworkImage
+              image={
+                featuredArtist?.featuredArtwork?.image ||
+                artworks[0]?.image
+              }
+              alt={
+                featuredArtist?.featuredArtwork?.title ||
+                artworks[0]?.title ||
+                "Featured artwork"
+              }
+              sx={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          </Box>
           <Box>
             <Typography
               variant="caption"

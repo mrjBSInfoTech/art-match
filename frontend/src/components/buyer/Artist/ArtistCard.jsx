@@ -1,15 +1,8 @@
 import { Avatar, Box, Button, Card, Divider, Stack, Typography } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-
-const API_URL = "http://localhost:5000";
+import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 const BIO_FALLBACK = "The seller currently doesn't have a bio.";
-
-const getArtworkImage = (artwork) => {
-  if (!artwork?.image) return "";
-  if (artwork.image.startsWith("http")) return artwork.image;
-  return `${API_URL}/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`;
-};
 
 export default function ArtistCard({ artist, onViewProfile }) {
   const tags = artist.specialties.length
@@ -107,9 +100,8 @@ export default function ArtistCard({ artist, onViewProfile }) {
               background: "linear-gradient(135deg, #eee9e3 0%, #f8f5f1 100%)",
             }}
           >
-            <Box
-              component="img"
-              src={getArtworkImage(artwork)}
+            <WatermarkedArtworkImage
+              image={artwork.image}
               alt={artwork.title || "Artwork"}
               onError={(event) => {
                 event.currentTarget.style.display = "none";

@@ -102,6 +102,13 @@ export default function Settings() {
         <title>Security &amp; Privacy</title>
       </Helmet>
       <Stack spacing={2.5}>
+        <Alert severity="info">
+          Marketplace artwork images include a subtle tiled watermark. When
+          you are signed in they contain a short ID linked to your account,
+          including an invisible frequency-domain mark. We record that ID, the
+          artwork, and the time it was viewed to help investigate unauthorized
+          redistribution. Signed-out visitors see a generic GUEST watermark.
+        </Alert>
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
             <SecurityOutlinedIcon color="error" />

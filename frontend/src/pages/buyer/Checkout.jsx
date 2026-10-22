@@ -29,6 +29,7 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 import { fetchCart } from "../../api/buyer/cartAPI";
 import { fetchAddresses } from "../../api/buyer/addressAPI";
 import { placeBuyerOrder } from "../../api/buyer/orderAPI";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -332,21 +333,15 @@ export default function Checkout() {
                     spacing={2}
                     alignItems="center"
                   >
-                    <Box
+                    <WatermarkedArtworkImage
+                      image={item.image}
+                      alt={item.title || "Artwork"}
                       sx={{
                         width: 56,
                         height: 56,
                         borderRadius: 2.5,
                         flexShrink: 0,
-                        backgroundImage: `url(${
-                          item.image?.startsWith("http")
-                            ? item.image
-                            : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(
-                                item.image || ""
-                              )}`
-                        })`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
+                        objectFit: "cover",
                         border: "1px solid",
                         borderColor: "divider",
                       }}

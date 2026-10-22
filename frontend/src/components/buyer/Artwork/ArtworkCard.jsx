@@ -15,6 +15,7 @@ import {
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { addToCart } from "../../../api/buyer/cartAPI";
+import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 
 export default function ArtworkCard({
   artwork,
@@ -62,15 +63,26 @@ export default function ArtworkCard({
         <CardMedia
           component={RouterLink}
           to={`/buyer/artwork/view/${artworkId}`}
-          image={`http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`}
           sx={{
+            position: "relative",
             display: "block",
             width: "100%",
             height: 280,
-            objectFit: "cover",
             bgcolor: "#f2f2f2",
+            overflow: "hidden",
           }}
-        />
+        >
+          <WatermarkedArtworkImage
+            image={artwork.image}
+            alt={artwork.title || "Artwork"}
+            sx={{
+              display: "block",
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        </CardMedia>
       </Box>
 
       <CardContent

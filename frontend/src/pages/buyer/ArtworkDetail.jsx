@@ -28,6 +28,7 @@ import {
   getRecommendationSessionId,
   recordRecommendationEvent,
 } from "../../api/buyer/recommendationAPI";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -311,9 +312,8 @@ export default function ArtworkDetail() {
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
       <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
         <Grid item xs={12} md={7}>
-          <Box
-            component="img"
-            src={imageUrl}
+          <WatermarkedArtworkImage
+            image={artwork.image || imageUrl}
             alt={artwork.title}
             sx={{
               width: { xs: "100%", md: 600 },
@@ -638,9 +638,8 @@ export default function ArtworkDetail() {
             overflow: "hidden",
           }}
         >
-          <Box
-            component="img"
-            src={imageUrl}
+          <WatermarkedArtworkImage
+            image={artwork.image || imageUrl}
             alt={artwork.title}
             sx={{
               display: "block",

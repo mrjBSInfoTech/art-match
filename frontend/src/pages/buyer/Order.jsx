@@ -21,6 +21,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { cancelBuyerOrder, fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import { submitBuyerReview } from "../../api/buyer/reviewsAPI";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 const statusColor = {
   Pending: "warning",
@@ -37,11 +38,6 @@ const formatCurrency = (value) =>
     currency: "PHP",
     maximumFractionDigits: 0,
   }).format(value || 0);
-
-const getArtworkImage = (image) =>
-  image?.startsWith("http")
-    ? image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image || "")}`;
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -171,7 +167,17 @@ export default function Orders() {
                       {order.items.map((item) => (
                         <Stack key={item.id} direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={1.5}>
                           <Stack direction="row" alignItems="center" gap={1.5} minWidth={0}>
-                            <Box component="img" src={getArtworkImage(item.image)} alt={item.title} sx={{ width: 56, height: 56, objectFit: "cover", borderRadius: 1, flexShrink: 0 }} />
+                            <WatermarkedArtworkImage
+                              image={item.image}
+                              alt={item.title}
+                              sx={{
+                                width: 56,
+                                height: 56,
+                                objectFit: "cover",
+                                borderRadius: 1,
+                                flexShrink: 0,
+                              }}
+                            />
                             <Box minWidth={0}>
                               <Typography variant="body2" fontWeight={700}>{item.title}</Typography>
                               <Typography variant="caption" color="text.secondary">{item.artist} · Qty {item.qty}</Typography>

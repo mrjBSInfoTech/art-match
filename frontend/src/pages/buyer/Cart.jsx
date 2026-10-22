@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import {
   Alert,
   Box,
@@ -73,9 +74,6 @@ export default function Cart() {
     id: item.artwork_id,
     qty: 1,
     subtotal: Number(item.price || 0),
-    imageUrl: item.image?.startsWith("http")
-      ? item.image
-      : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(item.image || "")}`,
   }));
 
   const subtotal = cartItems.reduce((s, i) => s + i.subtotal, 0);
@@ -196,14 +194,16 @@ export default function Cart() {
                               spacing={2}
                               sx={{ alignItems: "center" }}
                             >
-                              <Box
+                              <WatermarkedArtworkImage
+                                image={item.image}
+                                alt={item.title || "Artwork"}
                                 sx={{
                                   width: { xs: 56, sm: 72 },
                                   height: { xs: 56, sm: 72 },
                                   borderRadius: 2,
-                                  backgroundImage: `url(${item.imageUrl})`,
-                                  backgroundSize: "cover",
-                                  backgroundPosition: "center",
+                                  objectFit: "cover",
+                                  flexShrink: 0,
+                                  bgcolor: "action.hover",
                                 }}
                               />
                               <Box>

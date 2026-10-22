@@ -28,7 +28,10 @@ import { ensureOrderTables } from "./database/orders.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
 import { ensureArtworkSchema } from "./database/artwork.js";
+import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
+import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
+import { getWatermarkedArtwork } from "./utils/artworkWatermark.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -334,18 +337,29 @@ const serveB2Cached =
 // Artwork images
 // =====================================================
 
+const optionalBuyerAuthentication = (req, res, next) => {
+  if (!req.headers.authorization) return next();
+  authenticateBuyer(req, res, next);
+};
+
 app.get(
   "/uploads/seller/uploadArtwork/:filename",
+  optionalBuyerAuthentication,
+  async (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const customerId = req.user?.customer_id || null;
+    const image = await getWatermarkedArtwork(filename, customerId);
 
-  serveB2Cached({
-    keyPrefix: "app-uploads/seller/uploadArtwork",
-
-    localFolder: path.join(__dirname, "uploads", "seller", "uploadArtwork"),
-
-    label: "Artwork",
-
-    cacheControl: "public, max-age=86400",
-  }),
+    res.set({
+      "Cache-Control": "private, max-age=180",
+      "Content-Type": image.contentType,
+      "Vary": "Authorization",
+      "X-ArtMatch-Watermark-Code": image.code,
+      "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
+      "X-Content-Type-Options": "nosniff",
+    });
+    res.send(image.body);
+  },
 );
 
 // =====================================================
@@ -482,6 +496,7 @@ ensureBuyerPrivacyColumn()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
+  .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
   .then(() => ensureConversationReadStateTable())
   .then(() =>

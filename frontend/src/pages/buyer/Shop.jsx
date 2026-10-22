@@ -27,6 +27,7 @@ import { getSearchColor } from "../../utils/artworkColors";
 
 import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from "../../utils/artworkPrice";
 import { scoreArtworkSearch } from "../../utils/artworkSearch";
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 const PAGE_SIZE = 8;
 
@@ -57,17 +58,10 @@ const shortcuts = [
   },
 ];
 
-const artworkImageUrl = (image) =>
-  image?.startsWith("http")
-    ? image
-    : image
-      ? `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`
-      : "";
-
 function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
   const theme = useTheme();
   const darkMode = theme.palette.mode === "dark";
-  const imageUrl = artworkImageUrl(artwork.image);
+  const hasImage = Boolean(artwork.image);
   const status = String(artwork.status || "").toLowerCase();
   const badge =
     status === "available" || status === "for sale"
@@ -109,13 +103,24 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           border: 0,
           p: 0,
           backgroundColor: darkMode ? "#1e293b" : "#eeeae4",
-          backgroundImage: imageUrl ? `url("${imageUrl}")` : "none",
           backgroundPosition: "center",
           backgroundSize: "cover",
           cursor: "pointer",
         }}
       >
-        {!imageUrl && (
+        <WatermarkedArtworkImage
+          image={artwork.image}
+          alt={artwork.title || "Artwork"}
+          sx={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            pointerEvents: "none",
+          }}
+        />
+        {!hasImage && (
           <ImageOutlinedIcon
             sx={{
               color: darkMode ? "text.secondary" : "#d2c8bb",

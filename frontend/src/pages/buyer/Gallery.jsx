@@ -18,13 +18,7 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
-
-const artworkImageUrl = (artwork) => {
-  if (!artwork?.image) return "";
-  return artwork.image.startsWith("http")
-    ? artwork.image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`;
-};
+import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 const profileImageUrl = (image) => {
   if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
@@ -69,7 +63,6 @@ function ArtworkTile({ artwork, index, isFavorite, onToggleFavorite }) {
   const darkMode = theme.palette.mode === "dark";
   const navigate = useNavigate();
   const artworkId = artwork.artwork_id || artwork.id;
-  const image = artworkImageUrl(artwork);
 
   return (
     <Box
@@ -105,11 +98,22 @@ function ArtworkTile({ artwork, index, isFavorite, onToggleFavorite }) {
           aspectRatio: "1.35 / 1",
           cursor: "pointer",
           backgroundColor: darkMode ? "#1e293b" : "#eee9e1",
-          backgroundImage: image ? `url("${image}")` : "none",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
+        <WatermarkedArtworkImage
+          image={artwork.image}
+          alt={artwork.title || "Artwork"}
+          sx={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            pointerEvents: "none",
+          }}
+        />
         {artwork.genre && (
           <Typography
             variant="caption"

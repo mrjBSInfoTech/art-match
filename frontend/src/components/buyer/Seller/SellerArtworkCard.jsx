@@ -1,26 +1,14 @@
-import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { Box, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
-
-const getArtworkImage = (artwork) => {
-  if (!artwork?.image) return "";
-  return artwork.image.startsWith("http")
-    ? artwork.image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`;
-};
+import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 
 function SellerArtworkImage({ artwork, background }) {
-  const src = getArtworkImage(artwork);
-  const [failedSrc, setFailedSrc] = useState(null);
   return (
     <Box sx={{ width: "100%", aspectRatio: "4 / 3", bgcolor: background, display: "grid", placeItems: "center", overflow: "hidden" }}>
-      {src && src !== failedSrc ? (
-        <Box
-          component="img"
-          src={src}
+      {artwork?.image ? (
+        <WatermarkedArtworkImage
+          image={artwork.image}
           alt={artwork.title || "Artwork"}
-          loading="lazy"
-          onError={() => setFailedSrc(src)}
           sx={{ width: "100%", height: "100%", minHeight: 0, objectFit: "contain", display: "block" }}
         />
       ) : (
