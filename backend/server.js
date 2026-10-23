@@ -50,6 +50,9 @@ import buyerOrderRoutes from "./routes/buyer/orders.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
 import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 
+// Routes (Payments)
+import paymongoPaymentRoutes from "./routes/payments/paymongo.js";
+
 // Routes (Chat of both buyer and seller)
 import chatRoutes from "./routes/chat.js";
 
@@ -65,7 +68,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, res, buffer) => {
+      /*
+       * PayMongo signature verification
+       * needs the EXACT raw JSON body.
+       */
+      if (req.originalUrl.startsWith("/api/payments/paymongo/webhook")) {
+        req.rawBody = Buffer.from(buffer);
+      }
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 // Configure multer for file uploads
@@ -193,8 +208,12 @@ const sendFileIfPresent = (res, filePath, options = {}) =>
     res.sendFile(filePath, options, (error) => {
       if (!error || res.destroyed || error.code === "ECONNABORTED") {
         resolve(true);
-      } else if (!res.headersSent &&
-        (error.status === 404 || error.code === "ENOENT" || error.code === "ENOTDIR")) {
+      } else if (
+        !res.headersSent &&
+        (error.status === 404 ||
+          error.code === "ENOENT" ||
+          error.code === "ENOTDIR")
+      ) {
         resolve(false);
       } else {
         reject(error);
@@ -228,9 +247,12 @@ const serveB2Cached =
 
       // A relative path keeps the trusted .cache root out of Express's
       // hidden-file check, while hidden files within the cache stay blocked.
-      if (await sendFileIfPresent(res, path.relative(B2_CACHE_ROOT, cachePath), {
-        root: B2_CACHE_ROOT,
-      })) return;
+      if (
+        await sendFileIfPresent(res, path.relative(B2_CACHE_ROOT, cachePath), {
+          root: B2_CACHE_ROOT,
+        })
+      )
+        return;
     }
 
     /*
@@ -353,7 +375,7 @@ app.get(
     res.set({
       "Cache-Control": "private, max-age=180",
       "Content-Type": image.contentType,
-      "Vary": "Authorization",
+      Vary: "Authorization",
       "X-ArtMatch-Watermark-Code": image.code,
       "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
       "X-Content-Type-Options": "nosniff",
@@ -466,6 +488,9 @@ app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/buyer/recommendation", buyerRecommendationRoutes);
+
+// Routes (Payments)
+app.use("/api/payments/paymongo", paymongoPaymentRoutes);
 
 // Routes (Chat of both buyer and seller)
 app.use("/api/chat", chatRoutes);

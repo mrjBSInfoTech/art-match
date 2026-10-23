@@ -17,6 +17,7 @@ import {
   Chip,
   Grid,
 } from "@mui/material";
+// Icons
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import PaymentOutlinedIcon from "@mui/icons-material/PaymentOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
@@ -24,7 +25,6 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
-import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 
 import { fetchCart } from "../../api/buyer/cartAPI";
 import { fetchAddresses } from "../../api/buyer/addressAPI";
@@ -36,7 +36,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [currentAddress, setCurrentAddress] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState("gcash");
+  const [paymentMethod, setPaymentMethod] = useState("paymongo");
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -53,7 +53,7 @@ export default function Checkout() {
         setCurrentAddress(
           addressList.find((address) => Boolean(address.is_current)) ||
             addressList[0] ||
-            null
+            null,
         );
       } catch (loadError) {
         setError(loadError.message || "Unable to load checkout data");
@@ -73,41 +73,93 @@ export default function Checkout() {
 
   const subtotal = cartItems.reduce(
     (sum, item) => sum + Number(item.price || 0),
-    0
+    0,
   );
   const hasSoldOutItems = cartItems.some(
     (item) => Number(item.is_sold_out) === 1,
   );
-  const sellerCount = new Set(cartItems.map((item) => item.seller_id).filter(Boolean)).size;
-  const estimatedShipping = cartItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
+  const sellerCount = new Set(
+    cartItems.map((item) => item.seller_id).filter(Boolean),
+  ).size;
+  const estimatedShipping =
+    cartItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
   const total = subtotal + estimatedShipping;
 
   const handlePlaceOrder = async () => {
+    if (!currentAddress?.address_id) {
+      setError("Please select a delivery address.");
+      return;
+    }
+
     try {
       setError("");
       setLoading(true);
-      const result = await placeBuyerOrder(currentAddress.address_id, paymentMethod);
+
+      const result = await placeBuyerOrder(
+        currentAddress.address_id,
+        paymentMethod,
+      );
+
+      /*
+       * CASH ON DELIVERY
+       */
       if (paymentMethod === "cod") {
         navigate("/buyer/order-finish", {
-          state: { orders: result.orders, paymentMethod },
+          state: {
+            orders: result.orders,
+            paymentMethod,
+          },
         });
-      } else {
-        navigate("/buyer/profile/orders", { state: { orderPlaced: true } });
+
+        return;
       }
+
+      /*
+       * PAYMONGO
+       *
+       * Backend creates the checkout session
+       * and gives us the PayMongo checkout URL.
+       */
+      if (paymentMethod === "paymongo") {
+        if (!result?.checkout_url) {
+          throw new Error("PayMongo checkout URL was not returned.");
+        }
+
+        /*
+         * Leave ArtMatch and open the secure
+         * PayMongo Hosted Checkout page.
+         */
+        window.location.assign(result.checkout_url);
+
+        return;
+      }
+
+      throw new Error("Unsupported payment method.");
     } catch (orderError) {
       setError(orderError.message || "Unable to place your order");
-    } finally {
+
       setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 6 }, px: { md: 5 }, bgcolor: "background.default", color: "text.primary" }}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: { xs: 3, md: 6 },
+        px: { md: 5 },
+        bgcolor: "background.default",
+        color: "text.primary",
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Checkout</title>
       </Helmet>
 
-      <Typography variant="h4" sx={{ fontWeight: 800, mb: 4, letterSpacing: -0.5 }}>
+      <Typography
+        variant="h4"
+        sx={{ fontWeight: 800, mb: 4, letterSpacing: -0.5 }}
+      >
         Checkout
       </Typography>
 
@@ -127,7 +179,11 @@ export default function Checkout() {
           severity="warning"
           sx={{ mb: 3, borderRadius: 2 }}
           action={
-            <Button color="inherit" size="small" onClick={() => navigate("/buyer/cart")}>
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => navigate("/buyer/cart")}
+            >
               Review cart
             </Button>
           }
@@ -159,7 +215,12 @@ export default function Checkout() {
                   bgcolor: "background.paper",
                 }}
               >
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1.5}
+                  sx={{ mb: 3 }}
+                >
                   <Box
                     sx={{
                       p: 1,
@@ -187,7 +248,12 @@ export default function Checkout() {
                     borderColor: "divider",
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight={700}
+                    sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+                  >
                     Recipient Details
                   </Typography>
                   <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5 }}>
@@ -199,7 +265,12 @@ export default function Checkout() {
                 </Box>
 
                 {/* Delivery Address */}
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                  sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+                >
                   Delivery Address
                 </Typography>
 
@@ -214,24 +285,49 @@ export default function Checkout() {
                       bgcolor: "action.selected",
                     }}
                   >
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                      <LocationOnOutlinedIcon color="primary" sx={{ mt: 0.3 }} />
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="flex-start"
+                    >
+                      <LocationOnOutlinedIcon
+                        color="primary"
+                        sx={{ mt: 0.3 }}
+                      />
                       <Box sx={{ flexGrow: 1 }}>
-                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={1}
+                          sx={{ mb: 0.5 }}
+                        >
                           <Typography variant="subtitle2" fontWeight={700}>
                             Shipping Destination
                           </Typography>
                           {currentAddress.is_current && (
                             <Chip
-                              icon={<CheckCircleIcon sx={{ fontSize: "12px !important" }} />}
+                              icon={
+                                <CheckCircleIcon
+                                  sx={{ fontSize: "12px !important" }}
+                                />
+                              }
                               label="Default"
                               size="small"
                               color="primary"
-                              sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700, color: "#fff" }}
+                              sx={{
+                                height: 20,
+                                fontSize: "0.65rem",
+                                fontWeight: 700,
+                                color: "#fff",
+                              }}
                             />
                           )}
                         </Stack>
-                        <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.primary"
+                          sx={{ lineHeight: 1.5 }}
+                        >
                           {[
                             currentAddress.street_name,
                             currentAddress.barangay,
@@ -242,7 +338,11 @@ export default function Checkout() {
                             .filter(Boolean)
                             .join(", ")}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontWeight: 600 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", mt: 0.5, fontWeight: 600 }}
+                        >
                           ZIP Code: {currentAddress.postal_code || "N/A"}
                         </Typography>
                       </Box>
@@ -250,7 +350,8 @@ export default function Checkout() {
                   </Paper>
                 ) : (
                   <Alert severity="warning" sx={{ mt: 1, borderRadius: 2 }}>
-                    No address selected. Please configure a default delivery address in your profile.
+                    No address selected. Please configure a default delivery
+                    address in your profile.
                   </Alert>
                 )}
               </Paper>
@@ -266,7 +367,12 @@ export default function Checkout() {
                   bgcolor: "background.paper",
                 }}
               >
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1.5}
+                  sx={{ mb: 3 }}
+                >
                   <Box
                     sx={{
                       p: 1,
@@ -289,8 +395,8 @@ export default function Checkout() {
                   sx={{ gap: 1.5 }}
                 >
                   <PaymentOptionCard
-                    value="gcash"
-                    title="GCash"
+                    value="paymongo"
+                    title="Secure Online Payment (GCash, Maya, Card, QR PH)"
                     subtitle="Fast and secure e-wallet transaction"
                     icon={<AccountBalanceWalletOutlinedIcon color="primary" />}
                     selectedValue={paymentMethod}
@@ -303,18 +409,17 @@ export default function Checkout() {
                     icon={<LocalAtmOutlinedIcon color="primary" />}
                     selectedValue={paymentMethod}
                   />
-
-                  <PaymentOptionCard
-                    value="bank"
-                    title="Bank Transfer"
-                    subtitle="Direct deposit or online bank transfer"
-                    icon={<AccountBalanceOutlinedIcon color="primary" />}
-                    selectedValue={paymentMethod}
-                  />
                 </RadioGroup>
+                {paymentMethod === "paymongo" && (
+                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                    You will be redirected to PayMongo's secure checkout where
+                    you can choose GCash, Maya, Card, or QR Ph.
+                  </Alert>
+                )}
+
                 {paymentMethod === "cod" && (
                   <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                    Pay the delivery amount in cash when your artwork arrives. Your order will be confirmed on the next screen.
+                    Pay the delivery amount in cash when your artwork arrives.
                   </Alert>
                 )}
               </Paper>
@@ -335,14 +440,22 @@ export default function Checkout() {
                 bgcolor: "background.paper",
               }}
             >
-              <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1.5}
+                sx={{ mb: 2.5 }}
+              >
                 <ShoppingBagOutlinedIcon color="action" />
                 <Typography variant="h6" fontWeight={700}>
                   Order Details
                 </Typography>
               </Stack>
 
-              <Stack spacing={2} sx={{ my: 2, maxHeight: 320, overflowY: "auto", pr: 0.5 }}>
+              <Stack
+                spacing={2}
+                sx={{ my: 2, maxHeight: 320, overflowY: "auto", pr: 0.5 }}
+              >
                 {cartItems.map((item) => (
                   <Stack
                     key={item.cart_item_id || item.artwork_id}
@@ -383,10 +496,20 @@ export default function Checkout() {
               <Divider sx={{ my: 2.5 }} />
 
               <Stack spacing={1.5}>
-                <SummaryRow label="Subtotal" value={`₱${subtotal.toLocaleString()}`} />
-                <SummaryRow label="Estimated Shipping" value={`₱${estimatedShipping.toLocaleString()}`} />
+                <SummaryRow
+                  label="Subtotal"
+                  value={`₱${subtotal.toLocaleString()}`}
+                />
+                <SummaryRow
+                  label="Estimated Shipping"
+                  value={`₱${estimatedShipping.toLocaleString()}`}
+                />
                 <Divider sx={{ my: 1 }} />
-                <SummaryRow label="Total Amount" value={`₱${total.toLocaleString()}`} bold />
+                <SummaryRow
+                  label="Total Amount"
+                  value={`₱${total.toLocaleString()}`}
+                  bold
+                />
               </Stack>
 
               <Button
@@ -411,7 +534,11 @@ export default function Checkout() {
                 }
                 onClick={handlePlaceOrder}
               >
-                {loading ? "Processing Order..." : "Place Order"}
+                {loading
+                  ? "Processing..."
+                  : paymentMethod === "paymongo"
+                    ? "Continue to Secure Payment"
+                    : "Place COD Order"}
               </Button>
             </Paper>
           </Grid>
@@ -444,10 +571,19 @@ function PaymentOptionCard({ value, title, subtitle, icon, selectedValue }) {
         control={<Radio size="small" />}
         sx={{ width: "100%", m: 0, alignItems: "center" }}
         label={
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ ml: 1, width: "100%" }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            sx={{ ml: 1, width: "100%" }}
+          >
             <Box sx={{ display: "flex" }}>{icon}</Box>
             <Box>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+              <Typography
+                variant="subtitle2"
+                fontWeight={700}
+                sx={{ lineHeight: 1.2 }}
+              >
                 {title}
               </Typography>
               <Typography variant="caption" color="text.secondary">
