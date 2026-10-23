@@ -3,10 +3,34 @@ import { embedInvisibleArtworkWatermark } from "./invisibleArtworkWatermark.js";
 
 const createWatermarkSvg = (width, height, code) => {
   const safeCode = code.replace(/[^A-Z0-9]/g, "");
+  const watermarkText =
+    code === "GUEST" ? "ArtMatch: Red Nexus" : `ArtMatch | ID: ${safeCode}`;
+  const fontSize = Math.max(12, Math.min(48, Math.round(width * 0.028)));
+  const tileWidth = Math.max(
+    Math.round(width * 0.42),
+    Math.round(fontSize * 13),
+  );
+  const tileHeight = Math.max(
+    Math.round(width * 0.21),
+    Math.round(fontSize * 6.5),
+  );
+  const outlineWidth = Math.max(1, Math.round(fontSize * 0.06));
   const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <pattern id="watermark" width="230" height="140" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)">
-        <text x="12" y="70" fill="white" fill-opacity="0.16" stroke="#222" stroke-opacity="0.12" stroke-width="1" font-family="Arial,sans-serif" font-size="24" font-weight="700">ID: ${safeCode}</text>
+      <pattern id="watermark" width="${tileWidth}" height="${tileHeight}" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)">
+        <text
+          x="${Math.round(fontSize * 0.5)}"
+          y="${Math.round(tileHeight * 0.55)}"
+          fill="white"
+          fill-opacity="0.08"
+          stroke="#222"
+          stroke-opacity="0.1"
+          stroke-width="${outlineWidth}"
+          paint-order="stroke"
+          font-family="Arial,sans-serif"
+          font-size="${fontSize}"
+          font-weight="700"
+        >${watermarkText}</text>
       </pattern>
     </defs>
     <rect width="100%" height="100%" fill="url(#watermark)"/>

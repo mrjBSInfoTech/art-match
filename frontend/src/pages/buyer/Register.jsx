@@ -229,7 +229,7 @@ const Register = () => {
               watermark while signed in, including a machine-readable
               frequency-domain mark. We record the watermark ID, artwork, and
               view time to investigate unauthorized redistribution. Signed-out
-              visitors see a generic GUEST watermark.
+              visitors see an "ArtMatch: Red Nexus" watermark.
             </Alert>
 
             <Box>

@@ -31,7 +31,16 @@ import { ensureArtworkSchema } from "./database/artwork.js";
 import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
 import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
-import { getWatermarkedArtwork } from "./utils/artworkWatermark.js";
+import {
+  getCustomerIdForWatermarkCode,
+  getWatermarkCode,
+  getWatermarkedArtwork,
+} from "./utils/artworkWatermark.js";
+import {
+  ARTWORK_IMAGE_URL_TTL_SECONDS,
+  signArtworkImageUrl,
+  verifyArtworkImageUrl,
+} from "./utils/artworkImageSignature.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -365,15 +374,58 @@ const optionalBuyerAuthentication = (req, res, next) => {
 };
 
 app.get(
-  "/uploads/seller/uploadArtwork/:filename",
+  "/api/artwork-image-url/:filename",
   optionalBuyerAuthentication,
   async (req, res) => {
-    const filename = path.basename(req.params.filename);
-    const customerId = req.user?.customer_id || null;
+    const filename = req.params.filename;
+    if (!filename || path.basename(filename) !== filename) {
+      return res.status(400).json({ message: "Invalid artwork image." });
+    }
+
+    const code = req.user?.customer_id
+      ? await getWatermarkCode(req.user.customer_id)
+      : "GUEST";
+    const expiresAt =
+      Math.floor(Date.now() / 1000) + ARTWORK_IMAGE_URL_TTL_SECONDS;
+    const signature = signArtworkImageUrl(filename, code, expiresAt);
+    const imageUrl = new URL(
+      `/uploads/seller/uploadArtwork/${encodeURIComponent(filename)}`,
+      "http://artmatch.invalid",
+    );
+    imageUrl.searchParams.set("expires", String(expiresAt));
+    imageUrl.searchParams.set("code", code);
+    imageUrl.searchParams.set("signature", signature);
+
+    res.set("Cache-Control", "no-store");
+    res.json({ url: `${imageUrl.pathname}${imageUrl.search}` });
+  },
+);
+
+app.get(
+  "/uploads/seller/uploadArtwork/:filename",
+  async (req, res) => {
+    const filename = req.params.filename;
+    const { expires, code, signature } = req.query;
+    if (
+      !filename ||
+      path.basename(filename) !== filename ||
+      !verifyArtworkImageUrl(filename, code, expires, signature)
+    ) {
+      return res.status(403).json({ message: "Invalid or expired image URL." });
+    }
+
+    const customerId =
+      code === "GUEST" ? null : await getCustomerIdForWatermarkCode(code);
+    if (code !== "GUEST" && !customerId) {
+      return res.status(403).json({ message: "Invalid or expired image URL." });
+    }
     const image = await getWatermarkedArtwork(filename, customerId);
 
     res.set({
-      "Cache-Control": "private, max-age=180",
+      "Cache-Control": `private, max-age=${Math.max(
+        0,
+        Math.min(180, Number(expires) - Math.floor(Date.now() / 1000)),
+      )}`,
       "Content-Type": image.contentType,
       Vary: "Authorization",
       "X-ArtMatch-Watermark-Code": image.code,
@@ -453,6 +505,10 @@ app.get(
     label: "Chat attachment",
   }),
 );
+
+app.use("/uploads/seller/uploadArtwork", (req, res) => {
+  res.status(404).json({ message: "Artwork image not found." });
+});
 
 // Serve static files with absolute path
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

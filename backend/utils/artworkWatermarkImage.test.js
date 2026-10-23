@@ -36,6 +36,14 @@ test("renders a tiled ID watermark onto the artwork image", async () => {
   assert.equal(await readInvisibleArtworkWatermark(rendered.body), "AB23C");
 });
 
+test("renders the branded label for guest artwork views", async () => {
+  const source = await createGradientArtwork(800, 600);
+  const rendered = await renderWatermarkedArtwork(source, "GUEST");
+
+  assert.equal(rendered.contentType, "image/png");
+  assert.equal(await readInvisibleArtworkWatermark(rendered.body), "GUEST");
+});
+
 test("resizes oversized artwork images before delivering them", async () => {
   const source = await sharp({
     create: {

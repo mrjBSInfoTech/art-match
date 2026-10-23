@@ -37,7 +37,7 @@ const query = (sql, values = []) =>
     });
   });
 
-const getWatermarkCode = async (customerId) => {
+export const getWatermarkCode = async (customerId) => {
   const existing = await query(
     "SELECT watermark_code FROM buyer_watermark_code WHERE customer_id = ?",
     [customerId],
@@ -62,6 +62,14 @@ const getWatermarkCode = async (customerId) => {
   }
 
   throw new Error("Unable to assign a unique artwork watermark code.");
+};
+
+export const getCustomerIdForWatermarkCode = async (code) => {
+  const rows = await query(
+    "SELECT customer_id FROM buyer_watermark_code WHERE watermark_code = ?",
+    [code],
+  );
+  return rows[0]?.customer_id ?? null;
 };
 
 const getArtworkId = async (filename) => {
