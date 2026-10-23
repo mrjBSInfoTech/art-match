@@ -7,6 +7,10 @@ import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
 import {
+  ArtworkImageProcessingError,
+  compressArtworkImage,
+} from "../../utils/compressArtworkImage.js";
+import {
   ArtworkDetailsValidationError,
   resolveArtworkDetails,
 } from "../../utils/artworkDetails.js";
@@ -311,6 +315,7 @@ router.post(
       const scanOverrides = parseArtworkScanOverrides(req.body, art_type, product);
 
       const absoluteImagePath = path.join(uploadDir, req.file.filename);
+      const compressedImage = await compressArtworkImage(absoluteImagePath);
       const { detectedColors, detectedFeatures, detectedMediums } =
         await scanArtwork(absoluteImagePath, art_type, product);
       const scanAttributes = applyArtworkScanOverrides({
@@ -318,20 +323,21 @@ router.post(
         mediums_used: detectedMediums,
       }, scanOverrides);
 
-      const imageName = req.file.filename;
+      const imageName = `${path.parse(req.file.filename).name}.webp`;
 
       const b2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
 
       try {
         await uploadToB2({
           key: b2Key,
-          body: fs.readFileSync(absoluteImagePath),
-          contentType: req.file.mimetype || "application/octet-stream",
+          body: compressedImage,
+          contentType: "image/webp",
         });
 
         console.log("Artwork uploaded to B2:", b2Key);
       } catch (b2Error) {
         console.error("B2 artwork upload failed:", b2Error.message);
+        removeTemporaryUpload(req.file);
 
         return res.status(502).json({
           error: "Artwork image could not be uploaded to cloud storage.",
@@ -409,7 +415,11 @@ router.post(
         },
       );
     } catch (error) {
-      if (error instanceof ArtworkDetailsValidationError || error instanceof ArtworkScanValidationError) {
+      if (
+        error instanceof ArtworkDetailsValidationError
+        || error instanceof ArtworkScanValidationError
+        || error instanceof ArtworkImageProcessingError
+      ) {
         removeTemporaryUpload(req.file);
         return res.status(400).json({ error: error.message });
       }
@@ -529,16 +539,17 @@ router.put(
       // If seller selected a new image,
       // upload it to B2 first.
       if (req.file) {
-        imageName = req.file.filename;
+        const compressedImage = await compressArtworkImage(temporaryImagePath);
+        imageName = `${path.parse(req.file.filename).name}.webp`;
 
         const newB2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
 
         await uploadToB2({
           key: newB2Key,
 
-          body: fs.readFileSync(temporaryImagePath),
+          body: compressedImage,
 
-          contentType: req.file.mimetype || "application/octet-stream",
+          contentType: "image/webp",
         });
 
         console.log("Updated artwork image uploaded to B2:", newB2Key);
@@ -656,7 +667,8 @@ router.put(
       });
     } catch (error) {
       const validationError = error instanceof ArtworkDetailsValidationError
-        || error instanceof ArtworkScanValidationError;
+        || error instanceof ArtworkScanValidationError
+        || error instanceof ArtworkImageProcessingError;
       if (!validationError) {
         console.error("Artwork update error:", error);
       }

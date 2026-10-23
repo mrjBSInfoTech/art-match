@@ -16,6 +16,7 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { addToCart } from "../../../api/buyer/cartAPI";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
+import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
 
 export default function ArtworkCard({
   artwork,
@@ -23,6 +24,7 @@ export default function ArtworkCard({
   onAddToCart,
 }) {
   const artworkId = artwork?.id || artwork?.artwork_id;
+  const isSoldOut = isArtworkSoldOut(artwork);
   const [isAdding, setIsAdding] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   useEffect(() => {
@@ -32,13 +34,19 @@ export default function ArtworkCard({
   }, [cartMessage]);
 
   const handleAddToCart = async () => {
-    if (isAdding) return;
+    if (isAdding || isSoldOut) return;
     try {
       setIsAdding(true);
       await (onAddToCart ? onAddToCart(artworkId) : addToCart(artworkId));
       setCartMessage("Added");
     } catch (error) {
-      setCartMessage(error.status === 409 ? "Already in cart" : "Try again");
+      setCartMessage(
+        error.status === 409
+          ? /sold out/i.test(error.message)
+            ? "Sold out"
+            : "Already in cart"
+          : "Try again",
+      );
     } finally {
       setIsAdding(false);
     }
@@ -145,10 +153,14 @@ export default function ArtworkCard({
               size="small"
               variant="outlined"
               onClick={handleAddToCart}
-              disabled={isAdding}
+              disabled={isAdding || isSoldOut}
               sx={{ fontSize: 10 }}
             >
-              {isAdding ? "Adding..." : cartMessage || "Add to cart"}
+              {isSoldOut
+                ? "Sold out"
+                : isAdding
+                  ? "Adding..."
+                  : cartMessage || "Add to cart"}
             </Button>
           ) : (
             <Button

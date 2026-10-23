@@ -24,11 +24,20 @@ export const fetchSellerOrders = async () => {
   }
 };
 
-export const updateSellerOrderStatus = async (orderId, status) => {
+export const updateSellerOrderStatus = async (orderId, status, payload = {}) => {
   try {
-    const response = await api.put(`/${orderId}/status`, { status });
+    const isFormData = typeof FormData !== "undefined" && payload instanceof FormData;
+    const body = isFormData
+      ? payload
+      : { status, ...payload };
+    if (isFormData) body.set("status", status);
+    const response = await api.put(`/${orderId}/status`, body);
     return response.data;
   } catch (error) {
-    handleError(error);
+    const statusError = new Error(
+      error.response?.data?.message || "Unable to process order",
+    );
+    statusError.status = error.response?.status;
+    throw statusError;
   }
 };

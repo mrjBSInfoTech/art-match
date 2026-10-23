@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS marketplace_order (
   shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 150.00,
   total_amount DECIMAL(12, 2) NOT NULL,
   status ENUM('Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled') NOT NULL DEFAULT 'Pending',
+  parcel_photos JSON NULL,
+  tracking_url VARCHAR(2048) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_marketplace_order_customer (customer_id, created_at),

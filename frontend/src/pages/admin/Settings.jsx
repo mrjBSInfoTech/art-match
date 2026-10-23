@@ -33,6 +33,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import BackupIcon from "@mui/icons-material/Backup";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -180,6 +181,7 @@ export default function Settings() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
+      <ThemeModeSetting />
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         <Box
           sx={{

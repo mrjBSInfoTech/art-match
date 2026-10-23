@@ -44,6 +44,19 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
       }}
     >
       <Box sx={{ position: "relative" }}>
+        <Chip
+          label={Number(artwork.is_sold_out) === 1 ? "Sold out" : "Available"}
+          size="small"
+          color={Number(artwork.is_sold_out) === 1 ? "default" : "success"}
+          sx={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            zIndex: 1,
+            fontWeight: 700,
+            color: Number(artwork.is_sold_out) === 1 ? undefined : "#fff",
+          }}
+        />
         {isPinned && (
           <Chip
             label="Pinned"

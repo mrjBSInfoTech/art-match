@@ -1,8 +1,33 @@
 import express from "express";
+import multer from "multer";
 import db from "../../database/db.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
+import {
+  deleteParcelPhoto,
+  saveParcelPhoto,
+} from "../../utils/parcelPhotoStorage.js";
+import { isB2Configured } from "../../utils/b2Storage.js";
+import {
+  normalizeTrackingUrl,
+  validateParcelPhotoCount,
+} from "../../utils/parcelShipment.js";
 
 const router = express.Router();
+const parcelPhotoTypes = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+const parcelPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+  fileFilter: (req, file, callback) => {
+    if (!parcelPhotoTypes.has(file.mimetype)) {
+      return callback(new Error("Parcel photos must be JPEG, PNG, or WebP images"));
+    }
+    callback(null, true);
+  },
+});
 const allowedTransitions = {
   Pending: new Set(["Confirmed", "Cancelled"]),
   Confirmed: new Set(["Packed"]),
@@ -25,8 +50,8 @@ const createOrderStatusNotification = (orderId, buyerId, status) =>
     const notificationType = status === "Shipped" || status === "Delivered" ? "shipping" : "order_status";
 
     db.query(
-      "INSERT INTO account_notifications (role, account_id, notification_type, message) VALUES (?, ?, ?, ?)",
-      ["buyer", buyerId, notificationType, message],
+      "INSERT INTO account_notifications (role, account_id, notification_type, message, order_id) VALUES (?, ?, ?, ?, ?)",
+      ["buyer", buyerId, notificationType, message, orderId],
       (error) => {
         if (error) {
           console.error("Unable to create order notification:", error.message);
@@ -44,7 +69,8 @@ router.get("/", authenticateSeller, (req, res) => {
        o.created_at, o.status, o.payment_method, o.subtotal, o.shipping_fee,
        o.total_amount, o.buyer_name, o.buyer_email, o.shipping_street,
        o.shipping_barangay, o.shipping_city, o.shipping_province,
-       o.shipping_region, o.shipping_postal_code, i.order_item_id,
+       o.shipping_region, o.shipping_postal_code, o.parcel_photos,
+       o.tracking_url, i.order_item_id,
        i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity
      FROM marketplace_order o
      LEFT JOIN marketplace_order_item i ON i.order_id = o.order_id
@@ -69,6 +95,12 @@ router.get("/", authenticateSeller, (req, res) => {
             subtotal: Number(row.subtotal),
             shipping: Number(row.shipping_fee),
             total: Number(row.total_amount),
+            trackingUrl: row.tracking_url,
+            parcelPhotoCount: Array.isArray(row.parcel_photos)
+              ? row.parcel_photos.length
+              : typeof row.parcel_photos === "string"
+                ? JSON.parse(row.parcel_photos).length
+                : 0,
             customer: row.buyer_name,
             email: row.buyer_email,
             address: [
@@ -100,53 +132,157 @@ router.get("/", authenticateSeller, (req, res) => {
   );
 });
 
-router.put("/:id/status", authenticateSeller, (req, res) => {
-  const requestedStatus = String(req.body.status || "");
-  db.query(
-    "SELECT status FROM marketplace_order WHERE order_id = ? AND seller_id = ? LIMIT 1",
-    [req.params.id, req.user.student_id],
-    (findError, rows) => {
-      if (findError) return res.status(500).json({ message: "Unable to update order" });
-      if (!rows.length) return res.status(404).json({ message: "Order not found" });
-      const currentStatus = rows[0].status;
-      if (!allowedTransitions[currentStatus]?.has(requestedStatus)) {
-        return res.status(400).json({ message: `Cannot move an order from ${currentStatus} to ${requestedStatus}` });
+router.put(
+  "/:id/status",
+  authenticateSeller,
+  parcelPhotoUpload.array("parcel_photos", 5),
+  (error, req, res, next) => {
+    if (!error) return next();
+    const message =
+      error.code === "LIMIT_FILE_SIZE"
+        ? "Each parcel photo must be 5 MB or smaller"
+        : error.code === "LIMIT_FILE_COUNT"
+          ? "Upload no more than 5 parcel photos"
+          : error.message;
+    return res.status(400).json({ message });
+  },
+  async (req, res) => {
+    const orderId = Number(req.params.id);
+    const sellerId = req.user.student_id;
+    const requestedStatus = String(req.body.status || "");
+    const files = req.files || [];
+    const uploadedPhotos = [];
+    let connection;
+
+    const fail = (statusCode, message) => {
+      const error = new Error(message);
+      error.statusCode = statusCode;
+      throw error;
+    };
+
+    try {
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) {
+        fail(400, "Invalid order id");
       }
-      db.query(
-        "UPDATE marketplace_order SET status = ? WHERE order_id = ? AND seller_id = ? AND status = ?",
-        [requestedStatus, req.params.id, req.user.student_id, currentStatus],
-        async (updateError, result) => {
-          if (updateError) return res.status(500).json({ message: "Unable to update order" });
-          if (!result.affectedRows) return res.status(409).json({ message: "Order status changed; refresh and try again" });
 
-          if (["Confirmed", "Packed", "Shipped", "Delivered", "Cancelled"].includes(requestedStatus)) {
-            db.query(
-              "SELECT customer_id, order_id FROM marketplace_order WHERE order_id = ? AND seller_id = ? LIMIT 1",
-              [req.params.id, req.user.student_id],
-              (orderError, orderRows) => {
-                if (orderError) {
-                  console.error("Unable to load order for status notification:", orderError.message);
-                  return res.json({ message: "Order status updated", status: requestedStatus });
-                }
-
-                if (!orderRows.length) {
-                  return res.json({ message: "Order status updated", status: requestedStatus });
-                }
-
-                createOrderStatusNotification(orderRows[0].order_id, orderRows[0].customer_id, requestedStatus)
-                  .finally(() => {
-                    res.json({ message: "Order status updated", status: requestedStatus });
-                  });
-              },
-            );
-            return;
-          }
-
-          res.json({ message: "Order status updated", status: requestedStatus });
-        },
+      connection = await db.promise().getConnection();
+      await connection.beginTransaction();
+      const [orders] = await connection.query(
+        `SELECT status, customer_id, parcel_photos, tracking_url
+         FROM marketplace_order
+         WHERE order_id = ? AND seller_id = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [orderId, sellerId],
       );
-    },
-  );
-});
+
+      if (!orders.length) fail(404, "Order not found");
+      const order = orders[0];
+      if (!allowedTransitions[order.status]?.has(requestedStatus)) {
+        fail(400, `Cannot move an order from ${order.status} to ${requestedStatus}`);
+      }
+
+      if (requestedStatus === "Packed") {
+        try {
+          validateParcelPhotoCount(files);
+        } catch (error) {
+          fail(400, error.message);
+        }
+      }
+      if (requestedStatus !== "Packed" && files.length) {
+        fail(400, "Parcel photos can only be uploaded when marking the order Packed");
+      }
+
+      const existingPhotos = Array.isArray(order.parcel_photos)
+        ? order.parcel_photos
+        : order.parcel_photos
+          ? JSON.parse(order.parcel_photos)
+          : [];
+      if (requestedStatus === "Shipped" && existingPhotos.length === 0) {
+        fail(409, "Add parcel photos before shipping this order");
+      }
+
+      let trackingUrl;
+      try {
+        trackingUrl = normalizeTrackingUrl(req.body.tracking_url);
+      } catch (error) {
+        fail(400, error.message);
+      }
+      if (requestedStatus !== "Shipped" && trackingUrl) {
+        fail(400, "A tracking link can only be added when marking the order Shipped");
+      }
+
+      let parcelPhotos = existingPhotos;
+      if (requestedStatus === "Packed") {
+        parcelPhotos = [];
+        for (const file of files) {
+          const extension = parcelPhotoTypes.get(file.mimetype);
+          try {
+            const photo = await saveParcelPhoto({
+              orderId,
+              buffer: file.buffer,
+              contentType: file.mimetype,
+              extension,
+            });
+            uploadedPhotos.push(photo);
+            parcelPhotos.push(photo);
+          } catch (uploadError) {
+            if (isB2Configured()) uploadError.statusCode = 502;
+            throw uploadError;
+          }
+        }
+      }
+
+      const [result] = await connection.query(
+        `UPDATE marketplace_order
+         SET status = ?, parcel_photos = ?, tracking_url = ?
+         WHERE order_id = ? AND seller_id = ? AND status = ?`,
+        [
+          requestedStatus,
+          JSON.stringify(parcelPhotos),
+          requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
+          orderId,
+          sellerId,
+          order.status,
+        ],
+      );
+      if (!result.affectedRows) {
+        fail(409, "Order status changed; refresh and try again");
+      }
+
+      await connection.commit();
+      await createOrderStatusNotification(orderId, order.customer_id, requestedStatus);
+      return res.json({
+        message: "Order status updated",
+        status: requestedStatus,
+        trackingUrl: requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
+        parcelPhotoCount: parcelPhotos.length,
+      });
+    } catch (error) {
+      if (connection) await connection.rollback().catch(() => {});
+      for (const photo of uploadedPhotos) {
+        try {
+          await deleteParcelPhoto(photo, orderId);
+        } catch (cleanupError) {
+          console.error("Unable to remove unused parcel photo:", cleanupError.message);
+        }
+      }
+      const statusCode = error.statusCode || 500;
+      console.error("Seller order status update error:", error.message);
+      return res.status(statusCode).json({
+        message:
+          statusCode === 502
+            ? "Parcel photos could not be uploaded to cloud storage"
+            : statusCode === 500 && error.code === "ENOSPC"
+              ? "There is not enough disk space to save parcel photos"
+            : error.statusCode
+              ? error.message
+              : "Unable to save parcel photos. Please try again.",
+      });
+    } finally {
+      connection?.release();
+    }
+  },
+);
 
 export default router;

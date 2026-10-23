@@ -1,10 +1,12 @@
 import express from "express";
 import db from "../../database/db.js";
+import { readParcelPhoto } from "../../utils/parcelPhotoStorage.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
 import {
   recordRecommendationInteraction,
   getRecommendationSessionIdFromRequest,
 } from "../../utils/recommendationInteractions.js";
+import { getArtworkAvailability } from "../../utils/artworkAvailability.js";
 
 const router = express.Router();
 
@@ -164,6 +166,54 @@ router.get("/", authenticateBuyer, async (req, res) => {
   }
 });
 
+router.get("/:id/parcel-photos/:index", authenticateBuyer, async (req, res) => {
+  const orderId = Number(req.params.id);
+  const photoIndex = Number(req.params.index);
+  if (
+    !Number.isSafeInteger(orderId) ||
+    orderId <= 0 ||
+    !Number.isSafeInteger(photoIndex) ||
+    photoIndex < 0
+  ) {
+    return res.status(400).json({ message: "Invalid parcel photo request" });
+  }
+
+  try {
+    const rows = await query(
+      db.promise(),
+      `SELECT parcel_photos
+       FROM marketplace_order
+       WHERE order_id = ? AND customer_id = ?
+       LIMIT 1`,
+      [orderId, req.user.customer_id],
+    );
+    if (!rows.length) {
+      return res.status(404).json({ message: "Parcel photo not found" });
+    }
+
+    const photos = Array.isArray(rows[0].parcel_photos)
+      ? rows[0].parcel_photos
+      : rows[0].parcel_photos
+        ? JSON.parse(rows[0].parcel_photos)
+        : [];
+    const photo = photos[photoIndex];
+    if (!photo?.key || !["image/jpeg", "image/png", "image/webp"].includes(photo.contentType)) {
+      return res.status(404).json({ message: "Parcel photo not found" });
+    }
+
+    const image = await readParcelPhoto(photo, orderId);
+    res.set({
+      "Cache-Control": "private, max-age=300",
+      "Content-Type": photo.contentType,
+      "X-Content-Type-Options": "nosniff",
+    });
+    return res.send(image);
+  } catch (error) {
+    console.error("Buyer parcel photo fetch failed:", error);
+    return res.status(500).json({ message: "Unable to load parcel photo" });
+  }
+});
+
 router.post("/checkout", authenticateBuyer, async (req, res) => {
   const recommendationSessionId = getRecommendationSessionIdFromRequest(req);
 
@@ -218,6 +268,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
            a.title,
            a.price,
            a.image,
+           JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+           a.is_sold,
+           a.status,
 
            CONCAT(
              s.first_name,
@@ -254,11 +307,12 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       });
     }
 
-    const unavailable = await query(
+    const previousPurchases = await query(
       connection,
 
-      `SELECT DISTINCT
-             oi.artwork_id
+      `SELECT
+             oi.artwork_id,
+             oi.quantity
 
            FROM marketplace_order_item oi
 
@@ -276,11 +330,26 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       [items.map((item) => item.artwork_id)],
     );
 
-    if (unavailable.length) {
-      const unavailableIds = new Set(
-        unavailable.map((item) => item.artwork_id),
+    const soldQuantities = new Map();
+    previousPurchases.forEach((purchase) => {
+      const artworkId = String(purchase.artwork_id);
+      soldQuantities.set(
+        artworkId,
+        (soldQuantities.get(artworkId) || 0) + Number(purchase.quantity || 0),
       );
+    });
+    const unavailableIds = items
+      .filter((item) =>
+        getArtworkAvailability(
+          item.stock_available,
+          soldQuantities.get(String(item.artwork_id)) || 0,
+          Number(item.is_sold) === 1 ||
+            String(item.status || "").toLowerCase() === "sold",
+        ).isSoldOut,
+      )
+      .map((item) => item.artwork_id);
 
+    if (unavailableIds.length) {
       await query(
         connection,
 
@@ -289,16 +358,31 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
              add_to_id = ?
              AND artwork_id IN (?)`,
 
-        [carts[0].add_to_id, [...unavailableIds]],
+        [carts[0].add_to_id, unavailableIds],
+      );
+
+      await query(
+        connection,
+
+        `UPDATE add_cart ac
+           SET total_price = (
+             SELECT COALESCE(SUM(a.price), 0)
+             FROM cart_item ci
+             JOIN artwork a ON a.artwork_id = ci.artwork_id
+             WHERE ci.add_to_id = ac.add_to_id
+           )
+           WHERE ac.add_to_id = ?`,
+
+        [carts[0].add_to_id],
       );
 
       await connection.commit();
 
       return res.status(409).json({
         message:
-          "Some artwork in your cart has already been purchased. Your cart was updated; please review it and try again.",
+          "Some artwork in your cart is sold out. Your cart was updated; please review it and try again.",
 
-        unavailable_artwork_ids: [...unavailableIds],
+        unavailable_artwork_ids: unavailableIds,
       });
     }
 

@@ -19,12 +19,34 @@ const orderTableSql = `
     shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 150.00,
     total_amount DECIMAL(12, 2) NOT NULL,
     status ENUM('Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled') NOT NULL DEFAULT 'Pending',
+    parcel_photos JSON NULL,
+    tracking_url VARCHAR(2048) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_marketplace_order_customer (customer_id, created_at),
     INDEX idx_marketplace_order_seller (seller_id, created_at)
   ) ENGINE=InnoDB
 `;
+
+const query = (sql) =>
+  new Promise((resolve, reject) => {
+    db.query(sql, (error, rows) => {
+      if (error) return reject(error);
+      resolve(rows);
+    });
+  });
+
+const ensureOrderColumns = async () => {
+  const existingColumns = await query("SHOW COLUMNS FROM marketplace_order");
+  const names = new Set(existingColumns.map((column) => column.Field));
+
+  if (!names.has("parcel_photos")) {
+    await query("ALTER TABLE marketplace_order ADD COLUMN parcel_photos JSON NULL");
+  }
+  if (!names.has("tracking_url")) {
+    await query("ALTER TABLE marketplace_order ADD COLUMN tracking_url VARCHAR(2048) NULL");
+  }
+};
 
 const orderItemTableSql = `
   CREATE TABLE IF NOT EXISTS marketplace_order_item (
@@ -86,31 +108,10 @@ const recommendationTableSql = `
   ) ENGINE=InnoDB
 `;
 
-export const ensureOrderTables = () =>
-  new Promise((resolve, reject) => {
-    db.query(orderTableSql, (orderError) => {
-      if (orderError) {
-        reject(orderError);
-        return;
-      }
-      db.query(orderItemTableSql, (itemError) => {
-        if (itemError) {
-          reject(itemError);
-          return;
-        }
-        db.query(reviewTableSql, (reviewError) => {
-          if (reviewError) {
-            reject(reviewError);
-            return;
-          }
-          db.query(recommendationTableSql, (recommendationError) => {
-            if (recommendationError) {
-              reject(recommendationError);
-              return;
-            }
-            resolve();
-          });
-        });
-      });
-    });
-  });
+export const ensureOrderTables = async () => {
+  await query(orderTableSql);
+  await query(orderItemTableSql);
+  await query(reviewTableSql);
+  await query(recommendationTableSql);
+  await ensureOrderColumns();
+};

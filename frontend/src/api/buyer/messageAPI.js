@@ -89,6 +89,19 @@ export const fetchBuyerNotifications = async () => {
   }
 };
 
+export const fetchBuyerParcelPhoto = async (photoPath) => {
+  try {
+    const token = localStorage.getItem("buyer_token");
+    const response = await axios.get(`http://localhost:5000${photoPath}`, {
+      responseType: "blob",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const markBuyerNotificationsRead = async () => {
   try {
     await api.post("/buyer/notifications/read");

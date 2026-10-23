@@ -5,11 +5,20 @@ import {
   Button,
   CircularProgress,
   Container,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
-import { fetchBuyerNotifications, markBuyerNotificationsRead } from "../../api/buyer/messageAPI";
+import CloseIcon from "@mui/icons-material/Close";
+import {
+  fetchBuyerNotifications,
+  fetchBuyerParcelPhoto,
+  markBuyerNotificationsRead,
+} from "../../api/buyer/messageAPI";
 
 const formatNotificationDate = (value) => {
   if (!value) return "Just now";
@@ -34,15 +43,85 @@ const getNotificationTypeLabel = (notificationType) => {
   }
 };
 
+function ParcelPhotoButton({ photo, index, onOpen }) {
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl;
+    fetchBuyerParcelPhoto(photo)
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      })
+      .catch(() => {
+        if (active) setImageError(true);
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photo]);
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={() => imageUrl && onOpen(imageUrl)}
+      disabled={!imageUrl}
+      aria-label={`Enlarge parcel photo ${index + 1}`}
+      sx={{
+        p: 0,
+        border: 0,
+        borderRadius: 1,
+        overflow: "hidden",
+        cursor: imageUrl ? "zoom-in" : "default",
+        background: "none",
+      }}
+    >
+      {imageUrl ? (
+        <Box
+          component="img"
+          src={imageUrl}
+          alt={`Parcel photo ${index + 1}`}
+          sx={{
+            display: "block",
+            width: 104,
+            height: 104,
+            objectFit: "cover",
+          }}
+        />
+      ) : (
+        <Box
+          sx={{
+            width: 104,
+            height: 104,
+            display: "grid",
+            placeItems: "center",
+            bgcolor: "action.hover",
+            color: "text.secondary",
+            typography: "caption",
+          }}
+        >
+          {imageError ? "Unavailable" : "Loading"}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 export default function BuyerNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedParcelPhoto, setSelectedParcelPhoto] = useState(null);
 
   const loadNotifications = async () => {
     try {
       setError("");
-      setLoading(true);
       const rows = await fetchBuyerNotifications();
       setNotifications(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
@@ -132,6 +211,36 @@ export default function BuyerNotifications() {
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                       {notification.message}
                     </Typography>
+                    {notification.parcel_photos?.length > 0 && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                          Parcel photos
+                        </Typography>
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                          {notification.parcel_photos.map((photo, index) => (
+                            <ParcelPhotoButton
+                              key={`${notification.notification_id}-${index}`}
+                              photo={photo}
+                              index={index}
+                              onOpen={setSelectedParcelPhoto}
+                            />
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                    {notification.tracking_url && (
+                      <Button
+                        component="a"
+                        href={notification.tracking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="outlined"
+                        size="small"
+                        sx={{ mt: 1.5, borderRadius: 999, textTransform: "none" }}
+                      >
+                        Track parcel
+                      </Button>
+                    )}
                   </Box>
 
                   <Stack alignItems={{ xs: "flex-start", sm: "flex-end" }} spacing={1}>
@@ -150,6 +259,36 @@ export default function BuyerNotifications() {
           </Stack>
         )}
       </Stack>
+      <Dialog
+        open={Boolean(selectedParcelPhoto)}
+        onClose={() => setSelectedParcelPhoto(null)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: "flex", justifyContent: "flex-end", p: 1 }}>
+          <IconButton
+            aria-label="Close enlarged parcel photo"
+            onClick={() => setSelectedParcelPhoto(null)}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: "0 !important", textAlign: "center" }}>
+          {selectedParcelPhoto && (
+            <Box
+              component="img"
+              src={selectedParcelPhoto}
+              alt="Enlarged parcel"
+              sx={{
+                maxWidth: "100%",
+                maxHeight: "75vh",
+                objectFit: "contain",
+                borderRadius: 1,
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }

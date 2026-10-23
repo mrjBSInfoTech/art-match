@@ -184,6 +184,8 @@ CREATE TABLE IF NOT EXISTS marketplace_order (
   shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 150.00,
   total_amount DECIMAL(12, 2) NOT NULL,
   status ENUM('Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled') NOT NULL DEFAULT 'Pending',
+  parcel_photos JSON NULL,
+  tracking_url VARCHAR(2048) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_marketplace_order_customer (customer_id, created_at),
@@ -267,10 +269,12 @@ CREATE TABLE IF NOT EXISTS account_notifications (
   account_id INT NOT NULL,
   notification_type VARCHAR(20) NOT NULL,
   message TEXT NOT NULL,
+  order_id INT NULL,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_account_notifications_account (role, account_id),
-  INDEX idx_account_notifications_created (created_at)
+  INDEX idx_account_notifications_created (created_at),
+  INDEX idx_account_notifications_order (order_id)
 );
 
 CREATE TABLE IF NOT EXISTS conversation_read_state (

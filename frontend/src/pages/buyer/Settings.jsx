@@ -19,6 +19,7 @@ import {
   getBuyerSecuritySettings,
   updateBuyerPrivacy,
 } from "../../api/buyer/buyerAuthenticationAPI";
+import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
 
 export default function Settings() {
   const [isPrivate, setIsPrivate] = useState(false);
@@ -102,6 +103,7 @@ export default function Settings() {
         <title>Security &amp; Privacy</title>
       </Helmet>
       <Stack spacing={2.5}>
+        <ThemeModeSetting />
         <Alert severity="info">
           Marketplace artwork images include a subtle tiled watermark. When
           you are signed in they contain a short ID linked to your account,

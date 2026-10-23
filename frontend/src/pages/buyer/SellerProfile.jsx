@@ -14,6 +14,8 @@ import {
   Stack,
   Tab,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -124,6 +126,7 @@ export default function SellerProfile() {
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewsError, setReviewsError] = useState("");
   const [activeTab, setActiveTab] = useState(0);
+  const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -327,6 +330,18 @@ export default function SellerProfile() {
         year: "numeric",
       })
     : "Not available";
+  const availableArtworks = sellerArtworks.filter(
+      (artwork) => Number(artwork.is_sold_out) !== 1,
+  );
+  const soldOutArtworks = sellerArtworks.filter(
+      (artwork) => Number(artwork.is_sold_out) === 1,
+  );
+  const displayedArtworks =
+      availabilityFilter === "available"
+        ? availableArtworks
+        : availabilityFilter === "sold_out"
+          ? soldOutArtworks
+          : sellerArtworks;
 
   return (
     <Box
@@ -411,6 +426,49 @@ export default function SellerProfile() {
                   )}
                 </Stack>
 
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ mb: 1.5, minHeight: 24 }}
+                  aria-label={
+                    averageRating === null
+                      ? "Seller rating"
+                      : `Average seller rating: ${averageRating.toFixed(1)} out of 5`
+                  }
+                >
+                  {reviewsLoading ? (
+                    <CircularProgress size={16} />
+                  ) : reviewsError ? (
+                    <Typography variant="body2" sx={{ color: colors.subtle }}>
+                      Rating unavailable
+                    </Typography>
+                  ) : averageRating === null ? (
+                    <Typography variant="body2" sx={{ color: colors.subtle }}>
+                      No reviews yet
+                    </Typography>
+                  ) : (
+                    <>
+                      <Rating
+                        value={averageRating}
+                        precision={0.1}
+                        readOnly
+                        size="small"
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ color: colors.text, fontWeight: 700 }}
+                      >
+                        {averageRating.toFixed(1)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: colors.subtle }}>
+                        ({sellerReviews.length}{" "}
+                        {sellerReviews.length === 1 ? "review" : "reviews"})
+                      </Typography>
+                    </>
+                  )}
+                </Stack>
+
                 <Typography
                   variant="body1"
                   sx={{
@@ -451,23 +509,6 @@ export default function SellerProfile() {
                     </Typography>
                     <Typography variant="caption" sx={{ color: colors.subtle }}>
                       Sales
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h5"
-                      sx={{ fontWeight: 800, color: colors.text }}
-                    >
-                      {reviewsLoading
-                        ? "..."
-                        : averageRating === null
-                          ? "—"
-                          : averageRating.toFixed(1)}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: colors.subtle }}>
-                      {sellerReviews.length
-                        ? `Rating (${sellerReviews.length})`
-                        : "Rating"}
                     </Typography>
                   </Box>
                 </Stack>
@@ -571,18 +612,37 @@ export default function SellerProfile() {
               "& .MuiTabs-indicator": { backgroundColor: colors.accent },
             }}
           >
-            <Tab label={`Artworks for Sale (${sellerArtworks.length})`} />
+            <Tab label={`Artworks (${sellerArtworks.length})`} />
             <Tab label="About" />
             <Tab label={`Reviews (${sellerReviews.length})`} />
           </Tabs>
 
           {activeTab === 0 && (
-            <Grid
-              container
-              spacing={2.5}
-              sx={{ mt: 2.5, alignItems: "stretch" }}
-            >
-              {sellerArtworks.length === 0 ? (
+            <>
+              <ToggleButtonGroup
+                exclusive
+                value={availabilityFilter}
+                onChange={(event, value) => {
+                  if (value) setAvailabilityFilter(value);
+                }}
+                aria-label="Filter artworks by availability"
+                size="small"
+                sx={{ mt: 2.5, flexWrap: "wrap" }}
+              >
+                <ToggleButton value="all">All ({sellerArtworks.length})</ToggleButton>
+                <ToggleButton value="available">
+                  Available ({availableArtworks.length})
+                </ToggleButton>
+                <ToggleButton value="sold_out">
+                  Sold out ({soldOutArtworks.length})
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Grid
+                container
+                spacing={2.5}
+                sx={{ mt: 0.5, alignItems: "stretch" }}
+              >
+              {displayedArtworks.length === 0 ? (
                 <Grid size={12}>
                   <Paper
                     sx={{
@@ -594,15 +654,19 @@ export default function SellerProfile() {
                     }}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      No artworks yet
+                      {sellerArtworks.length === 0
+                        ? "No artworks yet"
+                        : `No ${availabilityFilter === "sold_out" ? "sold out" : "available"} artworks`}
                     </Typography>
                     <Typography color="text.secondary" sx={{ mt: 1 }}>
-                      This seller has not uploaded any work yet.
+                      {sellerArtworks.length === 0
+                        ? "This seller has not uploaded any work yet."
+                        : "Try another availability filter to see this seller’s other artworks."}
                     </Typography>
                   </Paper>
                 </Grid>
               ) : (
-                sellerArtworks.map((artwork) => (
+                displayedArtworks.map((artwork) => (
                   <Grid
                     size={{ xs: 12, sm: 6, md: 4 }}
                     key={artwork.artwork_id}
@@ -619,7 +683,8 @@ export default function SellerProfile() {
                   </Grid>
                 ))
               )}
-            </Grid>
+              </Grid>
+            </>
           )}
           {activeTab === 1 && (
             <Paper

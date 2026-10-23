@@ -488,10 +488,10 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 createAuditLogsTable().catch(() => {});
-ensureAccountAccessTable();
 ensureChatPublicKeysTable();
 ensureMessageSenderNameColumn();
-ensureBuyerPrivacyColumn()
+ensureAccountAccessTable()
+  .then(() => ensureBuyerPrivacyColumn())
   .then(() => ensureFavoriteTable())
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())

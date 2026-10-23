@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormHelperText,
   FormControl,
   InputAdornment,
   MenuItem,
@@ -75,6 +76,11 @@ export default function SellerOrder() {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [fulfillmentTarget, setFulfillmentTarget] = useState(null);
+  const [parcelPhotos, setParcelPhotos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [trackingUrl, setTrackingUrl] = useState("");
+  const [savingFulfillment, setSavingFulfillment] = useState(false);
 
   const loadOrders = async () => {
     try {
@@ -92,6 +98,12 @@ export default function SellerOrder() {
   useEffect(() => {
     loadOrders();
   }, []);
+
+  useEffect(() => {
+    const previews = parcelPhotos.map((file) => URL.createObjectURL(file));
+    setPhotoPreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [parcelPhotos]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -119,20 +131,74 @@ export default function SellerOrder() {
     };
   }, [orders]);
 
-  const updateOrderStatus = async (orderId, nextStatus) => {
+  const saveOrderStatus = async (orderId, nextStatus, payload = {}) => {
     try {
       setStatusError("");
-      await updateSellerOrderStatus(orderId, nextStatus);
+      const result = await updateSellerOrderStatus(orderId, nextStatus, payload);
       setOrders((currentOrders) =>
         currentOrders.map((order) =>
-          order.orderId === orderId ? { ...order, status: nextStatus } : order,
+          order.orderId === orderId
+            ? {
+                ...order,
+                status: nextStatus,
+                trackingUrl: result.trackingUrl,
+                parcelPhotoCount: result.parcelPhotoCount,
+              }
+            : order,
         ),
       );
       setSelectedOrder((current) =>
-        current?.orderId === orderId ? { ...current, status: nextStatus } : current,
+        current?.orderId === orderId
+          ? {
+              ...current,
+              status: nextStatus,
+              trackingUrl: result.trackingUrl,
+              parcelPhotoCount: result.parcelPhotoCount,
+            }
+          : current,
       );
+      return true;
     } catch (updateError) {
       setStatusError(updateError.message || "Unable to update order status");
+      return false;
+    }
+  };
+
+  const updateOrderStatus = async (orderId, nextStatus) => {
+    if (nextStatus === "Packed" || nextStatus === "Shipped") {
+      const order = orders.find((item) => item.orderId === orderId);
+      setStatusError("");
+      setParcelPhotos([]);
+      setTrackingUrl(nextStatus === "Shipped" ? order?.trackingUrl || "" : "");
+      setFulfillmentTarget({ orderId, status: nextStatus, order });
+      return;
+    }
+    await saveOrderStatus(orderId, nextStatus);
+  };
+
+  const submitFulfillmentUpdate = async () => {
+    if (!fulfillmentTarget) return;
+    const formData = new FormData();
+    if (fulfillmentTarget.status === "Packed") {
+      if (parcelPhotos.length < 1 || parcelPhotos.length > 5) {
+        setStatusError("Choose 1 to 5 parcel photos before continuing.");
+        return;
+      }
+      parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
+    } else {
+      formData.append("tracking_url", trackingUrl.trim());
+    }
+
+    setSavingFulfillment(true);
+    try {
+      const saved = await saveOrderStatus(
+        fulfillmentTarget.orderId,
+        fulfillmentTarget.status,
+        formData,
+      );
+      if (saved) setFulfillmentTarget(null);
+    } finally {
+      setSavingFulfillment(false);
     }
   };
 
@@ -679,6 +745,98 @@ export default function SellerOrder() {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(fulfillmentTarget)}
+        onClose={() => !savingFulfillment && setFulfillmentTarget(null)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {fulfillmentTarget?.status === "Packed"
+            ? "Add parcel photos"
+            : "Add tracking link"}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {statusError && <Alert severity="error">{statusError}</Alert>}
+            {fulfillmentTarget?.status === "Packed" ? (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Upload 1 to 5 clear photos of the packed parcel. The buyer
+                  will be able to inspect them in Notifications.
+                </Typography>
+                <Button component="label" variant="outlined" disabled={savingFulfillment}>
+                  Choose parcel photos
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={(event) =>
+                      setParcelPhotos(Array.from(event.target.files || []))
+                    }
+                  />
+                </Button>
+                <FormHelperText>
+                  {parcelPhotos.length} of 1–5 photos selected (JPEG, PNG, or
+                  WebP; maximum 5 MB each)
+                </FormHelperText>
+                {photoPreviews.length > 0 && (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {photoPreviews.map((preview, index) => (
+                      <Box
+                        key={preview}
+                        component="img"
+                        src={preview}
+                        alt={`Parcel photo ${index + 1}`}
+                        sx={{
+                          width: 96,
+                          height: 96,
+                          objectFit: "cover",
+                          borderRadius: 1,
+                          border: "1px solid",
+                          borderColor: "divider",
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
+              </>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Add the carrier tracking URL if one is available. This is
+                  optional and will be shown to the buyer in Notifications.
+                </Typography>
+                <TextField
+                  label="Tracking link (optional)"
+                  placeholder="https://..."
+                  value={trackingUrl}
+                  onChange={(event) => setTrackingUrl(event.target.value)}
+                  inputProps={{ maxLength: 2048 }}
+                  fullWidth
+                />
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+          <Button
+            onClick={() => setFulfillmentTarget(null)}
+            disabled={savingFulfillment}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={submitFulfillmentUpdate}
+            disabled={savingFulfillment}
+          >
+            {savingFulfillment ? "Saving..." : `Mark ${fulfillmentTarget?.status}`}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

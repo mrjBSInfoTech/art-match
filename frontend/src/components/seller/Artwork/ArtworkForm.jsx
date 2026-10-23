@@ -442,7 +442,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                   Upload artwork image
                 </Typography>
                 <Typography color="text.secondary">
-                  PNG, JPG, or WEBP up to 2MB
+                  PNG, JPG, or WEBP up to 2MB. Uploads are optimized to WebP
+                  at 98% of the original dimensions.
                 </Typography>
               </>
             )}

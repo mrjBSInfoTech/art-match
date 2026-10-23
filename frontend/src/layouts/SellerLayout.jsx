@@ -48,8 +48,6 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import {
   ThemeModeProvider,
   useThemeMode,
@@ -72,7 +70,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 function SellerLayoutContent() {
-  const { theme, mode, setMode } = useThemeMode();
+  const { theme } = useThemeMode();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -253,9 +251,6 @@ function SellerLayoutContent() {
   };
 
   // Custom header matching the admin layout
-  const toggleTheme = () =>
-    setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
-
   const CustomHeader = () => (
     <Stack
       direction="row"
@@ -263,14 +258,6 @@ function SellerLayoutContent() {
       justifyContent="flex-end"
       sx={{ gap: { xs: 0.5, sm: 1 }, flexShrink: 0, minWidth: 0 }}
     >
-      <IconButton
-        onClick={toggleTheme}
-        aria-label="Toggle light and dark mode"
-        sx={{ color: "text.secondary", width: 40, height: 40, flexShrink: 0 }}
-      >
-        {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
-      </IconButton>
-
       <IconButton
         onClick={handleNotificationClick}
         aria-label="Open notifications"

@@ -49,26 +49,39 @@ const createAccountNotificationsSql = `
     account_id INT NOT NULL,
     notification_type VARCHAR(20) NOT NULL,
     message TEXT NOT NULL,
+    order_id INT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_account_notifications_account (role, account_id),
-    INDEX idx_account_notifications_created (created_at)
+    INDEX idx_account_notifications_created (created_at),
+    INDEX idx_account_notifications_order (order_id)
   )
 `;
 
-export const ensureAccountAccessTable = () => {
-  db.query(createTableSql, (error) => {
-    if (error) console.error("Unable to initialize account_access table:", error.message);
+const query = (sql) =>
+  new Promise((resolve, reject) => {
+    db.query(sql, (error, rows) => {
+      if (error) return reject(error);
+      resolve(rows);
+    });
   });
-  db.query(createStrikeLogsSql, (error) => {
-    if (error) console.error("Unable to initialize strike_logs table:", error.message);
-  });
-  db.query(createBanLogsSql, (error) => {
-    if (error) console.error("Unable to initialize ban_logs table:", error.message);
-  });
-  db.query(createAccountNotificationsSql, (error) => {
-    if (error) console.error("Unable to initialize account_notifications table:", error.message);
-  });
+
+export const ensureAccountAccessTable = async () => {
+  try {
+    await query(createTableSql);
+    await query(createStrikeLogsSql);
+    await query(createBanLogsSql);
+    await query(createAccountNotificationsSql);
+
+    const columns = await query("SHOW COLUMNS FROM account_notifications");
+    if (!columns.some((column) => column.Field === "order_id")) {
+      await query("ALTER TABLE account_notifications ADD COLUMN order_id INT NULL");
+      await query("ALTER TABLE account_notifications ADD INDEX idx_account_notifications_order (order_id)");
+    }
+  } catch (error) {
+    console.error("Unable to initialize account access tables:", error.message);
+    throw error;
+  }
 };
 
 const createAccountNotification = (role, accountId, notificationType, message) =>

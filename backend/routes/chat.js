@@ -9,6 +9,10 @@ import { authenticateSeller } from "../middleware/sellerAuthMiddleware.js";
 import { getChatPublicKey, saveChatPublicKey } from "../database/chatKeys.js";
 import { addChatEventClient, publishChatMessage } from "../utils/chatEvents.js";
 import { uploadToB2, deleteFromB2 } from "../utils/b2Storage.js";
+import {
+  getPackedNotificationParcelPhotos,
+  getShippedNotificationTrackingUrl,
+} from "../utils/parcelShipment.js";
 
 const router = express.Router();
 
@@ -368,12 +372,48 @@ router.get("/seller/conversations", authenticateSeller, (req, res) => {
 const fetchAccountNotifications = (role, accountId) =>
   new Promise((resolve, reject) => {
     db.query(
-      `SELECT notification_id, notification_type, message, is_read, created_at
-         FROM account_notifications
-         WHERE role = ? AND account_id = ?
-         ORDER BY created_at DESC`,
+      `SELECT n.notification_id, n.notification_type, n.message, n.is_read,
+              n.created_at, n.order_id, o.tracking_url, o.parcel_photos
+         FROM account_notifications n
+         LEFT JOIN marketplace_order o
+           ON o.order_id = n.order_id
+          AND n.role = 'buyer'
+          AND o.customer_id = n.account_id
+         WHERE n.role = ? AND n.account_id = ?
+         ORDER BY n.created_at DESC`,
       [role, accountId],
-      (error, rows) => (error ? reject(error) : resolve(rows)),
+      (error, rows) => {
+        if (error) return reject(error);
+        try {
+          resolve(
+            rows.map((row) => {
+              const photos = Array.isArray(row.parcel_photos)
+                ? row.parcel_photos
+                : row.parcel_photos
+                  ? JSON.parse(row.parcel_photos)
+                  : [];
+              return {
+                ...row,
+                tracking_url: getShippedNotificationTrackingUrl(
+                  row.notification_type,
+                  row.message,
+                  row.tracking_url,
+                ),
+                parcel_photos: getPackedNotificationParcelPhotos(
+                  row.notification_type,
+                  row.message,
+                  photos,
+                ).map(
+                  (_, index) =>
+                    `/api/buyer/orders/${row.order_id}/parcel-photos/${index}`,
+                ),
+              };
+            }),
+          );
+        } catch (parseError) {
+          reject(parseError);
+        }
+      },
     );
   });
 

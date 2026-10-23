@@ -29,6 +29,7 @@ import {
   recordRecommendationEvent,
 } from "../../api/buyer/recommendationAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -247,6 +248,7 @@ export default function ArtworkDetail() {
       ? artwork.image
       : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
     : "https://via.placeholder.com/600x800?text=No+Image";
+  const isSoldOut = isArtworkSoldOut(artwork);
 
   const related = artworks
     .filter(
@@ -272,7 +274,19 @@ export default function ArtworkDetail() {
       showSnackbar(result?.message || "Artwork added to cart", "success");
       return result;
     } catch (error) {
-      setCartMessage(error.status === 409 ? "Already in cart" : "");
+      const soldOut = error.status === 409 && /sold out/i.test(error.message);
+      if (soldOut) {
+        setArtwork((current) =>
+          current ? { ...current, is_sold_out: 1 } : current,
+        );
+      }
+      setCartMessage(
+        error.status === 409
+          ? soldOut
+            ? "Sold out"
+            : "Already in cart"
+          : "",
+      );
       showSnackbar(
         error.message || "Unable to add artwork to cart",
         error.status === 409 ? "warning" : "error",
@@ -351,6 +365,12 @@ export default function ArtworkDetail() {
                 variant="outlined"
                 sx={{ fontWeight: "bold", borderRadius: 2, px: 1 }}
               />
+              <Chip
+                label={isSoldOut ? "Sold out" : "Available"}
+                size="small"
+                color={isSoldOut ? "default" : "success"}
+                sx={{ fontWeight: "bold", color: isSoldOut ? undefined : "#fff" }}
+              />
             </Stack>
             <Typography
               variant="h3"
@@ -396,7 +416,7 @@ export default function ArtworkDetail() {
                   variant="contained"
                   color="primary"
                   fullWidth
-                  disabled={addingToCart}
+                  disabled={addingToCart || isSoldOut}
                   onClick={() =>
                     handleAddToCart(artwork.artwork_id || artwork.id).catch(
                       () => {},
@@ -411,7 +431,11 @@ export default function ArtworkDetail() {
                     color: "white",
                   }}
                 >
-                  {addingToCart ? "Adding..." : cartMessage || "Add to cart"}
+                  {isSoldOut
+                    ? "Sold out"
+                    : addingToCart
+                      ? "Adding..."
+                      : cartMessage || "Add to cart"}
                 </Button>
               </Stack>
             </Box>

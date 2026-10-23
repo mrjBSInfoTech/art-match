@@ -27,6 +27,7 @@ import { getSearchColor } from "../../utils/artworkColors";
 
 import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from "../../utils/artworkPrice";
 import { scoreArtworkSearch } from "../../utils/artworkSearch";
+import { matchesArtworkCategoryFilters } from "../../utils/artworkCategoryFilters";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 
 const PAGE_SIZE = 8;
@@ -63,8 +64,10 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
   const darkMode = theme.palette.mode === "dark";
   const hasImage = Boolean(artwork.image);
   const status = String(artwork.status || "").toLowerCase();
-  const badge =
-    status === "available" || status === "for sale"
+  const soldOut = Number(artwork.is_sold_out) === 1;
+  const badge = soldOut
+    ? "Sold out"
+    : status === "available" || status === "for sale"
       ? "For Sale"
       : artwork.genre || "Artwork";
   const rating = Number(artwork.rating);
@@ -139,7 +142,7 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
             px: 0.8,
             py: 0.25,
             borderRadius: 0.5,
-            backgroundColor: "error.main",
+            backgroundColor: soldOut ? "text.secondary" : "error.main",
             color: "#fff",
             fontSize: 9,
             fontWeight: 800,
@@ -252,6 +255,18 @@ export default function Shop() {
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
   const searchColor = getSearchColor(searchQuery);
   const searchLabel = searchColor || searchParams.get("q") || "";
+  const categoryFilters = useMemo(
+    () => ({
+      artTypes: searchParams.getAll("art_type"),
+      styles: searchParams.getAll("style"),
+      materials: searchParams.getAll("material"),
+      colors: searchParams.getAll("color"),
+    }),
+    [searchParams],
+  );
+  const hasCategoryFilters = Object.values(categoryFilters).some(
+    (values) => values.length > 0,
+  );
   const selectedGenre = genre ? decodeURIComponent(genre).toLowerCase() : "";
   const [artworks, setArtworks] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
@@ -329,13 +344,14 @@ export default function Shop() {
       artworks
         .filter((artwork) =>
           (!selectedGenre || String(artwork.genre || "").toLowerCase() === selectedGenre) &&
-          matchesPriceRange(artwork.price, minimumPrice, maximumPrice),
+          matchesPriceRange(artwork.price, minimumPrice, maximumPrice) &&
+          matchesArtworkCategoryFilters(artwork, categoryFilters),
         )
         .map((artwork) => ({ artwork, score: scoreArtworkSearch(artwork, searchQuery) }))
         .filter(({ score }) => score >= 0)
         .sort((a, b) => b.score - a.score)
         .map(({ artwork }) => artwork),
-    [artworks, searchQuery, selectedGenre, minimumPrice, maximumPrice],
+    [artworks, searchQuery, selectedGenre, minimumPrice, maximumPrice, categoryFilters],
   );
   const pageCount = Math.max(1, Math.ceil(visibleArtworks.length / PAGE_SIZE));
   const pageArtworks = visibleArtworks.slice(
@@ -345,7 +361,7 @@ export default function Shop() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedGenre, minimumPrice, maximumPrice, recommendationsOnly]);
+  }, [searchQuery, selectedGenre, minimumPrice, maximumPrice, recommendationsOnly, searchParams]);
 
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
@@ -448,7 +464,7 @@ export default function Shop() {
           ))}
         </Box>
 
-        {(recommendationsOnly || selectedGenre || searchQuery || hasPriceFilter) && (
+        {(recommendationsOnly || selectedGenre || searchQuery || hasPriceFilter || hasCategoryFilters) && (
           <Typography
             sx={{
               mb: 1.5,
@@ -459,7 +475,7 @@ export default function Shop() {
           >
             {recommendationsOnly ? "Recommended for You" : selectedGenre
               ? `Shop / ${genre}`
-              : searchQuery ? `Search results for \u201c${searchLabel}\u201d` : "All artworks"}
+              : searchQuery ? `Search results for \u201c${searchLabel}\u201d` : hasCategoryFilters ? "Filtered artworks" : "All artworks"}
             {hasPriceFilter && ` - ${formatPriceRange([minimumPrice, maximumPrice])}`}
             <Typography
               component="span"

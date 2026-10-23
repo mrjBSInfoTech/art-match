@@ -48,8 +48,6 @@ import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import HistoryIcon from "@mui/icons-material/History";
 import GavelIcon from "@mui/icons-material/Gavel";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { alpha } from "@mui/material/styles";
 import {
   ThemeModeProvider,
@@ -271,10 +269,8 @@ function AdminLayoutContent() {
     homeUrl: "/admin/dashboard",
   };
 
-  const { theme, mode, setMode } = useThemeMode();
+  const { theme } = useThemeMode();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
-  const toggleTheme = () =>
-    setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
 
   const CustomHeader = () => (
     <Stack
@@ -283,14 +279,6 @@ function AdminLayoutContent() {
       spacing={{ xs: 0.5, sm: 1 }}
       sx={{ minWidth: 0, flexShrink: 0 }}
     >
-      <IconButton
-        onClick={toggleTheme}
-        aria-label="Toggle light and dark mode"
-        sx={{ color: "text.secondary", width: 40, height: 40 }}
-      >
-        {mode === "dark" ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
-      </IconButton>
-
       <IconButton
         onClick={handleNotificationClick}
         aria-label="Open notifications"

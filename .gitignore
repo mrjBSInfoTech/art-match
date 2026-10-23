@@ -6,3 +6,4 @@ frontend/.env
 node_modules/
 dist/gi
 backend/.cache/
+backend/uploads/orders/

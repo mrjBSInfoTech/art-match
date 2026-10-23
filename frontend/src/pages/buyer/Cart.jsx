@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Chip,
   FormControl,
   InputLabel,
   InputAdornment,
@@ -222,6 +223,27 @@ export default function Cart() {
                                 >
                                   {item.artist}
                                 </Typography>
+                                <Chip
+                                  label={
+                                    Number(item.is_sold_out) === 1
+                                      ? "Sold out"
+                                      : "Available"
+                                  }
+                                  size="small"
+                                  color={
+                                    Number(item.is_sold_out) === 1
+                                      ? "default"
+                                      : "success"
+                                  }
+                                  sx={{
+                                    mt: 0.5,
+                                    height: 22,
+                                    color:
+                                      Number(item.is_sold_out) === 1
+                                        ? undefined
+                                        : "#fff",
+                                  }}
+                                />
                               </Box>
                             </Stack>
                           </TableCell>

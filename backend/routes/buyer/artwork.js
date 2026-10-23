@@ -86,6 +86,31 @@ router.get("/", (req, res) => {
       a.art_type,
       a.product,
       a.art_size,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+      COALESCE((
+        SELECT SUM(oi.quantity)
+        FROM marketplace_order_item oi
+        JOIN marketplace_order o ON o.order_id = oi.order_id
+        WHERE oi.artwork_id = a.artwork_id AND o.status <> 'Cancelled'
+      ), 0) AS sold_quantity,
+      CASE
+        WHEN COALESCE(a.is_sold, 0) = 1
+          OR LOWER(COALESCE(a.status, '')) = 'sold'
+          THEN 1
+        WHEN JSON_EXTRACT(a.artwork_details, '$.stock_available') IS NOT NULL
+          THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS UNSIGNED) <= COALESCE((
+            SELECT SUM(oi.quantity)
+            FROM marketplace_order_item oi
+            JOIN marketplace_order o ON o.order_id = oi.order_id
+            WHERE oi.artwork_id = a.artwork_id AND o.status <> 'Cancelled'
+          ), 0)
+        ELSE EXISTS (
+          SELECT 1
+          FROM marketplace_order_item oi
+          JOIN marketplace_order o ON o.order_id = oi.order_id
+          WHERE oi.artwork_id = a.artwork_id AND o.status <> 'Cancelled'
+        )
+      END AS is_sold_out,
       a.date_created,
       f.feature_scanned,
       f.mediums_used,
@@ -133,9 +158,35 @@ router.get("/:id", (req, res) => {
       a.price,
       a.description,
       a.image,
+      a.artwork_details,
       a.color_used,
       a.genre,
       a.art_size,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+      COALESCE((
+        SELECT SUM(oi.quantity)
+        FROM marketplace_order_item oi
+        JOIN marketplace_order o ON o.order_id = oi.order_id
+        WHERE oi.artwork_id = a.artwork_id AND o.status <> 'Cancelled'
+      ), 0) AS sold_quantity,
+      CASE
+        WHEN COALESCE(a.is_sold, 0) = 1
+          OR LOWER(COALESCE(a.status, '')) = 'sold'
+          THEN 1
+        WHEN JSON_EXTRACT(a.artwork_details, '$.stock_available') IS NOT NULL
+          THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS UNSIGNED) <= COALESCE((
+            SELECT SUM(oi.quantity)
+            FROM marketplace_order_item oi
+            JOIN marketplace_order o ON o.order_id = oi.order_id
+            WHERE oi.artwork_id = a.artwork_id AND o.status <> 'Cancelled'
+          ), 0)
+        ELSE EXISTS (
+          SELECT 1
+          FROM marketplace_order_item oi
+          JOIN marketplace_order o ON o.order_id = oi.order_id
+          WHERE oi.artwork_id = a.artwork_id AND o.status <> 'Cancelled'
+        )
+      END AS is_sold_out,
       f.feature_scanned,
       f.mediums_used,
       s.first_name,

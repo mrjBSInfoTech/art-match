@@ -75,6 +75,9 @@ export default function Checkout() {
     (sum, item) => sum + Number(item.price || 0),
     0
   );
+  const hasSoldOutItems = cartItems.some(
+    (item) => Number(item.is_sold_out) === 1,
+  );
   const sellerCount = new Set(cartItems.map((item) => item.seller_id).filter(Boolean)).size;
   const estimatedShipping = cartItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
   const total = subtotal + estimatedShipping;
@@ -117,6 +120,20 @@ export default function Checkout() {
       {error && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
           {error}
+        </Alert>
+      )}
+      {!pageLoading && hasSoldOutItems && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => navigate("/buyer/cart")}>
+              Review cart
+            </Button>
+          }
+        >
+          Your cart contains sold-out artwork. Remove it from your cart before
+          placing this order.
         </Alert>
       )}
 
@@ -386,7 +403,12 @@ export default function Checkout() {
                   fontWeight: 700,
                   color: "#fff",
                 }}
-                disabled={cartItems.length === 0 || !currentAddress || loading}
+                disabled={
+                  cartItems.length === 0 ||
+                  !currentAddress ||
+                  loading ||
+                  hasSoldOutItems
+                }
                 onClick={handlePlaceOrder}
               >
                 {loading ? "Processing Order..." : "Place Order"}

@@ -42,8 +42,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import ChatIcon from "@mui/icons-material/Chat";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import Logout from "@mui/icons-material/Logout";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
@@ -84,7 +82,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 function BuyerLayoutContent({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, mode, setMode } = useThemeMode();
+  const { theme, mode } = useThemeMode();
   const inlineSearch = useMediaQuery(theme.breakpoints.up("md"));
   const searchInputRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -94,9 +92,6 @@ function BuyerLayoutContent({ children }) {
       searchInputRef.current?.focus();
     }
   }, [searchOpen, inlineSearch]);
-  const toggleTheme = () =>
-    setMode((currentMode) => (currentMode === "dark" ? "light" : "dark"));
-
   const menuItems = [
     { label: "Home", path: "/buyer/main" },
     { label: "Cart", path: "/buyer/cart" },
@@ -228,6 +223,7 @@ function BuyerLayoutContent({ children }) {
     e.preventDefault();
 
     const query = searchQuery.trim();
+    const params = new URLSearchParams(location.search);
 
     if (query) {
       void recordRecommendationEvent({
@@ -235,11 +231,12 @@ function BuyerLayoutContent({ children }) {
         search_query: query,
         source_page: "buyer_layout",
       });
-
-      navigate(`/buyer/shop?q=${encodeURIComponent(query)}`);
+      params.set("q", query);
     } else {
-      navigate("/buyer/shop");
+      params.delete("q");
     }
+
+    navigate(`/buyer/shop${params.size ? `?${params}` : ""}`);
   };
 
   const open = Boolean(anchorEl);
@@ -280,11 +277,18 @@ function BuyerLayoutContent({ children }) {
   }, [activeIndex]);
 
   const categoryGroups = [
-    { title: "Art Type", options: ART_TYPES },
-    { title: "Style", options: ART_STYLES },
-    { title: "Materials", options: ART_MATERIALS },
+    { title: "Art Type", filterType: "art_type", options: ART_TYPES },
+    { title: "Style", filterType: "style", options: ART_STYLES },
+    { title: "Materials", filterType: "material", options: ART_MATERIALS },
   ];
-  const selectedCategory = new URLSearchParams(location.search).get("q") || "";
+  const selectedCategories = new URLSearchParams(location.search);
+  const categoryFilterTypes = [
+    ...categoryGroups.map(({ filterType }) => filterType),
+    "color",
+  ];
+  const hasSelectedCategories = categoryFilterTypes.some(
+    (filterType) => selectedCategories.getAll(filterType).length > 0,
+  );
   const [priceRange, setPriceRange] = useState(() => readPriceRange(new URLSearchParams(location.search)));
   useEffect(() => {
     setPriceRange(readPriceRange(new URLSearchParams(location.search)));
@@ -318,15 +322,6 @@ function BuyerLayoutContent({ children }) {
     });
   };
   const handleCategoryOption = (option, filterType) => {
-    setCategoriesAnchorPosition(null);
-
-    if (selectedCategory.toLowerCase() === option.toLowerCase()) {
-      const params = new URLSearchParams(location.search);
-      params.delete("q");
-      navigate(`/buyer/shop${params.size ? `?${params}` : ""}`);
-      return;
-    }
-
     void recordRecommendationEvent({
       event_type: "filter",
       filter_type: filterType,
@@ -335,8 +330,33 @@ function BuyerLayoutContent({ children }) {
     });
 
     const params = new URLSearchParams(location.search);
-    params.set("q", option);
-    navigate(`/buyer/shop?${params}`);
+    const currentValues = params.getAll(filterType);
+    const isSelected = currentValues.some(
+      (value) => value.toLowerCase() === option.toLowerCase(),
+    );
+    if (isSelected) {
+      params.delete(filterType);
+      currentValues
+        .filter((value) => value.toLowerCase() !== option.toLowerCase())
+        .forEach((value) => params.append(filterType, value));
+    } else {
+      params.append(filterType, option);
+    }
+    const pathname = location.pathname.startsWith("/buyer/shop")
+      ? location.pathname
+      : "/buyer/shop";
+    navigate(`${pathname}${params.size ? `?${params}` : ""}`);
+  };
+  const handleColorOption = (color) => {
+    handleCategoryOption(color, "color");
+  };
+  const clearSelectedCategories = () => {
+    const params = new URLSearchParams(location.search);
+    categoryFilterTypes.forEach((filterType) => params.delete(filterType));
+    const pathname = location.pathname.startsWith("/buyer/shop")
+      ? location.pathname
+      : "/buyer/shop";
+    navigate(`${pathname}${params.size ? `?${params}` : ""}`);
   };
 
   return (
@@ -521,37 +541,11 @@ function BuyerLayoutContent({ children }) {
             }}
           >
             <IconButton
-              onClick={toggleTheme}
-              aria-label="Toggle light and dark mode"
-              sx={{ color: theme.palette.text.primary }}
-            >
-              {mode === "dark" ? (
-                <LightModeRoundedIcon />
-              ) : (
-                <DarkModeRoundedIcon />
-              )}
-            </IconButton>
-            <IconButton
               sx={{ color: theme.palette.text.primary }}
               aria-label="Favorites"
               onClick={() => navigate("/buyer/favorites")}
             >
               <FavoriteBorderIcon />
-            </IconButton>
-            <IconButton
-              sx={{ color: theme.palette.text.primary }}
-              onClick={() => {
-                navigate("/buyer/messages");
-              }}
-            >
-              <Badge
-                badgeContent={unreadMessageCount}
-                color="error"
-                invisible={unreadMessageCount === 0}
-                max={99}
-              >
-                <ChatIcon />
-              </Badge>
             </IconButton>
             <IconButton
               sx={{ color: theme.palette.text.primary }}
@@ -970,6 +964,16 @@ function BuyerLayoutContent({ children }) {
           },
         }}
       >
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+          <Button
+            size="small"
+            onClick={clearSelectedCategories}
+            disabled={!hasSelectedCategories}
+            sx={{ textTransform: "none" }}
+          >
+            Clear selected categories
+          </Button>
+        </Box>
         <Box
           sx={{
             display: "grid",
@@ -1011,15 +1015,13 @@ function BuyerLayoutContent({ children }) {
                     control={
                       <Checkbox
                         size="small"
-                        checked={selectedCategory.toLowerCase() === option.toLowerCase()}
+                        checked={selectedCategories
+                          .getAll(group.filterType)
+                          .some((value) => value.toLowerCase() === option.toLowerCase())}
                         onChange={() =>
                           handleCategoryOption(
                             option,
-                            group.title === "Art Type"
-                              ? "art_type"
-                              : group.title === "Style"
-                                ? "style"
-                                : "material"
+                            group.filterType,
                           )
                         }
                         sx={{
@@ -1062,17 +1064,30 @@ function BuyerLayoutContent({ children }) {
               {COLOR_PALETTE.map(({ hex: color, name }) => (
                 <Box
                   key={color}
-                  onClick={() => handleCategoryOption(name, "color")}
-                  role="button"
+                  onClick={() => handleColorOption(name)}
+                  role="checkbox"
                   tabIndex={0}
+                  aria-checked={selectedCategories
+                    .getAll("color")
+                    .some((value) => value.toLowerCase() === name.toLowerCase())}
                   aria-label={`Filter by ${name}`}
                   title={name}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleColorOption(name);
+                    }
+                  }}
                   sx={{
                     width: 22,
                     height: 22,
                     borderRadius: "50%",
                     backgroundColor: color,
-                    border: `1px solid ${theme.palette.divider}`,
+                    border: selectedCategories
+                      .getAll("color")
+                      .some((value) => value.toLowerCase() === name.toLowerCase())
+                      ? `2px solid ${theme.palette.error.main}`
+                      : `1px solid ${theme.palette.divider}`,
                     cursor: "pointer",
                     "&:hover": { transform: "scale(1.15)" },
                   }}
