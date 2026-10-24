@@ -29,6 +29,7 @@ import {
   recordRecommendationEvent,
 } from "../../api/buyer/recommendationAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 
 // Animation transition
@@ -325,7 +326,7 @@ export default function ArtworkDetail() {
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
       <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
-        <Grid item xs={12} md={7}>
+        <Grid size={{ xs: 12, md: 7 }}>
           <WatermarkedArtworkImage
             image={artwork.image || imageUrl}
             alt={artwork.title}
@@ -350,7 +351,7 @@ export default function ArtworkDetail() {
           />
         </Grid>
 
-        <Grid item xs={12} md={5}>
+        <Grid size={{ xs: 12, md: 5 }}>
           <Box
             sx={{
               width: "100%",
@@ -441,7 +442,7 @@ export default function ArtworkDetail() {
             </Box>
           </Box>
         </Grid>
-        <Grid item xs={12}>
+        <Grid size={12}>
           <Paper
             variant="outlined"
             sx={{
@@ -621,6 +622,8 @@ export default function ArtworkDetail() {
         </Grid>
       </Grid>
 
+      <ArtworkReviews artworkId={artwork.artwork_id || artwork.id} />
+
       <Dialog
         TransitionComponent={Transition}
         open={imageViewerOpen}
@@ -736,7 +739,6 @@ export default function ArtworkDetail() {
           <Grid container spacing={3}>
             {related.map((item) => (
               <Grid
-                item
                 size={{ xs: 12, sm: 6, md: 3 }}
                 key={item.id || item.artwork_id}
               >
@@ -756,7 +758,6 @@ export default function ArtworkDetail() {
           <Grid container spacing={3}>
             {sameArtist.map((item) => (
               <Grid
-                item
                 size={{ xs: 12, sm: 6, md: 3 }}
                 key={item.id || item.artwork_id}
               >
@@ -799,13 +800,13 @@ function Row({ label, value }) {
       direction="row"
       justifyContent="space-between"
       alignItems="center"
-      columnGap={{ xs: 25, sm: 50, md: 25, lg: 45, xl: 45 }}
+      columnGap={{ xs: 2, sm: 3 }}
     >
       <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
         {label}
       </Typography>
 
-      <Typography variant="body2" fontWeight={500} sx={{ textAlign: "right" }}>
+      <Typography variant="body2" fontWeight={500} sx={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>
         {value || "-"}
       </Typography>
     </Stack>

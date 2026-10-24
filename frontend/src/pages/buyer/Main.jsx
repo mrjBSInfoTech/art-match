@@ -27,6 +27,7 @@ import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
+import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
 import Footer from "./Footer";
@@ -464,7 +465,7 @@ export default function Main() {
           </Grid>
         </Container>
       </Box>
-
+      <UpcomingEventsSlider />            
       {/* Genres */}
       <Box
         sx={{

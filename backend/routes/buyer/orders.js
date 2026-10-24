@@ -149,7 +149,7 @@ const ordersSql = `
   LEFT JOIN marketplace_order_item i
     ON i.order_id = o.order_id
 
-  LEFT JOIN artwork_review r
+  LEFT JOIN artwork_reviews r
     ON r.order_item_id =
        i.order_item_id
 `;
@@ -809,26 +809,28 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
      * =================================================
      *
      * COD does not need PayMongo.
-     * Keep your existing behavior:
-     *
-     * order created
-     * cart cleared
+     * Remove only the artworks included in this order.
      */
     await query(
       connection,
 
       `DELETE FROM cart_item
-       WHERE add_to_id = ?`,
+       WHERE add_to_id = ? AND artwork_id IN (?)`,
 
-      [cartId],
+      [cartId, items.map((item) => item.artwork_id)],
     );
 
     await query(
       connection,
 
-      `UPDATE add_cart
-       SET total_price = 0
-       WHERE add_to_id = ?`,
+      `UPDATE add_cart ac
+       SET total_price = (
+         SELECT COALESCE(SUM(a.price), 0)
+         FROM cart_item ci
+         JOIN artwork a ON a.artwork_id = ci.artwork_id
+         WHERE ci.add_to_id = ac.add_to_id
+       )
+       WHERE ac.add_to_id = ?`,
 
       [cartId],
     );

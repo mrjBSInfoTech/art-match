@@ -14,14 +14,15 @@ api.interceptors.request.use((config) => {
 });
 
 const handleError = (error) => {
+  if (axios.isCancel(error)) throw error;
   const cartError = new Error(error.response?.data?.message || "Unable to update cart");
   cartError.status = error.response?.status;
   throw cartError;
 };
 
-export const fetchCart = async () => {
+export const fetchCart = async ({ signal } = {}) => {
   try {
-    const response = await api.get("/");
+    const response = await api.get("/", { signal, headers: { "Cache-Control": "no-cache" } });
     return response.data;
   } catch (error) {
     handleError(error);

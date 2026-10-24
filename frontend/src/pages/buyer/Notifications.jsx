@@ -170,7 +170,7 @@ export default function BuyerNotifications() {
           </Box>
 
           {notifications.some((notification) => !Number(notification.is_read)) && (
-            <Button variant="contained" onClick={handleMarkAllRead} sx={{ borderRadius: 999 }}>
+            <Button variant="contained" onClick={handleMarkAllRead} sx={{ borderRadius: 999, color: "common.white", textTransform: "none" }}>
               Mark all as read
             </Button>
           )}

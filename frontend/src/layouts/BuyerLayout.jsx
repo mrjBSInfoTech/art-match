@@ -145,24 +145,43 @@ function BuyerLayoutContent({ children }) {
   }, []);
 
   useEffect(() => {
-    const loadCartCount = async () => {
+    let active = true;
+    let controller;
+    const loadCartCount = async (event) => {
+      controller?.abort();
       if (!localStorage.getItem("buyer_token")) {
         setCartCount(0);
         return;
       }
-
-      try {
-        const items = await fetchCart();
-        setCartCount(Array.isArray(items) ? items.length : 0);
-      } catch {
-        setCartCount(0);
+      if (event?.detail?.source === "cart-page" && Number.isInteger(event.detail.count) && event.detail.count >= 0) {
+        setCartCount(event.detail.count);
+        return;
       }
+      const request = new AbortController();
+      controller = request;
+      try {
+        const items = await fetchCart({ signal: request.signal });
+        if (active && !request.signal.aborted) setCartCount(Array.isArray(items) ? items.length : 0);
+      } catch {
+        // Keep the last successful count during a temporary network failure.
+      }
+    };
+    const refreshVisibleCartCount = () => {
+      if (document.visibilityState !== "hidden") loadCartCount();
     };
 
     loadCartCount();
     window.addEventListener("cart-updated", loadCartCount);
-
-    return () => window.removeEventListener("cart-updated", loadCartCount);
+    const events = ["focus", "pageshow"];
+    events.forEach((event) => window.addEventListener(event, refreshVisibleCartCount));
+    document.addEventListener("visibilitychange", refreshVisibleCartCount);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.removeEventListener("cart-updated", loadCartCount);
+      events.forEach((event) => window.removeEventListener(event, refreshVisibleCartCount));
+      document.removeEventListener("visibilitychange", refreshVisibleCartCount);
+    };
   }, [location.pathname]);
 
   useEffect(() => {

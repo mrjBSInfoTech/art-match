@@ -8,7 +8,7 @@ const getProfileImage = (artist) => {
     if (image.startsWith("http")) return image;
     return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
   }
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.artistName || artist.name || "Artist")}&background=243b53&color=ffffff&size=200`;
+  return "http://localhost:5000/uploads/profile.jpg";
 };
 
 export default function RelatedArtists({ artists = [], sellerName }) {

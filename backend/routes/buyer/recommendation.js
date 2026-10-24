@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
 import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
+import { getArtworkRatingSql, getArtworkRatingSummary, getArtworkRatingSignal } from "../../utils/artworkRatings.js";
 
 const router = express.Router();
 const CLIENT_EVENTS = new Set(["view", "search", "filter"]);
@@ -214,6 +215,7 @@ const attachArtworkDetails = async (recommendations) => {
   }
 
   const placeholders = artworkIds.map(() => "?").join(", ");
+  const ratingsSql = getArtworkRatingSql();
 
   const [rows] = await db.promise().query(
     `
@@ -256,7 +258,8 @@ const attachArtworkDetails = async (recommendations) => {
           ac.register_status
             AS seller_status,
 
-          ac.approved_date
+          ac.approved_date,
+          ${ratingsSql.select}
 
         FROM artwork a
 
@@ -275,6 +278,8 @@ const attachArtworkDetails = async (recommendations) => {
         LEFT JOIN storefront sf
           ON sf.student_id =
              a.student_id
+
+        ${ratingsSql.join}
 
         WHERE
           a.artwork_id IN (
@@ -298,6 +303,7 @@ const attachArtworkDetails = async (recommendations) => {
 
       return {
         ...artwork,
+        ...getArtworkRatingSummary(artwork),
         seller_specialties: parseSellerSpecialties(artwork.seller_specialties),
 
         rank: recommendation.rank ?? null,
@@ -973,6 +979,7 @@ const rerankRecommendationCandidates = ({
 
     const recencyBoost = 1.25 / Math.sqrt(recencyRank);
     const seenPenalty = seenArtworkIds.has(artworkId) ? 0.75 : 0;
+    const ratingSignal = getArtworkRatingSignal(artwork);
 
     const rankingScore =
       sasrecBoost +
@@ -981,7 +988,7 @@ const rerankRecommendationCandidates = ({
       recentActivityBoost +
       artistBoost +
       popularityBoost +
-      recencyBoost - seenPenalty;
+      recencyBoost + ratingSignal - seenPenalty;
 
     let recommendationSource = "recent_popular";
 
@@ -1021,6 +1028,7 @@ const rerankRecommendationCandidates = ({
       popularity_boost: Number(popularityBoost.toFixed(4)),
 
       recency_boost: Number(recencyBoost.toFixed(4)),
+      rating_boost: ratingSignal,
 
       ranking_score: Number(rankingScore.toFixed(6)),
     };
@@ -1046,6 +1054,17 @@ const rerankRecommendationCandidates = ({
     rank: index + 1,
   }));
 };
+
+// Rating quality resolves equally relevant seller matches while exact medium,
+// specialty tiers and artwork similarity keep their existing priority.
+const rerankSellerRecommendationsByRating = (artworks) => artworks
+  .map((artwork, index) => ({ ...artwork, original_index: index }))
+  .sort((first, second) =>
+    first.recommendation_priority - second.recommendation_priority ||
+    second.ranking_score - first.ranking_score ||
+    getArtworkRatingSummary(second).ranking_rating - getArtworkRatingSummary(first).ranking_rating ||
+    first.original_index - second.original_index)
+  .map(({ original_index, ...artwork }, index) => ({ ...artwork, rank: index + 1 }));
 
 router.get("/recently-viewed", async (req, res) => {
   res.set("Cache-Control", "no-store");
@@ -1206,10 +1225,10 @@ router.get("/seller/:sellerId", async (req, res) => {
     const candidates = await attachArtworkDetails(
       candidateIds.map((artworkId) => ({ artwork_id: artworkId })),
     );
-    const rankedArtworks = rankSellerRelatedArtworks({
+    const rankedArtworks = rerankSellerRecommendationsByRating(rankSellerRelatedArtworks({
       sellerId, specialties: sellers[0].specialties, sellerArtworks, candidates,
       topK: candidates.length,
-    });
+    }));
     const relatedArtists = buildSellerRelatedArtists({ sellerId, rankedArtworks, candidates });
     return res.json({
       mode: "seller_related", seller_id: sellerId,

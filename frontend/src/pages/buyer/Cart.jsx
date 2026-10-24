@@ -8,13 +8,7 @@ import {
   Button,
   CircularProgress,
   Chip,
-  FormControl,
-  InputLabel,
-  InputAdornment,
-  LinearProgress,
-  MenuItem,
   Paper,
-  Select,
   Grid,
   Divider,
   Table,
@@ -22,53 +16,87 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
-  Snackbar,
-  Slide,
   Stack,
   Container,
 } from "@mui/material";
 // Icons
-import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import RemoveIcon from "@mui/icons-material/Remove";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import IconButton from "@mui/material/IconButton";
 import { fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
-
-// Slide Transition for Snackbar
-function SlideTransition(props) {
-  return <Slide {...props} direction="up" />;
-}
 
 export default function Cart() {
   const [items, setItems] = useState([]);
   const [cartErrorMessage, setCartErrorMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
   const navigate = useNavigate();
 
-  const loadCart = async () => {
-    try {
-      setLoading(true);
-      setCartErrorMessage("");
-      const response = await fetchCart();
-      setItems(Array.isArray(response) ? response : []);
-    } catch (err) {
-      setItems([]);
-      setCartErrorMessage("Failed to load cart: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
   useEffect(() => {
+    let active = true;
+    let controller;
+    let timer;
+    let currentItems = [];
+    let previousIds = null;
+    let pollUntil = Date.now() + 60000;
+
+    const schedulePoll = () => {
+      clearTimeout(timer);
+      if (!active || document.visibilityState === "hidden" || !currentItems.length ||
+        Date.now() + 5000 > pollUntil) return;
+      timer = setTimeout(loadCart, 5000);
+    };
+    const loadCart = async () => {
+      clearTimeout(timer);
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      try {
+        const response = await fetchCart({ signal: request.signal });
+        if (!active || request.signal.aborted) return;
+        currentItems = Array.isArray(response) ? response : [];
+        const ids = currentItems.map((item) => String(item.artwork_id)).sort().join(",");
+        setItems(currentItems);
+        setCartErrorMessage("");
+        if (previousIds !== null && previousIds !== ids) {
+          window.dispatchEvent(new CustomEvent("cart-updated", {
+            detail: { source: "cart-page", count: currentItems.length },
+          }));
+        }
+        previousIds = ids;
+      } catch (error) {
+        if (active && !request.signal.aborted) setCartErrorMessage("Failed to load cart: " + error.message);
+      } finally {
+        if (active && !request.signal.aborted) {
+          setLoading(false);
+          schedulePoll();
+        }
+      }
+    };
+    const refreshCart = (event) => {
+      if (event?.detail?.source === "cart-page") return;
+      if (document.visibilityState === "hidden") {
+        clearTimeout(timer);
+        controller?.abort();
+        return;
+      }
+      pollUntil = Date.now() + 60000;
+      loadCart();
+    };
+    setLoading(true);
+    setCartErrorMessage("");
     loadCart();
-  }, []);
+    const events = ["cart-updated", "focus", "pageshow"];
+    events.forEach((event) => window.addEventListener(event, refreshCart));
+    document.addEventListener("visibilitychange", refreshCart);
+    return () => {
+      active = false;
+      controller?.abort();
+      clearTimeout(timer);
+      events.forEach((event) => window.removeEventListener(event, refreshCart));
+      document.removeEventListener("visibilitychange", refreshCart);
+    };
+  }, [refresh]);
 
   const cartItems = items.map((item) => ({
     ...item,
@@ -90,29 +118,6 @@ export default function Cart() {
     }
   };
 
-  // Snackbar handlers
-  const showSnackbar = (message, severity = "success") => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity); // Set it to "success" or "error"
-    setSnackbarOpen(true);
-  };
-
-  const closeSnackbar = (event, reason) => {
-    if (reason === "clickaway") return;
-    setSnackbarOpen(false);
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light"; // Green
-      case "error":
-        return "error.light"; // Red
-      default:
-        return "primary.light"; //
-    }
-  };
-
   return (
     <Box
       sx={{
@@ -127,7 +132,14 @@ export default function Cart() {
           <title>Cart</title>
         </Helmet>
 
-        {cartItems.length === 0 ? (
+        {cartErrorMessage && (
+          <Alert severity="error" action={<Button color="inherit" onClick={() => setRefresh((value) => value + 1)}>Retry</Button>} sx={{ mb: 2 }}>
+            {cartErrorMessage}
+          </Alert>
+        )}
+        {loading ? (
+          <Box role="status" aria-label="Loading cart" sx={{ display: "grid", placeItems: "center", py: 6 }}><CircularProgress /></Box>
+        ) : cartItems.length === 0 ? !cartErrorMessage && (
           <Paper
             elevation={0}
             sx={{
@@ -316,33 +328,6 @@ export default function Cart() {
             </Grid>
           </Grid>
         )}
-        {/* Snackbar Notification */}
-        {/* //For Future Use 
-          <Snackbar
-            open={snackbarOpen}
-            severity={snackbarSeverity}
-            variant="filled"
-            autoHideDuration={3000}
-            onClose={closeSnackbar}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            TransitionComponent={SlideTransition}
-          >
-            <Alert
-              onClose={closeSnackbar}
-              severity={snackbarSeverity}
-              sx={{
-                width: "100%",
-                backgroundColor: getSeverityColor(snackbarSeverity),
-                color: "#fff",
-                "& .MuiAlert-icon": {
-                  color: "#fff",
-                },
-              }}
-            >
-              {snackbarMessage}
-            </Alert>
-          </Snackbar>
-          */}
       </Container>
     </Box>
   );

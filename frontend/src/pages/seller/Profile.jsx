@@ -518,7 +518,7 @@ export default function Profile() {
                             />
                           )}
                           <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                            Purchased: {review.artworkTitle}
+                            {review.orderItemId ? "Purchased" : "Artwork"}: {review.artworkTitle}
                           </Typography>
                         </Stack>
                       </Paper>

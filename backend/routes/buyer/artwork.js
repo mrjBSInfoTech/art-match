@@ -1,7 +1,19 @@
 import express from "express";
 import db from "../../database/db.js";
+import { getArtworkRatingSql, getArtworkRatingSummary } from "../../utils/artworkRatings.js";
 
 const router = express.Router();
+const artworkRatingSql = getArtworkRatingSql();
+const withArtworkRating = (artwork) => {
+  const summary = getArtworkRatingSummary(artwork);
+  return {
+    ...artwork,
+    rating: summary.average_rating,
+    average_rating: summary.average_rating,
+    rating_count: summary.total_reviews,
+    ranking_rating: summary.bayesian_rating,
+  };
+};
 
 router.get("/seller/:id", (req, res) => {
   const studentId = Number(req.params.id);
@@ -50,10 +62,12 @@ router.get("/seller/:id/reviews", (req, res) => {
   db.query(
     `SELECT r.review_id AS id, r.rating, r.comment, r.created_at,
             CONCAT(c.first_name, ' ', c.last_name) AS reviewer_name,
-            oi.title AS artwork_title, oi.image AS artwork_image
-     FROM artwork_review r
+            COALESCE(oi.title, a.title) AS artwork_title,
+            COALESCE(oi.image, a.image) AS artwork_image
+     FROM artwork_reviews r
      JOIN customer c ON c.customer_id = r.customer_id
      LEFT JOIN marketplace_order_item oi ON oi.order_item_id = r.order_item_id
+     LEFT JOIN artwork a ON a.artwork_id = r.artwork_id
      JOIN student s ON s.student_id = r.seller_id
      LEFT JOIN accregistration ac ON ac.student_id = s.student_id
      WHERE r.seller_id = ?
@@ -76,6 +90,7 @@ router.get("/", (req, res) => {
   const sql = `
     SELECT
       a.artwork_id,
+      ${artworkRatingSql.select},
       a.student_id,
       a.title,
       a.price,
@@ -125,6 +140,7 @@ router.get("/", (req, res) => {
       COALESCE(ac.register_status, 'available') AS status,
       ac.approved_date
     FROM artwork a
+    ${artworkRatingSql.join}
     LEFT JOIN student s ON a.student_id = s.student_id
     LEFT JOIN accregistration ac ON a.student_id = ac.student_id
     LEFT JOIN feature f ON a.artwork_id = f.artwork_id
@@ -136,7 +152,7 @@ router.get("/", (req, res) => {
         WHERE au.artwork_id = a.artwork_id
           AND LOWER(au.request_status) = 'verified'
       )
-    ORDER BY a.date_created DESC, a.artwork_id DESC
+    ORDER BY ranking_rating DESC, a.date_created DESC, a.artwork_id DESC
   `;
 
   db.query(sql, (err, results) => {
@@ -144,7 +160,7 @@ router.get("/", (req, res) => {
       console.error("Buyer artwork query error:", err);
       return res.status(500).json({ error: err.message });
     }
-    res.json(results);
+    res.json(results.map(withArtworkRating));
   });
 });
 
@@ -153,6 +169,7 @@ router.get("/:id", (req, res) => {
   const sql = `
     SELECT
       a.artwork_id,
+      ${artworkRatingSql.select},
       a.student_id,
       a.title,
       a.price,
@@ -200,6 +217,7 @@ router.get("/:id", (req, res) => {
       ac.register_status,
       ac.approved_date
     FROM artwork a
+    ${artworkRatingSql.join}
     LEFT JOIN student s ON a.student_id = s.student_id
     LEFT JOIN accregistration ac ON a.student_id = ac.student_id
     LEFT JOIN feature f ON a.artwork_id = f.artwork_id
@@ -220,7 +238,7 @@ router.get("/:id", (req, res) => {
     if (results.length === 0) {
       return res.status(404).json({ error: "Artwork not found" });
     }
-    res.json(results[0]);
+    res.json(withArtworkRating(results[0]));
   });
 });
 

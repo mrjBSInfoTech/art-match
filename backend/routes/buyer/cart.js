@@ -25,6 +25,7 @@ const updateCartTotal = (cartId, callback) => {
 };
 
 router.get("/", authenticateBuyer, (req, res) => {
+  res.set("Cache-Control", "no-store");
   const sql = `
     SELECT
       ci.cart_item_id,

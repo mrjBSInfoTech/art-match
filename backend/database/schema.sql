@@ -95,7 +95,6 @@ CREATE TABLE IF NOT EXISTS artwork (
   price DECIMAL(12, 2) NOT NULL,
   description TEXT NOT NULL,
   image VARCHAR(255) NOT NULL,
-  art_type VARCHAR(50) NULL,
   product VARCHAR(50) NULL,
   artwork_details JSON NULL,
   date_created DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -208,24 +207,30 @@ CREATE TABLE IF NOT EXISTS marketplace_order_item (
   INDEX idx_marketplace_order_item_artwork (artwork_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS artwork_review (
+CREATE TABLE IF NOT EXISTS artwork_reviews (
   review_id INT AUTO_INCREMENT PRIMARY KEY,
-  order_id INT NOT NULL,
-  order_item_id INT NOT NULL UNIQUE,
+  order_id INT NULL,
+  order_item_id INT NULL UNIQUE,
   customer_id INT NOT NULL,
   seller_id INT NOT NULL,
   artwork_id INT NULL,
   rating TINYINT UNSIGNED NOT NULL,
-  comment VARCHAR(600) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_artwork_review_order
+  comment TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_artwork_reviews_order
     FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE,
-  CONSTRAINT fk_artwork_review_order_item
+  CONSTRAINT fk_artwork_reviews_order_item
     FOREIGN KEY (order_item_id) REFERENCES marketplace_order_item (order_item_id) ON DELETE CASCADE,
-  CONSTRAINT fk_artwork_review_artwork
+  CONSTRAINT fk_artwork_reviews_artwork
     FOREIGN KEY (artwork_id) REFERENCES artwork (artwork_id) ON DELETE SET NULL,
-  INDEX idx_artwork_review_seller (seller_id, created_at),
-  INDEX idx_artwork_review_customer (customer_id, created_at)
+  CONSTRAINT fk_artwork_reviews_customer
+    FOREIGN KEY (customer_id) REFERENCES customer (customer_id) ON DELETE CASCADE,
+  CONSTRAINT fk_artwork_reviews_seller
+    FOREIGN KEY (seller_id) REFERENCES student (student_id) ON DELETE CASCADE,
+  CONSTRAINT chk_artwork_reviews_rating CHECK (rating BETWEEN 1 AND 5),
+  INDEX idx_artwork_reviews_artwork (artwork_id, created_at),
+  INDEX idx_artwork_reviews_seller (seller_id, created_at),
+  INDEX idx_artwork_reviews_customer (customer_id, created_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS account_access (

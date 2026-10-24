@@ -7,10 +7,12 @@ import {
   IconButton,
   Stack,
   Typography,
+  useTheme,
 } from "@mui/material";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
-import FavoriteOutlinedIcon from "@mui/icons-material/FavoriteOutlined";
-import StarIcon from "@mui/icons-material/Star";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
@@ -32,6 +34,191 @@ const normalizeGenre = (genre) => {
   }
   return value;
 };
+
+function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
+  const theme = useTheme();
+  const darkMode = theme.palette.mode === "dark";
+  const hasImage = Boolean(artwork.image);
+  const status = String(artwork.status || "").toLowerCase();
+  const soldOut = Number(artwork.is_sold_out) === 1;
+  const badge = soldOut
+    ? "Sold out"
+    : status === "available" || status === "for sale"
+      ? "For Sale"
+      : artwork.genre || "Artwork";
+  const rating = Number(artwork.rating);
+  const artworkId = artwork.artwork_id || artwork.id;
+
+  return (
+    <Box
+      sx={{
+        minWidth: 0,
+        overflow: "hidden",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 1.5,
+        backgroundColor: "background.paper",
+        transition: "transform 180ms ease, box-shadow 180ms ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: darkMode
+            ? "0 8px 24px rgba(0, 0, 0, 0.42)"
+            : "0 8px 20px rgba(68, 41, 15, 0.07)",
+        },
+      }}
+    >
+      <Box
+        component="button"
+        type="button"
+        onClick={() => onOpen(artworkId)}
+        aria-label={`View ${artwork.title || "artwork"}`}
+        sx={{
+          position: "relative",
+          display: "flex",
+          width: "100%",
+          aspectRatio: "1.35 / 1",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          border: 0,
+          p: 0,
+          backgroundColor: darkMode ? "#1e293b" : "#eeeae4",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+          cursor: "pointer",
+        }}
+      >
+        <WatermarkedArtworkImage
+          image={artwork.image}
+          alt={artwork.title || "Artwork"}
+          sx={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            pointerEvents: "none",
+          }}
+        />
+        {!hasImage && (
+          <ImageOutlinedIcon
+            sx={{
+              color: darkMode ? "text.secondary" : "#d2c8bb",
+              fontSize: 38,
+            }}
+          />
+        )}
+        <Typography
+          component="span"
+          sx={{
+            position: "absolute",
+            top: 7,
+            left: 7,
+            maxWidth: "calc(100% - 52px)",
+            overflow: "hidden",
+            px: 0.8,
+            py: 0.25,
+            borderRadius: 0.5,
+            backgroundColor: soldOut ? "text.secondary" : "error.main",
+            color: "#fff",
+            fontSize: 9,
+            fontWeight: 800,
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {badge}
+        </Typography>
+      </Box>
+
+      <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          gap={0.5}
+        >
+          <Typography
+            component="button"
+            onClick={() => onOpen(artworkId)}
+            title={artwork.title || "Untitled artwork"}
+            sx={{
+              minWidth: 0,
+              overflow: "hidden",
+              border: 0,
+              p: 0,
+              background: "none",
+              color: "text.primary",
+              font: "inherit",
+              fontSize: 12,
+              fontWeight: 800,
+              textAlign: "left",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+            }}
+          >
+            {artwork.title || "Untitled artwork"}
+          </Typography>
+          {Number.isFinite(rating) && rating > 0 && (
+            <Typography
+              variant="caption"
+              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 9 }}
+            >
+              ★ {rating.toFixed(1)}
+            </Typography>
+          )}
+        </Stack>
+        <Typography
+          variant="caption"
+          display="block"
+          noWrap
+          sx={{ mt: 0.25, color: "text.secondary", fontSize: 10 }}
+        >
+          {[artwork.artist || "Independent Artist", artwork.genre]
+            .filter(Boolean)
+            .join(" · ")}
+        </Typography>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mt: 0.5 }}
+        >
+          <Typography
+            sx={{ color: "error.main", fontSize: 13, fontWeight: 800 }}
+            noWrap
+          >
+            ₱{Number(artwork.price || 0).toLocaleString()}
+          </Typography>
+          <IconButton
+            aria-label={
+              isFavorite ? "Remove from favorites" : "Add to favorites"
+            }
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            size="small"
+            onClick={() => onToggleFavorite(artworkId)}
+            sx={{
+              width: 28,
+              height: 28,
+              color: isFavorite ? "error.main" : "text.primary",
+              backgroundColor: darkMode ? "#1e293b" : "#fff2dc",
+              "&:hover": {
+                backgroundColor: darkMode ? "#334155" : "#ffebcc",
+              },
+            }}
+          >
+            {isFavorite ? (
+              <FavoriteIcon sx={{ fontSize: 15 }} />
+            ) : (
+              <FavoriteBorderIcon sx={{ fontSize: 15 }} />
+            )}
+          </IconButton>
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
 
 export default function BuyerFavorites() {
   const navigate = useNavigate();
@@ -84,6 +271,9 @@ export default function BuyerFavorites() {
     );
   }, [artworks, selectedTab]);
 
+  const openArtwork = (artworkId) =>
+    navigate(`/buyer/artwork/view/${artworkId}`);
+
   return (
     <Box
       sx={{
@@ -118,9 +308,12 @@ export default function BuyerFavorites() {
                     py: 0.75,
                     borderRadius: 0,
                     borderBottom: "3px solid",
-                    borderColor: (theme) => active
-                      ? theme.palette.error[theme.palette.mode === "dark" ? "light" : "main"]
-                      : "transparent",
+                    borderColor: (theme) =>
+                      active
+                        ? theme.palette.error[
+                            theme.palette.mode === "dark" ? "light" : "main"
+                          ]
+                        : "transparent",
                     color: active ? "text.primary" : "text.secondary",
                     fontSize: 14,
                     fontWeight: 600,
@@ -220,114 +413,22 @@ export default function BuyerFavorites() {
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "1fr",
+                xs: "repeat(1, minmax(0, 1fr))",
                 sm: "repeat(2, minmax(0, 1fr))",
-                xl: "repeat(3, minmax(0, 1fr))",
+                md: "repeat(4, minmax(0, 1fr))",
               },
-              gap: 3,
+              gap: { xs: 1.5, sm: 2 },
               py: 4,
             }}
           >
             {visibleArtworks.map((artwork) => (
-              <Box
-                key={artwork.favorite_id || artwork.artwork_id}
-                sx={{
-                  backgroundColor: "background.paper",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  border: 1,
-                  borderColor: "divider",
-                  boxShadow: 1,
-                }}
-              >
-                <WatermarkedArtworkImage
-                  image={artwork.image}
-                  alt={artwork.title}
-                  sx={{
-                    display: "block",
-                    width: "100%",
-                    height: 260,
-                    objectFit: "cover",
-                    backgroundColor: "action.hover",
-                  }}
-                />
-
-                <Box sx={{ px: 2.2, py: 1.6 }}>
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{ mb: 0.5 }}
-                  >
-                    <Typography
-                      sx={{
-                        fontWeight: 700,
-                        fontSize: 19,
-                        lineHeight: 1.2,
-                        color: "text.primary",
-                      }}
-                    >
-                      {artwork.title}
-                    </Typography>
-                    <Stack direction="row" alignItems="center" spacing={0.4}>
-                      <StarIcon sx={{ fontSize: 16, color: (theme) => theme.palette.warning[theme.palette.mode === "dark" ? "light" : "dark"] }} />
-                      <Typography sx={{ color: "text.primary", fontWeight: 600 }}>
-                        {Number(artwork.rating || 5).toFixed(1)}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: "text.secondary",
-                      fontWeight: 500,
-                      mb: 1.5,
-                    }}
-                  >
-                    {artwork.artist || "Independent Artist"} · {normalizeGenre(artwork.genre)}
-                  </Typography>
-
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                  >
-                    <Typography
-                      sx={{
-                        color: (theme) => theme.palette.error[theme.palette.mode === "dark" ? "light" : "dark"],
-                        fontSize: 18,
-                        fontWeight: 800,
-                      }}
-                    >
-                      ₱{Number(artwork.price || 0).toLocaleString()}
-                    </Typography>
-
-                    <IconButton
-                      aria-label={`Remove ${artwork.title} from favorites`}
-                      onClick={() => handleToggleFavorite(artwork.artwork_id)}
-                      sx={{
-                        bgcolor: "action.selected",
-                        color: (theme) => theme.palette.error[theme.palette.mode === "dark" ? "light" : "dark"],
-                        border: 1,
-                        borderColor: "divider",
-                        width: 36,
-                        height: 36,
-                        "&:hover": {
-                          bgcolor: "action.hover",
-                        },
-                        "&.Mui-focusVisible": {
-                          outline: "2px solid",
-                          outlineColor: "error.main",
-                          outlineOffset: 2,
-                        },
-                      }}
-                    >
-                      <FavoriteOutlinedIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Stack>
-                </Box>
-              </Box>
+              <ShopArtworkCard
+                key={artwork.favorite_id || artwork.artwork_id || artwork.id}
+                artwork={artwork}
+                onOpen={openArtwork}
+                isFavorite={true}
+                onToggleFavorite={handleToggleFavorite}
+              />
             ))}
           </Box>
         )}

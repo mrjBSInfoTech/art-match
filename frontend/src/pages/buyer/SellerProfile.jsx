@@ -355,7 +355,7 @@ export default function SellerProfile() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Seller Profile</title>
       </Helmet>
-      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
         <Box
           sx={{
             display: "flex",
@@ -364,16 +364,19 @@ export default function SellerProfile() {
             gap: 3,
           }}
         >
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          {/* Main Profile Info Section */}
+          <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
             <Box
               sx={{
                 background: colors.card,
                 border: `1px solid ${colors.border}`,
                 borderRadius: 4,
-                p: { xs: 2.5, md: 3 },
+                p: { xs: 2, sm: 2.5, md: 3 },
                 display: "flex",
-                alignItems: "center",
-                gap: 3,
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { xs: "center", sm: "flex-start" },
+                textAlign: { xs: "center", sm: "left" },
+                gap: { xs: 2.5, sm: 3 },
                 minHeight: 200,
                 boxShadow: "none",
               }}
@@ -383,8 +386,8 @@ export default function SellerProfile() {
                 src={selectedSeller.image}
                 alt={selectedSeller.name}
                 sx={{
-                  width: 140,
-                  height: 140,
+                  width: { xs: 110, sm: 130, md: 140 },
+                  height: { xs: 110, sm: 130, md: 140 },
                   borderRadius: "50%",
                   objectFit: "cover",
                   border: `2px solid ${colors.border}`,
@@ -393,12 +396,12 @@ export default function SellerProfile() {
                 }}
               />
 
-              <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
                 <Stack
-                  direction="row"
+                  direction={{ xs: "column", sm: "row" }}
                   alignItems="center"
                   spacing={1.5}
-                  sx={{ mb: 0.5 }}
+                  sx={{ mb: 0.5, justifyContent: { xs: "center", sm: "flex-start" } }}
                 >
                   <Typography
                     variant="h3"
@@ -407,6 +410,8 @@ export default function SellerProfile() {
                       letterSpacing: "-0.05em",
                       lineHeight: 1.1,
                       color: colors.text,
+                      fontSize: { xs: "1.75rem", sm: "2.1rem", md: "2.5rem" },
+                      wordBreak: "break-word",
                     }}
                   >
                     {selectedSeller.shopName || selectedSeller.name}
@@ -429,6 +434,7 @@ export default function SellerProfile() {
                 <Stack
                   direction="row"
                   alignItems="center"
+                  justifyContent={{ xs: "center", sm: "flex-start" }}
                   spacing={1}
                   sx={{ mb: 1.5, minHeight: 24 }}
                   aria-label={
@@ -476,6 +482,7 @@ export default function SellerProfile() {
                     maxWidth: 620,
                     lineHeight: 1.6,
                     mb: 2,
+                    mx: { xs: "auto", sm: 0 },
                   }}
                 >
                   {selectedSeller.bio ||
@@ -485,6 +492,7 @@ export default function SellerProfile() {
                 <Stack
                   direction="row"
                   spacing={3}
+                  justifyContent={{ xs: "center", sm: "flex-start" }}
                   sx={{ flexWrap: "wrap", rowGap: 1.5 }}
                 >
                   <Box>
@@ -526,15 +534,16 @@ export default function SellerProfile() {
                     textTransform: "none",
                     fontWeight: 700,
                     color: "#fff",
+                    width: { xs: "100%", sm: "auto" },
                   }}
                 >
                   Message Artist
                 </Button>
               </Box>
             </Box>
-
           </Box>
 
+          {/* Sidebar Info Section (Member Since & Specialties) */}
           <Box sx={{ width: { xs: "100%", md: 300 }, flexShrink: 0 }}>
             <Stack spacing={2.5} sx={{ height: "100%" }}>
               <Paper
@@ -600,10 +609,15 @@ export default function SellerProfile() {
             </Stack>
           </Box>
         </Box>
-        <Box sx={{ minWidth: 0 }}>
+
+        {/* Tabs & Content Section */}
+        <Box sx={{ minWidth: 0, width: "100%" }}>
           <Tabs
             value={activeTab}
             onChange={(event, value) => setActiveTab(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{
               mt: 4,
               borderBottom: `1px solid ${colors.border}`,

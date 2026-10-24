@@ -10,10 +10,10 @@ import {
   Container,
   IconButton,
   Stack,
-  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
@@ -58,10 +58,18 @@ const groupArtworksByArtist = (artworks) => {
   );
 };
 
-function ArtworkTile({ artwork, index, isFavorite, onToggleFavorite }) {
+function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
   const theme = useTheme();
   const darkMode = theme.palette.mode === "dark";
-  const navigate = useNavigate();
+  const hasImage = Boolean(artwork.image);
+  const status = String(artwork.status || "").toLowerCase();
+  const soldOut = Number(artwork.is_sold_out) === 1;
+  const badge = soldOut
+    ? "Sold out"
+    : status === "available" || status === "for sale"
+      ? "For Sale"
+      : artwork.genre || "Artwork";
+  const rating = Number(artwork.rating);
   const artworkId = artwork.artwork_id || artwork.id;
 
   return (
@@ -83,23 +91,24 @@ function ArtworkTile({ artwork, index, isFavorite, onToggleFavorite }) {
       }}
     >
       <Box
-        role="link"
-        tabIndex={0}
+        component="button"
+        type="button"
+        onClick={() => onOpen(artworkId)}
         aria-label={`View ${artwork.title || "artwork"}`}
-        onClick={() => navigate(`/buyer/artwork/view/${artworkId}`)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            navigate(`/buyer/artwork/view/${artworkId}`);
-          }
-        }}
         sx={{
           position: "relative",
+          display: "flex",
+          width: "100%",
           aspectRatio: "1.35 / 1",
-          cursor: "pointer",
-          backgroundColor: darkMode ? "#1e293b" : "#eee9e1",
-          backgroundSize: "cover",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          border: 0,
+          p: 0,
+          backgroundColor: darkMode ? "#1e293b" : "#eeeae4",
           backgroundPosition: "center",
+          backgroundSize: "cover",
+          cursor: "pointer",
         }}
       >
         <WatermarkedArtworkImage
@@ -114,126 +123,120 @@ function ArtworkTile({ artwork, index, isFavorite, onToggleFavorite }) {
             pointerEvents: "none",
           }}
         />
-        {artwork.genre && (
-          <Typography
-            variant="caption"
+        {!hasImage && (
+          <ImageOutlinedIcon
             sx={{
-              position: "absolute",
-              top: 7,
-              left: 7,
-              maxWidth: "calc(100% - 54px)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              px: 0.8,
-              py: 0.25,
-              borderRadius: 0.5,
-              color: "#fff",
-              backgroundColor: "error.main",
-              fontSize: 9,
-              fontWeight: 700,
+              color: darkMode ? "text.secondary" : "#d2c8bb",
+              fontSize: 38,
             }}
-          >
-            {artwork.genre}
-          </Typography>
+          />
         )}
-        <Tooltip
-          title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <IconButton
-            aria-label={
-              isFavorite ? "Remove from favorites" : "Add to favorites"
-            }
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleFavorite(artworkId);
-            }}
-            size="small"
-            sx={{
-              position: "absolute",
-              right: 6,
-              bottom: 6,
-              width: 29,
-              height: 29,
-              backgroundColor: darkMode ? "#1e293b" : "#fff8ec",
-              color: isFavorite ? "error.main" : "text.primary",
-              "&:hover": {
-                backgroundColor: darkMode ? "#334155" : "#fff",
-              },
-            }}
-          >
-            {isFavorite ? (
-              <FavoriteIcon sx={{ fontSize: 16 }} />
-            ) : (
-              <FavoriteBorderIcon sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      <Box sx={{ p: { xs: 1, sm: 1.2 } }}>
         <Typography
-          component="button"
-          onClick={() => navigate(`/buyer/artwork/view/${artworkId}`)}
-          title={artwork.title || "Untitled artwork"}
+          component="span"
           sx={{
-            display: "block",
-            width: "100%",
+            position: "absolute",
+            top: 7,
+            left: 7,
+            maxWidth: "calc(100% - 52px)",
             overflow: "hidden",
-            border: 0,
-            p: 0,
-            background: "none",
-            color: "text.primary",
-            font: "inherit",
-            fontSize: 12,
-            fontWeight: 700,
-            textAlign: "left",
+            px: 0.8,
+            py: 0.25,
+            borderRadius: 0.5,
+            backgroundColor: soldOut ? "text.secondary" : "error.main",
+            color: "#fff",
+            fontSize: 9,
+            fontWeight: 800,
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            cursor: "pointer",
           }}
         >
-          {artwork.title || "Untitled artwork"}
+          {badge}
         </Typography>
+      </Box>
+
+      <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          gap={0.5}
+        >
+          <Typography
+            component="button"
+            onClick={() => onOpen(artworkId)}
+            title={artwork.title || "Untitled artwork"}
+            sx={{
+              minWidth: 0,
+              overflow: "hidden",
+              border: 0,
+              p: 0,
+              background: "none",
+              color: "text.primary",
+              font: "inherit",
+              fontSize: 12,
+              fontWeight: 800,
+              textAlign: "left",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+            }}
+          >
+            {artwork.title || "Untitled artwork"}
+          </Typography>
+          {Number.isFinite(rating) && rating > 0 && (
+            <Typography
+              variant="caption"
+              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 9 }}
+            >
+              ★ {rating.toFixed(1)}
+            </Typography>
+          )}
+        </Stack>
         <Typography
           variant="caption"
-          sx={{
-            display: "block",
-            mt: 0.2,
-            color: "text.secondary",
-            fontSize: 10,
-          }}
+          display="block"
           noWrap
+          sx={{ mt: 0.25, color: "text.secondary", fontSize: 10 }}
         >
-          {artwork.artist || "Independent Artist"}
+          {[artwork.artist || "Independent Artist", artwork.genre]
+            .filter(Boolean)
+            .join(" · ")}
         </Typography>
         <Stack
           direction="row"
-          justifyContent="space-between"
           alignItems="center"
-          sx={{ mt: 0.7, gap: 0.5 }}
+          justifyContent="space-between"
+          sx={{ mt: 0.5 }}
         >
           <Typography
-            sx={{ color: "error.main", fontSize: 12, fontWeight: 800 }}
+            sx={{ color: "error.main", fontSize: 13, fontWeight: 800 }}
             noWrap
           >
             ₱{Number(artwork.price || 0).toLocaleString()}
           </Typography>
-          {Number.isFinite(Number(artwork.rating)) && artwork.rating ? (
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", fontSize: 9 }}
-            >
-              ★ {Number(artwork.rating).toFixed(1)}
-            </Typography>
-          ) : (
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", fontSize: 9 }}
-            >
-              {index === 0 ? "Original" : "Artwork"}
-            </Typography>
-          )}
+          <IconButton
+            aria-label={
+              isFavorite ? "Remove from favorites" : "Add to favorites"
+            }
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            size="small"
+            onClick={() => onToggleFavorite(artworkId)}
+            sx={{
+              width: 28,
+              height: 28,
+              color: isFavorite ? "error.main" : "text.primary",
+              backgroundColor: darkMode ? "#1e293b" : "#fff2dc",
+              "&:hover": {
+                backgroundColor: darkMode ? "#334155" : "#ffebcc",
+              },
+            }}
+          >
+            {isFavorite ? (
+              <FavoriteIcon sx={{ fontSize: 15 }} />
+            ) : (
+              <FavoriteBorderIcon sx={{ fontSize: 15 }} />
+            )}
+          </IconButton>
         </Stack>
       </Box>
     </Box>
@@ -278,7 +281,9 @@ export default function Gallery() {
       try {
         const favorites = await fetchFavorites();
         if (!active) return;
-        setFavoriteIds(new Set((favorites || []).map((item) => String(item.artwork_id))));
+        setFavoriteIds(
+          new Set((favorites || []).map((item) => String(item.artwork_id))),
+        );
       } catch {
         if (active) setFavoriteIds(new Set());
       }
@@ -311,6 +316,9 @@ export default function Gallery() {
       setError(toggleError.message || "Unable to update favorites.");
     }
   };
+
+  const openArtwork = (artworkId) =>
+    navigate(`/buyer/artwork/view/${artworkId}`);
 
   return (
     <Box
@@ -512,12 +520,14 @@ export default function Gallery() {
                     minWidth: 0,
                   }}
                 >
-                  {artist.artworks.slice(0, 3).map((artwork, index) => (
-                    <ArtworkTile
-                      key={artwork.artwork_id || artwork.id || index}
+                  {artist.artworks.slice(0, 3).map((artwork) => (
+                    <GalleryArtworkCard
+                      key={artwork.artwork_id || artwork.id}
                       artwork={artwork}
-                      index={index}
-                      isFavorite={favoriteIds.has(String(artwork.artwork_id || artwork.id))}
+                      onOpen={openArtwork}
+                      isFavorite={favoriteIds.has(
+                        String(artwork.artwork_id || artwork.id),
+                      )}
                       onToggleFavorite={handleFavoriteToggle}
                     />
                   ))}

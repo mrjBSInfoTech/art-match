@@ -153,6 +153,11 @@ const verifyPayMongoSignature = (
 router.post(
   "/webhook",
   async (req, res) => {
+
+    console.log(
+      ">>> PAYMONGO WEBHOOK REACHED <<<",
+      req.body?.data?.type,
+    );
     /*
      * =================================
      * 1. VERIFY PAYMONGO
@@ -208,13 +213,21 @@ router.post(
      */
     const body = req.body;
 
+    const eventData = body?.data;
+
+    /*
+    * Support both PayMongo webhook
+    * envelope formats.
+    */
     const eventType =
-      body?.data?.type ||
-      body?.data?.attributes?.type;
+      eventData?.type === "event"
+        ? eventData?.attributes?.type
+        : eventData?.type ||
+          eventData?.attributes?.type;
 
     const session =
-      body?.data?.data ||
-      body?.data?.attributes?.data;
+      eventData?.data ||
+      eventData?.attributes?.data;
 
     /*
      * We only care about successful
@@ -434,7 +447,8 @@ router.post(
                 o.order_id
 
            WHERE
-             o.order_id IN (?)`,
+             o.order_id IN (?)
+             AND o.status <> 'Cancelled'`,
           [unpaidOrderIds],
         );
 

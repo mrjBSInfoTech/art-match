@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { useLocation } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -50,33 +51,93 @@ export default function Orders() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const ordersRequest = useRef(null);
+  const { search } = useLocation();
 
-  const loadOrders = async () => {
-    try {
-      setError("");
-      setLoading(true);
-      const response = await fetchBuyerOrders();
-      setOrders(Array.isArray(response) ? response : []);
-    } catch (loadError) {
-      setError(loadError.message || "Unable to load your orders");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadOrders = () => setRefresh((value) => value + 1);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    let active = true;
+    let controller;
+    let timer;
+    let pendingPayment = false;
+    let pollUntil = Date.now() + 60000;
+    const announcedPaid = new Set();
+    const schedulePoll = () => {
+      clearTimeout(timer);
+      if (!active || !pendingPayment || document.visibilityState === "hidden" ||
+        Date.now() + 5000 > pollUntil) return;
+      timer = setTimeout(refreshOrders, 5000);
+    };
+    const refreshOrders = async () => {
+      clearTimeout(timer);
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      ordersRequest.current = request;
+      try {
+        const response = await fetchBuyerOrders({ signal: request.signal });
+        if (!active || request.signal.aborted) return;
+        const nextOrders = Array.isArray(response) ? response : [];
+        setOrders(nextOrders);
+        setError("");
+        const onlineOrders = nextOrders.filter((order) =>
+          String(order.payment).toLowerCase() === "paymongo" && String(order.status).toLowerCase() !== "cancelled");
+        pendingPayment = onlineOrders.some((order) => String(order.paymentStatus).toLowerCase() === "pending");
+        let paidChanged = false;
+        for (const order of onlineOrders) {
+          const id = String(order.orderId);
+          if (String(order.paymentStatus).toLowerCase() === "paid" && !announcedPaid.has(id)) {
+            announcedPaid.add(id);
+            paidChanged = true;
+          }
+        }
+        if (paidChanged) window.dispatchEvent(new Event("cart-updated"));
+      } catch (loadError) {
+        if (active && !request.signal.aborted) setError(loadError.message || "Unable to load your orders");
+      } finally {
+        if (active && !request.signal.aborted) {
+          setLoading(false);
+          schedulePoll();
+        }
+      }
+    };
+    const refreshVisibleOrders = () => {
+      if (document.visibilityState === "hidden") {
+        clearTimeout(timer);
+        controller?.abort();
+        return;
+      }
+      pollUntil = Date.now() + 60000;
+      refreshOrders();
+    };
+    setLoading(true);
+    setError("");
+    refreshOrders();
+    const events = ["focus", "pageshow"];
+    events.forEach((event) => window.addEventListener(event, refreshVisibleOrders));
+    document.addEventListener("visibilitychange", refreshVisibleOrders);
+    return () => {
+      active = false;
+      controller?.abort();
+      clearTimeout(timer);
+      events.forEach((event) => window.removeEventListener(event, refreshVisibleOrders));
+      document.removeEventListener("visibilitychange", refreshVisibleOrders);
+    };
+  }, [refresh, search]);
 
   const handleCancel = async (order) => {
     try {
       setActionError("");
       await cancelBuyerOrder(order.orderId);
+      ordersRequest.current?.abort();
       setOrders((current) =>
         current.map((item) =>
           item.orderId === order.orderId ? { ...item, status: "Cancelled" } : item,
         ),
       );
+      loadOrders();
     } catch (cancelError) {
       setActionError(cancelError.message || "Unable to cancel this order");
     }
@@ -91,7 +152,7 @@ export default function Orders() {
   };
 
   const submitReview = async () => {
-    if (!reviewTarget || !rating || !reviewText.trim()) return;
+    if (!reviewTarget || !rating || reviewSaving || reviewText.length > 600) return;
     const { order, item } = reviewTarget;
     try {
       setReviewSaving(true);
@@ -226,14 +287,14 @@ export default function Orders() {
                   <Rating value={rating} onChange={(_, value) => setRating(value || 0)} size="large" />
                   <Typography variant="body2" color="text.secondary">{rating ? `${rating} out of 5` : "Select a star rating"}</Typography>
                 </Box>
-                <TextField label="Share your experience" multiline minRows={4} value={reviewText} onChange={(event) => setReviewText(event.target.value)} inputProps={{ maxLength: 600 }} helperText={`${reviewText.length}/600 characters`} />
+                <TextField label="Share your experience (optional)" multiline minRows={4} value={reviewText} onChange={(event) => setReviewText(event.target.value)} inputProps={{ maxLength: 600 }} helperText={`${reviewText.length}/600 characters`} />
               </Stack>
             )}
           </DialogContent>
           <DialogActions sx={{ p: 2.5 }}>
             {reviewSubmitted ? <Button variant="contained" onClick={() => setReviewTarget(null)}>Done</Button> : <>
               <Button onClick={() => setReviewTarget(null)}>Cancel</Button>
-              <Button variant="contained" disabled={!rating || !reviewText.trim() || reviewSaving} onClick={submitReview}>{reviewSaving ? "Submitting..." : "Submit review"}</Button>
+              <Button variant="contained" disabled={!rating || reviewText.length > 600 || reviewSaving} onClick={submitReview}>{reviewSaving ? "Submitting..." : "Submit review"}</Button>
             </>}
           </DialogActions>
         </>}
