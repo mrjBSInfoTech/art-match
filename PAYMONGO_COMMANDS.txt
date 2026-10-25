@@ -1,0 +1,515 @@
+ArtMatch PayMongo and seller/admin artwork-image work — consolidated terminal command log
+Date: 25 October 2026
+Repeated identical commands are consolidated. Failed baseline/path/network/permission attempts are included where recorded. Network commands were rerun with required approval; no secrets are included. Edits used apply_patch. External documentation lookups used web tools, not shell commands.
+
+PRIMARY AGENT — INITIAL INSPECTIONS AND ADDITIONAL RECORDED COMMANDS
+
+Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt'
+
+Get-ChildItem -Force | Select-Object Mode,Name; rg --files -g AGENTS.md -g '!node_modules' -g '!backend/node_modules' -g '!frontend/node_modules' -g '!backend/.cache'
+
+$requestLines = Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt'; $requestLines[540..760]
+
+git status --short; Get-Content backend/package.json; Get-Content frontend/package.json; node --version; rg --files backend frontend -g '*paymongo*' -g '*orders*' -g '*Order*' -g '*Checkout*' -g '*Sales*' -g '*availability*' -g '*test*' -g '!node_modules' -g '!*lock*' -g '!ml/**' -g '!.cache/**'
+
+Get-Content backend/utils/paymongo.js; Get-Content backend/routes/payments/paymongo.js; Get-Content backend/server.js -TotalCount 240
+
+$requestLines = Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt'; $requestLines[750..950]; Get-Content backend/database/orders.js; Get-Content backend/database/db.js; Get-Content backend/utils/artworkAvailability.js
+
+Get-Content backend/routes/buyer/orders.js; Get-Content backend/utils/recommendationInteractions.js -TotalCount 180; Get-Content backend/routes/seller/reviews.test.js -TotalCount 120
+
+$orderLines = Get-Content backend/routes/buyer/orders.js; $orderLines[250..760]; rg -n 'ensureOrderTables|listen|paymongo' backend/server.js; Get-Content .gitignore
+
+$orderLines = Get-Content backend/routes/buyer/orders.js; $orderLines[210..265]; $orderLines[745..960]; Get-Content backend/utils/recommendationInteractions.js; Get-Command ngrok -ErrorAction SilentlyContinue | Select-Object Source; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -In 5000,5173,4040,3306 | Select-Object LocalAddress,LocalPort,OwningProcess
+
+Get-Content -Raw backend/utils/paymongo.js
+
+Get-Content -Raw -Encoding UTF8 backend/utils/paymongo.js
+
+Get-Content -Raw -Encoding UTF8 backend/routes/payments/paymongo.js
+
+Get-CimInstance Win32_Process -Filter 'ProcessId = 26444' | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine
+
+node scripts/testPaymongoCheckoutFlow.js --verify-paid
+
+node scripts/testPaymongoCheckoutFlow.js
+
+node backend/scripts/checkArtworkImageRendering.js
+
+node --test backend/utils/artworkImageSignature.test.js backend/utils/artworkWatermarkImage.test.js backend/utils/artworkAvailability.test.js
+
+npm run build
+
+git diff --check
+
+PRIMARY AGENT — IMPLEMENTATION/VERIFICATION COMMANDS
+
+node backend/scripts/checkPaymongoIntegration.js
+
+node backend/scripts/checkPaymongoIntegration.js
+
+Get-Content backend/utils/paymongo.test.js; Get-Content backend/routes/payments/paymongo.test.js -TotalCount 160; Get-Content backend/test/paymentHarness.js -TotalCount 120
+
+Get-Content backend/server.js -Tail 70; rg --files frontend/node_modules backend/node_modules -g '*playwright*' -g '*puppeteer*' -g '!@mui/**' -g '!@aws-sdk/**'; git ls-files '*env*'
+
+node --check backend/routes/buyer/orders.js
+
+node --check backend/routes/payments/paymongo.js
+
+node --check backend/utils/paymongo.js
+
+git diff --check
+
+node backend/scripts/checkPaymongoIntegration.js
+
+rg -n 'request_status|registration_status|available|Verified' backend/routes/buyer/cart.js backend/routes/buyer/artwork.js backend/routes/buyer/recommendation.js backend/routes/seller/artwork.js | Select-Object -First 65; Get-Content backend/routes/buyer/cart.js -TotalCount 180; Get-Content frontend/src/utils/orderPayments.js; Get-Content backend/routes/buyer/orders.payment.test.js -TotalCount 80
+
+node backend/scripts/setupPaymongoTestWebhook.js --apply
+
+git status --short; git diff --stat; Get-Content backend/database/orders.js -TotalCount 270
+
+Get-Content frontend/src/api/buyer/orderAPI.js; rg -n 'payment|setTimeout|Abort|canFulfill|Refund' frontend/src/pages/buyer/Order.jsx frontend/src/pages/seller/Order.jsx frontend/src/pages/buyer/Checkout.jsx | Select-Object -First 85
+
+node backend/scripts/smokePaymongoTestCheckout.js
+
+netstat.exe -ano -p tcp | Select-String ':5000\s+.*LISTENING'
+
+Get-CimInstance Win32_Process -Filter 'ProcessId = 26444' | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine
+
+# cwd: frontend
+npm run build
+
+# cwd: backend
+$paymentServer = Get-CimInstance Win32_Process -Filter 'ProcessId = 26444'; if ($paymentServer.ExecutablePath -like '*node.exe' -and $paymentServer.CommandLine -match 'server\.js') { Stop-Process -Id 26444 } else { throw 'The backend process changed; restart was cancelled.' }; $env:PORT = '5000'; node server.js
+
+node backend/scripts/smokePaymongoServer.js http://127.0.0.1:5000
+
+git ls-files '*env*'; git check-ignore backend/.env backend/.cache/paymongo-flow-test.json; git grep -l -I -E 'sk_(test|live)_[A-Za-z0-9]{24,}|whsec_[A-Za-z0-9]+' -- ':!package-lock.json' ':!backend/package-lock.json' ':!frontend/package-lock.json'
+
+node --test backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js backend/routes/seller/orders.payment.test.js backend/database/orders.payment.test.js backend/routes/buyer/artwork.availability.test.js backend/utils/artworkAvailability.test.js
+
+# cwd: C:\VS Codes\React JS\art-match\frontend
+node --test src/utils/paymentPages.test.mjs src/utils/orderPayments.test.mjs src/api/buyer/orderAPI.test.mjs
+
+# cwd: C:\VS Codes\React JS\art-match\backend
+$env:PAYMENT_READONLY_MYSQL_TEST = '1'; node --test routes/buyer/orders.mysql.test.js utils/artworkAvailability.mysql.test.js
+
+node backend/scripts/checkPaymongoIntegration.js --summary
+
+# cwd: frontend
+npx eslint src/pages/buyer/Checkout.jsx src/pages/buyer/Order.jsx src/pages/buyer/Cart.jsx src/pages/seller/Order.jsx src/pages/seller/Sales.jsx src/api/buyer/orderAPI.js src/utils/orderPayments.js src/utils/sellerSales.js
+
+# cwd: backend
+$env:PORT = '5000'; node server.js
+
+Get-Content backend/routes/admin/event.js; Get-Content backend/server.js -TotalCount 30; rg -n 'Event|event' backend/server.js; git status --short
+
+# cwd: backend
+$env:PORT = '5000'; node server.js
+
+node backend/scripts/checkPaymongoDeliveries.js
+
+# cwd: project root
+node --test backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js backend/routes/seller/orders.payment.test.js backend/database/orders.payment.test.js backend/routes/buyer/artwork.availability.test.js backend/utils/artworkAvailability.test.js
+
+# cwd: C:\VS Codes\React JS\art-match\backend
+$env:PAYMENT_READONLY_MYSQL_TEST = '1'; node --test routes/buyer/orders.mysql.test.js utils/artworkAvailability.mysql.test.js
+
+SELLER/ADMIN ARTWORK IMAGE FOLLOW-UP
+
+rg -n 'getArtworkImage|uploadArtwork|B2|imageUrl|image_url|artwork\.image|src=.*image' frontend/src/pages/seller frontend/src/pages/admin frontend/src/components/seller frontend/src/components/admin frontend/src/api/seller frontend/src/api/admin -g '*.js' -g '*.jsx'; rg -n 'imageUrl|image_url|uploadArtwork|artwork-image|signArtwork|watermark' frontend/src/api/buyer frontend/src/components/buyer/Artwork backend/routes/seller/artwork.js backend/routes/admin/artwork.js backend/server.js -g '*.js' -g '*.jsx'
+
+rg -n 'imagePreview|uploadArtwork|setImagePreview' frontend/src/components/seller/Artwork frontend/src/components/admin/Artwork frontend/src/hooks -g '*.js' -g '*.jsx'; Get-Content frontend/src/components/seller/Profile/ProfileCard.jsx -TotalCount 80; Get-Content frontend/src/components/seller/Storefront/StorefrontCard.jsx -TotalCount 120; $profile = Get-Content frontend/src/pages/seller/Profile.jsx; $profile[490..525]; $dash = Get-Content frontend/src/pages/admin/Dashboard.jsx; $dash[1017..1048]; Get-Content frontend/src/components/seller/Artwork/ArtworkForm.jsx -TotalCount 60; Get-Content frontend/src/utils/artworkImageProtection.js
+
+Get-Content frontend/src/components/buyer/Artwork/WatermarkedArtworkImage.jsx -TotalCount 100; $c = Get-Content frontend/src/components/seller/Artwork/ArtworkCard.jsx; $c[96..134]; $c = Get-Content frontend/src/components/seller/Artwork/ArtworkInfo.jsx; $c[237..261]; $c = Get-Content frontend/src/components/admin/Artwork/ArtworkInfo.jsx; $c[222..247]; $c = Get-Content frontend/src/components/seller/Artwork/ArtworkForm.jsx; $c[428..449]
+
+# cwd: frontend
+npx eslint src/components/common/ArtworkImage.jsx src/components/buyer/Artwork/WatermarkedArtworkImage.jsx src/components/seller/Artwork/ArtworkCard.jsx src/components/seller/Artwork/ArtworkInfo.jsx src/components/seller/Artwork/ArtworkForm.jsx src/components/seller/Profile/ProfileCard.jsx src/components/seller/Storefront/StorefrontCard.jsx src/components/admin/Artwork/ArtworkCard.jsx src/components/admin/Artwork/ArtworkInfo.jsx src/pages/admin/Dashboard.jsx src/pages/seller/Profile.jsx
+
+node backend/scripts/checkArtworkImageRendering.js
+
+# cwd: C:\VS Codes\React JS\art-match\frontend
+npx eslint src/components/common/ArtworkImage.jsx src/components/buyer/Artwork/WatermarkedArtworkImage.jsx src/components/seller/Artwork/ArtworkCard.jsx src/components/seller/Artwork/ArtworkInfo.jsx src/components/seller/Artwork/ArtworkForm.jsx src/components/seller/Profile/ProfileCard.jsx src/components/seller/Storefront/StorefrontCard.jsx src/components/admin/Artwork/ArtworkCard.jsx src/components/admin/Artwork/ArtworkInfo.jsx src/pages/seller/Profile.jsx
+
+PayMongo backend test agent terminal commands
+Working directory is project root unless explicitly marked backend.
+Repeated invocations of the same command after edits are consolidated below.
+Failed inspection/path/baseline attempts are included. apply_patch edits are tool
+operations rather than terminal commands. No credential values are included.
+
+Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt'
+
+rg --files -g '*test*' -g '*AGENTS.md' -g 'package.json' backend
+
+Get-Content backend\utils\paymongo.js; Get-Content backend\routes\payments\paymongo.js
+
+Get-Content backend\routes\buyer\orders.js; Get-Content backend\routes\buyer\reviews.test.js
+
+Get-Content backend\routes\seller\reviews.test.js -TotalCount 200; Get-Content backend\utils\parcelShipment.test.js -TotalCount 80
+
+Get-Content backend\package.json; Get-Content backend\utils\artworkAvailability.js; node --version; git status --short
+
+Get-Content backend\database\orders.js -TotalCount 240; Get-Content backend\utils\recommendationInteractions.js -TotalCount 150
+
+node --test backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js
+
+rg -n '^export|verifyPayMongo|PAYMONGO_PAYMENT' backend\utils\paymongo.js; Get-Content backend\routes\payments\paymongo.js -TotalCount 15
+
+node --test backend/utils/paymongo.test.js
+
+Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt' | Select-Object -Skip 780 -First 110
+
+rg -n '^export|^router\.|pending|expirePayMongo' backend\utils\paymongo.js backend\routes\payments\paymongo.js backend\routes\buyer\orders.js
+
+node --check backend/test/paymentHarness.js; node --check backend/utils/paymongo.test.js; node --check backend/routes/payments/paymongo.test.js; node --check backend/routes/buyer/orders.payment.test.js
+
+git status --short; rg -n 'getPayMongo|verifyPayMongo|expire' backend\utils\paymongo.js backend\routes\buyer\orders.js
+
+Get-Content backend\utils\paymongo.js -TotalCount 12; Get-Content backend\routes\payments\paymongo.js -TotalCount 12; Get-Content backend\routes\buyer\orders.js -TotalCount 20
+
+Get-Content backend\utils\paymongo.js -TotalCount 100; Get-Content backend\routes\payments\paymongo.js -TotalCount 80; rg -n 'payments/:|can_resume|payment_reference|checkout_url|retrievePayMongo|expirePayMongo' backend\routes\buyer\orders.js
+
+rg -n '^export|payments/:|can_resume|retrievePayMongo' backend\utils\paymongo.js backend\routes\buyer\orders.js
+
+Get-Content backend\utils\paymongo.js; node --test backend/utils/paymongo.test.js
+
+node --test backend/utils/paymongo.test.js; rg -n 'verifyPayMongo|payments/:|can_resume|retrievePayMongo' backend\routes\payments\paymongo.js backend\routes\buyer\orders.js
+
+Get-Content backend\routes\payments\paymongo.js; node --test backend/routes/payments/paymongo.test.js
+
+rg -n 'payments/:|can_resume|retrievePayMongo|getPayMongoPaymentMethodTypes' backend\routes\buyer\orders.js; node --test backend/routes/payments/paymongo.test.js
+
+Get-Content backend\routes\buyer\orders.js | Select-Object -Skip 480 -First 100; node --test --test-name-pattern='online checkout|COD never|failed checkout|invalid channel|sold artwork|invalid trusted|repeat checkout' backend/routes/buyer/orders.payment.test.js
+
+Get-Content backend\routes\buyer\orders.js | Select-Object -Skip 860 -First 300; node --test backend/routes/buyer/orders.payment.test.js
+
+node --test backend/routes/buyer/orders.payment.test.js
+
+node --test backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js
+
+node --check backend/test/paymentHarness.js; node --check backend/utils/paymongo.test.js; node --check backend/routes/payments/paymongo.test.js; node --check backend/routes/buyer/orders.payment.test.js; git diff --check -- backend/test/paymentHarness.js backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js
+
+Get-Content backend\utils\artworkAvailability.mysql.test.js; Get-Content backend\routes\buyer\artwork.availability.test.js; rg -n 'is_verified|Available|verified|refund|quantity|FOR UPDATE' backend\routes\buyer\orders.js backend\routes\payments\paymongo.js
+
+Get-Content backend\routes\payments\paymongo.js | Select-Object -Skip 75 -First 120; Get-Content backend\database\db.js -TotalCount 120
+
+node --test backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js backend/routes/buyer/orders.mysql.test.js
+
+[backend directory]
+$env:PAYMENT_READONLY_MYSQL_TEST = '1'; node --test routes/buyer/orders.mysql.test.js
+
+node --test --test-name-pattern='untracked original' backend/routes/payments/paymongo.test.js
+
+rg -n 'is_verified|quantity > 1|hasStockTracking' backend\routes\payments\paymongo.js; node --check backend/routes/buyer/orders.mysql.test.js
+
+node --check backend/test/paymentHarness.js; node --check backend/utils/paymongo.test.js; node --check backend/routes/payments/paymongo.test.js; node --check backend/routes/buyer/orders.payment.test.js; node --check backend/routes/buyer/orders.mysql.test.js; git diff --check -- backend/test/paymentHarness.js backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js backend/routes/buyer/orders.mysql.test.js
+
+Get-Content backend\middleware\buyerAuthMiddleware.js; Get-Content backend\middleware\sellerAuthMiddleware.js; Get-Content backend\routes\seller\orders.js | Select-Object -Skip 190 -First 150; Get-Content backend\database\schema.sql -TotalCount 250; Get-Content backend\scripts\checkPaymongoIntegration.js -TotalCount 100; Get-Content .gitignore
+
+[backend directory; notification table probe failed because actual table is account_notifications]
+node --input-type=module -e "import dotenv from 'dotenv'; import mysql from 'mysql2/promise'; dotenv.config({quiet:true}); const c=await mysql.createConnection({host:process.env.DB_HOST,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME,port:process.env.DB_PORT}); for(const table of ['customer','student','artwork','artupload','address','add_cart','cart_item','notification','marketplace_order']) {const [rows]=await c.query('SHOW COLUMNS FROM '+table); console.log(JSON.stringify({table,columns:rows.map(({Field,Type,Null,Default,Extra})=>({Field,Type,Null,Default,Extra}))}));} await c.end();"
+
+Get-Content backend\routes\seller\orders.js -TotalCount 195; Get-Content backend\utils\orderNotifications.js -TotalCount 160; rg -n 'notification|buyer/orders|seller/orders' backend\server.js backend\database\schema.sql; Get-Content backend\database\accountAccess.js -TotalCount 130; Get-Content frontend\src\api\buyer\orderAPI.js -TotalCount 70
+
+[backend directory]
+node --input-type=module -e "import dotenv from 'dotenv'; import mysql from 'mysql2/promise'; dotenv.config({quiet:true}); const c=await mysql.createConnection({host:process.env.DB_HOST,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME,port:process.env.DB_PORT}); const [refs]=await c.query('SELECT TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME IN (\'customer\',\'student\',\'artwork\',\'marketplace_order\')'); console.log(JSON.stringify(refs)); const [cols]=await c.query('SHOW COLUMNS FROM account_notifications'); console.log(JSON.stringify(cols.map(({Field,Type,Null,Default})=>({Field,Type,Null,Default})))); await c.end();"
+
+[backend directory; first syntax path was incorrect, fixture creation passed but provider verification/cleanup hit sandbox network restriction]
+node --check backend/scripts/testPaymongoCheckoutFlow.js; node scripts/testPaymongoCheckoutFlow.js --prepare
+
+[backend directory; rerun with approved network escalation, safely resumed same fixture]
+node --check scripts/testPaymongoCheckoutFlow.js; node scripts/testPaymongoCheckoutFlow.js --prepare
+
+Get-Content backend\scripts\paymongoBrowserProbe.js -TotalCount 100
+
+[backend directory]
+node --check scripts/testPaymongoCheckoutFlow.js
+
+
+
+PayMongo frontend and isolated browser task terminal command log
+Workspace: C:\VS Codes\React JS\art-match
+Commands below are terminal commands issued during this subtask. Repeated test/lint commands are identified as repeated. File edits used apply_patch (not terminal commands). No credential values were printed.
+
+Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt'
+
+rg --files -g 'AGENTS.md' -g '*Checkout*' -g '*Order*' -g '*Sales*' -g '*sales*' -g 'orderAPI.js' -g 'package.json' frontend .agents .codex
+
+git status --short
+
+Get-Content frontend/src/pages/buyer/Checkout.jsx
+
+Get-Content frontend/src/api/buyer/orderAPI.js; Get-Content frontend/src/utils/sellerSales.js; Get-Content frontend/package.json
+
+Get-Content frontend/src/pages/buyer/Order.jsx
+
+Get-Content frontend/src/pages/seller/Order.jsx; Get-Content frontend/src/pages/seller/Sales.jsx
+
+Get-Content frontend/src/api/buyer/orderAPI.js; Get-Content frontend/src/utils/sellerSales.js; Get-Content frontend/package.json
+
+Get-Content frontend/src/pages/buyer/Order.jsx -TotalCount 340
+
+Get-Content frontend/src/pages/seller/Order.jsx -TotalCount 290; rg -n 'payment|status|Confirm|Pack|Ship|Deliver|cancel' frontend/src/pages/seller/Order.jsx
+
+rg -n 'payment|cancel|Snackbar|Alert|return \(' frontend/src/pages/buyer/Order.jsx; Get-Content frontend/src/api/seller/orderAPI.js; Get-Content frontend/src/pages/buyer/OrderFinish.jsx -TotalCount 170; rg --files frontend -g '*test*' -g '*eslint*' -g 'AGENTS.md' -g '*lock*'
+
+rg -n -C 4 'paymentStatus|paymentReference|paymongoPayment|paymentChannel|payment_reference|checkout_url|successUrl|cancelUrl|cancel' backend/routes/buyer/orders.js backend/routes/seller/orders.js backend/database/orders.js; Get-Content frontend/src/pages/seller/Order.jsx | Select-Object -Skip 452 -First 135; Get-Content frontend/src/pages/seller/Order.jsx | Select-Object -Skip 650 -First 122; Get-Content frontend/src/pages/buyer/Cart.jsx -TotalCount 175; Get-Content frontend/src/layouts/BuyerLayout.jsx | Select-Object -Skip 95 -First 180; Get-Content frontend/src/api/buyer/reviewsAPI.test.mjs -TotalCount 130; Get-Content frontend/eslint.config.js
+
+Get-Content frontend/src/api/buyer/recommendationAPI.js -TotalCount 95; Get-Content frontend/src/pages/seller/Order.jsx -TotalCount 45; rg -n 'React|Fragment' frontend/src/pages/buyer/Checkout.jsx; rg -n 'getSellerSalesData|paymentStatus|payment' frontend/src/pages/seller/Dashboard.jsx frontend/src/pages/seller/Main.jsx frontend/src/utils -g '*.js' -g '*.jsx'
+
+# cwd frontend; repeated during implementation and after final changes; all completed focused lint runs passed
+npx eslint src/pages/buyer/Checkout.jsx src/pages/buyer/Order.jsx src/pages/buyer/Cart.jsx src/pages/seller/Order.jsx src/pages/seller/Sales.jsx src/api/buyer/orderAPI.js src/utils/orderPayments.js src/utils/sellerSales.js
+
+# cwd frontend
+node --test src/utils/orderPayments.test.mjs src/api/buyer/orderAPI.test.mjs
+
+# cwd frontend; one full build passed; parent ran final build later
+npm run build
+
+git diff --stat -- frontend; git diff --check -- frontend; Test-Path frontend/node_modules/react-test-renderer; Test-Path frontend/node_modules/jsdom; Test-Path frontend/node_modules/@swc/core; Get-Content frontend/src/pages/buyer/Order.jsx -TotalCount 245; Get-Content frontend/src/pages/buyer/Checkout.jsx -TotalCount 185
+
+# cwd frontend; initial seller UI test failed because test fixture omitted theme.palette.text; fixed fixture and reran successfully
+node --test src/utils/paymentPages.test.mjs
+
+rg -n 'theme\.' frontend/src/pages/seller/Order.jsx; Get-Process node | Select-Object Id,CPU,WorkingSet,StartTime
+
+Get-Content frontend/src/api/buyer/addressAPI.js -TotalCount 80; Get-Content frontend/src/pages/seller/Dashboard.jsx | Select-Object -Skip 50 -First 45
+
+# cwd frontend; repeated after each relevant change. A misplaced test assertion was corrected. Latest complete run: 20 tests passed, zero failures.
+node --test src/utils/paymentPages.test.mjs src/utils/orderPayments.test.mjs src/api/buyer/orderAPI.test.mjs
+
+git diff --check -- frontend; git status --short -- frontend
+
+# cwd frontend; npm/PowerShell altered options into positional Vite arguments; stopped this helper with Ctrl+C. Not counted as independent startup verification.
+npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+
+# Process inspection returned Access denied. Dependency/executable checks completed; browsers present, automation libraries absent.
+Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -match 'vite 127|vite.*127\.0\.0\.1|vite.*5174' } | Select-Object ProcessId,CommandLine; Test-Path frontend/node_modules/playwright; Test-Path frontend/node_modules/@playwright/test; Test-Path frontend/node_modules/puppeteer; Test-Path 'C:\Program Files\Google\Chrome\Application\chrome.exe'; Test-Path 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+
+Get-Content frontend/src/utils/orderPayments.js; Get-Content frontend/src/api/buyer/orderAPI.js; Get-Content frontend/src/pages/buyer/Checkout.jsx -TotalCount 115; Get-Content frontend/src/utils/orderPayments.test.mjs; rg -n -C 3 'can_resume|checkout_reference|payment_reference|existing.*payment|pending.*checkout' backend/routes/buyer/orders.js
+
+# Repeated final diff validation passed
+git diff --check -- frontend
+
+node -p "typeof WebSocket"; Test-Path -LiteralPath 'C:\Program Files\Google\Chrome\Application\chrome.exe'; try { (Invoke-WebRequest -Uri 'http://127.0.0.1:9333/json/version' -TimeoutSec 2 -UseBasicParsing).StatusCode } catch { Write-Output 'CDP port 9333 not listening' }
+
+# First isolated Chrome launch ran in sandbox and exited before CDP became available.
+$paymentBrowserProfile = Join-Path (Get-Location) 'backend\.cache\paymongo-browser'; New-Item -ItemType Directory -Path $paymentBrowserProfile -Force | Out-Null; $paymentBrowserArgs = @('--headless=new', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=9333', ('--user-data-dir="' + $paymentBrowserProfile + '"'), '--no-first-run', '--no-default-browser-check', 'about:blank'); $paymentBrowserProcess = Start-Process -FilePath 'C:\Program Files\Google\Chrome\Application\chrome.exe' -ArgumentList $paymentBrowserArgs -WindowStyle Hidden -PassThru; $paymentBrowserProcess | Select-Object Id
+
+try { $paymentBrowserVersion = Invoke-RestMethod -Uri 'http://127.0.0.1:9333/json/version' -TimeoutSec 5; [PSCustomObject]@{ Browser = $paymentBrowserVersion.Browser; ProtocolVersion = $paymentBrowserVersion.'Protocol-Version'; DebuggerAvailable = [bool]$paymentBrowserVersion.webSocketDebuggerUrl } } catch { Write-Output $_.Exception.Message }
+
+Get-Process -Id 31092 -ErrorAction SilentlyContinue | Select-Object Id,HasExited,CPU; Get-ChildItem -LiteralPath 'backend\.cache\paymongo-browser' -Force | Select-Object -First 8 Name; try { $paymentBrowserVersion = Invoke-RestMethod -Uri 'http://127.0.0.1:9333/json/version' -TimeoutSec 2; [PSCustomObject]@{ Browser = $paymentBrowserVersion.Browser; DebuggerAvailable = [bool]$paymentBrowserVersion.webSocketDebuggerUrl } } catch { Write-Output $_.Exception.Message }
+
+# Repeated hidden Chrome launch with approved require_escalated execution. Succeeded, owned process PID 34912.
+$paymentBrowserProfile = Join-Path (Get-Location) 'backend\.cache\paymongo-browser'; $paymentBrowserArgs = @('--headless=new', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=9333', ('--user-data-dir="' + $paymentBrowserProfile + '"'), '--no-first-run', '--no-default-browser-check', 'about:blank'); $paymentBrowserProcess = Start-Process -FilePath 'C:\Program Files\Google\Chrome\Application\chrome.exe' -ArgumentList $paymentBrowserArgs -WindowStyle Hidden -PassThru; $paymentBrowserProcess | Select-Object Id
+
+try { $paymentBrowserVersion = Invoke-RestMethod -Uri 'http://127.0.0.1:9333/json/version' -TimeoutSec 3; [PSCustomObject]@{ Browser = $paymentBrowserVersion.Browser; ProtocolVersion = $paymentBrowserVersion.'Protocol-Version'; DebuggerAvailable = [bool]$paymentBrowserVersion.webSocketDebuggerUrl } } catch { Write-Output $_.Exception.Message }
+
+Test-Path -LiteralPath 'backend\.cache\paymongo-flow-test.json'; rg --files backend/scripts -g '*Paymongo*' -g '*paymongo*' -g '*PayMongo*'
+
+node --check backend/scripts/paymongoBrowserProbe.js; node --input-type=module -e "const {connectPaymentBrowser,inspectPaymentPage}=await import('./backend/scripts/paymongoBrowserProbe.js'); const browser=await connectPaymentBrowser(); console.log(JSON.stringify(await inspectPaymentPage(browser))); browser.close();"
+
+Test-Path -LiteralPath 'backend\.cache\paymongo-flow-test.json'; Test-Path -LiteralPath 'backend\scripts\testPaymongoCheckoutFlow.js'; if (Test-Path -LiteralPath 'backend\scripts\testPaymongoCheckoutFlow.js') { rg -n 'writeFile|checkout_url|checkoutUrl|fixturePath|paymentReference' backend/scripts/testPaymongoCheckoutFlow.js }
+
+# Chrome successfully loaded official PayMongo test instructions through HTTPS. No payment action.
+node --input-type=module -e "const {connectPaymentBrowser,inspectPaymentPage}=await import('./backend/scripts/paymongoBrowserProbe.js'); const browser=await connectPaymentBrowser(); await browser.send('Page.navigate',{url:'https://docs.paymongo.com/docs/payment-acceptance-testing'}); await new Promise(resolve=>setTimeout(resolve,3000)); const page=await inspectPaymentPage(browser); console.log(JSON.stringify({url:page.url,title:page.title,controls:page.controls.length,testingDocumentLoaded:page.text.includes('Testing QR Ph')})); browser.close();"
+
+
+
+PayMongo availability/seller agent command log
+Workspace: C:\VS Codes\React JS\art-match
+Shell: PowerShell
+Repeated commands are consolidated below. File edits used apply_patch, not shell commands.
+No credential values are included. Inline scripts read environment secrets only to sign harmless local smoke requests.
+
+INSPECTION COMMANDS (project root unless noted)
+
+Get-Content -LiteralPath 'C:\Users\Rob Justin\.codex\attachments\241253b8-4b71-4b9c-aa7e-971ad3a53c9f\Pasted text.txt'
+rg --files -g AGENTS.md -g package.json -g '*availability*' -g '*sold*' backend
+Get-Content backend/routes/seller/orders.js
+rg -n "marketplace_order|sold_quantity|is_sold_out|status <> 'Cancelled'" backend/routes backend/utils
+rg -n "sold|stock|revenue|sales|marketplace_order|Cancelled" backend/routes/seller backend/routes/buyer/recommendation.js backend/utils backend/server.js backend/database/orders.js frontend/src/pages/seller/Sales.jsx frontend/src/api/seller
+Get-Content backend/utils/artworkAvailability.js
+Get-Content backend/routes/buyer/artwork.js
+Get-Content backend/routes/buyer/cart.js
+Get-Content backend/package.json
+Get-Content backend/routes/buyer/recommendation.js -TotalCount 300
+rg -n 'isArtwork|sold|Availability|stock|fetchCandidates|eligible' backend/routes/buyer/recommendation.js
+Get-Content frontend/src/utils/sellerSales.js
+rg -n "marketplace_order|sold_quantity|is_sold_out|is_sold|Cancelled" backend --glob '!node_modules/**' --glob '!*.sql' --glob '!*.test.js' --glob '!package-lock.json'
+Get-Content backend/routes/buyer/recommendation.js -TotalCount 55
+Get-Content backend/routes/buyer/recommendation.js | Select-Object -Skip 1080 -First 130
+Get-Content backend/routes/buyer/recommendation.js | Select-Object -Skip 1330 -First 300
+Get-Content backend/routes/seller/reviews.test.js
+Get-Content backend/utils/artworkAvailability.test.js
+git status --short
+Get-Content backend/database/db.js
+Get-Content backend/database/orders.js -TotalCount 90
+Get-Content backend/routes/buyer/recommendation.js | Select-Object -Skip 1195 -First 100
+
+The following initial test-file discovery commands failed because those files did not exist and/or PowerShell passed a literal wildcard path to rg. Discovery was corrected with rg --files below; nothing was restored/deleted.
+rg -n 'getArtworkAvailability' backend/routes/buyer/*.test.js
+rg -n "orders|Sales|isSale|paymentStatus" frontend/src/utils/sellerSales.test.js backend/routes/seller/orders.test.js backend/routes/buyer/*.test.js
+Get-Content backend/routes/buyer/orders.cart.test.js -TotalCount 100
+Get-Content backend/routes/buyer/artwork.test.js -TotalCount 100
+
+Get-Content backend/utils/parcelShipment.js
+rg --files backend/routes frontend/src/utils | rg 'artwork|storefront|sellerSales|recommendation.*test|artist'
+rg --files backend | rg '\.test\.'
+rg -n "vm.run|runInNewContext|artwork.js|recommendation.js|cart.js|getArtworkRatingSql" backend --glob '*.test.js'
+git diff --stat -- backend/utils/artworkAvailability.js backend/utils/artworkAvailability.test.js backend/utils/artworkAvailability.mysql.test.js backend/routes/seller/orders.js backend/routes/seller/orders.payment.test.js backend/routes/buyer/artwork.js backend/routes/buyer/cart.js backend/routes/buyer/recommendation.js
+Get-Content backend/routes/seller/orders.js | Select-Object -Skip 265 -First 85
+rg -n "SUM\(.*quantity|is_sold_out|marketplace_order|sold_quantity" backend/routes --glob '!*.test.js' --glob '!orders copy.js' --glob '!recommendation_backup.js'
+Get-Content backend/database/orders.js
+Get-Content backend/database/setup-orders.js
+Get-Content backend/database/reviews.js -TotalCount 60
+Get-Content backend/database/orders.js -TotalCount 290
+Get-Content backend/utils/paymongo.js
+Get-Content backend/routes/payments/paymongo.js
+Get-Content backend/routes/buyer/orders.js
+rg -n "event_type.*purchase|purchase.*event_type|getPurchasedArtworkIds|POSITIVE_ITEM_EVENTS|is_sold_out|status.*available" backend/routes/buyer/recommendation.js backend/ml/recommendation backend/utils/recommendationInteractions.js backend/routes/buyer/orders.js backend/scripts/checkPaymongoIntegration.js
+Get-Content backend/utils/recommendationInteractions.js
+Get-Content backend/ml/recommendation/export_sasrec_data.js | Select-Object -Skip 25 -First 70
+Get-Content backend/routes/buyer/recommendation.js | Select-Object -Skip 445 -First 285
+Get-Content backend/server.js | Select-Object -Skip 155 -First 125
+rg -n "PORT|listen|express.json|rawBody|health|Unhandled error|app.use\(\(err|ensureOrderTables" backend/server.js
+Get-Content backend/server.js -TotalCount 155
+Get-Content backend/server.js | Select-Object -Last 75
+Get-Content backend/routes/buyer/orders.js | Select-Object -Skip 285 -First 165
+Get-Content backend/scripts/checkPaymongoIntegration.js -TotalCount 250
+Get-Content backend/utils/artworkAvailability.mysql.test.js
+
+READ-ONLY MYSQL STATUS CHECK (backend cwd)
+This detected the incorrect Verified artwork-status assumption before the parent fixed checkout/retry to Available plus upload approval.
+Result: Available, 86 artworks.
+
+@'
+import db from './database/db.js';
+try {
+ const [rows] = await db.promise().query('SELECT status, COUNT(*) AS artwork_count FROM artwork GROUP BY status');
+ console.log(JSON.stringify(rows));
+} finally { await db.promise().end(); }
+'@ | node --input-type=module
+
+FOCUSED AUTOMATED TEST COMMANDS (project root)
+
+node --test backend/routes/seller/orders.payment.test.js backend/utils/artworkAvailability.test.js backend/utils/artworkAvailability.mysql.test.js
+Result at first run: 20 passed; optional MySQL test skipped until explicitly enabled below.
+
+node --test backend/routes/seller/orders.payment.test.js backend/routes/buyer/artwork.availability.test.js backend/utils/artworkAvailability.test.js
+Result: 27 passed.
+
+node --test backend/database/orders.payment.test.js
+Result: 5 passed, including repeated startup without DDL, missing checkout URL, and preservation of legacy payment values/channels.
+
+node --test backend/routes/seller/orders.payment.test.js
+Result after seller cancellation protection: 17 passed.
+
+node --test backend/utils/paymongo.test.js backend/routes/payments/paymongo.test.js backend/routes/buyer/orders.payment.test.js backend/routes/seller/orders.payment.test.js backend/database/orders.payment.test.js backend/routes/buyer/artwork.availability.test.js backend/utils/artworkAvailability.test.js
+Result at independent review run: 97 passed.
+
+node --test backend/utils/artworkAvailability.test.js backend/routes/buyer/artwork.availability.test.js backend/routes/buyer/orders.payment.test.js backend/routes/seller/orders.payment.test.js
+Results: 53 passed after SQL null/invalid-stock correction; 54 passed after the final shared JS numeric-input validation test was added.
+
+READ-ONLY MYSQL TEST COMMAND (backend cwd; repeated after each stock helper correction)
+
+$env:PAYMENT_READONLY_MYSQL_TEST = '1'
+node --test utils/artworkAvailability.mysql.test.js
+Initial result: 1 passed (nine payment-status combinations and production projections on ten real artworks).
+After SQL parity correction: 2 passed, including twenty literal stock cases.
+Final result: 2 passed, expanded to twenty-four literal stock cases (null/missing/empty/whitespace/invalid/boolean/hex/negative/fractional/unsafe/zero/positive/decimal/exponent/partial/exhausted/manual-sold).
+All checks use SELECT only. No fixture orders/payments are inserted or changed.
+
+SYNTAX / DIFF CHECKS (project root; repeated after changes)
+
+node --check backend/routes/seller/orders.js
+node --check backend/routes/buyer/artwork.js
+node --check backend/routes/buyer/cart.js
+node --check backend/routes/buyer/recommendation.js
+node --check backend/utils/artworkAvailability.js
+node --check backend/utils/artworkAvailability.mysql.test.js
+node --check backend/database/orders.js
+git diff --check
+Result: passed; Git printed line-ending normalization notices for some existing CRLF files.
+
+LOCAL REAL-HTTP RUNTIME (backend cwd)
+
+$env:PORT = '5001'
+node server.js
+First owned server session: 86744. Startup succeeded and added the nullable checkout URL column through existing ensureOrderTables. Existing user-owned port 5000 was untouched.
+
+node scripts/smokePaymongoServer.js
+First result: 11 passed, 1 failed. Malformed JSON returned 500 instead of 400.
+The parent patched server.js to return a safe 400 response for entity.parse.failed.
+Stopped only owned session 86744 with Ctrl+C via write_stdin.
+
+$env:PORT = '5001'
+node server.js
+Second owned server session: 17604. Startup succeeded again without errors.
+
+node scripts/smokePaymongoServer.js
+Result: all 12 checks passed, including real raw-body signatures, missing/invalid/altered signatures, harmless unrelated signed event, signed nonexistent-reference paid event, malformed JSON 400, unauthenticated order reads, expected schema, actual Available+verified stock predicate, and unchanged order/payment/cart/purchase-state fingerprint.
+Available verified artworks at that time: 81.
+
+node --check scripts/smokePaymongoServer.js
+Result: passed.
+
+Harmless signed local port-5000 probe (backend cwd; before parent restarted the stale user backend):
+@'
+import dotenv from 'dotenv';
+import { createHmac, randomUUID } from 'node:crypto';
+dotenv.config({ quiet: true });
+const body = JSON.stringify({ data: { id: 'evt_smoke_' + randomUUID(), type: 'smoke.unrelated', livemode: false, data: {} } });
+const timestamp = Math.floor(Date.now() / 1000);
+const digest = createHmac('sha256', String(process.env.PAYMONGO_WEBHOOK_SECRET || '').trim()).update(timestamp + '.' + body).digest('hex');
+try {
+ const response = await fetch('http://127.0.0.1:5000/api/payments/paymongo/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Paymongo-Signature': 't=' + timestamp + ',te=' + digest }, body, signal: AbortSignal.timeout(5000) });
+ const result = await response.json();
+ console.log(JSON.stringify({ backend: 'http://127.0.0.1:5000', status: response.status, ignored: result.ignored === true }));
+} catch (error) { console.log(JSON.stringify({ backend: 'http://127.0.0.1:5000', reachable: false, code: error.cause?.code || error.name })); }
+'@ | node --input-type=module
+Result: 401, showing the previous port-5000 process had stale webhook configuration. The parent subsequently handled that process; this agent did not stop it.
+
+Stopped owned temporary port-5001 session 17604 with Ctrl+C via write_stdin after the parent brought updated port 5000 online.
+
+FINAL NOTES
+No real payment was initiated by this agent. No order/cart/purchase-interaction data was written by its HTTP or MySQL tests. Backend startup performed authorized safe schema initialization only. Actual PayMongo checkout/dashboard/browser testing and the final port-5000 restart belong to the parent agent's separate log.
+
+
+
+FINAL CHECKS
+
+# cwd: backend
+node scripts/testPaymongoCheckoutFlow.js --verify-paid
+node scripts/testPaymongoCheckoutFlow.js
+
+# cwd: project root
+node backend/scripts/checkArtworkImageRendering.js
+git diff --check
+
+FINAL RUNTIME CLEANUP / LATEST SOURCE VERIFICATION
+
+# Follow-up investigation and actual automatic-cancel verification:
+node backend/scripts/smokePaymongoTestCheckout.js --all-methods
+node backend/scripts/testPaymongoCancelReturn.js
+node --check backend/scripts/testPaymongoCancelReturn.js
+
+# From frontend:
+node --test src/utils/paymentPages.test.mjs src/utils/orderPayments.test.mjs src/api/buyer/orderAPI.test.mjs
+npx eslint src/pages/buyer/Order.jsx
+
+# Close only the isolated Chrome/CDP test browser:
+@'
+import { connectPaymentBrowser } from './backend/scripts/paymongoBrowserProbe.js';
+const browser = await connectPaymentBrowser();
+try { await browser.send('Browser.close'); } finally { browser.close(); }
+console.log('Closed the isolated integration-test browser.');
+'@ | node --input-type=module
+
+# Stop the owned backend PTY with Ctrl+C, then start latest source (backend cwd):
+node server.js
+
+# Project root:
+node backend/scripts/smokePaymongoServer.js http://127.0.0.1:5000
+git diff --check; git diff --numstat -- frontend/src/components/common/ArtworkImage.jsx frontend/src/components/buyer/Artwork/WatermarkedArtworkImage.jsx frontend/src/components/seller/Artwork/ArtworkCard.jsx frontend/src/components/admin/Artwork/ArtworkCard.jsx; git check-ignore backend/.env backend/.cache/paymongo-flow-test.json
+

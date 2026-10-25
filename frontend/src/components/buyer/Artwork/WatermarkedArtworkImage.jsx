@@ -34,6 +34,8 @@ export default function WatermarkedArtworkImage({
   image,
   alt = "Artwork",
   sx,
+  useBuyerIdentity = true,
+  fallbackSrc = "",
   ...imageProps
 }) {
   const imageRef = useRef(null);
@@ -43,7 +45,7 @@ export default function WatermarkedArtworkImage({
   useEffect(() => {
     if (!image) {
       setShouldLoad(false);
-      setSrc("");
+      setSrc(fallbackSrc);
       return undefined;
     }
 
@@ -65,7 +67,7 @@ export default function WatermarkedArtworkImage({
     );
     if (imageRef.current) observer.observe(imageRef.current);
     return () => observer.disconnect();
-  }, [image]);
+  }, [image, fallbackSrc]);
 
   useEffect(() => {
     if (!image || !shouldLoad) return undefined;
@@ -75,14 +77,14 @@ export default function WatermarkedArtworkImage({
       filename = getArtworkFilename(image);
     } catch (error) {
       console.error("Unable to load watermarked artwork:", error);
-      setSrc("");
+      setSrc(fallbackSrc);
       return undefined;
     }
     const artworkPath = `${API_BASE_URL}/uploads/seller/uploadArtwork/`;
     const signedUrlPath = `${API_BASE_URL}/api/artwork-image-url/${encodeURIComponent(filename)}`;
     const controller = new AbortController();
     let objectUrl;
-    const token = localStorage.getItem("buyer_token");
+    const token = useBuyerIdentity ? localStorage.getItem("buyer_token") : null;
 
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     fetch(signedUrlPath, {
@@ -122,7 +124,7 @@ export default function WatermarkedArtworkImage({
       .catch((error) => {
         if (error.name !== "AbortError") {
           console.error("Unable to load watermarked artwork:", error);
-          setSrc("");
+          setSrc(fallbackSrc);
         }
       });
 
@@ -130,7 +132,7 @@ export default function WatermarkedArtworkImage({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [image, shouldLoad]);
+  }, [image, shouldLoad, useBuyerIdentity, fallbackSrc]);
 
   if (!image) return null;
 

@@ -40,6 +40,7 @@ import { fetchStudents } from "../../api/admin/studentAPI";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import Export from "../../components/admin/Dashboard/Export";
+import ArtworkImage from "../../components/common/ArtworkImage";
 // Icons
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
@@ -312,10 +313,7 @@ export default function Dashboard() {
   const recentActivity = [...logs]
     .sort((first, second) => getRecordTime(second) - getRecordTime(first))
     .slice(0, 5);
-  const getArtworkImage = (artwork) =>
-    artwork.image
-      ? `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
-      : "";
+  const getArtworkImage = (artwork) => artwork.image || artwork.image_url || "";
   const formatActivityDate = (datetime) =>
     datetime ? dayjs(datetime).format("M/D/YYYY") : "-";
 
@@ -1023,9 +1021,8 @@ export default function Dashboard() {
                     }}
                   >
                     {getArtworkImage(artwork) ? (
-                      <Box
-                        component="img"
-                        src={getArtworkImage(artwork)}
+                      <ArtworkImage
+                        image={getArtworkImage(artwork)}
                         alt={artwork.title || "Artwork"}
                         sx={{
                           width: "100%",

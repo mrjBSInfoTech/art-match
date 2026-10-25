@@ -1,28 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import CartTable from "../../components/buyer/Cart/CartTable";
+import CartDelete from "../../components/buyer/Cart/CartDelete";
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
-  Chip,
   Paper,
   Grid,
   Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
   Stack,
   Container,
 } from "@mui/material";
-// Icons
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import IconButton from "@mui/material/IconButton";
 import { fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 
 export default function Cart() {
@@ -30,7 +22,18 @@ export default function Cart() {
   const [cartErrorMessage, setCartErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
+  const [selection, setSelection] = useState(null);
   const navigate = useNavigate();
+  const [selectedCart, setSelectedCart] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const deletingRef = useRef(false);
+
+  const closeDelete = () => {
+    if (deletingRef.current) return;
+    setSelectedCart(null);
+    setDeleteError("");
+  };
 
   useEffect(() => {
     let active = true;
@@ -58,7 +61,7 @@ export default function Cart() {
         const ids = currentItems.map((item) => String(item.artwork_id)).sort().join(",");
         setItems(currentItems);
         setCartErrorMessage("");
-        if (previousIds !== null && previousIds !== ids) {
+        if (previousIds !== ids) {
           window.dispatchEvent(new CustomEvent("cart-updated", {
             detail: { source: "cart-page", count: currentItems.length },
           }));
@@ -105,16 +108,28 @@ export default function Cart() {
     subtotal: Number(item.price || 0),
   }));
 
-  const subtotal = cartItems.reduce((s, i) => s + i.subtotal, 0);
-  const shipping = cartItems.length > 0 ? 100 : 0;
+  const selectedItems = cartItems.filter((item) => Number(item.is_sold_out) !== 1 &&
+    (selection === null || selection.includes(String(item.artwork_id))));
+  const selectedIds = selectedItems.map((item) => String(item.artwork_id));
+  const subtotal = selectedItems.reduce((s, i) => s + i.subtotal, 0);
+  const sellerCount = new Set(selectedItems.map((item) => item.seller_id).filter(Boolean)).size;
+  const shipping = selectedItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
   const total = subtotal + shipping;
 
   const onRemove = async (artworkId) => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setDeleting(true);
+    setDeleteError("");
     try {
       await removeFromCart(artworkId);
-      setItems((prev) => prev.filter((item) => item.artwork_id !== artworkId));
+      setItems((prev) => prev.filter((item) => String(item.artwork_id) !== String(artworkId)));
+      setSelectedCart(null);
     } catch (err) {
-      setCartErrorMessage(err.message);
+      setDeleteError(err.message || "Unable to remove this artwork. Please try again.");
+    } finally {
+      deletingRef.current = false;
+      setDeleting(false);
     }
   };
 
@@ -175,121 +190,32 @@ export default function Cart() {
           </Paper>
         ) : (
           <Grid container spacing={4} sx={{ mt: 2, alignItems: "flex-start" }}>
-            <Grid>
-              <Paper
-                elevation={0}
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  p: { xs: 1, md: 0 },
-                }}
-              >
-                <Box sx={{ overflowX: "auto" }}>
-                  <Table
-                    sx={{ minWidth: { xs: 100, md: 500, lg: 750 } }}
-                    size="small"
-                  >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Artwork</TableCell>
-                        <TableCell align="right">Price</TableCell>
-                        <TableCell align="right"> </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {cartItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell sx={{ py: { xs: 1.5, md: 2 } }}>
-                            <Stack
-                              direction="row"
-                              spacing={2}
-                              sx={{ alignItems: "center" }}
-                            >
-                              <WatermarkedArtworkImage
-                                image={item.image}
-                                alt={item.title || "Artwork"}
-                                sx={{
-                                  width: { xs: 56, sm: 72 },
-                                  height: { xs: 56, sm: 72 },
-                                  borderRadius: 2,
-                                  objectFit: "cover",
-                                  flexShrink: 0,
-                                  bgcolor: "action.hover",
-                                }}
-                              />
-                              <Box>
-                                <Typography
-                                  variant="subtitle2"
-                                  sx={{
-                                    fontWeight: 600,
-                                    fontSize: { xs: 14, md: 15 },
-                                  }}
-                                >
-                                  {item.title}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
-                                  {item.artist}
-                                </Typography>
-                                <Chip
-                                  label={
-                                    Number(item.is_sold_out) === 1
-                                      ? "Sold out"
-                                      : "Available"
-                                  }
-                                  size="small"
-                                  color={
-                                    Number(item.is_sold_out) === 1
-                                      ? "default"
-                                      : "success"
-                                  }
-                                  sx={{
-                                    mt: 0.5,
-                                    height: 22,
-                                    color:
-                                      Number(item.is_sold_out) === 1
-                                        ? undefined
-                                        : "#fff",
-                                  }}
-                                />
-                              </Box>
-                            </Stack>
-                          </TableCell>
-                          <TableCell align="right">₱{item.price}</TableCell>
-                          <TableCell align="right">
-                            <IconButton
-                              onClick={() => onRemove(item.artwork_id)}
-                            >
-                              <DeleteOutlineIcon />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              </Paper>
+            <Grid size={{ xs: 12, md: 8 }} sx={{ minWidth: 0 }}>
+              <CartTable
+                items={cartItems}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelection}
+                removing={deleting}
+                onRemove={(item) => { setDeleteError(""); setSelectedCart(item); }}
+              />
             </Grid>
 
-            <Grid>
+            <Grid size={{ xs: 12, md: 4 }} sx={{ minWidth: 0 }}>
               <Paper
                 elevation={0}
                 sx={{
-                  p: { xs: 3, md: 4 },
+                  p: 3,
                   border: "1px solid",
                   borderColor: "divider",
                   borderRadius: 3,
                   width: "100%",
-                  maxWidth: { xs: "100%", md: 500, lg: 520 },
+                  boxSizing: "border-box",
                 }}
               >
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   Order summary
                 </Typography>
+                <Typography variant="body2" color="text.secondary">{selectedItems.length} of {cartItems.length} artworks selected</Typography>
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
                   <Row label="Subtotal" value={`₱${subtotal}`} />
                   <Row label="Shipping" value={`₱${shipping}`} />
@@ -300,7 +226,10 @@ export default function Cart() {
                   variant="contained"
                   fullWidth
                   size="large"
-                  onClick={() => navigate("/buyer/checkout")}
+                  disabled={selectedItems.length === 0 || deleting}
+                  onClick={() => {
+                    if (selectedIds.length) navigate(`/buyer/checkout?artwork_ids=${selectedIds.join(",")}`);
+                  }}
                   sx={{
                     mt: 4,
                     borderRadius: 999,
@@ -328,6 +257,14 @@ export default function Cart() {
             </Grid>
           </Grid>
         )}
+        <CartDelete
+          open={Boolean(selectedCart)}
+          selectedCart={selectedCart}
+          handleClose={closeDelete}
+          onSubmit={onRemove}
+          deleting={deleting}
+          error={deleteError}
+        />
       </Container>
     </Box>
   );

@@ -48,6 +48,7 @@ import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import HistoryIcon from "@mui/icons-material/History";
 import GavelIcon from "@mui/icons-material/Gavel";
+import EventIcon from '@mui/icons-material/Event';
 import { alpha } from "@mui/material/styles";
 import {
   ThemeModeProvider,
@@ -190,6 +191,11 @@ function AdminLayoutContent() {
       segment: "sales",
       title: "Sales",
       icon: <TrendingUpIcon />,
+    },
+    {
+      segment: "event",
+      title: "Event",
+      icon: <EventIcon />,
     },
     {
       segment: "artwork",

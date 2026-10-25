@@ -1,7 +1,11 @@
 import express from "express";
 import db from "../../database/db.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
-import { getArtworkAvailability } from "../../utils/artworkAvailability.js";
+import {
+  getArtworkAvailability,
+  getArtworkSoldOutSql,
+  getArtworkSoldQuantitySql,
+} from "../../utils/artworkAvailability.js";
 import {
   recordRecommendationInteraction,
   getRecommendationSessionIdFromRequest,
@@ -38,54 +42,8 @@ router.get("/", authenticateBuyer, (req, res) => {
       a.image,
       a.genre,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
-      COALESCE((
-        SELECT SUM(oi.quantity)
-        FROM marketplace_order_item oi
-        JOIN marketplace_order o ON o.order_id = oi.order_id
-        WHERE oi.artwork_id = a.artwork_id
-        AND o.status <> 'Cancelled'
-        AND (
-          o.payment_method = 'cod'
-          OR (
-            o.payment_method = 'paymongo'
-            AND o.payment_status = 'Paid'
-          )
-        )
-      ), 0) AS sold_quantity,
-      CASE
-        WHEN COALESCE(a.is_sold, 0) = 1
-          OR LOWER(COALESCE(a.status, '')) = 'sold'
-          THEN 1
-        WHEN JSON_EXTRACT(a.artwork_details, '$.stock_available') IS NOT NULL
-          THEN CAST(JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS UNSIGNED) <= COALESCE((
-            SELECT SUM(oi.quantity)
-            FROM marketplace_order_item oi
-            JOIN marketplace_order o ON o.order_id = oi.order_id
-            WHERE oi.artwork_id = a.artwork_id
-            AND o.status <> 'Cancelled'
-            AND (
-              o.payment_method = 'cod'
-              OR (
-                o.payment_method = 'paymongo'
-                AND o.payment_status = 'Paid'
-              )
-            )
-          ), 0)
-        ELSE EXISTS (
-          SELECT 1
-          FROM marketplace_order_item oi
-          JOIN marketplace_order o ON o.order_id = oi.order_id
-          WHERE oi.artwork_id = a.artwork_id
-          AND o.status <> 'Cancelled'
-          AND (
-            o.payment_method = 'cod'
-            OR (
-              o.payment_method = 'paymongo'
-              AND o.payment_status = 'Paid'
-            )
-          )
-        )
-      END AS is_sold_out,
+      ${getArtworkSoldQuantitySql()} AS sold_quantity,
+      ${getArtworkSoldOutSql()} AS is_sold_out,
       CONCAT(s.first_name, ' ', s.last_name) AS artist
     FROM add_cart ac
     JOIN cart_item ci ON ci.add_to_id = ac.add_to_id
@@ -118,77 +76,12 @@ router.post("/", authenticateBuyer, (req, res) => {
     `SELECT
        a.artwork_id,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
-      COALESCE((
-        SELECT SUM(oi.quantity)
-        FROM marketplace_order_item oi
-        JOIN marketplace_order o
-          ON o.order_id = oi.order_id
-        WHERE
-          oi.artwork_id = a.artwork_id
-          AND o.status <> 'Cancelled'
-          AND (
-            o.payment_method = 'cod'
-            OR (
-              o.payment_method = 'paymongo'
-              AND o.payment_status = 'Paid'
-            )
-          )
-      ), 0) AS sold_quantity,
+      ${getArtworkSoldQuantitySql()} AS sold_quantity,
 
       a.is_sold,
       a.status,
 
-      CASE
-        WHEN COALESCE(a.is_sold, 0) = 1
-          OR LOWER(COALESCE(a.status, '')) = 'sold'
-          THEN 1
-
-        WHEN JSON_EXTRACT(
-          a.artwork_details,
-          '$.stock_available'
-        ) IS NOT NULL
-          THEN
-            CAST(
-              JSON_UNQUOTE(
-                JSON_EXTRACT(
-                  a.artwork_details,
-                  '$.stock_available'
-                )
-              ) AS UNSIGNED
-            ) <= COALESCE((
-              SELECT SUM(oi.quantity)
-              FROM marketplace_order_item oi
-              JOIN marketplace_order o
-                ON o.order_id = oi.order_id
-              WHERE
-                oi.artwork_id = a.artwork_id
-                AND o.status <> 'Cancelled'
-                AND (
-                  o.payment_method = 'cod'
-                  OR (
-                    o.payment_method = 'paymongo'
-                    AND o.payment_status = 'Paid'
-                  )
-                )
-            ), 0)
-
-        ELSE EXISTS (
-          SELECT 1
-          FROM marketplace_order_item oi
-          JOIN marketplace_order o
-            ON o.order_id = oi.order_id
-          WHERE
-            oi.artwork_id = a.artwork_id
-            AND o.status <> 'Cancelled'
-            AND (
-              o.payment_method = 'cod'
-              OR (
-                o.payment_method = 'paymongo'
-                AND o.payment_status = 'Paid'
-              )
-            )
-        )
-      END AS is_sold_out
+      ${getArtworkSoldOutSql()} AS is_sold_out
      FROM artwork a
      WHERE a.artwork_id = ?`,
     [artworkId],

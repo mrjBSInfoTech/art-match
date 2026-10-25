@@ -4,6 +4,7 @@ import db from "../../database/db.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
 import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 import { getArtworkRatingSql, getArtworkRatingSummary, getArtworkRatingSignal } from "../../utils/artworkRatings.js";
+import { getArtworkSoldOutSql, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 
 const router = express.Router();
 const CLIENT_EVENTS = new Set(["view", "search", "filter"]);
@@ -120,6 +121,8 @@ const getAvailableCandidateArtworkIds = async () => {
               0
             ) = 0
 
+            AND ${getArtworkSoldOutSql()} = 0
+
             AND (
               ac.register_status IS NULL
               OR LOWER(
@@ -233,6 +236,8 @@ const attachArtworkDetails = async (recommendations) => {
           a.product,
           a.status,
           a.is_sold,
+          ${getArtworkSoldQuantitySql()} AS sold_quantity,
+          ${getArtworkSoldOutSql()} AS is_sold_out,
           a.date_created,
 
           f.mediums_used,
@@ -285,6 +290,7 @@ const attachArtworkDetails = async (recommendations) => {
           a.artwork_id IN (
             ${placeholders}
           )
+          AND ${getArtworkSoldOutSql()} = 0
       `,
     artworkIds,
   );
@@ -1127,6 +1133,8 @@ router.get("/recently-viewed", async (req, res) => {
          a.product,
          a.status,
          a.is_sold,
+         ${getArtworkSoldQuantitySql()} AS sold_quantity,
+         ${getArtworkSoldOutSql()} AS is_sold_out,
          a.date_created,
          CONCAT(s.first_name, ' ', s.last_name) AS artist,
          s.profile_image,

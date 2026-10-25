@@ -1,16 +1,13 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
-  Avatar,
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Checkbox,
   FormControlLabel,
   FormGroup,
@@ -32,9 +29,13 @@ import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import { createElement, useEffect } from "react";
 import { fetchSellerOrders, updateSellerOrderStatus } from "../../api/seller/orderAPI";
+import { canFulfillOrder, isPayMongoOrder, isPlacedOrder, isSellerSale, needsPaymentSupport } from "../../utils/orderPayments.js";
+import OrderCard from "../../components/seller/Order/OrderCard";
+import OrderInfo from "../../components/seller/Order/OrderInfo";
+import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
 
 const orderStatuses = [
   "All",
@@ -45,15 +46,6 @@ const orderStatuses = [
   "Delivered",
   "Cancelled",
 ];
-
-const statusColorMap = {
-  Pending: "warning",
-  Confirmed: "info",
-  Packed: "secondary",
-  Shipped: "primary",
-  Delivered: "success",
-  Cancelled: "error",
-};
 
 const nextStatusMap = {
   Pending: ["Confirmed", "Cancelled"],
@@ -73,12 +65,24 @@ const parcelHandlingOptions = [
   { value: "this_side_up", label: "This side up" },
 ];
 
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(value);
+const availableNextStatuses = (order) => canFulfillOrder(order)
+  ? (nextStatusMap[order.status] || []).filter((status) =>
+      status !== "Cancelled" || !isPayMongoOrder(order))
+  : [];
+
+const fulfillmentHint = (order) => {
+  if (needsPaymentSupport(order)) return "Payment received. Contact support for refund review.";
+  if (String(order.paymentStatus).toLowerCase() === "refunded") return "Payment refunded. This order cannot be processed.";
+  const hints = {
+    Pending: "Confirm this order to start preparing it.",
+    Confirmed: "Mark as packed and upload 1–5 parcel photos.",
+    Packed: "Mark as shipped; add a tracking link if available.",
+    Shipped: "Mark as delivered after the buyer receives the parcel.",
+    Delivered: "Order completed.",
+    Cancelled: "Order cancelled.",
+  };
+  return hints[order.status] || "";
+};
 
 export default function SellerOrder() {
   const theme = useTheme();
@@ -95,23 +99,46 @@ export default function SellerOrder() {
   const [trackingUrl, setTrackingUrl] = useState("");
   const [handlingInstructions, setHandlingInstructions] = useState([]);
   const [savingFulfillment, setSavingFulfillment] = useState(false);
+  const [savingOrderId, setSavingOrderId] = useState(null);
+  const savingOrderRef = useRef(false);
+  const loadingOrdersRef = useRef(false);
+  const mountedRef = useRef(false);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
+    if (loadingOrdersRef.current || savingOrderRef.current) return;
+    loadingOrdersRef.current = true;
     try {
       setError("");
       setLoading(true);
       const response = await fetchSellerOrders();
-      setOrders(Array.isArray(response) ? response : []);
+      if (!mountedRef.current) return;
+      const placedOrders = Array.isArray(response) ? response.filter(isPlacedOrder) : [];
+      setOrders(placedOrders);
+      setSelectedOrder((current) => current
+        ? placedOrders.find((order) => order.orderId === current.orderId) || null
+        : null);
     } catch (loadError) {
-      setError(loadError.message || "Unable to load orders");
+      if (mountedRef.current) setError(loadError.message || "Unable to load orders");
     } finally {
-      setLoading(false);
+      loadingOrdersRef.current = false;
+      if (mountedRef.current) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadOrders();
-  }, []);
+    const refresh = () => {
+      if (document.visibilityState === "visible") loadOrders();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      mountedRef.current = false;
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadOrders]);
 
   useEffect(() => {
     const previews = parcelPhotos.map((file) => URL.createObjectURL(file));
@@ -132,7 +159,7 @@ export default function SellerOrder() {
   }, [orders, searchTerm, selectedStatus]);
 
   const summary = useMemo(() => {
-    const activeOrders = orders.filter((order) => order.status !== "Cancelled");
+    const activeOrders = orders.filter(isSellerSale);
     const revenue = activeOrders.reduce((sum, order) => sum + order.total, 0);
     const pending = orders.filter((order) => order.status === "Pending").length;
     const shipped = orders.filter((order) => order.status === "Shipped").length;
@@ -146,6 +173,18 @@ export default function SellerOrder() {
   }, [orders]);
 
   const saveOrderStatus = async (orderId, nextStatus, payload = {}) => {
+    if (savingOrderRef.current) return false;
+    const order = orders.find((item) => item.orderId === orderId);
+    if (!order || !canFulfillOrder(order)) {
+      setStatusError("This order cannot be processed. Refresh to check its payment and order status.");
+      return false;
+    }
+    if (!availableNextStatuses(order).includes(nextStatus)) {
+      setStatusError(`Cannot move an order from ${order.status} to ${nextStatus}.`);
+      return false;
+    }
+    savingOrderRef.current = true;
+    setSavingOrderId(orderId);
     try {
       setStatusError("");
       const result = await updateSellerOrderStatus(orderId, nextStatus, payload);
@@ -155,6 +194,8 @@ export default function SellerOrder() {
             ? {
                 ...order,
                 status: nextStatus,
+                paymentStatus: result.paymentStatus ?? order.paymentStatus,
+                paidAt: result.paidAt ?? order.paidAt,
                 trackingUrl: result.trackingUrl,
                 parcelPhotoCount: result.parcelPhotoCount,
                 handlingInstructions: result.handlingInstructions ?? order.handlingInstructions,
@@ -167,6 +208,8 @@ export default function SellerOrder() {
           ? {
               ...current,
               status: nextStatus,
+              paymentStatus: result.paymentStatus ?? current.paymentStatus,
+              paidAt: result.paidAt ?? current.paidAt,
               trackingUrl: result.trackingUrl,
               parcelPhotoCount: result.parcelPhotoCount,
               handlingInstructions: result.handlingInstructions ?? current.handlingInstructions,
@@ -177,10 +220,20 @@ export default function SellerOrder() {
     } catch (updateError) {
       setStatusError(updateError.message || "Unable to update order status");
       return false;
+    } finally {
+      savingOrderRef.current = false;
+      setSavingOrderId(null);
     }
   };
 
   const updateOrderStatus = async (orderId, nextStatus) => {
+    if (savingOrderRef.current || savingFulfillment) return;
+    const currentOrder = orders.find((order) => order.orderId === orderId);
+    if (nextStatus === currentOrder?.status) return;
+    if (!currentOrder || !availableNextStatuses(currentOrder).includes(nextStatus)) {
+      setStatusError("Choose the next available order status. Refresh if the order has changed.");
+      return;
+    }
     if (nextStatus === "Packed" || nextStatus === "Shipped") {
       const order = orders.find((item) => item.orderId === orderId);
       setStatusError("");
@@ -241,10 +294,19 @@ export default function SellerOrder() {
               Orders
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Track customer orders and update fulfillment status.
+              Manage paid online orders and cash on delivery orders.
             </Typography>
           </Box>
 
+          <Stack direction="row" spacing={1} sx={{ width: { xs: "100%", md: "auto" } }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshOutlinedIcon />}
+            disabled={loading || savingOrderId !== null || savingFulfillment}
+            onClick={loadOrders}
+          >
+            Refresh
+          </Button>
           <Button
             variant="contained"
             color="error"
@@ -255,10 +317,11 @@ export default function SellerOrder() {
               fontSize: { xs: 12, sm: 16 },
               padding: 0,
             }}
-            onClick={() => setSelectedStatus("All")}
+            onClick={() => { setSelectedStatus("All"); setSearchTerm(""); }}
           >
             Reset filters
           </Button>
+          </Stack>
         </Box>
 
         <Box
@@ -276,13 +339,13 @@ export default function SellerOrder() {
             {
               label: "TOTAL ORDERS",
               value: summary.totalOrders,
-              caption: "All registered orders",
+              caption: "Paid online and COD orders",
               icon: ShoppingCartOutlinedIcon,
             },
             {
               label: "GROSS REVENUE",
               value: formatCurrency(summary.revenue),
-              caption: "Active orders total",
+              caption: "COD and paid online orders",
               icon: PaymentsOutlinedIcon,
             },
             {
@@ -458,119 +521,16 @@ export default function SellerOrder() {
           {loading && <Box sx={{ display: "grid", placeItems: "center", py: 4 }}><CircularProgress /></Box>}
           {loading ? null : filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
-              <Paper
-                key={order.id}
-                elevation={0}
-                sx={{
-                  p: 2.5,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 3,
-                }}
-              >
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={2}
-                  sx={{
-                    justifyContent: "space-between",
-                    alignItems: { xs: "flex-start", md: "center" },
-                  }}
-                >
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                      {order.id}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {order.customer} • {order.date}
-                    </Typography>
-                  </Box>
-
-                  <Chip
-                    label={order.status}
-                    color={statusColorMap[order.status] || "default"}
-                    size="small"
-                    sx={{ fontWeight: 700, px: 1 }}
-                  />
-
-                  <Box sx={{ textAlign: { xs: "left", md: "right" } }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Total
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                      {formatCurrency(order.total)}
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={2}
-                  sx={{
-                    justifyContent: "space-between",
-                    alignItems: { xs: "flex-start", md: "center" },
-                  }}
-                >
-                  <Stack spacing={1.25} sx={{ flex: 1 }}>
-                    {order.items.slice(0, 2).map((item) => (
-                      <Stack
-                        key={`${order.id}-${item.title}`}
-                        direction="row"
-                        spacing={1.5}
-                        sx={{ alignItems: "center" }}
-                      >
-                        <Avatar
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            bgcolor: "primary.main",
-                            fontSize: 12,
-                          }}
-                        >
-                          {item.title.charAt(0)}
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {item.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Qty {item.qty} • {formatCurrency(item.price)} each
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    ))}
-                  </Stack>
-
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    sx={{ alignItems: { xs: "flex-start", sm: "center" } }}
-                  >
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      sx={{ borderRadius: 999, textTransform: "none" }}
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      View details
-                    </Button>
-
-                    <Select
-                      size="small"
-                      value={order.status}
-                      onChange={(e) =>
-                        updateOrderStatus(order.orderId, e.target.value)
-                      }
-                      sx={{ minWidth: 150 }}
-                    >
-                      {[order.status, ...(nextStatusMap[order.status] || [])].map((status) => (
-                        <MenuItem key={status} value={status}>{status}</MenuItem>
-                      ))}
-                    </Select>
-                  </Stack>
-                </Stack>
-              </Paper>
+              <OrderCard
+                key={order.orderId}
+                order={order}
+                onViewDetails={setSelectedOrder}
+                onStatusChange={updateOrderStatus}
+                nextStatuses={availableNextStatuses(order)}
+                statusHint={fulfillmentHint(order)}
+                saving={savingOrderId !== null || savingFulfillment}
+                updating={savingOrderId === order.orderId}
+              />
             ))
           ) : error ? null : (
             <Paper
@@ -587,191 +547,25 @@ export default function SellerOrder() {
                 No orders found
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Try a different search or reset the filters.
+                {orders.length ? "Try a different search or reset the filters." : "Paid online purchases and COD orders appear here, ready for fulfillment."}
               </Typography>
             </Paper>
           )}
         </Stack>
       </Stack>
 
-      <Dialog
+      <OrderInfo
         open={Boolean(selectedOrder)}
-        onClose={() => setSelectedOrder(null)}
-        fullWidth
-        maxWidth="md"
-      >
-        {selectedOrder && (
-          <>
-            <DialogTitle>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                sx={{
-                  justifyContent: "space-between",
-                  alignItems: { xs: "flex-start", sm: "center" },
-                }}
-              >
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                    {selectedOrder.id}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {selectedOrder.customer}
-                  </Typography>
-                </Box>
-
-                <Chip
-                  label={selectedOrder.status}
-                  color={statusColorMap[selectedOrder.status] || "default"}
-                  sx={{ fontWeight: 700 }}
-                />
-              </Stack>
-            </DialogTitle>
-
-            <DialogContent dividers>
-              <Stack spacing={3}>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      sm: "repeat(2, minmax(0, 1fr))",
-                    },
-                    gap: 2,
-                  }}
-                >
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 2,
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Order date
-                    </Typography>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {selectedOrder.date}
-                    </Typography>
-                  </Paper>
-
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 2,
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Payment method
-                    </Typography>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {selectedOrder.payment}
-                    </Typography>
-                  </Paper>
-                </Box>
-
-                <Box>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ fontWeight: 800, mb: 1 }}
-                  >
-                    Shipping address
-                  </Typography>
-                  <Typography variant="body2">
-                    {selectedOrder.address}
-                  </Typography>
-                  {selectedOrder.note && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 1 }}
-                    >
-                      Note: {selectedOrder.note}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ fontWeight: 800, mb: 1 }}
-                  >
-                    Items
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {selectedOrder.items.map((item) => (
-                      <Box
-                        key={`${selectedOrder.id}-${item.title}`}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          p: 1.5,
-                          borderRadius: 2,
-                          border: "1px solid",
-                          borderColor: "divider",
-                        }}
-                      >
-                        <Box>
-                          <Typography sx={{ fontWeight: 700 }}>
-                            {item.title}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Qty {item.qty}
-                          </Typography>
-                        </Box>
-                        <Typography sx={{ fontWeight: 700 }}>
-                          {formatCurrency(item.price * item.qty)}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                </Box>
-              </Stack>
-            </DialogContent>
-
-            <DialogActions sx={{ p: 2.5, justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  Update status:
-                </Typography>
-                <Select
-                  size="small"
-                  value={selectedOrder.status}
-                  onChange={(e) =>
-                    updateOrderStatus(selectedOrder.orderId, e.target.value)
-                  }
-                >
-                  {[selectedOrder.status, ...(nextStatusMap[selectedOrder.status] || [])].map((status) => (
-                    <MenuItem key={status} value={status}>{status}</MenuItem>
-                  ))}
-                </Select>
-              </Box>
-
-              <Button
-                variant="contained"
-                onClick={() => setSelectedOrder(null)}
-                sx={{ borderRadius: 999, textTransform: "none" }}
-              >
-                Close
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<PrintOutlinedIcon />}
-                onClick={() => window.print()}
-                sx={{ borderRadius: 999, textTransform: "none" }}
-              >
-                Print parcel label
-              </Button>
-            </DialogActions>
-          </>
-        )}
-      </Dialog>
+        handleClose={() => setSelectedOrder(null)}
+        order={selectedOrder}
+        onStatusChange={updateOrderStatus}
+        nextStatuses={selectedOrder ? availableNextStatuses(selectedOrder) : []}
+        statusHint={selectedOrder ? fulfillmentHint(selectedOrder) : ""}
+        saving={savingOrderId !== null || savingFulfillment}
+        updating={selectedOrder !== null && savingOrderId === selectedOrder.orderId}
+        statusError={statusError}
+        onPrint={() => window.print()}
+      />
 
       {selectedOrder && (
         <>

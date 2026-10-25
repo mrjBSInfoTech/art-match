@@ -63,10 +63,12 @@ const createOrderStatusNotification = (orderId, buyerId, status) =>
   });
 
 router.get("/", authenticateSeller, (req, res) => {
+  res.set("Cache-Control", "no-store");
   db.query(
     `SELECT
        o.order_id, CONCAT('AM-', LPAD(o.order_id, 6, '0')) AS order_number,
-       o.created_at, o.status, o.payment_method, o.subtotal, o.shipping_fee,
+       o.created_at, o.status, o.payment_method, o.payment_status,
+       o.paymongo_payment_method, o.paid_at, o.subtotal, o.shipping_fee,
        o.total_amount, o.buyer_name, o.buyer_email, c.phone_number AS buyer_phone,
        o.shipping_street,
        o.shipping_barangay, o.shipping_city, o.shipping_province,
@@ -77,6 +79,7 @@ router.get("/", authenticateSeller, (req, res) => {
      LEFT JOIN marketplace_order_item i ON i.order_id = o.order_id
      LEFT JOIN customer c ON c.customer_id = o.customer_id
      WHERE o.seller_id = ?
+       AND (o.payment_method <> 'paymongo' OR o.payment_status IN ('Paid', 'Refunded'))
      ORDER BY o.created_at DESC, o.order_id DESC, i.order_item_id`,
     [req.user.student_id],
     (err, rows) => {
@@ -94,6 +97,9 @@ router.get("/", authenticateSeller, (req, res) => {
             date: row.created_at,
             status: row.status,
             payment: row.payment_method,
+            paymentStatus: row.payment_status,
+            paymentChannel: row.paymongo_payment_method,
+            paidAt: row.paid_at,
             subtotal: Number(row.subtotal),
             shipping: Number(row.shipping_fee),
             total: Number(row.total_amount),
@@ -176,7 +182,8 @@ router.put(
       connection = await db.promise().getConnection();
       await connection.beginTransaction();
       const [orders] = await connection.query(
-        `SELECT status, customer_id, parcel_photos, tracking_url, handling_instructions
+        `SELECT status, customer_id, parcel_photos, tracking_url, handling_instructions,
+                payment_method, payment_status, paid_at
          FROM marketplace_order
          WHERE order_id = ? AND seller_id = ?
          LIMIT 1
@@ -188,6 +195,16 @@ router.put(
       const order = orders[0];
       if (!allowedTransitions[order.status]?.has(requestedStatus)) {
         fail(400, `Cannot move an order from ${order.status} to ${requestedStatus}`);
+      }
+      if (order.payment_method === "paymongo") {
+        if (requestedStatus === "Cancelled") {
+          fail(409, order.payment_status === "Paid"
+            ? "Paid online orders require refund handling before cancellation"
+            : "Ask the buyer to cancel this unpaid payment from checkout so its payment session can be expired safely.");
+        }
+        if (requestedStatus !== "Cancelled" && order.payment_status !== "Paid") {
+          fail(409, "Awaiting online payment. This order cannot be processed until payment is confirmed.");
+        }
       }
 
       if (requestedStatus === "Packed") {
@@ -269,13 +286,23 @@ router.put(
       const [result] = await connection.query(
         `UPDATE marketplace_order
          SET status = ?, parcel_photos = ?, tracking_url = ?,
-             handling_instructions = COALESCE(?, handling_instructions)
+             handling_instructions = COALESCE(?, handling_instructions),
+             payment_status = CASE
+               WHEN payment_method = 'cod' AND ? = 'Delivered' THEN 'Paid'
+               ELSE payment_status
+             END,
+             paid_at = CASE
+               WHEN payment_method = 'cod' AND ? = 'Delivered' THEN COALESCE(paid_at, NOW())
+               ELSE paid_at
+             END
          WHERE order_id = ? AND seller_id = ? AND status = ?`,
         [
           requestedStatus,
           JSON.stringify(parcelPhotos),
           requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
           requestedStatus === "Packed" ? JSON.stringify(handlingInstructions) : null,
+          requestedStatus,
+          requestedStatus,
           orderId,
           sellerId,
           order.status,
@@ -290,6 +317,10 @@ router.put(
       return res.json({
         message: "Order status updated",
         status: requestedStatus,
+        paymentStatus:
+          order.payment_method === "cod" && requestedStatus === "Delivered"
+            ? "Paid"
+            : order.payment_status,
         trackingUrl: requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
         parcelPhotoCount: parcelPhotos.length,
         handlingInstructions:

@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 import {
   createPayMongoCheckoutSession,
   pesosToCentavos,
+  getPayMongoPaymentMethodTypes,
+  retrievePayMongoCheckoutSession,
+  expirePayMongoCheckoutSession,
+  PayMongoError,
 } from "../../utils/paymongo.js";
 import { readParcelPhoto } from "../../utils/parcelPhotoStorage.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
@@ -11,15 +15,13 @@ import {
   recordRecommendationInteraction,
   getRecommendationSessionIdFromRequest,
 } from "../../utils/recommendationInteractions.js";
-import { getArtworkAvailability } from "../../utils/artworkAvailability.js";
+import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 
 const router = express.Router();
 
 const SHIPPING_FEE = 150;
 
 const paymentMethods = new Set(["paymongo", "cod"]);
-
-const PAYMONGO_PAYMENT_METHOD_TYPES = ["card", "gcash", "paymaya", "qrph"];
 
 const query = async (executor, sql, params = []) => {
   const [rows] = await executor.query(sql, params);
@@ -41,6 +43,7 @@ const groupOrderRows = (rows) => {
         status: row.status,
         payment: row.payment_method,
         paymentStatus: row.payment_status,
+        paymentReference: row.payment_reference,
         paymentChannel: row.paymongo_payment_method,
         paidAt: row.paid_at,
 
@@ -117,6 +120,8 @@ const ordersSql = `
     o.status,
     o.payment_method,
     o.payment_status,
+    o.payment_reference,
+    o.paymongo_checkout_url,
     o.paymongo_payment_method,
     o.paid_at,
     o.subtotal,
@@ -155,12 +160,14 @@ const ordersSql = `
 `;
 
 router.get("/", authenticateBuyer, async (req, res) => {
+  res.set("Cache-Control", "no-store");
   try {
     const rows = await query(
       db.promise(),
 
       `${ordersSql}
          WHERE o.customer_id = ?
+           AND (o.payment_method <> 'paymongo' OR o.payment_status IN ('Paid', 'Refunded'))
          ORDER BY
            o.created_at DESC,
            o.order_id DESC,
@@ -176,6 +183,52 @@ router.get("/", authenticateBuyer, async (req, res) => {
     return res.status(500).json({
       message: "Unable to load orders",
     });
+  }
+});
+
+router.get("/payments/methods", authenticateBuyer, async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    return res.json({
+      payment_method_types: await getPayMongoPaymentMethodTypes(),
+      supported_payment_method_types: ["card", "gcash", "paymaya", "qrph"],
+    });
+  } catch (error) {
+    return res.status(error instanceof PayMongoError ? error.status : 503).json({
+      message: error instanceof PayMongoError ? error.message : "Unable to load available payment methods. Please try again.",
+    });
+  }
+});
+
+// An unpaid checkout is a payment attempt, not a placed purchase. Its owner can
+// inspect it here while buyer/seller Orders contain only actual placed orders.
+router.get("/payments/:reference", authenticateBuyer, async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const reference = req.params.reference;
+  if (typeof reference !== "string" || !/^AM-[A-Za-z0-9-]{1,97}$/.test(reference)) {
+    return res.status(400).json({ message: "Invalid payment reference." });
+  }
+  try {
+    const rows = await query(db.promise(), `${ordersSql}
+      WHERE o.customer_id = ? AND o.payment_reference = ? AND o.payment_method = 'paymongo'
+      ORDER BY o.order_id, i.order_item_id`, [req.user.customer_id, reference]);
+    if (!rows.length) return res.status(404).json({ message: "Checkout not found." });
+    const orders = groupOrderRows(rows);
+    const all = (status) => orders.every((order) => order.paymentStatus === status);
+    const paymentStatus = all("Paid") ? "Paid"
+      : orders.some((order) => order.paymentStatus === "Refunded") ? "Refunded"
+        : all("Expired") ? "Expired" : all("Failed") ? "Failed" : "Pending";
+    return res.json({
+      payment_reference: reference,
+      payment_status: paymentStatus,
+      status: orders.every((order) => order.status === "Cancelled") ? "Cancelled" : "Pending",
+      checkout_url: paymentStatus === "Pending" || paymentStatus === "Failed" ? rows[0].paymongo_checkout_url : null,
+      artwork_ids: [...new Set(rows.map((row) => Number(row.artwork_id)).filter((id) => Number.isSafeInteger(id) && id > 0))],
+      orders,
+    });
+  } catch (error) {
+    console.error("Buyer checkout status error:", error.code || error.name);
+    return res.status(500).json({ message: "Unable to check payment status. Please try again." });
   }
 });
 
@@ -236,6 +289,12 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
   const addressId = Number(req.body.address_id);
 
   const paymentMethod = String(req.body.payment_method || "").toLowerCase();
+  const requestedArtworkIds = req.body.artwork_ids;
+  if (requestedArtworkIds !== undefined && (!Array.isArray(requestedArtworkIds) ||
+    !requestedArtworkIds.length || requestedArtworkIds.some((id) => !Number.isSafeInteger(id) || id <= 0))) {
+    return res.status(400).json({ message: "Select at least one valid artwork to checkout" });
+  }
+  const selectedArtworkIds = requestedArtworkIds === undefined ? null : [...new Set(requestedArtworkIds)];
 
   if (!Number.isInteger(addressId) || addressId <= 0) {
     return res.status(400).json({
@@ -263,6 +322,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
   let connection;
 
   try {
+    // Use the same merchant capability check for the initial checkout and its
+    // displayed options. Never advertise an unavailable method as payable.
+    const enabledChannels = isPayMongo ? await getPayMongoPaymentMethodTypes() : [];
     connection = await db.promise().getConnection();
 
     await connection.beginTransaction();
@@ -316,6 +378,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
          a.is_sold,
          a.status,
+         EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
+           AND LOWER(au.request_status) = 'verified') AS is_verified,
 
          CONCAT(
            s.first_name,
@@ -334,6 +398,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             a.student_id
 
        WHERE ci.add_to_id = ?
+       ${selectedArtworkIds ? "AND ci.artwork_id IN (?)" : ""}
 
        ORDER BY
          a.student_id,
@@ -341,8 +406,14 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
        FOR UPDATE`,
 
-      [cartId],
+      selectedArtworkIds ? [cartId, selectedArtworkIds] : [cartId],
     );
+
+    if (selectedArtworkIds && (items.length !== selectedArtworkIds.length ||
+      selectedArtworkIds.some((id) => !items.some((item) => Number(item.artwork_id) === id)))) {
+      await connection.rollback();
+      return res.status(400).json({ message: "Some selected artworks are no longer in your cart. Please review your selection." });
+    }
 
     if (!items.length) {
       await connection.rollback();
@@ -375,14 +446,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       WHERE
         oi.artwork_id IN (?)
         AND
-        o.status <> 'Cancelled'
-        AND (
-          o.payment_method = 'cod'
-          OR (
-            o.payment_method = 'paymongo'
-            AND o.payment_status = 'Paid'
-          )
-        )
+        ${getCompletedOrderCondition("o")}
 
       FOR UPDATE`,
 
@@ -404,7 +468,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     const unavailableIds = items
       .filter(
         (item) =>
-          getArtworkAvailability(
+          String(item.status || "").toLowerCase() !== "available" || !Number(item.is_verified) || getArtworkAvailability(
             item.stock_available,
 
             soldQuantities.get(String(item.artwork_id)) || 0,
@@ -538,6 +602,26 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       .filter(Boolean)
       .join(" ");
 
+    // Validate even COD prices and prevent repeat attempts from creating another
+    // payable session for the same buyer/artwork. Resume or expire the old group.
+    items.forEach(item => pesosToCentavos(item.price));
+    const pendingGroups = await query(connection,
+      `SELECT DISTINCT o.payment_reference FROM marketplace_order o
+       JOIN marketplace_order_item oi ON oi.order_id = o.order_id
+       WHERE o.customer_id = ? AND o.payment_method = 'paymongo'
+         AND o.payment_status IN ('Pending', 'Failed') AND o.status <> 'Cancelled'
+         AND oi.artwork_id IN (?) FOR UPDATE`,
+      [req.user.customer_id, items.map(item => item.artwork_id)],
+    );
+    if (pendingGroups.length) {
+      await connection.rollback();
+      return res.status(409).json({
+        message: "These artworks already have an unfinished payment. Continue or cancel that payment here before starting a new checkout.",
+        payment_reference: pendingGroups[0].payment_reference,
+        can_resume: true,
+      });
+    }
+
     /*
      * Your existing architecture creates
      * one marketplace_order per seller.
@@ -558,11 +642,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
      * Create one order per seller.
      */
     for (const [sellerId, sellerItems] of bySeller) {
-      const subtotal = sellerItems.reduce(
-        (sum, item) => sum + Number(item.price),
-
-        0,
-      );
+      const subtotal = sellerItems.reduce((sum, item) => sum + pesosToCentavos(item.price), 0) / 100;
 
       const [result] = await connection.query(
         `INSERT INTO marketplace_order
@@ -735,11 +815,13 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       const checkoutSession = await createPayMongoCheckoutSession({
         lineItems,
 
-        paymentMethodTypes: PAYMONGO_PAYMENT_METHOD_TYPES,
+        // Let PayMongo display the complete enabled set. A legacy client-side
+        // payment_channel must never pin Hosted Checkout to one method.
+        paymentMethodTypes: enabledChannels,
 
-        successUrl: `${frontendUrl}/buyer/profile/orders?payment=success`,
+        successUrl: `${frontendUrl}/buyer/checkout?payment=success&reference=${encodeURIComponent(paymentReference)}&artwork_ids=${items.map((item) => item.artwork_id).join(",")}`,
 
-        cancelUrl: `${frontendUrl}/buyer/checkout?payment=cancelled`,
+        cancelUrl: `${frontendUrl}/buyer/checkout?payment=cancelled&reference=${encodeURIComponent(paymentReference)}&artwork_ids=${items.map((item) => item.artwork_id).join(",")}`,
 
         referenceNumber: paymentReference,
 
@@ -759,7 +841,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         `UPDATE marketplace_order
 
          SET
-           paymongo_checkout_session_id = ?
+           paymongo_checkout_session_id = ?, paymongo_checkout_url = ?
 
          WHERE
            payment_reference = ?
@@ -767,6 +849,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
         [
           checkoutSession.checkoutSessionId,
+
+          checkoutSession.checkoutUrl,
 
           paymentReference,
 
@@ -799,7 +883,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
         checkout_url: checkoutSession.checkoutUrl,
 
-        orders: createdOrders,
+        artwork_ids: items.map((item) => item.artwork_id),
       });
     }
 
@@ -851,47 +935,152 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       await connection.rollback().catch(() => {});
     }
 
-    console.error("Buyer checkout error:", error);
+    console.error("Buyer checkout error:", error.code || error.name);
 
-    return res.status(500).json({
-      message: error?.message || "Unable to place your order",
+    return res.status(error instanceof PayMongoError ? error.status : 500).json({
+      message: error instanceof PayMongoError ? error.message : "Unable to place your order",
     });
   } finally {
     connection?.release();
   }
 });
 
-router.put("/:id/cancel", authenticateBuyer, async (req, res) => {
-  try {
-    const result = await query(
-      db.promise(),
-
-      `UPDATE marketplace_order
-         SET status = 'Cancelled'
-         WHERE
-           order_id = ?
-           AND customer_id = ?
-           AND status = 'Pending'`,
-
-      [req.params.id, req.user.customer_id],
-    );
-
-    if (!result.affectedRows) {
-      return res.status(409).json({
-        message: "Only pending orders can be cancelled",
-      });
-    }
-
-    return res.json({
-      message: "Order cancelled",
-    });
-  } catch (error) {
-    console.error("Buyer order cancellation error:", error);
-
-    return res.status(500).json({
-      message: "Unable to cancel order",
-    });
+const paymentGroup = async (connection, customerId, reference) => {
+  if (typeof reference !== "string" || !reference || reference.length > 100) {
+    throw new PayMongoError("Invalid payment reference", 400);
   }
-});
+  const orders = await query(connection,
+    `SELECT order_id, customer_id, payment_method, payment_status, payment_reference,
+       paymongo_checkout_session_id, paymongo_checkout_url, status, total_amount
+     FROM marketplace_order WHERE customer_id = ? AND payment_reference = ?
+       AND payment_method = 'paymongo' ORDER BY order_id FOR UPDATE`, [customerId, reference],
+  );
+  if (!orders.length) throw new PayMongoError("Checkout not found", 404);
+  if (orders.some(order => ["Paid", "Refunded"].includes(order.payment_status))) {
+    throw new PayMongoError("This checkout has already been paid. Cancellation requires a refund through support.", 409);
+  }
+  if (orders.some(order => !["Pending", "Cancelled"].includes(order.status))) {
+    throw new PayMongoError("This checkout needs support review before it can be changed.", 409);
+  }
+  if (orders.some(order => order.paymongo_checkout_session_id !== orders[0].paymongo_checkout_session_id)) {
+    throw new PayMongoError("This checkout has inconsistent payment sessions. Please contact support.", 409);
+  }
+  return orders;
+};
+
+const providerSession = async orders => {
+  const sessionId = orders[0].paymongo_checkout_session_id;
+  if (!sessionId) throw new PayMongoError("This checkout has no payment session. Please contact support.", 409);
+  const session = await retrievePayMongoCheckoutSession(sessionId);
+  if (session.attributes.reference_number !== orders[0].payment_reference) {
+    throw new PayMongoError("The payment session does not match this checkout.", 409);
+  }
+  if ((session.attributes.payments || []).some(payment => payment.attributes?.status === "paid")) {
+    throw new PayMongoError("PayMongo has received this payment. Please wait for payment verification and refresh your orders.", 409);
+  }
+  return session;
+};
+
+const cancelGroup = async (connection, customerId, reference) => {
+  const orders = await paymentGroup(connection, customerId, reference);
+  if (orders.every(order => order.status === "Cancelled" && order.payment_status === "Expired")) return;
+  let session = await providerSession(orders);
+  if ((session.attributes.payments || []).some(payment => ["pending", "processing"].includes(payment.attributes?.status))) {
+    throw new PayMongoError("A payment is still processing. Please wait before cancelling this checkout.", 409);
+  }
+  if (session.attributes.status !== "expired") {
+    try {
+      session = await expirePayMongoCheckoutSession(session.id);
+    } catch (error) {
+      // An expiry request can race another request or payment. Only a provider-
+      // confirmed expired session permits local cancellation/replacement.
+      if (error.providerStatus !== 400) throw error;
+      session = await providerSession(orders);
+      if (session.attributes.status !== "expired") {
+        throw new PayMongoError("PayMongo cannot cancel this checkout while payment is active or processing. Please refresh your orders.", 409);
+      }
+    }
+  }
+  if (session.attributes.status !== "expired") throw new PayMongoError("Payment session could not be expired", 409);
+  await query(connection,
+    `UPDATE marketplace_order SET status = 'Cancelled', payment_status = 'Expired'
+     WHERE order_id IN (?) AND payment_status <> 'Paid'`, [orders.map(order => order.order_id)],
+  );
+};
+
+const paymentAction = handler => async (req, res) => {
+  let connection;
+  try {
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+    const result = await handler(connection, req);
+    await connection.commit();
+    res.set("Cache-Control", "no-store");
+    return res.json(result);
+  } catch (error) {
+    if (connection) await connection.rollback().catch(() => {});
+    console.error("Buyer payment action failed:", error.code || error.name);
+    return res.status(error instanceof PayMongoError ? error.status : 500).json({
+      message: error instanceof PayMongoError ? error.message : "Unable to update checkout. Please try again.",
+    });
+  } finally {
+    connection?.release();
+  }
+};
+
+router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async (connection, req) => {
+  const orders = await paymentGroup(connection, req.user.customer_id, req.params.reference);
+  if (orders.some(order => order.status === "Cancelled" || order.payment_status === "Expired")) {
+    throw new PayMongoError("This checkout has expired. Return to your cart to place a new order.", 409);
+  }
+  const items = await query(connection,
+    `SELECT oi.artwork_id, oi.quantity, a.status, a.is_sold,
+       EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
+         AND LOWER(au.request_status) = 'verified') AS is_verified,
+       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+       ${getArtworkSoldQuantitySql("a")} AS sold_quantity
+     FROM marketplace_order_item oi LEFT JOIN artwork a ON a.artwork_id = oi.artwork_id
+     WHERE oi.order_id IN (?) ORDER BY oi.artwork_id FOR UPDATE`, [orders.map(order => order.order_id)],
+  );
+  if (!items.length || items.some(item => String(item.status || "").toLowerCase() !== "available" || !Number(item.is_verified) ||
+      getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1).isSoldOut)) {
+    throw new PayMongoError("An artwork in this checkout is no longer available. Cancel this checkout and review your cart.", 409);
+  }
+  const session = await providerSession(orders);
+  if (session.attributes.status !== "active") {
+    throw new PayMongoError("This payment session has expired. Cancel the checkout and return to your cart.", 409);
+  }
+  const checkoutUrl = session.attributes.checkout_url || orders[0].paymongo_checkout_url;
+  if (!checkoutUrl || !/^https:\/\/checkout\.paymongo\.com\//.test(checkoutUrl)) {
+    throw new PayMongoError("PayMongo did not return a valid checkout URL");
+  }
+  return { checkout_url: checkoutUrl, payment_reference: req.params.reference, payment_status: "Pending" };
+}));
+
+router.put("/payments/:reference/cancel", authenticateBuyer, paymentAction(async (connection, req) => {
+  await cancelGroup(connection, req.user.customer_id, req.params.reference);
+  return { message: "Checkout cancelled. Your cart items were kept.", payment_status: "Expired" };
+}));
+
+router.put("/:id/cancel", authenticateBuyer, paymentAction(async (connection, req) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new PayMongoError("Invalid order", 400);
+  // Resolve the group first, then use the same group lock order as the webhook.
+  const rows = await query(connection,
+    `SELECT order_id, payment_method, payment_reference FROM marketplace_order
+     WHERE order_id = ? AND customer_id = ?`, [id, req.user.customer_id],
+  );
+  if (!rows.length) throw new PayMongoError("Order not found", 404);
+  if (rows[0].payment_method === "paymongo") {
+    await cancelGroup(connection, req.user.customer_id, rows[0].payment_reference);
+    return { message: "Checkout cancelled. Your cart items were kept." };
+  }
+  const result = await query(connection,
+    `UPDATE marketplace_order SET status = 'Cancelled' WHERE order_id = ?
+     AND customer_id = ? AND payment_method = 'cod' AND status = 'Pending'`, [id, req.user.customer_id],
+  );
+  if (!result.affectedRows) throw new PayMongoError("Only pending COD orders can be cancelled", 409);
+  return { message: "Order cancelled" };
+}));
 
 export default router;

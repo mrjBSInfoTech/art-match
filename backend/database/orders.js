@@ -28,6 +28,7 @@ const orderTableSql = `
     payment_reference VARCHAR(100) NULL,
 
     paymongo_checkout_session_id VARCHAR(100) NULL,
+    paymongo_checkout_url VARCHAR(2048) NULL,
     paymongo_payment_id VARCHAR(100) NULL,
     paymongo_payment_method VARCHAR(50) NULL,
 
@@ -56,6 +57,7 @@ const orderTableSql = `
 
     parcel_photos JSON NULL,
     tracking_url VARCHAR(2048) NULL,
+    handling_instructions JSON NULL,
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -84,6 +86,56 @@ const query = (sql) =>
     });
   });
 
+const paymentStatuses = ["Pending", "Paid", "Failed", "Expired", "Refunded"];
+// Only known legacy online labels can be migrated automatically. Unknown/manual
+// processors retain their original values rather than being silently converted.
+const legacyOnlineMethods = new Map([
+  ["gcash", "gcash"], ["maya", "paymaya"], ["paymaya", "paymaya"],
+  ["card", "card"], ["qrph", "qrph"],
+]);
+const sqlLiteral = (value) => `'${String(value).replaceAll("\\", "\\\\").replaceAll("'", "''")}'`;
+const enumValues = (type) => {
+  if (!/^enum\(/i.test(type || "")) return null;
+  return Array.from(String(type).matchAll(/'((?:[^'\\]|\\.|'')*)'/g),
+    (match) => match[1].replace(/\\(.)/g, "$1").replaceAll("''", "'"));
+};
+const enumSql = (values) => `ENUM(${values.map(sqlLiteral).join(", ")})`;
+
+const ensurePaymentMethodValues = async (column) => {
+  if (!column) return;
+  const existing = enumValues(column.Type);
+  if (!existing) {
+    console.warn("Payment method column is not an ENUM; keeping existing values for manual review.");
+    return;
+  }
+  const legacy = existing.filter((value) => legacyOnlineMethods.has(value));
+  const unknown = existing.filter((value) => !["paymongo", "cod"].includes(value) && !legacyOnlineMethods.has(value));
+  const target = ["paymongo", "cod", ...unknown];
+  const nullable = column.Null === "YES" ? "NULL" : "NOT NULL";
+  const originalDefault = column.Default === null || column.Default === undefined
+    ? "" : ` DEFAULT ${sqlLiteral(column.Default)}`;
+
+  // Expand first so converting an older GCash/Card ENUM cannot truncate rows.
+  const expanded = [...existing, ...target.filter((value) => !existing.includes(value))];
+  if (expanded.length !== existing.length) {
+    await query(`ALTER TABLE marketplace_order MODIFY COLUMN payment_method ${enumSql(expanded)} ${nullable}${originalDefault}`);
+  }
+  for (const method of legacy) {
+    await query(`UPDATE marketplace_order
+      SET paymongo_payment_method = COALESCE(NULLIF(paymongo_payment_method, ''), ${sqlLiteral(legacyOnlineMethods.get(method))}),
+          payment_method = 'paymongo'
+      WHERE payment_method = ${sqlLiteral(method)}`);
+  }
+  if (legacy.length) {
+    const defaultValue = legacyOnlineMethods.has(column.Default) ? "paymongo" : column.Default;
+    const defaultSql = defaultValue === null || defaultValue === undefined ? "" : ` DEFAULT ${sqlLiteral(defaultValue)}`;
+    await query(`ALTER TABLE marketplace_order MODIFY COLUMN payment_method ${enumSql(target)} ${nullable}${defaultSql}`);
+  }
+  if (unknown.length) {
+    console.warn("Legacy payment methods were preserved and require manual review before they can be processed.");
+  }
+};
+
 const ensureOrderColumns = async () => {
   const existingColumns = await query(
     "SHOW COLUMNS FROM marketplace_order",
@@ -92,24 +144,6 @@ const ensureOrderColumns = async () => {
   const names = new Set(
     existingColumns.map((column) => column.Field),
   );
-
-  /*
-   * ArtMatch only has two top-level payment methods:
-   *
-   * paymongo = online payment
-   * cod      = cash on delivery
-   *
-   * GCash, Maya, Card, QR Ph, etc. are
-   * recorded separately as the PayMongo channel.
-   */
-  await query(`
-    ALTER TABLE marketplace_order
-    MODIFY COLUMN payment_method
-    ENUM(
-      'paymongo',
-      'cod'
-    ) NOT NULL
-  `);
 
   if (!names.has("payment_status")) {
     await query(`
@@ -125,6 +159,14 @@ const ensureOrderColumns = async () => {
       NOT NULL DEFAULT 'Pending'
       AFTER payment_method
     `);
+  } else {
+    const column = existingColumns.find((entry) => entry.Field === "payment_status");
+    const existing = enumValues(column.Type);
+    if (existing && paymentStatuses.some((value) => !existing.includes(value))) {
+      const expanded = [...existing, ...paymentStatuses.filter((value) => !existing.includes(value))];
+      const nullable = column.Null === "YES" ? "NULL" : "NOT NULL";
+      await query(`ALTER TABLE marketplace_order MODIFY COLUMN payment_status ${enumSql(expanded)} ${nullable} DEFAULT 'Pending'`);
+    }
   }
 
   if (!names.has("payment_reference")) {
@@ -150,6 +192,14 @@ const ensureOrderColumns = async () => {
       ALTER TABLE marketplace_order
       ADD COLUMN paymongo_payment_id
       VARCHAR(100) NULL
+      AFTER paymongo_checkout_session_id
+    `);
+  }
+
+  if (!names.has("paymongo_checkout_url")) {
+    await query(`
+      ALTER TABLE marketplace_order
+      ADD COLUMN paymongo_checkout_url VARCHAR(2048) NULL
       AFTER paymongo_checkout_session_id
     `);
   }
@@ -192,6 +242,8 @@ const ensureOrderColumns = async () => {
       ADD COLUMN handling_instructions JSON NULL
     `);
   }
+
+  await ensurePaymentMethodValues(existingColumns.find((column) => column.Field === "payment_method"));
 
   const indexes = await query(
     "SHOW INDEX FROM marketplace_order",

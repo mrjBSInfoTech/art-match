@@ -40,6 +40,7 @@ import {
 } from "../../../utils/artworkScanAttributes";
 import ArtworkScanFields from "./ArtworkScanFields";
 import ArtworkDetailsFields from "./ArtworkDetailsFields";
+import ArtworkImage from "../../common/ArtworkImage";
 
 const createEmptyArtworkForm = () => ({
   title: "",
@@ -194,25 +195,29 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     setError("");
   };
 
-  const handleAddFeature = () => {
-    const additions = normalizeArtworkFeatures(featureInput);
+  const addFeatures = (value) => {
+    const additions = normalizeArtworkFeatures(value);
     if (!additions.length) {
       setFeatureError("Enter a feature name.");
-      return;
+      return false;
     }
     const features = normalizeArtworkFeatures([...(formData.feature_scanned || []), ...additions]);
     const errors = getArtworkScanErrors({ ...formData, feature_scanned: features });
     if (errors.feature_scanned) {
       setFeatureError(errors.feature_scanned);
-      return;
+      return false;
     }
     setFormData((prev) => ({
       ...prev,
       feature_scanned: normalizeArtworkFeatures([...(prev.feature_scanned || []), ...additions]),
     }));
-    setFeatureInput("");
     setFeatureError("");
     setError("");
+    return true;
+  };
+
+  const handleAddFeature = () => {
+    if (addFeatures(featureInput)) setFeatureInput("");
   };
 
   const handleRemoveFeature = (feature) => {
@@ -430,11 +435,10 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             onDragOver={(event) => event.preventDefault()}
           >
             {imagePreview ? (
-              <Box
-                component="img"
-                src={imagePreview}
+              <ArtworkImage
+                image={imagePreview}
                 alt="Preview"
-                sx={{ maxWidth: "100%", maxHeight: 160, objectFit: "contain" }}
+                sx={{ width: "100%", height: 160, maxWidth: "100%", objectFit: "contain" }}
               />
             ) : (
               <>
@@ -565,6 +569,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                   setError("");
                 }}
                 onAddFeature={handleAddFeature}
+                onSelectFeature={addFeatures}
                 featureError={featureError}
                 isEditing={Boolean(selectedArtwork)}
               />

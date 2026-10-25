@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   Button,
@@ -12,6 +12,10 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   Typography,
   Chip,
@@ -28,42 +32,190 @@ import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 
 import { fetchCart } from "../../api/buyer/cartAPI";
 import { fetchAddresses } from "../../api/buyer/addressAPI";
-import { placeBuyerOrder } from "../../api/buyer/orderAPI";
+import { cancelBuyerPayment, fetchBuyerPayment, placeBuyerOrder, retryBuyerPayment } from "../../api/buyer/orderAPI";
+import { canResumePayment, isOrderPaid } from "../../utils/orderPayments.js";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+
+const currency = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(value || 0));
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const selectedArtworkIds = useMemo(() => {
+    const params = new URLSearchParams(search);
+    if (!params.has("artwork_ids")) return null;
+    const ids = params.get("artwork_ids").split(",").map(Number);
+    return ids.length && ids.every((id) => Number.isSafeInteger(id) && id > 0) ? [...new Set(ids)] : [];
+  }, [search]);
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [currentAddress, setCurrentAddress] = useState(null);
+  const [addresses, setAddresses] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("paymongo");
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
+  const [existingCheckout, setExistingCheckout] = useState("");
+  const [payment, setPayment] = useState(null);
+  const [paymentChecking, setPaymentChecking] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentActionError, setPaymentActionError] = useState("");
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const [paymentRefresh, setPaymentRefresh] = useState(0);
+  const submitting = useRef(false);
+  const paymentAction = useRef(false);
+  const cancelledReturns = useRef(new Set());
+  const confirmedPayments = useRef(new Set());
+  const params = new URLSearchParams(search);
+  const returnPayment = params.get("payment") || "";
+  const paymentReference = params.get("reference") || existingCheckout;
 
   useEffect(() => {
+    if (!paymentReference) {
+      setPayment(null);
+      return;
+    }
+    let active = true;
+    let controller;
+    let timer;
+    let pollUntil = Date.now() + 120000;
+    const checkPayment = async () => {
+      clearTimeout(timer);
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      setPaymentChecking(true);
+      let keepPolling = false;
+      try {
+        let result = await fetchBuyerPayment(paymentReference, { signal: request.signal });
+        if (!active || request.signal.aborted) return;
+        let launchedReference = "";
+        try { launchedReference = sessionStorage.getItem("paymongo_payment_reference") || ""; } catch { /* Manual cancellation is also available. */ }
+        const matching = Array.isArray(result.orders) ? result.orders : [];
+        const mayCancel = matching.length > 0 && matching.every(canResumePayment);
+        // Only a return from the checkout launched in this tab may auto-cancel it.
+        if (returnPayment === "cancelled" && launchedReference === paymentReference && mayCancel &&
+            !cancelledReturns.current.has(paymentReference) && !paymentAction.current) {
+          cancelledReturns.current.add(paymentReference);
+          paymentAction.current = true;
+          try {
+            const cancelled = await cancelBuyerPayment(paymentReference);
+            if (!active || request.signal.aborted) return;
+            setPaymentMessage(cancelled.message || "Checkout cancelled. Your cart items were kept.");
+            try { sessionStorage.removeItem("paymongo_payment_reference"); } catch { /* Cancellation was confirmed by the backend. */ }
+            result = await fetchBuyerPayment(paymentReference, { signal: request.signal });
+            if (!active || request.signal.aborted) return;
+          } catch (cancelError) {
+            if (active && !request.signal.aborted) setPaymentActionError(cancelError.message || "Unable to cancel checkout. Please try again.");
+          } finally {
+            paymentAction.current = false;
+          }
+        } else {
+          setPaymentError("");
+        }
+        setPayment(result);
+        const orders = Array.isArray(result.orders) ? result.orders : [];
+        const paid = String(result.payment_status).toLowerCase() === "paid" && orders.length > 0 && orders.every(isOrderPaid);
+        if (paid) {
+          if (!confirmedPayments.current.has(paymentReference)) {
+            confirmedPayments.current.add(paymentReference);
+            try { sessionStorage.removeItem("paymongo_payment_reference"); } catch { /* Confirmed server state remains authoritative. */ }
+            window.dispatchEvent(new Event("cart-updated"));
+            navigate(`/buyer/profile/orders?payment=success&reference=${encodeURIComponent(paymentReference)}`, { replace: true });
+          }
+          return;
+        }
+        keepPolling = orders.some(canResumePayment);
+      } catch (statusError) {
+        if (active && !request.signal.aborted) setPaymentError(statusError.message || "Unable to verify your payment. Try checking again.");
+      } finally {
+        if (active && !request.signal.aborted) {
+          setPaymentChecking(false);
+          if (keepPolling && document.visibilityState !== "hidden" && Date.now() + 4000 <= pollUntil) timer = setTimeout(checkPayment, 4000);
+        }
+      }
+    };
+    const checkVisible = () => {
+      if (document.visibilityState === "hidden") {
+        clearTimeout(timer);
+        controller?.abort();
+        return;
+      }
+      pollUntil = Date.now() + 120000;
+      checkPayment();
+    };
+    setPayment(null);
+    setPaymentError("");
+    checkPayment();
+    window.addEventListener("focus", checkVisible);
+    window.addEventListener("pageshow", checkVisible);
+    document.addEventListener("visibilitychange", checkVisible);
+    return () => {
+      active = false;
+      controller?.abort();
+      clearTimeout(timer);
+      window.removeEventListener("focus", checkVisible);
+      window.removeEventListener("pageshow", checkVisible);
+      document.removeEventListener("visibilitychange", checkVisible);
+    };
+  }, [paymentReference, paymentRefresh, returnPayment, navigate]);
+
+  useEffect(() => {
+    if (paymentReference) {
+      setPageLoading(false);
+      return;
+    }
+    let active = true;
+    let latestRequest = 0;
     const loadCheckoutData = async () => {
+      const request = ++latestRequest;
       try {
         setPageLoading(true);
         const [cart, addresses] = await Promise.all([
           fetchCart(),
           fetchAddresses(),
         ]);
-        setCartItems(Array.isArray(cart) ? cart : []);
+        if (!active || request !== latestRequest) return;
+        const availableCart = Array.isArray(cart) ? cart : [];
+        const checkoutItems = selectedArtworkIds === null ? availableCart : availableCart.filter((item) => selectedArtworkIds.includes(Number(item.artwork_id)));
+        setCartItems(checkoutItems);
+        if (selectedArtworkIds !== null && (!selectedArtworkIds.length || checkoutItems.length !== selectedArtworkIds.length)) {
+          setError("Some selected artworks are no longer in your cart. Return to the cart and select your artworks again.");
+        }
         const addressList = Array.isArray(addresses) ? addresses : [];
+        setAddresses(addressList);
         setCurrentAddress(
           addressList.find((address) => Boolean(address.is_current)) ||
             addressList[0] ||
             null,
         );
       } catch (loadError) {
-        setError(loadError.message || "Unable to load checkout data");
+        if (active && request === latestRequest) setError(loadError.message || "Unable to load checkout data");
       } finally {
-        setPageLoading(false);
+        if (active && request === latestRequest) setPageLoading(false);
       }
     };
 
     loadCheckoutData();
-  }, []);
+    const restoreCheckout = (event) => {
+      if (!event.persisted) return;
+      submitting.current = false;
+      setLoading(false);
+      setError("");
+      try {
+        const reference = sessionStorage.getItem("paymongo_payment_reference");
+        if (reference) {
+          setExistingCheckout(reference);
+          return;
+        }
+      } catch { /* A new submission can also recover the checkout from the server. */ }
+      loadCheckoutData();
+    };
+    window.addEventListener("pageshow", restoreCheckout);
+    return () => {
+      active = false;
+      window.removeEventListener("pageshow", restoreCheckout);
+    };
+  }, [selectedArtworkIds, paymentReference]);
 
   const profile = {
     firstName: localStorage.getItem("buyer_first_name") || "Customer",
@@ -84,20 +236,30 @@ export default function Checkout() {
   const estimatedShipping =
     cartItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
   const total = subtotal + estimatedShipping;
+  const selectionIncomplete = selectedArtworkIds !== null &&
+    (!selectedArtworkIds.length || selectedArtworkIds.length !== cartItems.length);
 
   const handlePlaceOrder = async () => {
+    if (submitting.current) return;
+    if (!cartItems.length || selectionIncomplete || hasSoldOutItems) {
+      setError("Please return to your cart and select available artworks to checkout.");
+      return;
+    }
     if (!currentAddress?.address_id) {
       setError("Please select a delivery address.");
       return;
     }
 
     try {
+      submitting.current = true;
       setError("");
+      setExistingCheckout("");
       setLoading(true);
 
       const result = await placeBuyerOrder(
         currentAddress.address_id,
         paymentMethod,
+        selectedArtworkIds ?? cartItems.map((item) => Number(item.artwork_id)),
       );
 
       /*
@@ -125,6 +287,12 @@ export default function Checkout() {
           throw new Error("PayMongo checkout URL was not returned.");
         }
 
+        try {
+          if (result.payment_reference) sessionStorage.setItem("paymongo_payment_reference", result.payment_reference);
+        } catch {
+          // The return URL also includes the reference when browser storage is unavailable.
+        }
+
         /*
          * Leave ArtMatch and open the secure
          * PayMongo Hosted Checkout page.
@@ -137,10 +305,47 @@ export default function Checkout() {
       throw new Error("Unsupported payment method.");
     } catch (orderError) {
       setError(orderError.message || "Unable to place your order");
+      if (orderError.status === 409 && orderError.canResume) {
+        setExistingCheckout(orderError.paymentReference);
+        setError("");
+      }
 
+      setLoading(false);
+      submitting.current = false;
+    }
+  };
+
+  const handlePaymentAction = async (action) => {
+    if (paymentAction.current || !paymentReference) return;
+    paymentAction.current = true;
+    setLoading(true);
+    setPaymentActionError("");
+    try {
+      if (action === "cancel") {
+        const result = await cancelBuyerPayment(paymentReference);
+        setPaymentMessage(result.message || "Checkout cancelled. Your cart items were kept.");
+        try { sessionStorage.removeItem("paymongo_payment_reference"); } catch { /* The backend has confirmed cancellation. */ }
+        setPaymentRefresh((value) => value + 1);
+      } else {
+        const result = await retryBuyerPayment(paymentReference);
+        if (!result.checkout_url) throw new Error("Unable to open payment. Check its status and try again.");
+        try { sessionStorage.setItem("paymongo_payment_reference", paymentReference); } catch { /* The return URL includes the reference. */ }
+        window.location.assign(result.checkout_url);
+      }
+    } catch (actionError) {
+      setPaymentActionError(actionError.message || "Unable to update this checkout.");
+      setPaymentRefresh((value) => value + 1);
+    } finally {
+      paymentAction.current = false;
       setLoading(false);
     }
   };
+
+  const paymentOrders = Array.isArray(payment?.orders) ? payment.orders : [];
+  const paymentCanResume = paymentOrders.length > 0 && paymentOrders.every(canResumePayment);
+  const paymentPaid = String(payment?.payment_status).toLowerCase() === "paid" && paymentOrders.length > 0 && paymentOrders.every(isOrderPaid);
+  const paymentRefunded = String(payment?.payment_status).toLowerCase() === "refunded";
+  const paymentClosed = paymentOrders.length > 0 && paymentOrders.every((order) => String(order.status).toLowerCase() === "cancelled") || ["expired", "refunded"].includes(String(payment?.payment_status).toLowerCase());
 
   return (
     <Container
@@ -169,12 +374,60 @@ export default function Checkout() {
         </Box>
       )}
 
-      {error && (
+      {error && !paymentReference && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
           {error}
         </Alert>
       )}
-      {!pageLoading && hasSoldOutItems && (
+      {paymentReference && (
+        <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3, maxWidth: 850, mx: "auto" }}>
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography variant="h5" fontWeight={800}>{paymentPaid ? "Payment received" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {paymentPaid ? "Opening your orders…" : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
+                  ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
+                  : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection."}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}>Checkout: {paymentReference}</Typography>
+            </Box>
+            {paymentChecking && <Stack direction="row" alignItems="center" spacing={1.5}><CircularProgress size={20} /><Typography role="status">Verifying your payment…</Typography></Stack>}
+            {paymentError && <Alert severity="error">{paymentError}</Alert>}
+            {paymentActionError && <Alert severity="error">{paymentActionError}</Alert>}
+            {paymentMessage && <Alert severity="info">{paymentMessage}</Alert>}
+            {!paymentChecking && !paymentError && !paymentPaid && !paymentClosed && <Alert severity={String(payment?.payment_status).toLowerCase() === "failed" ? "warning" : "info"}>
+              {String(payment?.payment_status).toLowerCase() === "failed" ? "Payment was unsuccessful. Continue payment to try again, or cancel this checkout." : "Payment has not been confirmed yet. No purchase has been placed."}
+            </Alert>}
+            {paymentOrders.length > 0 && (
+              <Stack spacing={2} divider={<Divider />}>
+                {paymentOrders.map((order) => (
+                  <Box key={order.orderId}>
+                    {order.items?.map((item) => (
+                      <Stack key={item.id || item.artworkId} direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
+                        <WatermarkedArtworkImage image={item.image} alt={item.title || "Artwork"} sx={{ width: 64, height: 64, borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{item.title}</Typography>
+                          <Typography variant="body2" color="text.secondary">{item.artist} · Qty {item.qty || 1}</Typography>
+                        </Box>
+                        <Typography fontWeight={700}>{currency(Number(item.price) * Number(item.qty || 1))}</Typography>
+                      </Stack>
+                    ))}
+                  </Box>
+                ))}
+                <SummaryRow label="Total including shipping" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
+              </Stack>
+            )}
+            <Stack direction={{ xs: "column", sm: "row" }} flexWrap="wrap" gap={1.5}>
+              {paymentCanResume && <Button variant="contained" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("resume")}>Continue payment</Button>}
+              {paymentCanResume && <Button color="error" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("cancel")}>Cancel checkout</Button>}
+              {!paymentPaid && <Button variant="outlined" disabled={loading || paymentChecking} onClick={() => setPaymentRefresh((value) => value + 1)}>Check payment status</Button>}
+              {paymentRefunded && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
+              <Button disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
+      {!paymentReference && !pageLoading && hasSoldOutItems && (
         <Alert
           severity="warning"
           sx={{ mb: 3, borderRadius: 2 }}
@@ -193,7 +446,7 @@ export default function Checkout() {
         </Alert>
       )}
 
-      {!pageLoading && !error && (
+      {!paymentReference && !pageLoading && (!error || cartItems.length > 0) && (
         <Grid
           container
           spacing={4}
@@ -202,7 +455,7 @@ export default function Checkout() {
             gridTemplateColumns: { lg: "minmax(0, 7fr) minmax(0, 3fr)" },
           }}
         >
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12 }}>
             <Stack spacing={3}>
               {/* Shipping Information Card */}
               <Paper
@@ -273,6 +526,25 @@ export default function Checkout() {
                 >
                   Delivery Address
                 </Typography>
+
+                {addresses.length > 1 && (
+                  <FormControl fullWidth size="small" sx={{ mt: 1.5, mb: 1 }}>
+                    <InputLabel id="checkout-address-label">Select delivery address</InputLabel>
+                    <Select
+                      labelId="checkout-address-label"
+                      label="Select delivery address"
+                      value={currentAddress?.address_id || ""}
+                      disabled={loading}
+                      onChange={(event) => setCurrentAddress(addresses.find((address) => String(address.address_id) === String(event.target.value)) || null)}
+                    >
+                      {addresses.map((address) => (
+                        <MenuItem key={address.address_id} value={address.address_id}>
+                          {[address.street_name, address.barangay, address.city, address.province].filter(Boolean).join(", ")}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
 
                 {currentAddress ? (
                   <Paper
@@ -391,15 +663,17 @@ export default function Checkout() {
 
                 <RadioGroup
                   value={paymentMethod}
+                  aria-label="Payment method"
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   sx={{ gap: 1.5 }}
                 >
                   <PaymentOptionCard
                     value="paymongo"
-                    title="Secure Online Payment (GCash, Maya, Card, QR PH)"
-                    subtitle="Fast and secure e-wallet transaction"
+                    title="Secure Online Payment"
+                    subtitle="Choose your e-wallet, card, or QR payment on PayMongo"
                     icon={<AccountBalanceWalletOutlinedIcon color="primary" />}
                     selectedValue={paymentMethod}
+                    disabled={loading}
                   />
 
                   <PaymentOptionCard
@@ -408,13 +682,15 @@ export default function Checkout() {
                     subtitle="Pay in cash upon artwork delivery"
                     icon={<LocalAtmOutlinedIcon color="primary" />}
                     selectedValue={paymentMethod}
+                    disabled={loading}
                   />
                 </RadioGroup>
                 {paymentMethod === "paymongo" && (
-                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                    You will be redirected to PayMongo's secure checkout where
-                    you can choose GCash, Maya, Card, or QR Ph.
-                  </Alert>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    You will be redirected to PayMongo to choose from its available
+                    e-wallet, card, and QR payment options. Your purchase appears in
+                    Orders after payment is confirmed.
+                  </Typography>
                 )}
 
                 {paymentMethod === "cod" && (
@@ -427,7 +703,7 @@ export default function Checkout() {
           </Grid>
 
           {/* Right Sidebar: Compact Summary (4 columns out of 12) */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12 }}>
             <Paper
               elevation={0}
               sx={{
@@ -530,7 +806,7 @@ export default function Checkout() {
                   cartItems.length === 0 ||
                   !currentAddress ||
                   loading ||
-                  hasSoldOutItems
+                  hasSoldOutItems || selectionIncomplete
                 }
                 onClick={handlePlaceOrder}
               >
@@ -548,7 +824,7 @@ export default function Checkout() {
   );
 }
 
-function PaymentOptionCard({ value, title, subtitle, icon, selectedValue }) {
+function PaymentOptionCard({ value, title, subtitle, icon, selectedValue, disabled = false }) {
   const isSelected = selectedValue === value;
   return (
     <Paper
@@ -556,18 +832,20 @@ function PaymentOptionCard({ value, title, subtitle, icon, selectedValue }) {
       sx={{
         p: 2,
         borderRadius: 2.5,
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.65 : 1,
         borderColor: isSelected ? "primary.main" : "divider",
         borderWidth: isSelected ? 2 : 1,
         bgcolor: isSelected ? "action.selected" : "background.paper",
         transition: "all 0.2s ease-in-out",
         "&:hover": {
-          borderColor: "primary.main",
+          borderColor: disabled ? "divider" : "primary.main",
         },
       }}
     >
       <FormControlLabel
         value={value}
+        disabled={disabled}
         control={<Radio size="small" />}
         sx={{ width: "100%", m: 0, alignItems: "center" }}
         label={

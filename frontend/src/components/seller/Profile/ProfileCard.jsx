@@ -3,19 +3,13 @@ import { Box, Button, Card, CardContent, Chip, Typography } from "@mui/material"
 import { useTheme } from "@mui/material/styles";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import StorefrontInfo from "../Storefront/StorefrontInfo";
-
-const getArtworkImage = (image) => {
-  if (!image) return "";
-  if (/^https?:\/\//i.test(image)) return image;
-  if (image.startsWith("/")) return `http://localhost:5000${image}`;
-  return `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`;
-};
+import ArtworkImage from "../../common/ArtworkImage";
 
 export default function ProfileCard({ artwork, isPinned = false }) {
   const theme = useTheme();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [failedImage, setFailedImage] = useState("");
-  const image = getArtworkImage(artwork.image || artwork.image_url);
+  const image = artwork.image || artwork.image_url;
   const status = String(artwork.request_status || artwork.status || "Unverified").trim();
   const statusColor = ["verified", "approved"].includes(status.toLowerCase())
     ? "success"
@@ -37,7 +31,7 @@ export default function ProfileCard({ artwork, isPinned = false }) {
           bgcolor: "background.default", display: "grid", placeItems: "center",
         }}>
           {image && failedImage !== image ? (
-            <Box component="img" src={image} alt={artwork.title || "Artwork"}
+            <ArtworkImage image={image} alt={artwork.title || "Artwork"}
               onError={() => setFailedImage(image)}
               sx={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
           ) : (

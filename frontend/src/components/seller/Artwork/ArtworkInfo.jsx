@@ -17,6 +17,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import { getSellerProfile } from "../../../api/seller/sellerAPI";
+import ArtworkImage from "../../common/ArtworkImage";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -154,9 +155,7 @@ function ArtworkInfo({
         ? theme.palette.warning[statusShade]
         : theme.palette.text.secondary;
 
-  const imageUrl = artwork?.image
-    ? `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
-    : "https://via.placeholder.com/640x360?text=No+Image";
+  const imageUrl = artwork?.image || artwork?.image_url;
 
   const detailLabelSx = {
     display: "block",
@@ -242,14 +241,9 @@ function ArtworkInfo({
                 mt: 1.5,
               }}
             >
-              <Box
-                component="img"
-                src={imageUrl}
+              <ArtworkImage
+                image={imageUrl}
                 alt={artwork.title || "Artwork preview"}
-                onError={(event) => {
-                  event.currentTarget.src =
-                    "https://via.placeholder.com/640x360?text=No+Image";
-                }}
                 sx={{
                   width: "100%",
                   height: "100%",

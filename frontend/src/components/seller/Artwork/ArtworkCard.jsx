@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Card,
-  CardMedia,
   CardContent,
   Chip,
   Typography,
@@ -13,6 +12,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ArtworkInfo from "./ArtworkInfo";
+import ArtworkImage from "../../common/ArtworkImage";
 // Icons
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -103,25 +103,14 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
               justifyContent: "center",
             }}
           >
-            <CardMedia
-              component="img"
+            <ArtworkImage
               sx={{
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
                 objectPosition: "center",
               }}
-              image={
-                artwork.image
-                  ? `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
-                  : `https://via.placeholder.com/250x150?text=No+Image`
-              }
-              onError={(e) => {
-                console.error("Image failed to load:", artwork.image);
-                e.target.onerror = null;
-                e.target.src =
-                  "https://via.placeholder.com/250x150?text=No+Image";
-              }}
+              image={artwork.image || artwork.image_url}
               alt={artwork.title}
             />
             <Chip

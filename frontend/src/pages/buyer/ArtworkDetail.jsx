@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -23,6 +23,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
+import RelatedArtists from "../../components/buyer/Artist/RelatedArtists";
 import {
   fetchRecentlyViewedArtworks,
   getRecommendationSessionId,
@@ -30,8 +31,11 @@ import {
 } from "../../api/buyer/recommendationAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
+import ArtworkAdditionalDetails from "../../components/buyer/Artwork/ArtworkAdditionalDetails";
+import { getArtworkDetailCategory } from "../../utils/artworkDetails";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
+import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -60,16 +64,16 @@ export default function ArtworkDetail() {
   const navigate = useNavigate();
   const [artworks, setArtworks] = useState([]);
   const [artwork, setArtwork] = useState(null);
+  const relatedArtists = useMemo(
+    () => getArtworkRelatedArtists(artwork, artworks),
+    [artwork, artworks],
+  );
   const [loading, setLoading] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
-  const [recentHistory, setRecentHistory] = useState(null);
-  const currentRecentHistory =
-    recentHistory && recentHistory.artworkId === id ? recentHistory : null;
-  const recentlyViewed = currentRecentHistory?.artworks || [];
-  const recentHistoryError = currentRecentHistory?.error || "";
+  const [, setRecentHistory] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -251,6 +255,7 @@ export default function ArtworkDetail() {
       : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
+  const detailCategory = getArtworkDetailCategory(artwork.art_type, artwork.product);
 
   const similarArtworks = getSimilarArtworks(artwork, artworks);
 
@@ -464,6 +469,10 @@ export default function ArtworkDetail() {
                 </Typography>
               </Box>
 
+              {detailCategory && (
+                <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} />
+              )}
+
               {/* Colors Section */}
               <Box>
                 <Typography
@@ -665,58 +674,6 @@ export default function ArtworkDetail() {
         </DialogContent>
       </Dialog>
 
-      <Box
-        component="section"
-        aria-labelledby="recently-viewed-title"
-        sx={{ mt: { xs: 5, md: 8 } }}
-      >
-        <Typography
-          id="recently-viewed-title"
-          variant="h5"
-          fontWeight={700}
-          mb={3}
-        >
-          Recently viewed artworks
-        </Typography>
-        {!currentRecentHistory ? (
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1.5}
-            role="status"
-            sx={{ py: 3 }}
-          >
-            <CircularProgress size={22} aria-label="Loading recent history" />
-            <Typography color="text.secondary">
-              Loading your recent history...
-            </Typography>
-          </Stack>
-        ) : recentHistoryError ? (
-          <Alert severity="error">{recentHistoryError}</Alert>
-        ) : recentlyViewed.length > 0 ? (
-          <Grid container spacing={3}>
-            {recentlyViewed.map((item) => (
-              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={item.artwork_id}>
-                <ArtworkCard artwork={item} showAddToCart={false} />
-              </Grid>
-            ))}
-          </Grid>
-        ) : (
-          <Paper
-            variant="outlined"
-            sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}
-          >
-            <Typography color="text.secondary">
-              No other recently viewed artworks yet. Open another artwork to
-              start your history.
-            </Typography>
-            <Button onClick={() => navigate("/buyer/shop")} sx={{ mt: 1 }}>
-              Browse artworks
-            </Button>
-          </Paper>
-        )}
-      </Box>
-
       {similarArtworks.length > 0 && (
         <Box
           component="section"
@@ -744,6 +701,11 @@ export default function ArtworkDetail() {
           </Grid>
         </Box>
       )}
+      <RelatedArtists
+        artists={relatedArtists}
+        eyebrow="Similar style and medium"
+        description="Discover artists whose artworks share this artwork’s style or medium. Artists matching both appear first."
+      />
       {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}

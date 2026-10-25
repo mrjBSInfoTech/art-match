@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   IconButton,
   Paper,
   Rating,
@@ -22,29 +20,23 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { cancelBuyerOrder, fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import { submitBuyerReview } from "../../api/buyer/reviewsAPI";
-import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
-
-const statusColor = {
-  Pending: "warning",
-  Confirmed: "info",
-  Packed: "secondary",
-  Shipped: "primary",
-  Delivered: "success",
-  Cancelled: "error",
-};
-
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
+import OrderGrid from "../../components/buyer/Order/OrderGrid";
+import {
+  getPaymentReference,
+  getPaymentReturnNotice,
+  isPayMongoOrder,
+  isPlacedOrder,
+} from "../../utils/orderPayments.js";
 
 export default function Orders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionPending, setActionPending] = useState("");
+  const paymentAction = useRef(false);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
@@ -54,24 +46,22 @@ export default function Orders() {
   const [refresh, setRefresh] = useState(0);
   const ordersRequest = useRef(null);
   const { search } = useLocation();
+  const returnParams = new URLSearchParams(search);
+  let returnReference = returnParams.get("reference") || "";
+  if (!returnReference) {
+    try { returnReference = sessionStorage.getItem("paymongo_payment_reference") || ""; } catch { /* Browser storage can be unavailable. */ }
+  }
+  const paymentNotice = getPaymentReturnNotice(orders, {
+    payment: returnParams.get("payment"), reference: returnReference, loading, error,
+  });
 
   const loadOrders = () => setRefresh((value) => value + 1);
 
   useEffect(() => {
     let active = true;
     let controller;
-    let timer;
-    let pendingPayment = false;
-    let pollUntil = Date.now() + 60000;
     const announcedPaid = new Set();
-    const schedulePoll = () => {
-      clearTimeout(timer);
-      if (!active || !pendingPayment || document.visibilityState === "hidden" ||
-        Date.now() + 5000 > pollUntil) return;
-      timer = setTimeout(refreshOrders, 5000);
-    };
     const refreshOrders = async () => {
-      clearTimeout(timer);
       controller?.abort();
       const request = new AbortController();
       controller = request;
@@ -79,12 +69,20 @@ export default function Orders() {
       try {
         const response = await fetchBuyerOrders({ signal: request.signal });
         if (!active || request.signal.aborted) return;
-        const nextOrders = Array.isArray(response) ? response : [];
+        const nextOrders = Array.isArray(response) ? response.filter(isPlacedOrder) : [];
+        const params = new URLSearchParams(search);
+        const reference = params.get("reference");
+        if (["success", "cancelled"].includes(params.get("payment")) && reference &&
+            !nextOrders.some((order) => isPayMongoOrder(order) && getPaymentReference(order) === reference)) {
+          // Sessions created before the checkout return page was introduced can still return here.
+          // Authenticate and verify their status in Checkout before exposing a purchase.
+          navigate(`/buyer/checkout${search}`, { replace: true });
+          return;
+        }
         setOrders(nextOrders);
         setError("");
         const onlineOrders = nextOrders.filter((order) =>
           String(order.payment).toLowerCase() === "paymongo" && String(order.status).toLowerCase() !== "cancelled");
-        pendingPayment = onlineOrders.some((order) => String(order.paymentStatus).toLowerCase() === "pending");
         let paidChanged = false;
         for (const order of onlineOrders) {
           const id = String(order.orderId);
@@ -99,17 +97,14 @@ export default function Orders() {
       } finally {
         if (active && !request.signal.aborted) {
           setLoading(false);
-          schedulePoll();
         }
       }
     };
     const refreshVisibleOrders = () => {
       if (document.visibilityState === "hidden") {
-        clearTimeout(timer);
         controller?.abort();
         return;
       }
-      pollUntil = Date.now() + 60000;
       refreshOrders();
     };
     setLoading(true);
@@ -121,25 +116,27 @@ export default function Orders() {
     return () => {
       active = false;
       controller?.abort();
-      clearTimeout(timer);
       events.forEach((event) => window.removeEventListener(event, refreshVisibleOrders));
       document.removeEventListener("visibilitychange", refreshVisibleOrders);
     };
-  }, [refresh, search]);
+  }, [refresh, search, navigate]);
 
   const handleCancel = async (order) => {
+    if (paymentAction.current) return;
+    paymentAction.current = true;
+    setActionPending(getPaymentReference(order) || String(order.orderId));
     try {
       setActionError("");
-      await cancelBuyerOrder(order.orderId);
+      setActionMessage("");
+      const result = await cancelBuyerOrder(order.orderId);
       ordersRequest.current?.abort();
-      setOrders((current) =>
-        current.map((item) =>
-          item.orderId === order.orderId ? { ...item, status: "Cancelled" } : item,
-        ),
-      );
-      loadOrders();
+      setActionMessage(result.message || "Order cancelled.");
     } catch (cancelError) {
       setActionError(cancelError.message || "Unable to cancel this order");
+    } finally {
+      paymentAction.current = false;
+      setActionPending("");
+      loadOrders();
     }
   };
 
@@ -193,77 +190,23 @@ export default function Orders() {
           </Typography>
         </Box>
         {error && <Alert severity="error" action={<Button color="inherit" onClick={loadOrders}>Retry</Button>}>{error}</Alert>}
+        {paymentNotice && <Alert severity={paymentNotice.severity} action={<Button color="inherit" onClick={loadOrders}>Refresh</Button>}>{paymentNotice.message}</Alert>}
         {actionError && <Alert severity="error" onClose={() => setActionError("")}>{actionError}</Alert>}
+        {actionMessage && <Alert severity="info" onClose={() => setActionMessage("")}>{actionMessage}</Alert>}
         {loading ? (
           <Box sx={{ display: "grid", placeItems: "center", minHeight: 240 }}><CircularProgress /></Box>
         ) : orders.length === 0 && !error ? (
           <Paper variant="outlined" sx={{ p: 5, textAlign: "center", borderRadius: 2 }}>
             <Typography variant="h6" fontWeight={700}>No orders yet</Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>Your placed orders will show up here.</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>Paid purchases and cash-on-delivery orders will show up here.</Typography>
           </Paper>
         ) : (
-          <Grid container spacing={2}>
-            {orders.map((order) => (
-              <Grid item xs={12} key={order.orderId}>
-                <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
-                  <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1.5}>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={800}>{order.id}</Typography>
-                      <Typography variant="caption" color="text.secondary">Placed {new Date(order.date).toLocaleDateString()} · {order.payment?.toUpperCase()}</Typography>
-                    </Box>
-                    <Stack direction="row" alignItems="center" gap={1.5}>
-                      <Chip label={order.status} color={statusColor[order.status] || "default"} size="small" />
-                      <Typography fontWeight={800}>{formatCurrency(order.total)}</Typography>
-                    </Stack>
-                  </Stack>
-                  {order.status === "Shipped" || order.status === "Delivered" ? (
-                    <Alert severity={order.status === "Delivered" ? "success" : "info"} sx={{ mt: 2, borderRadius: 2 }}>
-                      {order.status === "Delivered"
-                        ? "Your order has been delivered. Please review the artwork if you’re happy with it."
-                        : "Shipping update: your order is on the way and should arrive soon."}
-                    </Alert>
-                  ) : null}
-                  <Box sx={{ borderTop: "1px solid", borderColor: "divider", mt: 2, pt: 2 }}>
-                    <Stack spacing={1.5}>
-                      {order.items.map((item) => (
-                        <Stack key={item.id} direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={1.5}>
-                          <Stack direction="row" alignItems="center" gap={1.5} minWidth={0}>
-                            <WatermarkedArtworkImage
-                              image={item.image}
-                              alt={item.title}
-                              sx={{
-                                width: 56,
-                                height: 56,
-                                objectFit: "cover",
-                                borderRadius: 1,
-                                flexShrink: 0,
-                              }}
-                            />
-                            <Box minWidth={0}>
-                              <Typography variant="body2" fontWeight={700}>{item.title}</Typography>
-                              <Typography variant="caption" color="text.secondary">{item.artist} · Qty {item.qty}</Typography>
-                            </Box>
-                          </Stack>
-                          <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5}>
-                            <Typography variant="body2" fontWeight={700}>{formatCurrency(item.price * item.qty)}</Typography>
-                            {item.review ? (
-                              <Chip label="Reviewed" size="small" color="success" variant="outlined" />
-                            ) : order.status === "Delivered" ? (
-                              <Button size="small" variant="outlined" onClick={() => openReview(order, item)} sx={{ borderRadius: 999, textTransform: "none" }}>Review item</Button>
-                            ) : null}
-                          </Stack>
-                        </Stack>
-                      ))}
-                    </Stack>
-                  </Box>
-                  <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} sx={{ borderTop: "1px solid", borderColor: "divider", mt: 2, pt: 1.5 }}>
-                    <Typography variant="caption" color="text.secondary">Ship to: {order.address}</Typography>
-                    {order.status === "Pending" && <Button color="error" size="small" onClick={() => handleCancel(order)} sx={{ alignSelf: "flex-start", textTransform: "none" }}>Cancel order</Button>}
-                  </Stack>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
+          <OrderGrid
+            orders={orders}
+            actionPending={actionPending}
+            onCancel={handleCancel}
+            onReview={openReview}
+          />
         )}
       </Stack>
 

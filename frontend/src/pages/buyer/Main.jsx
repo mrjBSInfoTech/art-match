@@ -139,7 +139,7 @@ export default function Main() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  
+
   const handleAddToCart = async (artworkId) => {
     try {
       const result = await addToCart(artworkId);
@@ -323,7 +323,7 @@ export default function Main() {
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
-    setSnackbarSeverity(severity); 
+    setSnackbarSeverity(severity);
     setSnackbarOpen(true);
   };
 
@@ -465,7 +465,7 @@ export default function Main() {
           </Grid>
         </Container>
       </Box>
-      <UpcomingEventsSlider />            
+      <UpcomingEventsSlider />
       {/* Genres */}
       <Box
         sx={{
@@ -688,9 +688,10 @@ export default function Main() {
               position: "relative",
               height: { xs: 220, md: 240 },
               borderRadius: 2,
-              backgroundImage: !featuredArtist?.featuredArtwork?.image && featuredArtist?.image
-                ? `url(${featuredArtist.image})`
-                : "none",
+              backgroundImage:
+                !featuredArtist?.featuredArtwork?.image && featuredArtist?.image
+                  ? `url(${featuredArtist.image})`
+                  : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
               border: `1px solid ${theme.palette.divider}`,
@@ -699,8 +700,7 @@ export default function Main() {
           >
             <WatermarkedArtworkImage
               image={
-                featuredArtist?.featuredArtwork?.image ||
-                artworks[0]?.image
+                featuredArtist?.featuredArtwork?.image || artworks[0]?.image
               }
               alt={
                 featuredArtist?.featuredArtwork?.title ||

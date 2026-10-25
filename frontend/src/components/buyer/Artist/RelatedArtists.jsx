@@ -11,7 +11,9 @@ const getProfileImage = (artist) => {
   return "http://localhost:5000/uploads/profile.jpg";
 };
 
-export default function RelatedArtists({ artists = [], sellerName }) {
+export default function RelatedArtists({
+  artists = [], sellerName, description, eyebrow = "Similar specialties",
+}) {
   const navigate = useNavigate();
 
   if (artists.length === 0) return null;
@@ -26,7 +28,7 @@ export default function RelatedArtists({ artists = [], sellerName }) {
         variant="overline"
         sx={{ color: "error.main", fontWeight: 800, letterSpacing: 1.5 }}
       >
-        Similar specialties
+        {eyebrow}
       </Typography>
       <Typography
         id="related-artists-title"
@@ -37,7 +39,7 @@ export default function RelatedArtists({ artists = [], sellerName }) {
         Related artists
       </Typography>
       <Typography color="text.secondary" variant="body2" sx={{ mt: 1, mb: 3 }}>
-        Discover artists with artworks related to {sellerName || "this seller"}&apos;s specialties.
+        {description || `Discover artists with artworks related to ${sellerName || "this seller"}'s specialties.`}
       </Typography>
       <Box
         sx={{

@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardMedia,
   Chip,
   Typography,
 } from "@mui/material";
@@ -12,22 +11,14 @@ import { useTheme } from "@mui/material/styles";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import StorefrontInfo from "./StorefrontInfo";
+import ArtworkImage from "../../common/ArtworkImage";
 
-const placeholder = "https://placehold.co/1200x900/111827/ffffff?text=Artwork";
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
-
-function imageUrl(artwork) {
-  const image = artwork.image || artwork.image_url;
-  if (!image) return placeholder;
-  return /^https?:\/\//i.test(image)
-    ? image
-    : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`;
-}
 
 export default function StorefrontCard({
   artworks,
@@ -97,15 +88,9 @@ export default function StorefrontCard({
                   bgcolor: "background.default",
                 }}
               >
-                <CardMedia
-                  component="img"
-                  image={imageUrl(artwork)}
+                <ArtworkImage
+                  image={artwork.image || artwork.image_url}
                   alt={artwork.title || "Artwork"}
-                  onError={(event) => {
-                    event.currentTarget.onerror = null;
-                    if (event.currentTarget.src !== placeholder)
-                      event.currentTarget.src = placeholder;
-                  }}
                   sx={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
                 <Chip

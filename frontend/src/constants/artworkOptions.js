@@ -19,6 +19,31 @@ export const ART_STYLES = [
   "Cute",
 ];
 
+export const ART_FEATURES = [
+  "animals",
+  "buildings",
+  "day",
+  "drink",
+  "flowers",
+  "food",
+  "fruits",
+  "keychains",
+  "land",
+  "moon",
+  "night",
+  "object",
+  "pins_and_badges",
+  "portraits",
+  "pottery",
+  "sculptures",
+  "sky_and_clouds",
+  "sun",
+  "trees",
+  "vegetable",
+  "vehicles",
+  "water",
+];
+
 export const ART_2D_MATERIALS = [
   "Acrylic",
   "Charcoal",

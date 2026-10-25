@@ -10,6 +10,7 @@ import multer from "multer";
 // Routes (Admin)
 import adminAuthenticateRoutes from "./routes/admin/adminAuthentication.js";
 import adminArtworkRoutes from "./routes/admin/artwork.js";
+import adminEventRoutes from "./routes/admin/event.js";
 import adminStudentRoutes from "./routes/admin/student.js";
 import adminCustomerRoutes from "./routes/admin/customer.js";
 import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
@@ -26,6 +27,7 @@ import {
   ensureConversationReadStateTable,
   ensureMessageSenderNameColumn,
 } from "./database/message.js";
+import { ensureEventsTable } from "./database/events.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
@@ -56,6 +58,7 @@ import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
 import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
+import buyerEventRoutes from "./routes/buyer/event.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
 import buyerFavoriteRoutes from "./routes/buyer/favorites.js";
 import buyerOrderRoutes from "./routes/buyer/orders.js";
@@ -404,40 +407,37 @@ app.get(
   },
 );
 
-app.get(
-  "/uploads/seller/uploadArtwork/:filename",
-  async (req, res) => {
-    const filename = req.params.filename;
-    const { expires, code, signature } = req.query;
-    if (
-      !filename ||
-      path.basename(filename) !== filename ||
-      !verifyArtworkImageUrl(filename, code, expires, signature)
-    ) {
-      return res.status(403).json({ message: "Invalid or expired image URL." });
-    }
+app.get("/uploads/seller/uploadArtwork/:filename", async (req, res) => {
+  const filename = req.params.filename;
+  const { expires, code, signature } = req.query;
+  if (
+    !filename ||
+    path.basename(filename) !== filename ||
+    !verifyArtworkImageUrl(filename, code, expires, signature)
+  ) {
+    return res.status(403).json({ message: "Invalid or expired image URL." });
+  }
 
-    const customerId =
-      code === "GUEST" ? null : await getCustomerIdForWatermarkCode(code);
-    if (code !== "GUEST" && !customerId) {
-      return res.status(403).json({ message: "Invalid or expired image URL." });
-    }
-    const image = await getWatermarkedArtwork(filename, customerId);
+  const customerId =
+    code === "GUEST" ? null : await getCustomerIdForWatermarkCode(code);
+  if (code !== "GUEST" && !customerId) {
+    return res.status(403).json({ message: "Invalid or expired image URL." });
+  }
+  const image = await getWatermarkedArtwork(filename, customerId);
 
-    res.set({
-      "Cache-Control": `private, max-age=${Math.max(
-        0,
-        Math.min(180, Number(expires) - Math.floor(Date.now() / 1000)),
-      )}`,
-      "Content-Type": image.contentType,
-      Vary: "Authorization",
-      "X-ArtMatch-Watermark-Code": image.code,
-      "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
-      "X-Content-Type-Options": "nosniff",
-    });
-    res.send(image.body);
-  },
-);
+  res.set({
+    "Cache-Control": `private, max-age=${Math.max(
+      0,
+      Math.min(180, Number(expires) - Math.floor(Date.now() / 1000)),
+    )}`,
+    "Content-Type": image.contentType,
+    Vary: "Authorization",
+    "X-ArtMatch-Watermark-Code": image.code,
+    "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
+    "X-Content-Type-Options": "nosniff",
+  });
+  res.send(image.body);
+});
 
 // =====================================================
 // Seller profile images
@@ -494,6 +494,22 @@ app.get(
 );
 
 // =====================================================
+// Event images
+// =====================================================
+
+app.get(
+  "/uploads/admin/events/:filename",
+
+  serveB2Cached({
+    keyPrefix: "app-uploads/admin/events",
+
+    localFolder: path.join(__dirname, "uploads", "admin", "events"),
+
+    label: "Event image",
+  }),
+);
+
+// =====================================================
 // Chat attachments
 // =====================================================
 
@@ -524,6 +540,7 @@ app.get("/", (req, res) => {
 // Routes (Admin)
 app.use("/api/admin/authenticate", adminAuthenticateRoutes);
 app.use("/api/admin/artwork", adminArtworkRoutes);
+app.use("/api/admin/event", adminEventRoutes);
 app.use("/api/admin/student", adminStudentRoutes);
 app.use("/api/admin/customer", adminCustomerRoutes);
 app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
@@ -542,6 +559,7 @@ app.use("/api/seller/reviews", sellerReviewRoutes);
 app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
+app.use("/api/buyer/event", buyerEventRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
 app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
@@ -562,6 +580,9 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ message: "Invalid JSON request body" });
+  }
   if (err.status === 404 || err.statusCode === 404) {
     return res.status(404).json({ message: "File not found" });
   }
@@ -581,6 +602,7 @@ ensureAccountAccessTable()
   .then(() => ensureArtworkSchema())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
+  .then(() => ensureEventsTable())
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureChatPublicKeysTable())
   .then(() => ensureChatKeyRecoveryTable())

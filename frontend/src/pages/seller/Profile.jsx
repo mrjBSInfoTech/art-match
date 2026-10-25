@@ -30,6 +30,7 @@ import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { fetchStorefront } from "../../api/seller/storefrontAPI";
 import ProfileCard from "../../components/seller/Profile/ProfileCard";
+import ArtworkImage from "../../components/common/ArtworkImage";
 
 const getProfileFallback = () =>
   "http://localhost:5000/uploads/seller/profile.jpg";
@@ -38,13 +39,6 @@ const getProfileImage = (profileImage) => {
   if (!profileImage) return getProfileFallback("Artist");
   if (profileImage.startsWith("http")) return profileImage;
   return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`;
-};
-
-const getArtworkImage = (image) => {
-  if (!image) return "";
-  if (image.startsWith("http")) return image;
-  if (image.startsWith("/")) return `http://localhost:5000${image}`;
-  return `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(image)}`;
 };
 
 const parseArray = (value) => {
@@ -510,9 +504,8 @@ export default function Profile() {
                         </Typography>
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
                           {review.artworkImage && (
-                            <Box
-                              component="img"
-                              src={getArtworkImage(review.artworkImage)}
+                            <ArtworkImage
+                              image={review.artworkImage}
                               alt={review.artworkTitle}
                               sx={{ width: 38, height: 38, borderRadius: 1, objectFit: "cover" }}
                             />

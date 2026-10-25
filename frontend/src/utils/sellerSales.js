@@ -1,4 +1,4 @@
-const isSale = (order) => order.status !== "Cancelled";
+import { isSellerSale } from "./orderPayments.js";
 
 const getOrderDate = (order) => {
   const date = new Date(order.date);
@@ -6,7 +6,7 @@ const getOrderDate = (order) => {
 };
 
 export const getSellerSalesData = (orders, now = new Date()) => {
-  const sales = orders.filter(isSale);
+  const sales = orders.filter(isSellerSale);
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthlySales = Array.from({ length: 12 }, (_, index) => {
     const monthDate = new Date(
