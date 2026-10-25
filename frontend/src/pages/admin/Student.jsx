@@ -127,10 +127,13 @@ export default function Student() {
     }
   };
 
-  const handleBulkSuccess = async () => {
+  const handleBulkSuccess = async (result) => {
     setOpenBulkAdd(false);
     await loadStudents();
-    showSnackbar("Students imported successfully.", "success");
+    showSnackbar(
+      result?.message || "Students imported successfully.",
+      "success",
+    );
   };
 
   const filteredStudents = useMemo(() => {
@@ -430,7 +433,6 @@ export default function Student() {
         open={openBulkAdd}
         handleClose={() => setOpenBulkAdd(false)}
         onSuccess={handleBulkSuccess}
-        showSnackbar={showSnackbar}
       />
 
       <StudentDelete

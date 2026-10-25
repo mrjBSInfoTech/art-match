@@ -243,7 +243,6 @@ export default function StudentBulkAdd({
   open,
   handleClose,
   onSuccess,
-  showSnackbar,
 }) {
   const theme = useTheme();
   const fileInputRef = useRef(null);
@@ -397,12 +396,8 @@ export default function StudentBulkAdd({
 
     setIsSubmitting(true);
     try {
-      await bulkAddStudents(parsedData);
-      showSnackbar(
-        `Successfully imported ${parsedData.length} students`,
-        "success",
-      );
-      onSuccess();
+      const result = await bulkAddStudents(parsedData);
+      onSuccess(result);
       handleCloseDialog();
     } catch (err) {
       setError(err.message || "Failed to import students.");

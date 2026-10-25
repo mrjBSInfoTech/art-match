@@ -54,7 +54,10 @@ CREATE TABLE IF NOT EXISTS student (
   course VARCHAR(100) NOT NULL,
   student_number VARCHAR(50) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  profile_image VARCHAR(255) NULL
+  profile_image VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  account_status ENUM('active', 'expired') NOT NULL DEFAULT 'active',
+  expire_date DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL 3 MONTH)
 );
 
 CREATE TABLE IF NOT EXISTS storefront (

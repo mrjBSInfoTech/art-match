@@ -23,6 +23,13 @@ router.get("/", authenticateAdmin, (req, res) => {
       s.year_level, 
       s.course, 
       s.student_number, 
+      s.created_at,
+      CASE
+        WHEN s.expire_date <= CURRENT_TIMESTAMP
+        THEN 'expired'
+        ELSE 'active'
+      END AS account_status,
+      s.expire_date,
       a.register_status, 
       a.registered_date,
       a.approved_date, 
@@ -65,6 +72,13 @@ router.get("/:id", authenticateAdmin, (req, res) => {
       s.year_level, 
       s.course, 
       s.student_number, 
+      s.created_at,
+      CASE
+        WHEN s.expire_date <= CURRENT_TIMESTAMP
+        THEN 'expired'
+        ELSE 'active'
+      END AS account_status,
+      s.expire_date,
       a.register_status, 
       a.registered_date,
       a.approved_date, 
@@ -96,28 +110,79 @@ router.post(
 
     const adminId = req.user?.admin_id || null;
     let createdCount = 0;
+    let reactivatedCount = 0;
+    let skippedCount = 0;
 
     const processStudent = (index) => {
       if (index >= students.length) {
+        const summary = `Bulk import complete: ${createdCount} added, ${reactivatedCount} reactivated, ${skippedCount} already active/skipped`;
         return res.status(201).json({
-          message: `Successfully added ${createdCount} student(s)`,
+          message: summary,
           added: createdCount,
+          reactivated: reactivatedCount,
+          skipped: skippedCount,
         });
       }
 
-      createStudentRecord(
-        {
-          ...students[index],
-          password: students[index].password || "Admin123456",
-        },
-        adminId,
-        (err) => {
+      const studentData = {
+        ...students[index],
+        password: students[index].password || "Admin123456",
+      };
+      const studentNumber = studentData.student_number;
+
+      const createStudent = () => {
+        createStudentRecord(studentData, adminId, (err) => {
           if (err) {
             return res.status(err.status || 500).json({ message: err.message });
           }
 
           createdCount += 1;
           processStudent(index + 1);
+        });
+      };
+
+      if (!studentNumber) {
+        return createStudent();
+      }
+
+      db.query(
+        `SELECT student_id, (expire_date <= CURRENT_TIMESTAMP) AS is_expired
+         FROM student WHERE student_number = ? LIMIT 1`,
+        [studentNumber],
+        (lookupError, results) => {
+          if (lookupError) {
+            return res.status(500).json({ message: lookupError.message });
+          }
+
+          if (results.length === 0) {
+            return createStudent();
+          }
+
+          const existingStudent = results[0];
+          if (!existingStudent.is_expired) {
+            skippedCount += 1;
+            return processStudent(index + 1);
+          }
+
+          db.query(
+            `UPDATE student
+             SET account_status = 'active',
+                 expire_date = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 3 MONTH)
+             WHERE student_id = ? AND expire_date <= CURRENT_TIMESTAMP`,
+            [existingStudent.student_id],
+            (reactivationError, updateResult) => {
+              if (reactivationError) {
+                return res.status(500).json({ message: reactivationError.message });
+              }
+
+              if (updateResult.affectedRows > 0) {
+                reactivatedCount += 1;
+              } else {
+                skippedCount += 1;
+              }
+              processStudent(index + 1);
+            },
+          );
         },
       );
     };
@@ -289,8 +354,11 @@ const passwordHash =
       year_level,
       course,
       student_number,
-      password
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      password,
+      created_at,
+      account_status,
+      expire_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 3 MONTH))
   `;
 
   db.query(

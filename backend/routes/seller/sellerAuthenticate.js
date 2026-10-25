@@ -112,8 +112,16 @@ router.post("/register", upload.single("cor"), (req, res) => {
   const hashedPassword = bcrypt.hashSync(password, 10);
   const corPath = req.file ? req.file.filename : null;
 
-  const sql =
-    "INSERT INTO student (first_name, middle_name, last_name, birthdate, email, address, phone_number, cor, year_level, course, student_number, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  const sql = `
+    INSERT INTO student (
+      first_name, middle_name, last_name, birthdate, email, address,
+      phone_number, cor, year_level, course, student_number, password,
+      created_at, account_status, expire_date
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active',
+      DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 3 MONTH)
+    )
+  `;
 
   db.query(
     sql,
@@ -190,6 +198,13 @@ router.post("/login", (req, res) => {
       s.student_number, 
       s.profile_image,
       s.password, 
+      s.created_at,
+      CASE
+        WHEN s.expire_date <= CURRENT_TIMESTAMP THEN 'expired'
+        ELSE 'active'
+      END AS account_status,
+      s.expire_date,
+      (s.expire_date <= CURRENT_TIMESTAMP) AS is_expired,
       a.register_status,
       a.registered_date,
       a.approved_date,
@@ -236,6 +251,21 @@ router.post("/login", (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (user.is_expired) {
+      db.query(
+        "UPDATE student SET account_status = 'expired' WHERE student_id = ?",
+        [user.student_id],
+        (updateError) => {
+          if (updateError) {
+            console.error("Unable to mark student account as expired:", updateError);
+            return res.status(500).json({ message: "Unable to verify account status." });
+          }
+          return res.status(403).json({ message: "Student account has expired." });
+        },
+      );
+      return;
+    }
+
     const token = jwt.sign(
       {
         id: user.student_id,
@@ -271,6 +301,9 @@ router.post("/login", (req, res) => {
       register_status: user.register_status,
       registered_date: user.registered_date,
       approved_date: user.approved_date,
+      created_at: user.created_at,
+      account_status: user.account_status,
+      expire_date: user.expire_date,
     });
   });
 });

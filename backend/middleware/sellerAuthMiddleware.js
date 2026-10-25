@@ -55,15 +55,47 @@ export const authenticateSeller = (req, res, next) => {
 };
 
 const continueIfActive = (req, res, next, user, studentId) => {
-  getAccountAccess("seller", studentId)
-    .then((access) => {
-      if (access.is_banned) {
-        return res.status(403).json({ message: "Seller account is banned." });
+  db.query(
+    `SELECT expire_date, (expire_date <= CURRENT_TIMESTAMP) AS is_expired
+     FROM student WHERE student_id = ?`,
+    [studentId],
+    (studentError, students) => {
+      if (studentError) {
+        console.error("Unable to verify seller expiration:", studentError);
+        return res.status(500).json({ message: "Unable to verify account status." });
       }
-      req.user = { ...user, role: "seller", student_id: studentId };
-      next();
-    })
-    .catch(() =>
-      res.status(500).json({ message: "Unable to verify account status." }),
-    );
+      if (!students.length) {
+        return res.status(403).json({ message: "Unable to identify seller." });
+      }
+
+      const student = students[0];
+      if (student.is_expired) {
+        db.query(
+          "UPDATE student SET account_status = 'expired' WHERE student_id = ?",
+          [studentId],
+          (updateError) => {
+            if (updateError) {
+              console.error("Unable to mark seller account as expired:", updateError);
+              return res.status(500).json({ message: "Unable to verify account status." });
+            }
+            return res.status(403).json({ message: "Seller account has expired." });
+          },
+        );
+        return;
+      }
+
+      getAccountAccess("seller", studentId)
+        .then((access) => {
+          if (access.is_banned) {
+            return res.status(403).json({ message: "Seller account is banned." });
+          }
+          req.user = { ...user, role: "seller", student_id: studentId };
+          next();
+        })
+        .catch((error) => {
+          console.error("Unable to verify seller access:", error);
+          res.status(500).json({ message: "Unable to verify account status." });
+        });
+    },
+  );
 };

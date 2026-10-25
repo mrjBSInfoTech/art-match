@@ -208,7 +208,19 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
               <Box>
                 <Typography sx={detailLabelSx}>Registered</Typography>
                 <Typography sx={detailValueSx}>
-                  {formatDate(student.registered_date)}
+                  {formatDate(student.created_at || student.registered_date)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Account Status</Typography>
+                <Typography sx={detailValueSx}>
+                  {student.account_status || "Active"}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Expires</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatDate(student.expire_date)}
                 </Typography>
               </Box>
             </Box>
