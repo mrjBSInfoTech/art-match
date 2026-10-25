@@ -6,7 +6,10 @@ import Badge from "@mui/material/Badge";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
-import { DashboardLayout as MuiDashboardLayout } from "@toolpad/core";
+import {
+  DashboardLayout as MuiDashboardLayout,
+  DashboardSidebarPageItem,
+} from "@toolpad/core";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -39,12 +42,14 @@ import SidebarNavigationHeader from "./SidebarNavigationHeader";
 //Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import MessageIcon from "@mui/icons-material/Message";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import PaletteIcon from "@mui/icons-material/Palette";
-import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SettingsIcon from "@mui/icons-material/Settings";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
+import HistoryIcon from "@mui/icons-material/History";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
@@ -83,8 +88,19 @@ function SellerLayoutContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
+  const [ordersExpanded, setOrdersExpanded] = useState(true);
+  const [vouchersExpanded, setVouchersExpanded] = useState(true);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/seller/orders")) {
+      setOrdersExpanded(true);
+    }
+    if (location.pathname.startsWith("/seller/vouchers")) {
+      setVouchersExpanded(true);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const loadSellerProfile = () => {
@@ -185,32 +201,39 @@ function SellerLayoutContent() {
       pattern: "/seller/dashboard",
     },
     {
-      segment: "artwork",
-      title: "Artwork",
-      icon: <PaletteIcon />,
-      pattern: "/seller/artwork",
-    },
-    {
-      segment: "storefront",
-      title: "Storefront",
-      icon: <StorefrontOutlinedIcon />,
-      pattern: "/seller/storefront",
-    },
-    {
-      segment: "sales",
-      title: "Sales",
-      icon: <TrendingUpIcon />,
-      pattern: "/seller/sales",
-    },
-    {
       segment: "orders",
       title: "Orders",
       icon: <ShoppingCartIcon />,
-      pattern: "/seller/orders",
+      children: [
+        {
+          segment: "manage",
+          title: "Manage Orders",
+          icon: <ShoppingCartIcon />,
+          pattern: "/seller/orders/manage",
+        },
+        {
+          segment: "inventory",
+          title: "Store Inventory",
+          icon: <Inventory2OutlinedIcon />,
+          pattern: "/seller/orders/inventory",
+        },
+      ],
     },
     {
-      segment: "messages",
-      title: "Messages",
+      segment: "marketing",
+      title: "Marketing",
+      icon: <CampaignOutlinedIcon />,
+      pattern: "/seller/marketing",
+    },
+    {
+      segment: "settlement-payout",
+      title: "Settlement and Payout",
+      icon: <AccountBalanceWalletOutlinedIcon />,
+      pattern: "/seller/settlement-payout",
+    },
+    {
+      segment: "customer-service",
+      title: "Customer Service",
       icon: (
         <Badge
           badgeContent={unreadMessageCount}
@@ -218,25 +241,41 @@ function SellerLayoutContent() {
           invisible={unreadMessageCount === 0}
           max={99}
         >
-          <MessageIcon />
+          <SupportAgentOutlinedIcon />
         </Badge>
       ),
-      pattern: "/seller/messages",
+      pattern: "/seller/customer-service",
     },
     {
-      segment: "notifications",
-      title: "Notifications",
-      icon: (
-        <Badge
-          badgeContent={notifications.filter((notification) => !Number(notification.is_read)).length}
-          color="error"
-          invisible={!notifications.some((notification) => !Number(notification.is_read))}
-          max={99}
-        >
-          <NotificationsNoneIcon />
-        </Badge>
-      ),
-      pattern: "/seller/notifications",
+      segment: "vouchers",
+      title: "Voucher and Promotion",
+      icon: <ConfirmationNumberOutlinedIcon />,
+      children: [
+        {
+          segment: "generation",
+          title: "Voucher Generation",
+          icon: <ConfirmationNumberOutlinedIcon />,
+          pattern: "/seller/vouchers/generation",
+        },
+        {
+          segment: "discount-code",
+          title: "Discount Code",
+          icon: <ConfirmationNumberOutlinedIcon />,
+          pattern: "/seller/vouchers/discount-code",
+        },
+        {
+          segment: "promotion",
+          title: "Promotion",
+          icon: <ConfirmationNumberOutlinedIcon />,
+          pattern: "/seller/vouchers/promotion",
+        },
+      ],
+    },
+    {
+      segment: "audit-logs",
+      title: "Audit Logs",
+      icon: <HistoryIcon />,
+      pattern: "/seller/audit-logs",
     },
   ];
 
@@ -511,6 +550,27 @@ function SellerLayoutContent() {
         sidebarExpandedWidth={240}
         disableCollapsibleSidebar={!isDesktop}
         slotProps={{ header: { branding } }}
+        renderPageItem={(item) => {
+          if (item.segment === "orders") {
+            return (
+              <DashboardSidebarPageItem
+                item={item}
+                expanded={ordersExpanded}
+                onClick={() => setOrdersExpanded((expanded) => !expanded)}
+              />
+            );
+          }
+          if (item.segment === "vouchers") {
+            return (
+              <DashboardSidebarPageItem
+                item={item}
+                expanded={vouchersExpanded}
+                onClick={() => setVouchersExpanded((expanded) => !expanded)}
+              />
+            );
+          }
+          return <DashboardSidebarPageItem item={item} />;
+        }}
         slots={{
           header: SidebarNavigationHeader,
           toolbarActions: CustomHeader,

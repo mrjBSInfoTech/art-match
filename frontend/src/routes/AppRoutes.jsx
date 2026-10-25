@@ -26,7 +26,6 @@ import AdminSystemSetting from "../pages/admin/SystemSetting";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
 import AdminArtwork from "../pages/admin/Artwork";
-import AdminEvent from "../pages/admin/Event";
 import AdminSettings from "../pages/admin/Settings";
 import AdminStudent from "../pages/admin/Student";
 import AdminCustomer from "../pages/admin/Customer";
@@ -47,6 +46,7 @@ import SellerProfile from "../pages/seller/Profile";
 import SellerSettings from "../pages/seller/Settings";
 import SellerLogin from "../pages/seller/Login";
 import SellerRegister from "../pages/seller/Register";
+import SellerPlaceholder from "../pages/seller/SellerPlaceholder";
 
 // Buyer Pages
 import BuyerMain from "../pages/buyer/Main";
@@ -159,7 +159,6 @@ export default function AppRoutes() {
                 />
                 <Route path="profile" element={<AdminProfile />} />
                 <Route path="artwork" element={<AdminArtwork />} />
-                <Route path="event" element={<AdminEvent />} />
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
                 <Route path="manage/access" element={<AdminAccountAccess />} />
@@ -183,9 +182,42 @@ export default function AppRoutes() {
                 <Route path="artwork" element={<SellerArtwork />} />
                 <Route path="storefront" element={<SellerStorefront />} />
                 <Route path="sales" element={<SellerSales />} />
-                <Route path="orders" element={<SellerOrder />} />
-                <Route path="messages" element={<SellerMessages />} />
+                <Route path="orders" element={<Navigate to="manage" replace />} />
+                <Route path="orders/manage" element={<SellerOrder />} />
+                <Route
+                  path="orders/inventory"
+                  element={<SellerPlaceholder title="Store Inventory" />}
+                />
+                <Route
+                  path="marketing"
+                  element={<SellerPlaceholder title="Marketing" />}
+                />
+                <Route
+                  path="settlement-payout"
+                  element={<SellerPlaceholder title="Settlement and Payout" />}
+                />
+                <Route path="customer-service" element={<SellerMessages />} />
+                <Route
+                  path="messages"
+                  element={<Navigate to="/seller/customer-service" replace />}
+                />
                 <Route path="notifications" element={<SellerNotifications />} />
+                <Route
+                  path="vouchers/generation"
+                  element={<SellerPlaceholder title="Voucher Generation" />}
+                />
+                <Route
+                  path="vouchers/discount-code"
+                  element={<SellerPlaceholder title="Discount Code" />}
+                />
+                <Route
+                  path="vouchers/promotion"
+                  element={<SellerPlaceholder title="Promotion" />}
+                />
+                <Route
+                  path="audit-logs"
+                  element={<SellerPlaceholder title="Audit Logs" />}
+                />
                 <Route path="profile" element={<SellerProfile />} />
                 <Route path="settings" element={<SellerSettings />} />
               </Route>
