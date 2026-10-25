@@ -1,18 +1,21 @@
 import express from "express";
 import db from "../../database/db.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
+import { getArtworkRatingSql, getArtworkRatingSummary } from "../../utils/artworkRatings.js";
 import {
   recordRecommendationInteraction,
   getRecommendationSessionIdFromRequest,
 } from "../../utils/recommendationInteractions.js";
 
 const router = express.Router();
+const artworkRatingSql = getArtworkRatingSql();
 
 router.get("/", authenticateBuyer, (req, res) => {
   const sql = `
     SELECT
       cf.favorite_id,
       cf.artwork_id,
+      ${artworkRatingSql.select},
       cf.created_at,
       a.title,
       a.price,
@@ -21,6 +24,7 @@ router.get("/", authenticateBuyer, (req, res) => {
       CONCAT(s.first_name, ' ', s.last_name) AS artist
     FROM customer_favorite cf
     JOIN artwork a ON a.artwork_id = cf.artwork_id
+    ${artworkRatingSql.join}
     LEFT JOIN student s ON s.student_id = a.student_id
     WHERE cf.customer_id = ?
     ORDER BY cf.created_at DESC, cf.favorite_id DESC
@@ -35,7 +39,15 @@ router.get("/", authenticateBuyer, (req, res) => {
       });
     }
 
-    return res.json(favorites);
+    return res.json(favorites.map((artwork) => {
+      const summary = getArtworkRatingSummary(artwork);
+      return {
+        ...artwork,
+        rating: summary.average_rating,
+        average_rating: summary.average_rating,
+        rating_count: summary.total_reviews,
+      };
+    }));
   });
 });
 

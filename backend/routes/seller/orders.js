@@ -67,13 +67,15 @@ router.get("/", authenticateSeller, (req, res) => {
     `SELECT
        o.order_id, CONCAT('AM-', LPAD(o.order_id, 6, '0')) AS order_number,
        o.created_at, o.status, o.payment_method, o.subtotal, o.shipping_fee,
-       o.total_amount, o.buyer_name, o.buyer_email, o.shipping_street,
+       o.total_amount, o.buyer_name, o.buyer_email, c.phone_number AS buyer_phone,
+       o.shipping_street,
        o.shipping_barangay, o.shipping_city, o.shipping_province,
        o.shipping_region, o.shipping_postal_code, o.parcel_photos,
-       o.tracking_url, i.order_item_id,
+       o.tracking_url, o.handling_instructions, i.order_item_id,
        i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity
      FROM marketplace_order o
      LEFT JOIN marketplace_order_item i ON i.order_id = o.order_id
+     LEFT JOIN customer c ON c.customer_id = o.customer_id
      WHERE o.seller_id = ?
      ORDER BY o.created_at DESC, o.order_id DESC, i.order_item_id`,
     [req.user.student_id],
@@ -96,6 +98,11 @@ router.get("/", authenticateSeller, (req, res) => {
             shipping: Number(row.shipping_fee),
             total: Number(row.total_amount),
             trackingUrl: row.tracking_url,
+            handlingInstructions: Array.isArray(row.handling_instructions)
+              ? row.handling_instructions
+              : typeof row.handling_instructions === "string"
+                ? JSON.parse(row.handling_instructions)
+                : [],
             parcelPhotoCount: Array.isArray(row.parcel_photos)
               ? row.parcel_photos.length
               : typeof row.parcel_photos === "string"
@@ -103,6 +110,7 @@ router.get("/", authenticateSeller, (req, res) => {
                 : 0,
             customer: row.buyer_name,
             email: row.buyer_email,
+            phone: row.buyer_phone,
             address: [
               row.shipping_street,
               row.shipping_barangay,
@@ -168,7 +176,7 @@ router.put(
       connection = await db.promise().getConnection();
       await connection.beginTransaction();
       const [orders] = await connection.query(
-        `SELECT status, customer_id, parcel_photos, tracking_url
+        `SELECT status, customer_id, parcel_photos, tracking_url, handling_instructions
          FROM marketplace_order
          WHERE order_id = ? AND seller_id = ?
          LIMIT 1
@@ -191,6 +199,31 @@ router.put(
       }
       if (requestedStatus !== "Packed" && files.length) {
         fail(400, "Parcel photos can only be uploaded when marking the order Packed");
+      }
+
+      const allowedHandlingInstructions = new Set([
+        "fragile",
+        "do_not_bend",
+        "keep_dry",
+        "handle_with_care",
+        "small_items",
+        "this_side_up",
+      ]);
+      let handlingInstructions;
+      if (requestedStatus === "Packed") {
+        try {
+          handlingInstructions = JSON.parse(req.body.handling_instructions || "[]");
+        } catch {
+          fail(400, "Invalid parcel handling instructions");
+        }
+        if (
+          !Array.isArray(handlingInstructions) ||
+          handlingInstructions.length > allowedHandlingInstructions.size ||
+          handlingInstructions.some((instruction) => !allowedHandlingInstructions.has(instruction)) ||
+          new Set(handlingInstructions).size !== handlingInstructions.length
+        ) {
+          fail(400, "Invalid parcel handling instructions");
+        }
       }
 
       const existingPhotos = Array.isArray(order.parcel_photos)
@@ -235,12 +268,14 @@ router.put(
 
       const [result] = await connection.query(
         `UPDATE marketplace_order
-         SET status = ?, parcel_photos = ?, tracking_url = ?
+         SET status = ?, parcel_photos = ?, tracking_url = ?,
+             handling_instructions = COALESCE(?, handling_instructions)
          WHERE order_id = ? AND seller_id = ? AND status = ?`,
         [
           requestedStatus,
           JSON.stringify(parcelPhotos),
           requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
+          requestedStatus === "Packed" ? JSON.stringify(handlingInstructions) : null,
           orderId,
           sellerId,
           order.status,
@@ -257,6 +292,14 @@ router.put(
         status: requestedStatus,
         trackingUrl: requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
         parcelPhotoCount: parcelPhotos.length,
+        handlingInstructions:
+          requestedStatus === "Packed"
+            ? handlingInstructions
+            : Array.isArray(order.handling_instructions)
+              ? order.handling_instructions
+              : typeof order.handling_instructions === "string"
+                ? JSON.parse(order.handling_instructions)
+                : [],
       });
     } catch (error) {
       if (connection) await connection.rollback().catch(() => {});

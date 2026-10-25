@@ -107,7 +107,8 @@ function ArtworkReviewsContent({ artworkId }) {
   const validRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
   const needsSignIn = !signedIn || requiresSignIn(eligibilityError);
   const total = Number(summary?.total_reviews) || 0;
-  const average = Number(summary?.average_rating) || 0;
+  const average = Number(summary?.average_rating);
+  const hasRatings = total > 0 && Number.isFinite(average);
   const retry = () => setRefresh((value) => value + 1);
 
   const showSnackbar = (message, severity = "success") => {
@@ -192,8 +193,13 @@ function ArtworkReviewsContent({ artworkId }) {
         <>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "180px minmax(0, 1fr)" }, gap: 3, mt: 3 }}>
             <Stack spacing={0.5} alignItems={{ xs: "flex-start", sm: "center" }}>
-              <Typography variant="h3" component="p" fontWeight={800}>{average.toFixed(1)}</Typography>
-              <Rating value={average} precision={0.1} readOnly aria-label={`Average rating: ${average.toFixed(1)} out of 5`} />
+              <Typography variant="h3" component="p" fontWeight={800}>{hasRatings ? average.toFixed(2) : "—"}</Typography>
+              <Rating
+                value={hasRatings ? average : 0}
+                precision={0.1}
+                readOnly
+                aria-label={hasRatings ? `Average rating: ${average.toFixed(2)} out of 5` : "No ratings yet"}
+              />
               <Typography variant="body2" color="text.secondary">{total} {total === 1 ? "rating" : "ratings"}</Typography>
             </Stack>
             <Stack spacing={1} sx={{ minWidth: 0 }} aria-label="Rating distribution">

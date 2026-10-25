@@ -178,6 +178,8 @@ router.get("/:id", (req, res) => {
       a.artwork_details,
       a.color_used,
       a.genre,
+      a.art_type,
+      a.product,
       a.art_size,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
       COALESCE((

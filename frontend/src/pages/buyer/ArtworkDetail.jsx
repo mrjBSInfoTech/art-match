@@ -31,6 +31,7 @@ import {
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
+import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -251,21 +252,7 @@ export default function ArtworkDetail() {
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
 
-  const related = artworks
-    .filter(
-      (a) =>
-        a.genre === artwork.genre &&
-        (a.id || a.artwork_id) !== (artwork.id || artwork.artwork_id),
-    )
-    .slice(0, 4);
-
-  const sameArtist = artworks
-    .filter(
-      (a) =>
-        a.artist === artwork.artist &&
-        (a.id || a.artwork_id) !== (artwork.id || artwork.artwork_id),
-    )
-    .slice(0, 4);
+  const similarArtworks = getSimilarArtworks(artwork, artworks);
 
   const handleAddToCart = async (artworkId) => {
     try {
@@ -730,33 +717,23 @@ export default function ArtworkDetail() {
         )}
       </Box>
 
-      {related.length > 0 && (
-        <Box sx={{ mt: 10 }}>
-          <Typography variant="h5" fontWeight={700} mb={3}>
-            Related Artworks
+      {similarArtworks.length > 0 && (
+        <Box
+          component="section"
+          aria-labelledby="similar-artworks-title"
+          sx={{ mt: 10 }}
+        >
+          <Typography
+            id="similar-artworks-title"
+            variant="h5"
+            fontWeight={700}
+            mb={3}
+          >
+            Similar artworks
           </Typography>
 
           <Grid container spacing={3}>
-            {related.map((item) => (
-              <Grid
-                size={{ xs: 12, sm: 6, md: 3 }}
-                key={item.id || item.artwork_id}
-              >
-                <ArtworkCard artwork={item} onAddToCart={handleAddToCart} />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      )}
-
-      {sameArtist.length > 0 && (
-        <Box sx={{ mt: 10 }}>
-          <Typography variant="h5" fontWeight={700} mb={3}>
-            More from {artwork.artist}
-          </Typography>
-
-          <Grid container spacing={3}>
-            {sameArtist.map((item) => (
+            {similarArtworks.map((item) => (
               <Grid
                 size={{ xs: 12, sm: 6, md: 3 }}
                 key={item.id || item.artwork_id}

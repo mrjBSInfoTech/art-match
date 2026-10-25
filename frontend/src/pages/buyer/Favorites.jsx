@@ -46,7 +46,8 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
     : status === "available" || status === "for sale"
       ? "For Sale"
       : artwork.genre || "Artwork";
-  const rating = Number(artwork.rating);
+  const rating = Number(artwork.average_rating ?? artwork.rating);
+  const ratingCount = Number(artwork.rating_count ?? artwork.total_reviews);
   const artworkId = artwork.artwork_id || artwork.id;
 
   return (
@@ -165,7 +166,7 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
               variant="caption"
               sx={{ flexShrink: 0, color: "text.secondary", fontSize: 9 }}
             >
-              ★ {rating.toFixed(1)}
+              ★ {rating.toFixed(2)}{Number.isFinite(ratingCount) && ratingCount > 0 ? ` (${ratingCount})` : ""}
             </Typography>
           )}
         </Stack>

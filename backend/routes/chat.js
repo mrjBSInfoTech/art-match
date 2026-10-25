@@ -6,7 +6,13 @@ import multer from "multer";
 import db from "../database/db.js";
 import { authenticateBuyer } from "../middleware/buyerAuthMiddleware.js";
 import { authenticateSeller } from "../middleware/sellerAuthMiddleware.js";
-import { getChatPublicKey, saveChatPublicKey } from "../database/chatKeys.js";
+import {
+  deleteChatKeyRecovery,
+  getChatKeyRecovery,
+  getChatPublicKey,
+  saveChatKeyRecovery,
+  saveChatPublicKey,
+} from "../database/chatKeys.js";
 import { addChatEventClient, publishChatMessage } from "../utils/chatEvents.js";
 import { uploadToB2, deleteFromB2 } from "../utils/b2Storage.js";
 import {
@@ -159,13 +165,15 @@ const fetchConversationList = (role, userId) =>
         SELECT m2.message_id
         FROM message m2
         WHERE m2.conversation_id = c.conversation_id
+          AND m2.message_id >= COALESCE(read_state.hidden_through_message_id, 0)
         ORDER BY m2.date_created DESC, m2.message_id DESC
         LIMIT 1
       )
       WHERE c.${isBuyer ? "customer_id" : "student_id"} = ?
         AND (
           read_state.hidden_through_message_id IS NULL
-          OR COALESCE(m.message_id, 0) > read_state.hidden_through_message_id
+          OR COALESCE(m.message_id, 0) >= read_state.hidden_through_message_id
+          OR (read_state.deleted_at IS NULL AND m.message_id IS NULL)
         )
       ORDER BY COALESCE(m.date_created, c.date_created) DESC
     `;
@@ -239,29 +247,56 @@ const isChatBlocked = (sellerId, buyerId) =>
     );
   });
 
-const hideConversationForAccount = (conversationId, role, accountId) =>
-  new Promise((resolve, reject) => {
-    db.query(
-      `INSERT INTO conversation_read_state
-        (conversation_id, account_type, account_id, hidden_through_message_id)
-       SELECT ?, ?, ?, COALESCE(MAX(message_id), 0)
-       FROM message
-       WHERE conversation_id = ?
-       ON DUPLICATE KEY UPDATE
-         hidden_through_message_id = GREATEST(
-           COALESCE(hidden_through_message_id, 0),
-           VALUES(hidden_through_message_id)
-         )`,
-      [conversationId, role, accountId, conversationId],
-      (error) => (error ? reject(error) : resolve()),
+// Deleting a chat hides everything already in it for BOTH people and marks it
+// deleted. Messages sent afterwards are treated as the start of a new chat.
+const clearConversationForEveryone = (conversationId, role, accountId, conversation) => {
+  const bothSides = [
+    { role, accountId },
+    {
+      role: role === "buyer" ? "seller" : "buyer",
+      accountId: role === "buyer" ? conversation.student_id : conversation.customer_id,
+    },
+  ];
+  const query = (sql, params) =>
+    new Promise((resolve, reject) => {
+      db.query(sql, params, (error, rows) => (error ? reject(error) : resolve(rows)));
+    });
+
+  // The marker is the first message ID that belongs to a new chat.
+  return query(
+    "SELECT COALESCE(MAX(message_id), 0) AS newest FROM message WHERE conversation_id = ?",
+    [conversationId],
+  ).then(([newest]) => {
+    const marker = Number(newest.newest) + 1;
+    const lastReadMessageId = marker - 1;
+    return Promise.all(
+      bothSides.map((side) =>
+        query(
+          `INSERT INTO conversation_read_state
+             (conversation_id, account_type, account_id, last_read_message_id, hidden_through_message_id, deleted_at)
+             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+           ON DUPLICATE KEY UPDATE
+             hidden_through_message_id = VALUES(hidden_through_message_id),
+             last_read_message_id = GREATEST(last_read_message_id, VALUES(last_read_message_id)),
+             deleted_at = CURRENT_TIMESTAMP`,
+          [
+            conversationId,
+            side.role,
+            side.accountId,
+            lastReadMessageId,
+            marker,
+          ],
+        ),
+      ),
     );
   });
+};
 
-const restoreConversationForAccount = (conversationId, role, accountId) =>
+const reopenConversationForAccount = (conversationId, role, accountId) =>
   new Promise((resolve, reject) => {
     db.query(
       `UPDATE conversation_read_state
-       SET hidden_through_message_id = NULL
+       SET deleted_at = NULL
        WHERE conversation_id = ? AND account_type = ? AND account_id = ?`,
       [conversationId, role, accountId],
       (error) => (error ? reject(error) : resolve()),
@@ -330,6 +365,10 @@ router.post("/buyer/keys", authenticateBuyer, (req, res) => {
   );
 });
 
+router.get("/buyer/keys/me", authenticateBuyer, (req, res) => {
+  fetchPublicKey("buyer", req.user.customer_id || req.user.id, res);
+});
+
 router.get("/buyer/keys/:sellerId", authenticateBuyer, (req, res) => {
   fetchPublicKey("seller", Number(req.params.sellerId), res);
 });
@@ -343,9 +382,73 @@ router.post("/seller/keys", authenticateSeller, (req, res) => {
   );
 });
 
+router.get("/seller/keys/me", authenticateSeller, (req, res) => {
+  fetchPublicKey("seller", req.user.student_id || req.user.id, res);
+});
+
 router.get("/seller/keys/:buyerId", authenticateSeller, (req, res) => {
   fetchPublicKey("buyer", Number(req.params.buyerId), res);
 });
+
+const validBase64 = (value, maximum, expectedBytes) => {
+  if (typeof value !== "string" || value.length === 0 || value.length > maximum
+    || !/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return false;
+  const bytes = Buffer.from(value, "base64");
+  return bytes.toString("base64") === value
+    && (expectedBytes === undefined || bytes.length === expectedBytes);
+};
+
+const registerChatKeyRecovery = (role, authenticate, getAccountId) => {
+  router.get(`/${role}/recovery`, authenticate, (req, res) => {
+    getChatKeyRecovery(role, getAccountId(req.user), (error, rows) => {
+      if (error) {
+        console.error(`${role} chat recovery fetch failed:`, error);
+        return res.status(500).json({ message: "Unable to load chat recovery backup" });
+      }
+      return res.json({ backup: rows[0] || null });
+    });
+  });
+
+  router.put(`/${role}/recovery`, authenticate, (req, res) => {
+    const publicKey = parsePublicKey(req.body.publicKey);
+    const encryptedPrivateKey = req.body.encryptedPrivateKey;
+    const salt = req.body.salt;
+    const iv = req.body.iv;
+    if (!publicKey
+      || !validBase64(encryptedPrivateKey, 10000)
+      || Buffer.from(encryptedPrivateKey, "base64").length < 17
+      || !validBase64(salt, 64, 16)
+      || !validBase64(iv, 64, 12)) {
+      return res.status(400).json({ message: "Invalid encrypted chat recovery backup" });
+    }
+
+    saveChatKeyRecovery(
+      role,
+      getAccountId(req.user),
+      { publicKey, encryptedPrivateKey, salt, iv },
+      (error) => {
+        if (error) {
+          console.error(`${role} chat recovery save failed:`, error);
+          return res.status(500).json({ message: "Unable to save chat recovery backup" });
+        }
+        return res.status(204).end();
+      },
+    );
+  });
+
+  router.delete(`/${role}/recovery`, authenticate, (req, res) => {
+    deleteChatKeyRecovery(role, getAccountId(req.user), (error) => {
+      if (error) {
+        console.error(`${role} chat recovery reset failed:`, error);
+        return res.status(500).json({ message: "Unable to reset chat recovery" });
+      }
+      return res.status(204).end();
+    });
+  });
+};
+
+registerChatKeyRecovery("buyer", authenticateBuyer, (user) => user.customer_id || user.id);
+registerChatKeyRecovery("seller", authenticateSeller, (user) => user.student_id || user.id);
 
 router.get("/buyer/conversations", authenticateBuyer, (req, res) => {
   const buyerId = req.user.customer_id || req.user.id;
@@ -569,7 +672,12 @@ const registerConversationActions = (
         );
         if (!conversation)
           return res.status(404).json({ message: "Conversation not found" });
-        await hideConversationForAccount(conversationId, role, accountId);
+        await clearConversationForEveryone(
+          conversationId,
+          role,
+          accountId,
+          conversation,
+        );
         res.status(204).end();
       } catch (error) {
         console.error("Chat delete failed:", error);
@@ -644,7 +752,7 @@ router.post(
       }
 
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
-      await restoreConversationForAccount(conversationId, "buyer", buyerId);
+      await reopenConversationForAccount(conversationId, "buyer", buyerId);
       res.status(201).json({ conversation_id: conversationId });
     } catch (error) {
       console.error("Buyer conversation creation failed:", error);
@@ -687,7 +795,7 @@ router.post(
       }
 
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
-      await restoreConversationForAccount(conversationId, "seller", sellerId);
+      await reopenConversationForAccount(conversationId, "seller", sellerId);
       res.status(201).json({ conversation_id: conversationId });
     } catch (error) {
       console.error("Seller conversation creation failed:", error);
@@ -727,9 +835,16 @@ const sendLatestConversationMessage = (
                 sender_public_key, encryption_iv, attachment_iv, media_type, date_created
          FROM message
          WHERE conversation_id = ?
+           AND message_id >= COALESCE((
+             SELECT hidden_through_message_id
+             FROM conversation_read_state
+             WHERE conversation_id = ?
+               AND account_type = ?
+               AND account_id = ?
+           ), 0)
          ORDER BY date_created DESC, message_id DESC
          LIMIT 1`,
-        [conversationId],
+        [conversationId, conversationId, role, accountId],
         (messageError, rows) => {
           if (messageError) {
             console.error("Latest message fetch failed:", messageError);
@@ -802,12 +917,19 @@ router.get(
       SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
+        AND message_id >= COALESCE((
+          SELECT hidden_through_message_id
+          FROM conversation_read_state
+          WHERE conversation_id = ?
+            AND account_type = 'buyer'
+            AND account_id = ?
+        ), 0)
       ORDER BY date_created ASC, message_id ASC
     `;
 
       markConversationRead(conversationId, "buyer", buyerId)
         .then(() => {
-          db.query(sql, [conversationId], (messageErr, rows) => {
+          db.query(sql, [conversationId, conversationId, buyerId], (messageErr, rows) => {
             if (messageErr) {
               console.error("Message fetch failed:", messageErr);
               return res
@@ -858,12 +980,19 @@ router.get(
       SELECT message_id, conversation_id, sender_type, message_data, image, sender_public_key, encryption_iv, attachment_iv, media_type, date_created
       FROM message
       WHERE conversation_id = ?
+        AND message_id >= COALESCE((
+          SELECT hidden_through_message_id
+          FROM conversation_read_state
+          WHERE conversation_id = ?
+            AND account_type = 'seller'
+            AND account_id = ?
+        ), 0)
       ORDER BY date_created ASC, message_id ASC
     `;
 
       markConversationRead(conversationId, "seller", sellerId)
         .then(() => {
-          db.query(sql, [conversationId], (messageErr, rows) => {
+          db.query(sql, [conversationId, conversationId, sellerId], (messageErr, rows) => {
             if (messageErr) {
               console.error("Message fetch failed:", messageErr);
               return res

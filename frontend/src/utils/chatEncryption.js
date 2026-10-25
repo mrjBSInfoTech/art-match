@@ -31,17 +31,28 @@ const importPublicKey = (jwk) => crypto.subtle.importKey(
   [],
 );
 
-export const ensureChatKeyPair = async (storageKey) => {
-  const stored = localStorage.getItem(storageKey);
-  if (stored) {
-    const keyData = JSON.parse(stored);
-    return {
-      privateKey: await importPrivateKey(keyData.privateKey),
-      publicKey: keyData.publicKey,
-      publicKeyJwk: JSON.stringify(keyData.publicKey),
-    };
-  }
+const storeChatKeyPair = async (storageKey, privateJwk, publicKey) => {
+  const publicJwk = typeof publicKey === "string" ? JSON.parse(publicKey) : publicKey;
+  const privateKey = await importPrivateKey(privateJwk);
+  localStorage.setItem(storageKey, JSON.stringify({ privateKey: privateJwk, publicKey: publicJwk }));
+  return {
+    privateKey,
+    publicKey: publicJwk,
+    publicKeyJwk: JSON.stringify(publicJwk),
+  };
+};
 
+export const loadChatKeyPair = async (storageKey) => {
+  const stored = localStorage.getItem(storageKey);
+  if (!stored) return null;
+  const keyData = JSON.parse(stored);
+  if (!keyData.privateKey || !keyData.publicKey) {
+    throw new Error("The saved secure chat key is incomplete");
+  }
+  return storeChatKeyPair(storageKey, keyData.privateKey, keyData.publicKey);
+};
+
+export const createChatKeyPair = async (storageKey) => {
   const keyPair = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },
     true,
@@ -49,17 +60,94 @@ export const ensureChatKeyPair = async (storageKey) => {
   );
   const privateKey = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
   const publicKey = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-  localStorage.setItem(storageKey, JSON.stringify({ privateKey, publicKey }));
+  return storeChatKeyPair(storageKey, privateKey, publicKey);
+};
 
+const recoveryIterations = 600000;
+const deriveRecoveryKey = async (pin, salt) => {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(pin),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: recoveryIterations },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+};
+
+export const encryptChatKeyBackup = async (keyPair, pin) => {
+  if (!/^\d{6}$/.test(pin)) throw new Error("Enter a six-digit recovery PIN");
+  const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveRecoveryKey(pin, salt);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encoder.encode(JSON.stringify(privateJwk)),
+  );
   return {
-    privateKey: keyPair.privateKey,
-    publicKey,
-    publicKeyJwk: JSON.stringify(publicKey),
+    encryptedPrivateKey: bytesToBase64(new Uint8Array(ciphertext)),
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+    publicKey: keyPair.publicKeyJwk,
   };
 };
 
+export const restoreChatKeyPair = async (storageKey, backup, pin) => {
+  if (!/^\d{6}$/.test(pin)) throw new Error("Enter your six-digit recovery PIN");
+  let privateJwk;
+  let publicJwk;
+  try {
+    const key = await deriveRecoveryKey(pin, base64ToBytes(backup.salt));
+    const privateBytes = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64ToBytes(backup.iv) },
+      key,
+      base64ToBytes(backup.encryptedPrivateKey),
+    );
+    privateJwk = JSON.parse(decoder.decode(privateBytes));
+    publicJwk = JSON.parse(backup.publicKey);
+    if (privateJwk.x !== publicJwk.x || privateJwk.y !== publicJwk.y
+      || privateJwk.crv !== "P-256" || publicJwk.crv !== "P-256") {
+      throw new Error("Key pair does not match");
+    }
+    await importPrivateKey(privateJwk);
+  } catch {
+    throw new Error("That PIN could not unlock this chat backup");
+  }
+  return storeChatKeyPair(storageKey, privateJwk, publicJwk);
+};
+
+const MIN_RECOVERY_PIN = 100000;
+const MAX_RECOVERY_PIN = 1000000;
+export const generateRecoveryPin = () =>
+  String(
+    crypto.getRandomValues(new Uint32Array(1))[0]
+      % (MAX_RECOVERY_PIN - MIN_RECOVERY_PIN)
+      + MIN_RECOVERY_PIN,
+  );
+
+export const ensureChatKeyPair = async (storageKey) => {
+  const stored = await loadChatKeyPair(storageKey);
+  return stored || createChatKeyPair(storageKey);
+};
+
 const deriveMessageKey = async (privateKey, senderPublicKeyJwk) => {
-  const publicKey = await importPublicKey(JSON.parse(senderPublicKeyJwk));
+  if (!(privateKey instanceof CryptoKey)) {
+    throw new Error("Secure messaging is not unlocked on this device yet");
+  }
+  if (!senderPublicKeyJwk) {
+    throw new Error("The other person has not set up secure messaging yet");
+  }
+  const publicKey = await importPublicKey(
+    typeof senderPublicKeyJwk === "string" ? JSON.parse(senderPublicKeyJwk) : senderPublicKeyJwk,
+  );
   return crypto.subtle.deriveKey(
     { name: "ECDH", public: publicKey },
     privateKey,

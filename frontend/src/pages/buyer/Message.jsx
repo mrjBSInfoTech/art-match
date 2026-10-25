@@ -39,6 +39,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import ChatPinDialog from "../../components/chat/ChatPinDialog";
+import ChatRecoveryDialog from "../../components/chat/ChatRecoveryDialog";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 import {
   fetchBuyerConversations,
@@ -52,13 +55,20 @@ import {
   startBuyerConversation,
   sendBuyerMessage,
   registerBuyerChatKey,
+  fetchBuyerOwnChatKey,
+  fetchBuyerChatRecoveryBackup,
+  saveBuyerChatRecoveryBackup,
+  resetBuyerChatRecoveryBackup,
   fetchSellerChatKey,
 } from "../../api/buyer/messageAPI";
 import { subscribeToChatEvents } from "../../api/chatEvents";
 import {
   decryptChatMessage,
   encryptChatMessage,
-  ensureChatKeyPair,
+  createChatKeyPair,
+  encryptChatKeyBackup,
+  loadChatKeyPair,
+  restoreChatKeyPair,
 } from "../../utils/chatEncryption";
 
 const formatMessageTime = (dateString) => {
@@ -113,6 +123,12 @@ export default function Messages({ embedded = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [encryptionReady, setEncryptionReady] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState("");
+  // "" = closed, "create" = no PIN yet, "enter" = unlock with existing PIN
+  const [pinDialogMode, setPinDialogMode] = useState("");
+  const pinDialogOpen = pinDialogMode !== "";
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [actionDialog, setActionDialog] = useState("");
@@ -125,6 +141,8 @@ export default function Messages({ embedded = false }) {
   const fileInputRef = useRef(null);
   const privateKeyRef = useRef(null);
   const publicKeyJwkRef = useRef("");
+  const recoveryBackupRef = useRef(null);
+  const recoveryStorageKeyRef = useRef("");
   const previewPublicKeysRef = useRef(new Map());
   const decryptedPreviewCacheRef = useRef(new Map());
   const messagesContainerRef = useRef(null);
@@ -143,12 +161,46 @@ export default function Messages({ embedded = false }) {
       try {
         const accountId =
           localStorage.getItem("buyer_customer_id") || "current";
-        const keyPair = await ensureChatKeyPair(
-          `buyer_chat_key_pair_${accountId}`,
-        );
+        const storageKey = `buyer_chat_key_pair_${accountId}`;
+        recoveryStorageKeyRef.current = storageKey;
+        const [localKeyPair, backup] = await Promise.all([
+          loadChatKeyPair(storageKey),
+          fetchBuyerChatRecoveryBackup(),
+        ]);
+        recoveryBackupRef.current = backup;
+
+        if (!localKeyPair && backup) {
+          setRecoveryMode("restore");
+          setPinDialogMode("enter");
+          return;
+        }
+
+        if (backup && (localKeyPair.publicKey.x !== JSON.parse(backup.publicKey).x
+          || localKeyPair.publicKey.y !== JSON.parse(backup.publicKey).y)) {
+          setRecoveryMode("restore");
+          return;
+        }
+
+        if (!localKeyPair && !backup) {
+          const existingPublicKey = await fetchBuyerOwnChatKey();
+          if (existingPublicKey) {
+            setRecoveryMode("fresh");
+            return;
+          }
+          setPinDialogMode("create");
+          return;
+        }
+
+        const keyPair = localKeyPair || await createChatKeyPair(storageKey);
         privateKeyRef.current = keyPair.privateKey;
         publicKeyJwkRef.current = keyPair.publicKeyJwk;
         await registerBuyerChatKey(keyPair.publicKeyJwk);
+        if (!backup) {
+          privateKeyRef.current = null;
+          publicKeyJwkRef.current = "";
+          setPinDialogMode("create");
+          return;
+        }
         setEncryptionReady(true);
       } catch (err) {
         setError(err.message || "Secure messaging could not be initialized");
@@ -157,6 +209,69 @@ export default function Messages({ embedded = false }) {
 
     initializeEncryption();
   }, []);
+
+  const handleRecoverySubmit = async (pin) => {
+    setRecoveryBusy(true);
+    setRecoveryError("");
+    try {
+      if (pinDialogMode === "create") {
+        if (!privateKeyRef.current) {
+          const keyPair = await createChatKeyPair(recoveryStorageKeyRef.current);
+          privateKeyRef.current = keyPair.privateKey;
+          publicKeyJwkRef.current = keyPair.publicKeyJwk;
+          await registerBuyerChatKey(keyPair.publicKeyJwk);
+        }
+        const backup = await encryptChatKeyBackup(
+          {
+            privateKey: privateKeyRef.current,
+            publicKeyJwk: publicKeyJwkRef.current,
+          },
+          pin,
+        );
+        await saveBuyerChatRecoveryBackup(backup);
+        recoveryBackupRef.current = backup;
+      } else {
+        const keyPair = await restoreChatKeyPair(
+          recoveryStorageKeyRef.current,
+          recoveryBackupRef.current,
+          pin,
+        );
+        privateKeyRef.current = keyPair.privateKey;
+        publicKeyJwkRef.current = keyPair.publicKeyJwk;
+        await registerBuyerChatKey(keyPair.publicKeyJwk);
+      }
+      setRecoveryMode("");
+      setPinDialogMode("");
+      setEncryptionReady(true);
+    } catch (err) {
+      setRecoveryError(
+        err.message
+          || (pinDialogMode === "create"
+            ? "Unable to create your recovery PIN"
+            : "Unable to unlock secure messaging"),
+      );
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
+
+  const handleRecoveryReset = async () => {
+    setRecoveryBusy(true);
+    setRecoveryError("");
+    try {
+      // The old backup is useless without its PIN, so rotate to a fresh key.
+      // The new PIN is chosen by the user in the pop-up, which then saves the backup.
+      await resetBuyerChatRecoveryBackup();
+      setRecoveryMode("");
+      setPinDialogMode("create");
+      setRecoveryError("");
+      setEncryptionReady(true);
+    } catch (err) {
+      setRecoveryError(err.message || "Unable to reset chat recovery");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
 
   const activeChat = useMemo(
     () =>
@@ -390,9 +505,12 @@ export default function Messages({ embedded = false }) {
       try {
         const data = await fetchBuyerMessages(selectedConversationId);
         let recipientPublicKey = null;
-        try {
-          recipientPublicKey = await fetchSellerChatKey(activeChat?.other_id);
-        } catch {}
+        if (
+          activeChat?.other_id &&
+          data?.some((message) => message.sender_type === "buyer" && message.encryption_iv)
+        ) {
+          recipientPublicKey = await fetchSellerChatKey(activeChat.other_id);
+        }
         const decryptedMessages = await Promise.all(
           (data || []).map(async (msg) => {
             try {
@@ -477,7 +595,7 @@ export default function Messages({ embedded = false }) {
     return () => {
       if (loadMessagesRef.current === loadMessages) loadMessagesRef.current = null;
     };
-  }, [selectedConversationId, encryptionReady]);
+  }, [selectedConversationId, encryptionReady, activeChat?.other_id]);
 
   const normalizeConversationPreview = (value, chat) => {
     const text = String(value ?? "").trim();
@@ -590,6 +708,10 @@ export default function Messages({ embedded = false }) {
 
   const handleSendMessage = async () => {
     if ((!inputMessage.trim() && !attachedFile) || !activeChat) return;
+    if (!encryptionReady || !privateKeyRef.current) {
+      setError("Unlock secure messaging before sending messages");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("message", inputMessage.trim());
@@ -1279,7 +1401,7 @@ export default function Messages({ embedded = false }) {
                   <IconButton
                     color="primary"
                     onClick={handleSendMessage}
-                    disabled={isChatBlocked || (!inputMessage.trim() && !attachedFile)}
+                    disabled={isChatBlocked || !encryptionReady || (!inputMessage.trim() && !attachedFile)}
                     sx={{
                       bgcolor: "primary.main",
                       color: "#fff",
@@ -1455,14 +1577,55 @@ export default function Messages({ embedded = false }) {
         </DialogContent>
       </Dialog>
 
+      <ChatRecoveryDialog
+        mode={pinDialogOpen ? "" : recoveryMode}
+        busy={recoveryBusy}
+        error={recoveryError}
+        onSubmit={handleRecoverySubmit}
+        onReset={handleRecoveryReset}
+      />
+
+      <ChatPinDialog
+        open={pinDialogOpen}
+        mode={pinDialogMode}
+        busy={recoveryBusy}
+        error={recoveryError}
+        onSubmit={handleRecoverySubmit}
+        onReset={handleRecoveryReset}
+      />
+
+      {!encryptionReady && !pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh" && (
+        <Alert
+          severity="info"
+          icon={<LockOutlinedIcon />}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setRecoveryError("");
+                setPinDialogMode("enter");
+              }}
+            >
+              Unlock
+            </Button>
+          }
+          sx={{ mb: 2 }}
+        >
+          Secure messaging is locked. Enter your six-digit recovery PIN to read and send messages.
+        </Alert>
+      )}
+
       <Dialog open={Boolean(actionDialog)} onClose={() => setActionDialog("")}>
         <DialogTitle>
-          {actionDialog === "delete" ? "Delete this chat?" : "Block this user?"}
+          {actionDialog === "delete"
+            ? "Delete this chat? Its messages will be removed for both of you, and your next message starts a new chat."
+              : "You and this user will no longer be able to send messages to each other."}
         </DialogTitle>
         <DialogContent>
           <Typography color="text.secondary">
             {actionDialog === "delete"
-              ? "This removes the conversation from your inbox. The other person’s copy is not deleted."
+            ? "Both people lose this conversation and its messages. Anyone can send a new message later, and that starts a fresh chat."
               : "You and this user will no longer be able to send messages to each other."}
           </Typography>
         </DialogContent>

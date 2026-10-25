@@ -186,6 +186,13 @@ const ensureOrderColumns = async () => {
     `);
   }
 
+  if (!names.has("handling_instructions")) {
+    await query(`
+      ALTER TABLE marketplace_order
+      ADD COLUMN handling_instructions JSON NULL
+    `);
+  }
+
   const indexes = await query(
     "SHOW INDEX FROM marketplace_order",
   );

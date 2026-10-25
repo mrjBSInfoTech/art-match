@@ -11,6 +11,9 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
   FormHelperText,
   FormControl,
   InputAdornment,
@@ -29,6 +32,7 @@ import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import { createElement, useEffect } from "react";
 import { fetchSellerOrders, updateSellerOrderStatus } from "../../api/seller/orderAPI";
 
@@ -60,6 +64,15 @@ const nextStatusMap = {
   Cancelled: [],
 };
 
+const parcelHandlingOptions = [
+  { value: "fragile", label: "Fragile — artwork or breakable items" },
+  { value: "do_not_bend", label: "Do not bend — prints or flat artwork" },
+  { value: "keep_dry", label: "Keep dry — protect from moisture" },
+  { value: "handle_with_care", label: "Handle with care" },
+  { value: "small_items", label: "Small trinkets or loose items inside" },
+  { value: "this_side_up", label: "This side up" },
+];
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -80,6 +93,7 @@ export default function SellerOrder() {
   const [parcelPhotos, setParcelPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [trackingUrl, setTrackingUrl] = useState("");
+  const [handlingInstructions, setHandlingInstructions] = useState([]);
   const [savingFulfillment, setSavingFulfillment] = useState(false);
 
   const loadOrders = async () => {
@@ -143,6 +157,7 @@ export default function SellerOrder() {
                 status: nextStatus,
                 trackingUrl: result.trackingUrl,
                 parcelPhotoCount: result.parcelPhotoCount,
+                handlingInstructions: result.handlingInstructions ?? order.handlingInstructions,
               }
             : order,
         ),
@@ -154,6 +169,7 @@ export default function SellerOrder() {
               status: nextStatus,
               trackingUrl: result.trackingUrl,
               parcelPhotoCount: result.parcelPhotoCount,
+              handlingInstructions: result.handlingInstructions ?? current.handlingInstructions,
             }
           : current,
       );
@@ -170,6 +186,7 @@ export default function SellerOrder() {
       setStatusError("");
       setParcelPhotos([]);
       setTrackingUrl(nextStatus === "Shipped" ? order?.trackingUrl || "" : "");
+      setHandlingInstructions(order?.handlingInstructions || []);
       setFulfillmentTarget({ orderId, status: nextStatus, order });
       return;
     }
@@ -185,6 +202,7 @@ export default function SellerOrder() {
         return;
       }
       parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
+      formData.append("handling_instructions", JSON.stringify(handlingInstructions));
     } else {
       formData.append("tracking_url", trackingUrl.trim());
     }
@@ -717,7 +735,7 @@ export default function SellerOrder() {
               </Stack>
             </DialogContent>
 
-            <DialogActions sx={{ p: 2.5, justifyContent: "space-between" }}>
+            <DialogActions sx={{ p: 2.5, justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
                   Update status:
@@ -742,10 +760,123 @@ export default function SellerOrder() {
               >
                 Close
               </Button>
+              <Button
+                variant="outlined"
+                startIcon={<PrintOutlinedIcon />}
+                onClick={() => window.print()}
+                sx={{ borderRadius: 999, textTransform: "none" }}
+              >
+                Print parcel label
+              </Button>
             </DialogActions>
           </>
         )}
       </Dialog>
+
+      {selectedOrder && (
+        <>
+          <style>{`
+            @media screen {
+              .seller-parcel-label {
+                display: none !important;
+              }
+            }
+            @media print {
+              @page {
+                size: 4in 6in;
+                margin: 0.2in;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              .seller-parcel-label,
+              .seller-parcel-label * {
+                visibility: visible !important;
+              }
+              .seller-parcel-label {
+                display: block !important;
+                position: fixed !important;
+                inset: 0 auto auto 0 !important;
+                box-sizing: border-box !important;
+                width: 3.6in !important;
+                min-height: 5.6in !important;
+                padding: 0.12in !important;
+                background: #fff !important;
+                color: #111 !important;
+                font: 12px/1.4 Arial, sans-serif !important;
+                z-index: 999999 !important;
+              }
+              .seller-parcel-label * {
+                color: #111 !important;
+              }
+            }
+          `}</style>
+          <Box component="section" className="seller-parcel-label" aria-label="Printable parcel label">
+            <Box sx={{ borderBottom: "2px solid #111", pb: 1, mb: 1.5 }}>
+              <Typography component="p" sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>
+                ARTMATCH · PARCEL LABEL
+              </Typography>
+              <Typography component="p" sx={{ mt: 0.5, fontSize: 21, fontWeight: 800 }}>
+                {selectedOrder.id}
+              </Typography>
+            </Box>
+            <Typography component="p" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8 }}>
+              SHIP TO
+            </Typography>
+            <Typography component="p" sx={{ mt: 0.3, fontSize: 17, fontWeight: 800, overflowWrap: "anywhere" }}>
+              {selectedOrder.customer}
+            </Typography>
+            <Typography component="p" sx={{ mt: 0.5, fontSize: 13, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+              {selectedOrder.address}
+            </Typography>
+            {selectedOrder.phone && (
+              <Typography component="p" sx={{ mt: 0.5, fontSize: 13, fontWeight: 700 }}>
+                Phone: {selectedOrder.phone}
+              </Typography>
+            )}
+            <Box sx={{ borderTop: "1px solid #777", mt: 1.5, pt: 1 }}>
+              <Typography component="p" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8 }}>
+                FROM
+              </Typography>
+              <Typography component="p" sx={{ fontSize: 13, fontWeight: 700 }}>
+                {selectedOrder.items[0]?.artist || "ArtMatch Seller"}
+              </Typography>
+            </Box>
+            <Box sx={{ borderTop: "1px solid #777", mt: 1.5, pt: 1 }}>
+              <Typography component="p" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8 }}>
+                PARCEL CONTENTS
+              </Typography>
+              {selectedOrder.items.map((item) => (
+                <Typography key={`${selectedOrder.id}-${item.id}`} component="p" sx={{ mt: 0.4, fontSize: 12 }}>
+                  {item.title} · Qty {item.qty}
+                </Typography>
+              ))}
+            </Box>
+            {selectedOrder.handlingInstructions?.length > 0 && (
+              <Box sx={{ border: "2px solid #111", mt: 1.5, p: 1 }}>
+                <Typography component="p" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.8 }}>
+                  HANDLE WITH CARE
+                </Typography>
+                {selectedOrder.handlingInstructions.map((instruction) => (
+                  <Typography key={instruction} component="p" sx={{ mt: 0.3, fontSize: 12, fontWeight: 700 }}>
+                    • {parcelHandlingOptions.find((option) => option.value === instruction)?.label || instruction}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+            <Box sx={{ border: "2px solid #111", mt: 1.5, p: 1, textAlign: "center" }}>
+              <Typography component="p" sx={{ fontSize: 10, fontWeight: 700 }}>
+                {String(selectedOrder.payment).toLowerCase() === "cod" ? "CASH ON DELIVERY" : "ONLINE PAYMENT"}
+              </Typography>
+              {String(selectedOrder.payment).toLowerCase() === "cod" && (
+                <Typography component="p" sx={{ mt: 0.3, fontSize: 18, fontWeight: 800 }}>
+                  COLLECT {formatCurrency(selectedOrder.total)}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        </>
+      )}
 
       <Dialog
         open={Boolean(fulfillmentTarget)}
@@ -767,6 +898,35 @@ export default function SellerOrder() {
                   Upload 1 to 5 clear photos of the packed parcel. The buyer
                   will be able to inspect them in Notifications.
                 </Typography>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                    Parcel handling warnings (optional)
+                  </Typography>
+                  <FormGroup>
+                    {parcelHandlingOptions.map((option) => (
+                      <FormControlLabel
+                        key={option.value}
+                        control={
+                          <Checkbox
+                            checked={handlingInstructions.includes(option.value)}
+                            onChange={(event) =>
+                              setHandlingInstructions((current) =>
+                                event.target.checked
+                                  ? [...current, option.value]
+                                  : current.filter((value) => value !== option.value),
+                              )
+                            }
+                            disabled={savingFulfillment}
+                          />
+                        }
+                        label={option.label}
+                      />
+                    ))}
+                  </FormGroup>
+                  <FormHelperText>
+                    Selected warnings are saved with the packed order and appear on its printable parcel label.
+                  </FormHelperText>
+                </Box>
                 <Button component="label" variant="outlined" disabled={savingFulfillment}>
                   Choose parcel photos
                   <input

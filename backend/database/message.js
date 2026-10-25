@@ -9,6 +9,7 @@ export const ensureConversationReadStateTable = () =>
         account_id INT NOT NULL,
         last_read_message_id INT NOT NULL DEFAULT 0,
         hidden_through_message_id INT NULL DEFAULT NULL,
+        deleted_at TIMESTAMP NULL DEFAULT NULL,
         PRIMARY KEY (conversation_id, account_type, account_id),
         INDEX idx_conversation_read_account (account_type, account_id)
       ) ENGINE=InnoDB`,
@@ -21,16 +22,24 @@ export const ensureConversationReadStateTable = () =>
               return reject(alterError);
             }
             db.query(
-              `CREATE TABLE IF NOT EXISTS chat_blocks (
-                blocker_type ENUM('buyer', 'seller') NOT NULL,
-                blocker_id INT NOT NULL,
-                blocked_type ENUM('buyer', 'seller') NOT NULL,
-                blocked_id INT NOT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (blocker_type, blocker_id, blocked_type, blocked_id),
-                INDEX idx_chat_blocks_target (blocked_type, blocked_id)
-              ) ENGINE=InnoDB`,
-              (blockError) => (blockError ? reject(blockError) : resolve()),
+              "ALTER TABLE conversation_read_state ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL",
+              (deletedError) => {
+                if (deletedError && deletedError.code !== "ER_DUP_FIELDNAME") {
+                  return reject(deletedError);
+                }
+                db.query(
+                  `CREATE TABLE IF NOT EXISTS chat_blocks (
+                    blocker_type ENUM('buyer', 'seller') NOT NULL,
+                    blocker_id INT NOT NULL,
+                    blocked_type ENUM('buyer', 'seller') NOT NULL,
+                    blocked_id INT NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (blocker_type, blocker_id, blocked_type, blocked_id),
+                    INDEX idx_chat_blocks_target (blocked_type, blocked_id)
+                  ) ENGINE=InnoDB`,
+                  (blockError) => (blockError ? reject(blockError) : resolve()),
+                );
+              },
             );
           },
         );

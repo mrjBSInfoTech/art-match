@@ -18,7 +18,10 @@ import adminAdminRoutes from "./routes/admin/admin.js";
 import aboutContentRoutes from "./routes/aboutContent.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
-import { ensureChatPublicKeysTable } from "./database/chatKeys.js";
+import {
+  ensureChatKeyRecoveryTable,
+  ensureChatPublicKeysTable,
+} from "./database/chatKeys.js";
 import {
   ensureConversationReadStateTable,
   ensureMessageSenderNameColumn,
@@ -569,7 +572,6 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 createAuditLogsTable().catch(() => {});
-ensureChatPublicKeysTable();
 ensureMessageSenderNameColumn();
 ensureAccountAccessTable()
   .then(() => ensureBuyerPrivacyColumn())
@@ -580,6 +582,8 @@ ensureAccountAccessTable()
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
   .then(() => ensureConversationReadStateTable())
+  .then(() => ensureChatPublicKeysTable())
+  .then(() => ensureChatKeyRecoveryTable())
   .then(() =>
     app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)),
   )

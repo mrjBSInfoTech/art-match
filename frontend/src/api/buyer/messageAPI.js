@@ -134,6 +134,41 @@ export const registerBuyerChatKey = async (publicKey) => {
   await api.post("/buyer/keys", { publicKey });
 };
 
+export const fetchBuyerOwnChatKey = async () => {
+  try {
+    const response = await api.get("/buyer/keys/me");
+    return response.data.publicKey;
+  } catch (error) {
+    if (error.response?.status === 404) return null;
+    handleError(error);
+  }
+};
+
+export const fetchBuyerChatRecoveryBackup = async () => {
+  try {
+    const response = await api.get("/buyer/recovery");
+    return response.data.backup;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const saveBuyerChatRecoveryBackup = async (backup) => {
+  try {
+    await api.put("/buyer/recovery", backup);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const resetBuyerChatRecoveryBackup = async () => {
+  try {
+    await api.delete("/buyer/recovery");
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const fetchSellerChatKey = async (sellerId) => {
   const res = await api.get(`/buyer/keys/${sellerId}`);
   return res.data.publicKey;
