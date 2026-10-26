@@ -31,6 +31,7 @@ import {
 import { ensureEventsTable } from "./database/events.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
+import { ensureReturnTables } from "./database/returns.js";
 import { ensureStudentAccountSchema } from "./database/student.js";
 import { ensureSystemSettingsTable } from "./database/systemSettings.js";
 import { ensurePaymentSplitTable } from "./database/paymentSplits.js";
@@ -64,6 +65,7 @@ import { ensureArtworkDerivatives } from "./utils/artworkDerivativeBackfill.js";
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
 import sellerStorefrontRoutes from "./routes/seller/storefront.js";
 import sellerOrderRoutes from "./routes/seller/orders.js";
+import sellerReturnRoutes from "./routes/seller/returns.js";
 import sellerReviewRoutes from "./routes/seller/reviews.js";
 //import sellerSalesRoutes from "./routes/seller/sales.js";
 import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
@@ -75,6 +77,7 @@ import buyerEventRoutes from "./routes/buyer/event.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
 import buyerFavoriteRoutes from "./routes/buyer/favorites.js";
 import buyerOrderRoutes from "./routes/buyer/orders.js";
+import buyerReturnRoutes from "./routes/buyer/returns.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
 import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 
@@ -610,6 +613,7 @@ app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
 app.use("/api/seller/artwork", sellerArtworkRoutes);
 app.use("/api/seller/storefront", sellerStorefrontRoutes);
 app.use("/api/seller/orders", sellerOrderRoutes);
+app.use("/api/seller/returns", sellerReturnRoutes);
 app.use("/api/seller/reviews", sellerReviewRoutes);
 //app.use("/api/seller/sales", sellerSalesRoutes);
 // Routes (Buyer)
@@ -620,6 +624,7 @@ app.use("/api/buyer/event", buyerEventRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
 app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
+app.use("/api/buyer/returns", buyerReturnRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/buyer/recommendation", buyerRecommendationRoutes);
 
@@ -664,6 +669,7 @@ ensureAccountAccessTable()
   .then(() => ensureAboutContentTable())
   .then(() => ensureEventsTable())
   .then(() => ensureConversationReadStateTable())
+  .then(() => ensureReturnTables())
   .then(() => ensureChatPublicKeysTable())
   .then(() => ensureChatKeyRecoveryTable())
   .then(

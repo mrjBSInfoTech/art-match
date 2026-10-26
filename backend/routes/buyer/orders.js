@@ -18,6 +18,7 @@ import {
 import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 import { getCommissionRate } from "../../database/paymentSplits.js";
 import { buildPaymentSplit, validateSplits } from "../../utils/paymentSplit.js";
+import { attachOrderReturns } from "../../utils/returns.js";
 
 const router = express.Router();
 
@@ -48,6 +49,9 @@ const groupOrderRows = (rows) => {
         id: row.order_number,
         date: row.created_at,
         status: row.status,
+        deliveredAt: row.delivered_at,
+        customerId: row.customer_id,
+        sellerId: row.seller_id,
         payment: row.payment_method,
         paymentStatus: row.payment_status,
         paymentReference: row.payment_reference,
@@ -125,6 +129,8 @@ const ordersSql = `
 
     o.created_at,
     o.status,
+    o.delivered_at,
+    o.customer_id,
     o.payment_method,
     o.payment_status,
     o.payment_reference,
@@ -168,6 +174,9 @@ const ordersSql = `
 
 router.get("/", authenticateBuyer, async (req, res) => {
   res.set("Cache-Control", "no-store");
+  if (req.user.student_id || req.user.student_number || req.user.admin_id) {
+    return res.status(403).json({ message: "Buyer access is required" });
+  }
   try {
     const rows = await query(
       db.promise(),
@@ -183,7 +192,9 @@ router.get("/", authenticateBuyer, async (req, res) => {
       [req.user.customer_id],
     );
 
-    return res.json(groupOrderRows(rows));
+    return res.json(await attachOrderReturns(
+      db.promise(), groupOrderRows(rows), "buyer", req.user.customer_id,
+    ));
   } catch (error) {
     console.error("Buyer order list error:", error);
 

@@ -3,6 +3,7 @@ import vm from "node:vm";
 import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import * as paymongo from "../utils/paymongo.js";
 import * as availability from "../utils/artworkAvailability.js";
+import * as paymentSplit from "../utils/paymentSplit.js";
 
 // Execute the real route handlers with isolated dependencies: no TCP, MySQL,
 // environment credentials, or PayMongo calls are used by these tests.
@@ -16,10 +17,12 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     .replace(/^import[\s\S]*?;\s*/gm, "")
     .replace(/export default router;?/, "");
   const context = {
-    ...paymongo, ...availability, createHmac, timingSafeEqual, randomUUID,
+    ...paymongo, ...availability, ...paymentSplit, createHmac, timingSafeEqual, randomUUID,
     Buffer, URL, URLSearchParams, Date, setTimeout, clearTimeout,
     express: { Router: () => router },
     authenticateBuyer: () => {},
+    attachOrderReturns: async (_executor, orders) => orders,
+    getCommissionRate: () => 0,
     getRecommendationSessionIdFromRequest: () => "test-browser-session",
     readParcelPhoto: () => { throw new Error("Unexpected parcel photo access"); },
     process: { env: {
@@ -98,6 +101,12 @@ export function databaseFixture(overrides = {}) {
     interactions: [],
     ...overrides,
   };
+  state.paymentSplits ??= state.orders.map(order => ({
+    order_id: order.order_id, seller_id: order.seller_id,
+    payment_reference: order.payment_reference, gross_amount: Number(order.total_amount),
+    commission_rate: 0, commission_amount: 0, processing_fee_amount: 0,
+    net_amount: Number(order.total_amount), payout_status: "Held", eligible_at: null,
+  }));
   let snapshot;
   const calls = [];
   let fail;
@@ -198,6 +207,25 @@ export function databaseFixture(overrides = {}) {
       if (/^INSERT INTO marketplace_order_item/i.test(sql)) {
         state.orderItems.push({ order_id: params[0], artwork_id: params[1], title: params[2], unit_price: params[5], quantity: 1 });
         return [{ insertId: state.orderItems.length, affectedRows: 1 }];
+      }
+      if (/^INSERT INTO seller_payment_split/i.test(sql)) {
+        const columns = ["order_id", "seller_id", "payment_reference", "gross_amount", "commission_rate",
+          "commission_amount", "processing_fee_amount", "net_amount", "payout_status"];
+        const split = Object.fromEntries(columns.map((column, index) => [column, params[index]]));
+        const existing = state.paymentSplits.find(row => row.order_id === split.order_id);
+        if (existing) existing.payment_reference = split.payment_reference;
+        else state.paymentSplits.push(split);
+        return [{ insertId: state.paymentSplits.length, affectedRows: 1 }];
+      }
+      if (/^UPDATE seller_payment_split s/i.test(sql)) {
+        const ids = new Set(params[1].map(Number));
+        const selected = state.paymentSplits.filter(split => ids.has(Number(split.order_id)) && split.payout_status === "Held");
+        for (const split of selected) {
+          split.payout_status = "Eligible";
+          split.eligible_at ??= params[0];
+          split.payment_reference ??= state.orders.find(order => order.order_id === split.order_id)?.payment_reference;
+        }
+        return [{ affectedRows: selected.length }];
       }
       if (/^UPDATE marketplace_order/i.test(sql)) {
         const assignmentSql = sql.split(/\bSET\b/i)[1].split(/\bWHERE\b/i)[0];

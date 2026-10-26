@@ -1,17 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-  FormHelperText,
   FormControl,
   InputAdornment,
   MenuItem,
@@ -35,6 +28,7 @@ import { fetchSellerOrders, updateSellerOrderStatus } from "../../api/seller/ord
 import { canFulfillOrder, isPayMongoOrder, isPlacedOrder, isSellerSale, needsPaymentSupport } from "../../utils/orderPayments.js";
 import OrderCard from "../../components/seller/Order/OrderCard";
 import OrderInfo from "../../components/seller/Order/OrderInfo";
+import OrderParcelPhoto from "../../components/seller/Order/OrderParcelPhoto";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
 
 const orderStatuses = [
@@ -47,15 +41,6 @@ const orderStatuses = [
   "Cancelled",
 ];
 
-const nextStatusMap = {
-  Pending: ["Confirmed", "Cancelled"],
-  Confirmed: ["Packed"],
-  Packed: ["Shipped"],
-  Shipped: ["Delivered"],
-  Delivered: [],
-  Cancelled: [],
-};
-
 const parcelHandlingOptions = [
   { value: "fragile", label: "Fragile — artwork or breakable items" },
   { value: "do_not_bend", label: "Do not bend — prints or flat artwork" },
@@ -64,6 +49,15 @@ const parcelHandlingOptions = [
   { value: "small_items", label: "Small trinkets or loose items inside" },
   { value: "this_side_up", label: "This side up" },
 ];
+
+const nextStatusMap = {
+  Pending: ["Confirmed", "Cancelled"],
+  Confirmed: ["Packed"],
+  Packed: ["Shipped"],
+  Shipped: ["Delivered"],
+  Delivered: [],
+  Cancelled: [],
+};
 
 const availableNextStatuses = (order) => canFulfillOrder(order)
   ? (nextStatusMap[order.status] || []).filter((status) =>
@@ -85,6 +79,7 @@ const fulfillmentHint = (order) => {
 };
 
 export default function SellerOrder() {
+  const navigate = useNavigate();
   const theme = useTheme();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -525,6 +520,7 @@ export default function SellerOrder() {
                 key={order.orderId}
                 order={order}
                 onViewDetails={setSelectedOrder}
+                onViewReturn={(request) => navigate(`/seller/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`)}
                 onStatusChange={updateOrderStatus}
                 nextStatuses={availableNextStatuses(order)}
                 statusHint={fulfillmentHint(order)}
@@ -672,126 +668,22 @@ export default function SellerOrder() {
         </>
       )}
 
-      <Dialog
+      <OrderParcelPhoto
         open={Boolean(fulfillmentTarget)}
-        onClose={() => !savingFulfillment && setFulfillmentTarget(null)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          {fulfillmentTarget?.status === "Packed"
-            ? "Add parcel photos"
-            : "Add tracking link"}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {statusError && <Alert severity="error">{statusError}</Alert>}
-            {fulfillmentTarget?.status === "Packed" ? (
-              <>
-                <Typography variant="body2" color="text.secondary">
-                  Upload 1 to 5 clear photos of the packed parcel. The buyer
-                  will be able to inspect them in Notifications.
-                </Typography>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    Parcel handling warnings (optional)
-                  </Typography>
-                  <FormGroup>
-                    {parcelHandlingOptions.map((option) => (
-                      <FormControlLabel
-                        key={option.value}
-                        control={
-                          <Checkbox
-                            checked={handlingInstructions.includes(option.value)}
-                            onChange={(event) =>
-                              setHandlingInstructions((current) =>
-                                event.target.checked
-                                  ? [...current, option.value]
-                                  : current.filter((value) => value !== option.value),
-                              )
-                            }
-                            disabled={savingFulfillment}
-                          />
-                        }
-                        label={option.label}
-                      />
-                    ))}
-                  </FormGroup>
-                  <FormHelperText>
-                    Selected warnings are saved with the packed order and appear on its printable parcel label.
-                  </FormHelperText>
-                </Box>
-                <Button component="label" variant="outlined" disabled={savingFulfillment}>
-                  Choose parcel photos
-                  <input
-                    hidden
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    multiple
-                    onChange={(event) =>
-                      setParcelPhotos(Array.from(event.target.files || []))
-                    }
-                  />
-                </Button>
-                <FormHelperText>
-                  {parcelPhotos.length} of 1–5 photos selected (JPEG, PNG, or
-                  WebP; maximum 5 MB each)
-                </FormHelperText>
-                {photoPreviews.length > 0 && (
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                    {photoPreviews.map((preview, index) => (
-                      <Box
-                        key={preview}
-                        component="img"
-                        src={preview}
-                        alt={`Parcel photo ${index + 1}`}
-                        sx={{
-                          width: 96,
-                          height: 96,
-                          objectFit: "cover",
-                          borderRadius: 1,
-                          border: "1px solid",
-                          borderColor: "divider",
-                        }}
-                      />
-                    ))}
-                  </Box>
-                )}
-              </>
-            ) : (
-              <>
-                <Typography variant="body2" color="text.secondary">
-                  Add the carrier tracking URL if one is available. This is
-                  optional and will be shown to the buyer in Notifications.
-                </Typography>
-                <TextField
-                  label="Tracking link (optional)"
-                  placeholder="https://..."
-                  value={trackingUrl}
-                  onChange={(event) => setTrackingUrl(event.target.value)}
-                  inputProps={{ maxLength: 2048 }}
-                  fullWidth
-                />
-              </>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button
-            onClick={() => setFulfillmentTarget(null)}
-            disabled={savingFulfillment}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={submitFulfillmentUpdate}
-            disabled={savingFulfillment}
-          >
-            {savingFulfillment ? "Saving..." : `Mark ${fulfillmentTarget?.status}`}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        fulfillmentTarget={fulfillmentTarget}
+        statusError={statusError}
+        parcelPhotos={parcelPhotos}
+        setParcelPhotos={setParcelPhotos}
+        photoPreviews={photoPreviews}
+        handlingOptions={parcelHandlingOptions}
+        trackingUrl={trackingUrl}
+        setTrackingUrl={setTrackingUrl}
+        handlingInstructions={handlingInstructions}
+        setHandlingInstructions={setHandlingInstructions}
+        saving={savingFulfillment}
+        onClose={() => setFulfillmentTarget(null)}
+        onSubmit={submitFulfillmentUpdate}
+      />
     </Box>
   );
 }

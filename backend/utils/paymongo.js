@@ -5,11 +5,12 @@ const DEFAULT_METHODS = ["card", "gcash", "paymaya", "qrph"];
 const SUPPORTED_METHODS = new Set(DEFAULT_METHODS);
 
 export class PayMongoError extends Error {
-  constructor(message, status = 502, providerStatus = null) {
+  constructor(message, status = 502, providerStatus = null, providerCode = null) {
     super(message);
     this.name = "PayMongoError";
     this.status = status;
     this.providerStatus = providerStatus;
+    this.providerCode = providerCode;
   }
 }
 
@@ -47,6 +48,12 @@ const request = async (path, { method = "GET", attributes } = {}) => {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     const code = String(body?.errors?.[0]?.code || "");
+    if (code.toLowerCase() === "maintenance") {
+      throw new PayMongoError(
+        "PayMongo is temporarily under maintenance. Please try again later or choose Cash on Delivery.",
+        503, response.status, "maintenance",
+      );
+    }
     const message = /payment_method|capabilit/i.test(code)
       ? "A selected payment method is unavailable on this PayMongo account."
       : response.status === 400

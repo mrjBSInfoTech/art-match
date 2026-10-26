@@ -120,7 +120,10 @@ export default function Checkout() {
             confirmedPayments.current.add(paymentReference);
             try { sessionStorage.removeItem("paymongo_payment_reference"); } catch { /* Confirmed server state remains authoritative. */ }
             window.dispatchEvent(new Event("cart-updated"));
-            navigate(`/buyer/profile/orders?payment=success&reference=${encodeURIComponent(paymentReference)}`, { replace: true });
+            navigate("/buyer/order-finish", {
+              replace: true,
+              state: { orders, paymentMethod: "paymongo" },
+            });
           }
           return;
         }
@@ -387,13 +390,6 @@ export default function Checkout() {
         <title>Checkout</title>
       </Helmet>
 
-      <Typography
-        variant="h4"
-        sx={{ fontWeight: 800, mb: 4, letterSpacing: -0.5 }}
-      >
-        Checkout
-      </Typography>
-
       {pageLoading && (
         <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
           <CircularProgress />
@@ -406,16 +402,32 @@ export default function Checkout() {
         </Alert>
       )}
       {paymentReference && (
-        <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3, maxWidth: 850, mx: "auto" }}>
-          <Stack spacing={2.5}>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2.5, sm: 3.5 },
+            borderRadius: 2.5,
+            maxWidth: 850,
+            mx: "auto",
+          }}
+        >
+          <Stack spacing={2}>
             <Box>
-              <Typography variant="h5" fontWeight={800}>{paymentPaid ? "Payment received" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {paymentPaid ? "Opening your orders…" : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
+              <Typography variant="h5" fontWeight={700}>
+                {paymentPaid ? "Payment received" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {paymentPaid ? "Opening your order confirmation…" : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
                   ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
                   : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection."}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}>Checkout: {paymentReference}</Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}
+              >
+                Checkout: {paymentReference}
+              </Typography>
             </Box>
             {paymentChecking && <Stack direction="row" alignItems="center" spacing={1.5}><CircularProgress size={20} /><Typography role="status">Verifying your payment…</Typography></Stack>}
             {paymentError && <Alert severity="error">{paymentError}</Alert>}
@@ -443,12 +455,16 @@ export default function Checkout() {
                 <SummaryRow label="Total" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
               </Stack>
             )}
-            <Stack direction={{ xs: "column", sm: "row" }} flexWrap="wrap" gap={1.5}>
+            <Stack
+              direction="row"
+              flexWrap="wrap"
+              justifyContent="flex-end"
+              gap={1}
+            >
               {paymentCanResume && <Button variant="contained" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("resume")}>Continue payment</Button>}
               {paymentCanResume && <Button color="error" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("cancel")}>Cancel checkout</Button>}
-              {!paymentPaid && <Button variant="outlined" disabled={loading || paymentChecking} onClick={() => setPaymentRefresh((value) => value + 1)}>Check payment status</Button>}
               {paymentRefunded && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
-              <Button disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
+              <Button variant="contained" color="error" fullWidth  disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
             </Stack>
           </Stack>
         </Paper>
@@ -505,7 +521,7 @@ export default function Checkout() {
                       p: 1,
                       borderRadius: 2,
                       bgcolor: "action.selected",
-                      color: "primary.main",
+                      color: "error.main",
                       display: "flex",
                     }}
                   >
@@ -579,7 +595,7 @@ export default function Checkout() {
                       p: 2.5,
                       mt: 1,
                       borderRadius: 2.5,
-                      borderColor: "primary.main",
+                      borderColor: "error.main",
                       bgcolor: "action.selected",
                     }}
                   >
@@ -589,7 +605,7 @@ export default function Checkout() {
                       alignItems="flex-start"
                     >
                       <LocationOnOutlinedIcon
-                        color="primary"
+                        color="error"
                         sx={{ mt: 0.3 }}
                       />
                       <Box sx={{ flexGrow: 1 }}>
@@ -611,7 +627,7 @@ export default function Checkout() {
                               }
                               label="Default"
                               size="small"
-                              color="primary"
+                              color="error"
                               sx={{
                                 height: 20,
                                 fontSize: "0.65rem",
@@ -676,7 +692,7 @@ export default function Checkout() {
                       p: 1,
                       borderRadius: 2,
                       bgcolor: "action.selected",
-                      color: "primary.main",
+                      color: "error.main",
                       display: "flex",
                     }}
                   >
@@ -697,7 +713,7 @@ export default function Checkout() {
                     value="paymongo"
                     title="Secure Online Payment"
                     subtitle="Choose your e-wallet, card, or QR payment on PayMongo"
-                    icon={<AccountBalanceWalletOutlinedIcon color="primary" />}
+                    icon={<AccountBalanceWalletOutlinedIcon color="error" />}
                     selectedValue={paymentMethod}
                     disabled={loading}
                   />
@@ -706,7 +722,7 @@ export default function Checkout() {
                     value="cod"
                     title="Cash on Delivery"
                     subtitle="Pay in cash upon artwork delivery"
-                    icon={<LocalAtmOutlinedIcon color="primary" />}
+                    icon={<LocalAtmOutlinedIcon color="error" />}
                     selectedValue={paymentMethod}
                     disabled={loading}
                   />
@@ -891,6 +907,7 @@ export default function Checkout() {
                 fullWidth
                 size="large"
                 disableElevation
+                color="error"
                 sx={{
                   mt: 3.5,
                   borderRadius: 3,
@@ -932,19 +949,19 @@ function PaymentOptionCard({ value, title, subtitle, icon, selectedValue, disabl
         borderRadius: 2.5,
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.65 : 1,
-        borderColor: isSelected ? "primary.main" : "divider",
+        borderColor: isSelected ? "error.main" : "divider",
         borderWidth: isSelected ? 2 : 1,
         bgcolor: isSelected ? "action.selected" : "background.paper",
         transition: "all 0.2s ease-in-out",
         "&:hover": {
-          borderColor: disabled ? "divider" : "primary.main",
+          borderColor: disabled ? "divider" : "error.main",
         },
       }}
     >
       <FormControlLabel
         value={value}
         disabled={disabled}
-        control={<Radio size="small" />}
+        control={<Radio size="small" color="error" />}
         sx={{ width: "100%", m: 0, alignItems: "center" }}
         label={
           <Stack
@@ -986,7 +1003,7 @@ function SummaryRow({ label, value, bold = false }) {
 
       <Typography
         variant={bold ? "subtitle1" : "body2"}
-        color={bold ? "primary.main" : "text.primary"}
+        color={bold ? "error.main" : "text.primary"}
         fontWeight={bold ? 800 : 600}
       >
         {value}

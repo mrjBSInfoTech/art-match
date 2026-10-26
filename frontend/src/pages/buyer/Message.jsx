@@ -3,21 +3,12 @@ import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Avatar,
-  Badge,
   Box,
   Button,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   InputAdornment,
   Link as MuiLink,
   List,
-  ListItemAvatar,
-  ListItemButton,
-  ListItemText,
   Menu,
   MenuItem,
   Paper,
@@ -37,10 +28,17 @@ import PermMediaOutlinedIcon from "@mui/icons-material/PermMediaOutlined";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import ChatPinDialog from "../../components/chat/ChatPinDialog";
 import ChatRecoveryDialog from "../../components/chat/ChatRecoveryDialog";
+import ConversationReturns from "../../components/buyer/Message/ConversationReturns";
+import MessageDelete from "../../components/buyer/Message/MessageDelete";
+import MessageBlock from "../../components/buyer/Message/MessageBlock";
+import MessageCard from "../../components/buyer/Message/MessageCard";
+import MessageConversationCard from "../../components/buyer/Message/MessageConversationCard";
+import MessageNoticeCard from "../../components/buyer/Message/MessageNoticeCard";
+import MessageMedia from "../../components/buyer/Message/MessageMedia";
+import MessageMediaPreview from "../../components/buyer/Message/MessageMediaPreview";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 import {
@@ -107,18 +105,25 @@ const toAbsoluteProfileImageUrl = (image, accountType) => {
 export default function Messages({ embedded = false }) {
   const [searchParams] = useSearchParams();
   const targetSellerId = searchParams.get("seller")?.trim() || "";
+  const targetConversationId = searchParams.get("conversation")?.trim() || "";
+  const targetReturnId = searchParams.get("return")?.trim() || "";
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const [conversations, setConversations] = useState([]);
-  const [selectedConversationId, setSelectedConversationId] = useState(null);
+  const [selectedConversationId, setSelectedConversationId] = useState(
+    () => /^\d+$/.test(targetConversationId) && Number(targetConversationId) > 0
+      ? Number(targetConversationId) : null,
+  );
+  const [returnsRefreshVersion, setReturnsRefreshVersion] = useState(0);
+  const [chatUnlockRequested, setChatUnlockRequested] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [inputMessage, setInputMessage] = useState("");
   const [attachedPreview, setAttachedPreview] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
   const [messages, setMessages] = useState([]);
   const [selectedMedia, setSelectedMedia] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  const [, setNotifications] = useState([]);
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -365,10 +370,19 @@ export default function Messages({ embedded = false }) {
   }, []);
   const visibleNotifications = [];
   const activeNotification = null;
+  const selectedReturnId = String(selectedConversationId) === targetConversationId ? targetReturnId : "";
+  const isReturnConversation = Boolean(Number(activeChat?.has_return_requests) || selectedReturnId);
+  const showChatUnlockDialogs = !loading && (!isReturnConversation || chatUnlockRequested);
   const isChatBlocked =
     String(blockStatusConversationId) === String(selectedConversationId) &&
     (Boolean(blockStatus.blocked_by_me) || Boolean(blockStatus.blocked_by_other));
   const sharedMedia = messages.filter((message) => message.image);
+
+  useEffect(() => {
+    if (!/^\d+$/.test(targetConversationId) || Number(targetConversationId) <= 0) return;
+    setSelectedConversationId(Number(targetConversationId));
+    setSelectedNotificationId(null);
+  }, [targetConversationId]);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -435,7 +449,10 @@ export default function Messages({ embedded = false }) {
         event.type === "ready" ||
         Number(event.conversation_id) === Number(selectedConversationId)
       ) {
-        loadMessagesRef.current?.();
+        if (event.type === "ready" || event.type === "return_updated") {
+          setReturnsRefreshVersion((current) => current + 1);
+        }
+        if (event.type !== "return_updated") loadMessagesRef.current?.();
       }
     });
 
@@ -463,7 +480,7 @@ export default function Messages({ embedded = false }) {
   }, []);
 
   useEffect(() => {
-    if (!encryptionReady || !/^\d+$/.test(targetSellerId)) return undefined;
+    if (!encryptionReady || !/^\d+$/.test(targetSellerId) || targetConversationId) return undefined;
 
     let active = true;
     const openSellerConversation = async () => {
@@ -486,7 +503,7 @@ export default function Messages({ embedded = false }) {
     return () => {
       active = false;
     };
-  }, [encryptionReady, loadConversationList, targetSellerId]);
+  }, [encryptionReady, loadConversationList, targetSellerId, targetConversationId]);
 
   useEffect(() => {
     if (!selectedConversationId || !encryptionReady) {
@@ -654,12 +671,16 @@ export default function Messages({ embedded = false }) {
   const handleDeleteChat = async () => {
     try {
       await deleteBuyerConversation(selectedConversationId);
-      setConversations((current) =>
-        current.filter(
-          (chat) => String(chat.conversation_id) !== String(selectedConversationId),
-        ),
-      );
-      setSelectedConversationId(null);
+      if (isReturnConversation) {
+        setConversations(await loadConversationList());
+      } else {
+        setConversations((current) =>
+          current.filter(
+            (chat) => String(chat.conversation_id) !== String(selectedConversationId),
+          ),
+        );
+        setSelectedConversationId(null);
+      }
       setMessages([]);
       setActionDialog("");
     } catch (err) {
@@ -848,171 +869,32 @@ export default function Messages({ embedded = false }) {
             ) : (
               <List sx={{ flexGrow: 1, overflowY: "auto", p: 0 }}>
                 {visibleNotifications.map((notification) => (
-                  <Box key={notification.notification_id}>
-                    <ListItemButton
-                      selected={
-                        notification.notification_id === selectedNotificationId
-                      }
-                      onClick={() => {
-                        setSelectedNotificationId(notification.notification_id);
-                        setSelectedConversationId(null);
-                      }}
-                      sx={{ py: 1.5, px: 2 }}
-                    >
-                      <ListItemAvatar>
-                        <Avatar
-                          sx={{
-                            bgcolor:
-                              notification.notification_type === "ban"
-                                ? "error.main"
-                                : "warning.main",
-                          }}
-                        >
-                          !
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="subtitle2" fontWeight={600}>
-                            Account notice
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            {notification.message}
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
-                    <Divider component="li" />
-                  </Box>
+                  <MessageNoticeCard key={notification.notification_id} notification={notification}
+                    selected={notification.notification_id === selectedNotificationId}
+                    onSelect={() => {
+                      setSelectedNotificationId(notification.notification_id);
+                      setSelectedConversationId(null);
+                    }} />
                 ))}
                 {filteredConversations.length === 0 ? (
                   <Box sx={{ p: 3, color: "text.secondary" }}>
                     No conversations yet.
                   </Box>
                 ) : (
-                  filteredConversations.map((chat) => {
-                    const isSelected =
-                      chat.conversation_id === selectedConversationId;
-                    return (
-                      <Box key={chat.conversation_id}>
-                        <ListItemButton
-                          selected={isSelected}
-                          onClick={() => {
-                            handleSelectChat(chat.conversation_id);
-                            setSelectedNotificationId(null);
-                          }}
-                          sx={{
-                            py: 1.5,
-                            px: 2,
-                            backgroundColor:
-                              Number(chat.unread_count || 0) > 0 && !isSelected
-                                ? "rgba(25, 118, 210, 0.06)"
-                                : "transparent",
-                            borderLeft:
-                              Number(chat.unread_count || 0) > 0 && !isSelected
-                                ? "3px solid"
-                                : "none",
-                            borderColor: "primary.main",
-                          }}
-                        >
-                          <ListItemAvatar>
-                            <Badge
-                              overlap="circular"
-                              anchorOrigin={{
-                                vertical: "bottom",
-                                horizontal: "right",
-                              }}
-                              variant="dot"
-                              color="success"
-                            >
-                              <Avatar
-                                src={toAbsoluteProfileImageUrl(chat.other_avatar, "seller")}
-                                alt={chat.other_name || "Seller"}
-                              />
-                            </Badge>
-                          </ListItemAvatar>
-                          <ListItemText
-                            primary={
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                                alignItems="center"
-                              >
-                                <Typography
-                                  variant="subtitle2"
-                                  fontWeight={
-                                    Number(chat.unread_count || 0) > 0 ? 800 : 600
-                                  }
-                                  color={
-                                    Number(chat.unread_count || 0) > 0
-                                      ? "text.primary"
-                                      : "text.primary"
-                                  }
-                                >
-                                  {chat.other_name || "Seller"}
-                                </Typography>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{
-                                    fontWeight:
-                                      Number(chat.unread_count || 0) > 0 ? 700 : 400,
-                                  }}
-                                >
-                                  {chat.last_message_time
-                                    ? formatMessageTime(chat.last_message_time)
-                                    : ""}
-                                </Typography>
-                              </Stack>
-                            }
-                            secondary={
-                              <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                                alignItems="center"
-                                sx={{ mt: 0.5 }}
-                              >
-                                <Typography
-                                  variant="body2"
-                                  color={
-                                    Number(chat.unread_count || 0) > 0
-                                      ? "text.primary"
-                                      : "text.secondary"
-                                  }
-                                  fontWeight={
-                                    Number(chat.unread_count || 0) > 0 ? 600 : 400
-                                  }
-                                  noWrap
-                                  sx={{ maxWidth: 180 }}
-                                >
-                                  {normalizeConversationPreview(chat.last_message, chat)}
-                                </Typography>
-                                {Number(chat.unread_count || 0) > 0 && (
-                                  <Box
-                                    aria-label={`${chat.unread_count} unread messages`}
-                                    sx={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: "50%",
-                                      bgcolor: "primary.main",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                              </Stack>
-                            }
-                          />
-                        </ListItemButton>
-                        <Divider component="li" />
-                      </Box>
-                    );
-                  })
+                  filteredConversations.map((chat) => (
+                    <MessageConversationCard
+                      key={chat.conversation_id}
+                      chat={chat}
+                      isSelected={chat.conversation_id === selectedConversationId}
+                      avatarSrc={toAbsoluteProfileImageUrl(chat.other_avatar, "seller")}
+                      timeLabel={chat.last_message_time ? formatMessageTime(chat.last_message_time) : ""}
+                      preview={normalizeConversationPreview(chat.last_message, chat)}
+                      onSelect={() => {
+                        handleSelectChat(chat.conversation_id);
+                        setSelectedNotificationId(null);
+                      }}
+                    />
+                  ))
                 )}
               </List>
             )}
@@ -1146,157 +1028,26 @@ export default function Messages({ embedded = false }) {
                 gap: 1.5,
               }}
             >
+              {activeChat && (
+                <ConversationReturns
+                  key={selectedConversationId}
+                  conversationId={selectedConversationId}
+                  role="buyer"
+                  returnId={selectedReturnId}
+                  refreshVersion={returnsRefreshVersion}
+                />
+              )}
               {activeNotification ? (
-                <Box
-                  sx={{
-                    alignSelf: "flex-start",
-                    maxWidth: { xs: "85%", sm: "70%" },
-                  }}
-                >
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2.5,
-                      bgcolor: "background.paper",
-                      border: "1px solid",
-                      borderColor: "divider",
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
-                      {activeNotification.message}
-                    </Typography>
-                  </Paper>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}
-                  >
-                    {formatMessageTime(activeNotification.created_at)}
-                  </Typography>
-                </Box>
+                <MessageCard message={{ sender: "admin", text: activeNotification.message,
+                  time: formatMessageTime(activeNotification.created_at) }} onViewMedia={setSelectedMedia} />
               ) : messages.length === 0 ? (
                 <Typography color="text.secondary" sx={{ mt: 2 }}>
                   Start the conversation.
                 </Typography>
               ) : (
-                messages.map((msg) => {
-                  const isMine = msg.sender === "buyer";
-                  return (
-                    <Box
-                      key={msg.id}
-                      sx={{
-                        alignSelf: isMine ? "flex-end" : "flex-start",
-                        maxWidth: { xs: "85%", sm: "70%" },
-                      }}
-                    >
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: msg.image ? 1 : 1.5,
-                          px: msg.image ? 1 : 2,
-                          borderRadius: 2.5,
-                          borderBottomRightRadius: isMine ? 4 : 20,
-                          borderBottomLeftRadius: isMine ? 20 : 4,
-                          bgcolor: isMine ? "primary.main" : "background.paper",
-                          color: isMine ? "#fff" : "text.primary",
-                          border: isMine ? "none" : "1px solid",
-                          borderColor: "divider",
-                        }}
-                      >
-                        {msg.image &&
-                          (msg.mediaType?.startsWith("video/") ||
-                          /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
-                            <Box
-                              sx={{
-                                position: "relative",
-                                width: "100%",
-                                maxHeight: 250,
-                                borderRadius: 2,
-                                overflow: "hidden",
-                                mb: msg.text ? 1 : 0,
-                              }}
-                            >
-                              <video
-                                src={msg.image}
-                                controls
-                                onClick={(event) => event.stopPropagation()}
-                                style={{
-                                  display: "block",
-                                  width: "100%",
-                                  maxHeight: 250,
-                                  objectFit: "cover",
-                                  background: "#000",
-                                }}
-                              />
-                              <IconButton
-                                aria-label="Enlarge video"
-                                onClick={() =>
-                                  setSelectedMedia({
-                                    src: msg.image,
-                                    type: "video",
-                                    alt: "Message video",
-                                  })
-                                }
-                                sx={{
-                                  position: "absolute",
-                                  top: 6,
-                                  right: 6,
-                                  color: "#fff",
-                                  bgcolor: "rgba(0, 0, 0, 0.6)",
-                                  "&:hover": { bgcolor: "rgba(0, 0, 0, 0.8)" },
-                                }}
-                              >
-                                <OpenInFullIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
-                          ) : (
-                            <Box
-                              component="img"
-                              src={msg.image}
-                              alt="Attachment — click to enlarge"
-                              onClick={() =>
-                                setSelectedMedia({
-                                  src: msg.image,
-                                  type: "image",
-                                  alt: "Message attachment",
-                                })
-                              }
-                              sx={{
-                                width: "100%",
-                                maxHeight: 250,
-                                objectFit: "cover",
-                                borderRadius: 2,
-                                mb: msg.text ? 1 : 0,
-                                display: "block",
-                                cursor: "zoom-in",
-                              }}
-                            />
-                          ))}
-                        {msg.text && (
-                          <Typography
-                            variant="body2"
-                            sx={{ lineHeight: 1.4, px: msg.image ? 1 : 0 }}
-                          >
-                            {msg.text}
-                          </Typography>
-                        )}
-                      </Paper>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{
-                          display: "block",
-                          mt: 0.5,
-                          textAlign: isMine ? "right" : "left",
-                          fontSize: "0.7rem",
-                        }}
-                      >
-                        {msg.time}
-                      </Typography>
-                    </Box>
-                  );
-                })
+                messages.map((message) => (
+                  <MessageCard key={message.id} message={message} onViewMedia={setSelectedMedia} />
+                ))
               )}
             </Box>
 
@@ -1445,140 +1196,14 @@ export default function Messages({ embedded = false }) {
         )}
       </Paper>
 
-      <Dialog
-        open={mediaDialogOpen}
-        onClose={() => setMediaDialogOpen(false)}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>Photos and videos</DialogTitle>
-        <DialogContent>
-          {sharedMedia.length ? (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: 1.5,
-              }}
-            >
-              {sharedMedia.map((media) => {
-                const isVideo =
-                  media.mediaType?.startsWith("video/") ||
-                  /\.(mp4|mov|webm|ogg|m4v)$/i.test(media.image);
-                return isVideo ? (
-                  <Box key={media.id} sx={{ position: "relative" }}>
-                    <Box
-                      component="video"
-                      src={media.image}
-                      controls
-                      onClick={(event) => event.stopPropagation()}
-                      sx={{ width: "100%", aspectRatio: "1", bgcolor: "black" }}
-                    />
-                    <IconButton
-                      aria-label="Enlarge video"
-                      onClick={() =>
-                        setSelectedMedia({
-                          src: media.image,
-                          type: "video",
-                          alt: "Shared video",
-                        })
-                      }
-                      sx={{
-                        position: "absolute",
-                        top: 6,
-                        right: 6,
-                        color: "#fff",
-                        bgcolor: "rgba(0, 0, 0, 0.6)",
-                        "&:hover": { bgcolor: "rgba(0, 0, 0, 0.8)" },
-                      }}
-                    >
-                      <OpenInFullIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ) : (
-                  <Box
-                    key={media.id}
-                    component="img"
-                    src={media.image}
-                    alt="Shared in this conversation"
-                    onClick={() =>
-                      setSelectedMedia({
-                        src: media.image,
-                        type: "image",
-                        alt: "Shared image",
-                      })
-                    }
-                    sx={{
-                      width: "100%",
-                      aspectRatio: "1",
-                      objectFit: "cover",
-                      cursor: "zoom-in",
-                    }}
-                  />
-                );
-              })}
-            </Box>
-          ) : (
-            <Typography color="text.secondary">
-              No photos or videos in this conversation yet.
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMediaDialogOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <MessageMedia open={mediaDialogOpen} onClose={() => setMediaDialogOpen(false)}
+        sharedMedia={sharedMedia} onViewMedia={setSelectedMedia} />
 
-      <Dialog
-        open={Boolean(selectedMedia)}
-        onClose={() => setSelectedMedia(null)}
-        fullScreen={isMobile}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{ sx: { bgcolor: "common.black", color: "common.white" } }}
-      >
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between" }}>
-          {selectedMedia?.alt || "Media"}
-          <IconButton
-            aria-label="Close enlarged media"
-            onClick={() => setSelectedMedia(null)}
-            sx={{ color: "common.white" }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent
-          sx={{
-            display: "grid",
-            placeItems: "center",
-            p: { xs: 1, sm: 2 },
-          }}
-        >
-          {selectedMedia?.type === "video" ? (
-            <Box
-              component="video"
-              src={selectedMedia.src}
-              controls
-              autoPlay
-              sx={{ maxWidth: "100%", maxHeight: "80vh" }}
-            />
-          ) : selectedMedia ? (
-            <Box
-              component="img"
-              src={selectedMedia.src}
-              alt={selectedMedia.alt}
-              sx={{
-                maxWidth: "100%",
-                maxHeight: "80vh",
-                objectFit: "contain",
-              }}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <MessageMediaPreview selectedMedia={selectedMedia} onClose={() => setSelectedMedia(null)}
+        isMobile={isMobile} />
 
       <ChatRecoveryDialog
-        mode={pinDialogOpen ? "" : recoveryMode}
+        mode={!showChatUnlockDialogs || pinDialogOpen ? "" : recoveryMode}
         busy={recoveryBusy}
         error={recoveryError}
         onSubmit={handleRecoverySubmit}
@@ -1586,7 +1211,7 @@ export default function Messages({ embedded = false }) {
       />
 
       <ChatPinDialog
-        open={pinDialogOpen}
+        open={showChatUnlockDialogs && pinDialogOpen}
         mode={pinDialogMode}
         busy={recoveryBusy}
         error={recoveryError}
@@ -1594,7 +1219,7 @@ export default function Messages({ embedded = false }) {
         onReset={handleRecoveryReset}
       />
 
-      {!encryptionReady && !pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh" && (
+      {!encryptionReady && (!showChatUnlockDialogs || (!pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh")) && (
         <Alert
           severity="info"
           icon={<LockOutlinedIcon />}
@@ -1604,7 +1229,10 @@ export default function Messages({ embedded = false }) {
               size="small"
               onClick={() => {
                 setRecoveryError("");
-                setPinDialogMode("enter");
+                setChatUnlockRequested(true);
+                if (!pinDialogMode && recoveryMode !== "setup" && recoveryMode !== "fresh") {
+                  setPinDialogMode("enter");
+                }
               }}
             >
               Unlock
@@ -1616,29 +1244,10 @@ export default function Messages({ embedded = false }) {
         </Alert>
       )}
 
-      <Dialog open={Boolean(actionDialog)} onClose={() => setActionDialog("")}>
-        <DialogTitle>
-          {actionDialog === "delete"
-            ? "Delete this chat? Its messages will be removed for both of you, and your next message starts a new chat."
-              : "You and this user will no longer be able to send messages to each other."}
-        </DialogTitle>
-        <DialogContent>
-          <Typography color="text.secondary">
-            {actionDialog === "delete"
-            ? "Both people lose this conversation and its messages. Anyone can send a new message later, and that starts a fresh chat."
-              : "You and this user will no longer be able to send messages to each other."}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setActionDialog("")}>Cancel</Button>
-          <Button
-            color={actionDialog === "delete" ? "error" : "primary"}
-            onClick={actionDialog === "delete" ? handleDeleteChat : handleBlockUser}
-          >
-            {actionDialog === "delete" ? "Delete chat" : "Block user"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <MessageDelete open={actionDialog === "delete"} onClose={() => setActionDialog("")}
+        onConfirm={handleDeleteChat} isReturnConversation={isReturnConversation} />
+      <MessageBlock open={actionDialog === "block"} onClose={() => setActionDialog("")}
+        onConfirm={handleBlockUser} isReturnConversation={isReturnConversation} />
     </Box>
   );
 }

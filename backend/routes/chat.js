@@ -22,7 +22,16 @@ import {
 
 const router = express.Router();
 
-router.get("/buyer/events", authenticateBuyer, (req, res) => {
+// Return metadata is transactional. Older buyer middleware also accepts an id
+// fallback, so exclude tokens issued for another account type on these routes.
+const requireBuyerAccount = (req, res, next) => {
+  if (req.user.student_id || req.user.student_number || req.user.admin_id) {
+    return res.status(403).json({ message: "Buyer account required" });
+  }
+  next();
+};
+
+router.get("/buyer/events", authenticateBuyer, requireBuyerAccount, (req, res) => {
   addChatEventClient("buyer", req.user.customer_id || req.user.id, res);
 });
 
@@ -132,6 +141,10 @@ const fetchConversationList = (role, userId) =>
     const sql = `
       SELECT
         c.conversation_id,
+        EXISTS(
+          SELECT 1 FROM marketplace_return_request return_request
+          WHERE return_request.conversation_id = c.conversation_id
+        ) AS has_return_requests,
         ${isBuyer ? "s.student_id AS other_id" : "cu.customer_id AS other_id"},
         ${isBuyer ? "CONCAT(s.first_name, ' ', s.last_name) AS other_name" : "CASE WHEN COALESCE(cu.is_private, 0) = 1 THEN 'Private buyer' ELSE CONCAT(cu.first_name, ' ', cu.last_name) END AS other_name"},
         ${isBuyer ? "s.profile_image AS other_avatar" : "CASE WHEN COALESCE(cu.is_private, 0) = 1 THEN NULL ELSE cu.profile_image END AS other_avatar"},
@@ -174,6 +187,10 @@ const fetchConversationList = (role, userId) =>
           read_state.hidden_through_message_id IS NULL
           OR COALESCE(m.message_id, 0) >= read_state.hidden_through_message_id
           OR (read_state.deleted_at IS NULL AND m.message_id IS NULL)
+          OR EXISTS(
+            SELECT 1 FROM marketplace_return_request return_request
+            WHERE return_request.conversation_id = c.conversation_id
+          )
         )
       ORDER BY COALESCE(m.date_created, c.date_created) DESC
     `;
@@ -450,7 +467,7 @@ const registerChatKeyRecovery = (role, authenticate, getAccountId) => {
 registerChatKeyRecovery("buyer", authenticateBuyer, (user) => user.customer_id || user.id);
 registerChatKeyRecovery("seller", authenticateSeller, (user) => user.student_id || user.id);
 
-router.get("/buyer/conversations", authenticateBuyer, (req, res) => {
+router.get("/buyer/conversations", authenticateBuyer, requireBuyerAccount, (req, res) => {
   const buyerId = req.user.customer_id || req.user.id;
 
   fetchConversationList("buyer", buyerId)
@@ -529,7 +546,7 @@ const markAccountNotificationsRead = (role, accountId) =>
     );
   });
 
-router.post("/buyer/notifications/read", authenticateBuyer, (req, res) => {
+router.post("/buyer/notifications/read", authenticateBuyer, requireBuyerAccount, (req, res) => {
   markAccountNotificationsRead("buyer", req.user.customer_id || req.user.id)
     .then(() => res.status(204).end())
     .catch((error) => {
@@ -700,7 +717,7 @@ registerConversationActions(
   "buyer",
 );
 
-router.get("/buyer/notifications", authenticateBuyer, (req, res) => {
+router.get("/buyer/notifications", authenticateBuyer, requireBuyerAccount, (req, res) => {
   fetchAccountNotifications("buyer", req.user.customer_id || req.user.id)
     .then((rows) => res.json(rows))
     .catch((error) => {

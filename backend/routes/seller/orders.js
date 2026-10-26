@@ -11,6 +11,7 @@ import {
   normalizeTrackingUrl,
   validateParcelPhotoCount,
 } from "../../utils/parcelShipment.js";
+import { attachOrderReturns } from "../../utils/returns.js";
 
 const router = express.Router();
 const parcelPhotoTypes = new Map([
@@ -67,7 +68,8 @@ router.get("/", authenticateSeller, (req, res) => {
   db.query(
     `SELECT
        o.order_id, CONCAT('AM-', LPAD(o.order_id, 6, '0')) AS order_number,
-       o.created_at, o.status, o.payment_method, o.payment_status,
+       o.created_at, o.status, o.delivered_at, o.customer_id, o.seller_id,
+       o.payment_method, o.payment_status,
        o.paymongo_payment_method, o.paid_at, o.subtotal, o.shipping_fee,
        o.total_amount, o.buyer_name, o.buyer_email, c.phone_number AS buyer_phone,
        o.shipping_street,
@@ -85,7 +87,7 @@ router.get("/", authenticateSeller, (req, res) => {
        AND (o.payment_method <> 'paymongo' OR o.payment_status IN ('Paid', 'Refunded'))
      ORDER BY o.created_at DESC, o.order_id DESC, i.order_item_id`,
     [req.user.student_id],
-    (err, rows) => {
+    async (err, rows) => {
       if (err) {
         console.error("Seller order list error:", err);
         return res.status(500).json({ message: "Unable to load orders" });
@@ -99,6 +101,9 @@ router.get("/", authenticateSeller, (req, res) => {
             id: row.order_number,
             date: row.created_at,
             status: row.status,
+            deliveredAt: row.delivered_at,
+            customerId: row.customer_id,
+            sellerId: row.seller_id,
             payment: row.payment_method,
             paymentStatus: row.payment_status,
             paymentChannel: row.paymongo_payment_method,
@@ -154,7 +159,14 @@ router.get("/", authenticateSeller, (req, res) => {
           });
         }
       });
-      res.json([...orders.values()]);
+      try {
+        res.json(await attachOrderReturns(
+          db.promise(), [...orders.values()], "seller", req.user.student_id,
+        ));
+      } catch (error) {
+        console.error("Seller order return information error:", error);
+        res.status(500).json({ message: "Unable to load orders" });
+      }
     },
   );
 });
@@ -307,6 +319,10 @@ router.put(
              paid_at = CASE
                WHEN payment_method = 'cod' AND ? = 'Delivered' THEN COALESCE(paid_at, NOW())
                ELSE paid_at
+             END,
+             delivered_at = CASE
+               WHEN ? = 'Delivered' THEN COALESCE(delivered_at, NOW())
+               ELSE delivered_at
              END
          WHERE order_id = ? AND seller_id = ? AND status = ?`,
         [
@@ -314,6 +330,7 @@ router.put(
           JSON.stringify(parcelPhotos),
           requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
           requestedStatus === "Packed" ? JSON.stringify(handlingInstructions) : null,
+          requestedStatus,
           requestedStatus,
           requestedStatus,
           orderId,

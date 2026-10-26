@@ -305,40 +305,47 @@ export default function Event() {
       </Box>
 
       <Paper
-        variant="outlined"
         sx={{
-          p: {
-            xs: 1.25,
-            sm: 1.5,
-          },
-
+          p: { xs: 1.25, sm: 1.5 },
           mt: 2,
           borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
         }}
+        variant="outlined"
       >
         <Box
           sx={{
             display: "flex",
-
-            flexDirection: {
-              xs: "column",
-              lg: "row",
-            },
-
+            flexDirection: { xs: "column", lg: "row" },
+            justifyContent: "space-between",
+            alignItems: { xs: "stretch", lg: "center" },
             gap: 1.25,
+            width: "100%",
           }}
         >
           <TextField
+            variant="outlined"
             size="small"
             placeholder="Search events..."
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
             sx={{
-              flex: 1,
-              maxWidth: {
-                lg: 420,
+              width: { xs: "100%", sm: "100%", lg: 260 },
+              maxWidth: { lg: 320 },
+              flex: { lg: 1 },
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                borderRadius: 1.5,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": { borderColor: theme.palette.text.secondary },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
               },
             }}
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -348,51 +355,77 @@ export default function Event() {
             }}
           />
 
-          <FormControl
-            size="small"
+          <Box
             sx={{
-              minWidth: 140,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
+              justifyContent: { xs: "stretch", lg: "flex-end" },
+              width: { xs: "100%", lg: "auto" },
             }}
           >
-            <InputLabel>Status</InputLabel>
-
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: "calc(50% - 4px)", sm: 140 },
+                flex: { xs: 1, sm: "0 0 auto" },
+              }}
             >
-              <MenuItem value="all">All</MenuItem>
-
-              <MenuItem value="Draft">Draft</MenuItem>
-
-              <MenuItem value="Published">Published</MenuItem>
-
-              <MenuItem value="Archived">Archived</MenuItem>
-            </Select>
-          </FormControl>
-
-          <FormControl
-            size="small"
-            sx={{
-              minWidth: 150,
-            }}
-          >
-            <InputLabel>Sort</InputLabel>
-
-            <Select
-              label="Sort"
-              value={sortOption}
-              onChange={(event) => setSortOption(event.target.value)}
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>
+                Status
+              </InputLabel>
+              <Select
+                label="Status"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="Draft">Draft</MenuItem>
+                <MenuItem value="Published">Published</MenuItem>
+                <MenuItem value="Archived">Archived</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: "calc(50% - 4px)", sm: 110 },
+                flex: { xs: 1, sm: "0 0 auto" },
+              }}
             >
-              <MenuItem value="soonest">Soonest</MenuItem>
-
-              <MenuItem value="latest">Latest</MenuItem>
-
-              <MenuItem value="az">A to Z</MenuItem>
-
-              <MenuItem value="za">Z to A</MenuItem>
-            </Select>
-          </FormControl>
+              <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: 11 }}>
+                Sort
+              </InputLabel>
+              <Select
+                label="Sort"
+                value={sortOption}
+                onChange={(event) => setSortOption(event.target.value)}
+                sx={{
+                  fontSize: 11,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
+              >
+                <MenuItem value="soonest">Soonest</MenuItem>
+                <MenuItem value="latest">Latest</MenuItem>
+                <MenuItem value="az">A to Z</MenuItem>
+                <MenuItem value="za">Z to A</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Paper>
 

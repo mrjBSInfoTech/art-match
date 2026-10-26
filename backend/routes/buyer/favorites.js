@@ -20,6 +20,7 @@ router.get("/", authenticateBuyer, (req, res) => {
       a.title,
       a.price,
       a.image,
+      a.art_type,
       a.genre,
       CONCAT(s.first_name, ' ', s.last_name) AS artist
     FROM customer_favorite cf

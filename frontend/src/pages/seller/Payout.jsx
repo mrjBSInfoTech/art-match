@@ -18,6 +18,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
 
@@ -75,6 +76,7 @@ function Metric({ label, value, hint, emphasis }) {
 }
 
 export default function SellerPayout() {
+  const theme = useTheme(); 
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -97,25 +99,38 @@ export default function SellerPayout() {
   }, []);
 
   return (
-    <>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet>
         <title>Settlement and Payout | Red Nexus Seller</title>
       </Helmet>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+            Settlement and Payout
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Your share of every buyer payment. A buyer pays once; each
+            storefront is settled separately.
+          </Typography>
+        </Box>
+      </Box>
 
       <Stack spacing={2.5}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <AccountBalanceWalletOutlinedIcon color="action" />
-          <Box>
-            <Typography variant="h5" fontWeight={800}>
-              Settlement and Payout
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Your share of every buyer payment. A buyer pays once; each
-              storefront is settled separately.
-            </Typography>
-          </Box>
-        </Stack>
-
         {loading && (
           <Stack alignItems="center" sx={{ py: 6 }}>
             <CircularProgress />
@@ -160,7 +175,11 @@ export default function SellerPayout() {
 
             <Card
               elevation={0}
-              sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3 }}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 3,
+              }}
             >
               <CardContent sx={{ p: 0 }}>
                 <Box sx={{ px: 3, pt: 2.5, pb: 1.5 }}>
@@ -208,7 +227,10 @@ export default function SellerPayout() {
                             <TableCell align="right">
                               {currency(order.gross)}
                             </TableCell>
-                            <TableCell align="right" sx={{ color: "text.secondary" }}>
+                            <TableCell
+                              align="right"
+                              sx={{ color: "text.secondary" }}
+                            >
                               Courier
                             </TableCell>
                             <TableCell align="right" sx={{ fontWeight: 800 }}>
@@ -217,7 +239,9 @@ export default function SellerPayout() {
                             <TableCell>
                               <Chip
                                 size="small"
-                                color={statusColor[order.payoutStatus] || "default"}
+                                color={
+                                  statusColor[order.payoutStatus] || "default"
+                                }
                                 label={
                                   statusLabel[order.payoutStatus] ||
                                   order.payoutStatus
@@ -235,6 +259,6 @@ export default function SellerPayout() {
           </>
         )}
       </Stack>
-    </>
+    </Box>
   );
 }

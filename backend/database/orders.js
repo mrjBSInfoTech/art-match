@@ -56,6 +56,8 @@ const orderTableSql = `
       'Cancelled'
     ) NOT NULL DEFAULT 'Pending',
 
+    delivered_at DATETIME NULL,
+
     parcel_photos JSON NULL,
     tracking_url VARCHAR(2048) NULL,
     handling_instructions JSON NULL,
@@ -267,6 +269,19 @@ const ensureOrderColumns = async () => {
   }
 };
 
+const ensureDeliveryColumn = async () => {
+  const columns = await query("SHOW COLUMNS FROM marketplace_order LIKE 'delivered_at'");
+  if (columns.length) return;
+
+  await query("ALTER TABLE marketplace_order ADD COLUMN delivered_at DATETIME NULL AFTER status");
+  // Older orders have no delivery event timestamp. Use their last recorded
+  // update once, when adding this column, and retain their original audit time.
+  // Restarting the server must never restart an existing return window.
+  await query(`UPDATE marketplace_order
+    SET delivered_at = COALESCE(updated_at, created_at), updated_at = updated_at
+    WHERE status = 'Delivered' AND delivered_at IS NULL`);
+};
+
 const orderItemTableSql = `
   CREATE TABLE IF NOT EXISTS marketplace_order_item (
     order_item_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -311,4 +326,5 @@ export const ensureOrderTables = async () => {
   await ensureArtworkReviewSchema(query);
   await query(recommendationTableSql);
   await ensureOrderColumns();
+  await ensureDeliveryColumn();
 };

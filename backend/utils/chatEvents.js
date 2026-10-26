@@ -29,11 +29,11 @@ export const addChatEventClient = (role, accountId, response) => {
   });
 };
 
-const publish = (role, accountId, payload) => {
+const publish = (role, accountId, payload, eventType = "message") => {
   const clients = clientsByAccount.get(accountKey(role, accountId));
   if (!clients) return;
 
-  const event = `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
+  const event = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
   clients.forEach((response) => {
     if (response.destroyed) {
       clients.delete(response);
@@ -47,4 +47,17 @@ export const publishChatMessage = (sellerId, buyerId, conversationId, messageId)
   const payload = { conversation_id: conversationId, message_id: messageId };
   publish("seller", sellerId, payload);
   publish("buyer", buyerId, payload);
+};
+
+export const publishReturnUpdated = (
+  sellerId, buyerId, conversationId, returnId, orderId, status,
+) => {
+  const payload = {
+    conversation_id: conversationId,
+    return_request_id: returnId,
+    order_id: orderId,
+    status,
+  };
+  publish("seller", sellerId, payload, "return_updated");
+  publish("buyer", buyerId, payload, "return_updated");
 };

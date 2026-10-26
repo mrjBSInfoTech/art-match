@@ -17,23 +17,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import { ART_TYPES } from "../../constants/artworkOptions";
 
-const tabs = ["All hearts", "Paintings", "Sculpture", "Photography"];
+const tabs = ["All hearts", ...ART_TYPES];
 
-const normalizeGenre = (genre) => {
-  if (!genre) return "";
-  const value = String(genre).trim();
-  if (value.toLowerCase() === "painting" || value.toLowerCase() === "paintings") {
-    return "Paintings";
-  }
-  if (value.toLowerCase() === "sculpture" || value.toLowerCase() === "sculptures") {
-    return "Sculpture";
-  }
-  if (value.toLowerCase() === "photography") {
-    return "Photography";
-  }
-  return value;
-};
+const normalizeArtType = (artType) => String(artType ?? "").trim().toLowerCase();
 
 function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
   const theme = useTheme();
@@ -268,7 +256,7 @@ export default function BuyerFavorites() {
   const visibleArtworks = useMemo(() => {
     if (selectedTab === "All hearts") return artworks;
     return artworks.filter(
-      (artwork) => normalizeGenre(artwork.genre) === selectedTab,
+      (artwork) => normalizeArtType(artwork.art_type) === normalizeArtType(selectedTab),
     );
   }, [artworks, selectedTab]);
 
@@ -303,6 +291,7 @@ export default function BuyerFavorites() {
                 <Button
                   key={tab}
                   onClick={() => setSelectedTab(tab)}
+                  aria-pressed={active}
                   sx={{
                     minWidth: 0,
                     px: 1.5,
@@ -390,7 +379,9 @@ export default function BuyerFavorites() {
         {!loading && !error && visibleArtworks.length === 0 && (
           <Box sx={{ py: 5, textAlign: "center" }}>
             <Typography variant="h6" sx={{ color: "text.primary", mb: 1 }}>
-              No saved favorites yet.
+              {selectedTab === "All hearts"
+                ? "No saved favorites yet."
+                : `No saved ${selectedTab.toLowerCase()} artworks yet.`}
             </Typography>
             <Button
               variant="contained"

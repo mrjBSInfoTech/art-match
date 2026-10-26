@@ -13,6 +13,7 @@ function sellerPage({ orders = [], api = {} } = {}) {
   const effects = [];
   const cleanups = [];
   const listeners = new Map();
+  const redirects = [];
   let printCalls = 0;
   const react = {
     createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
@@ -79,6 +80,7 @@ function sellerPage({ orders = [], api = {} } = {}) {
     });
     const require = (specifier) => {
       if (specifier === "react") return react;
+      if (specifier === "react-router-dom") return { useNavigate: () => (...args) => redirects.push(args) };
       if (specifier.endsWith("orderPayments.js")) return paymentHelpers;
       if (/\/(OrderCard|OrderInfo)(\.jsx)?$/.test(specifier) || /orderPresentation(\.js)?$/.test(specifier)) {
         const extension = /\.(jsx|js)$/.test(specifier) ? "" : /orderPresentation$/.test(specifier) ? ".js" : ".jsx";
@@ -131,7 +133,7 @@ function sellerPage({ orders = [], api = {} } = {}) {
   const status = (id) => nodes().find((node) => node?.type === "Select" && node.props.inputProps?.["aria-label"] === `Update status for ${id}`);
   render();
   return {
-    flush, nodes, text, status, listeners,
+    flush, nodes, text, status, listeners, redirects,
     component: (name, matches = () => true) => nodes().find((node) => node?.type === components[name] && matches(node)),
     printCalls: () => printCalls,
     button: (label) => nodes().find((node) => node?.type === "Button" && text(node) === label),

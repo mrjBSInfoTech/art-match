@@ -6,7 +6,7 @@ import { transformSync } from "@swc/core";
 import * as paymentHelpers from "./orderPayments.js";
 
 // Exercise the actual JSX handlers/effects without adding a browser or test framework dependency.
-const pageHarness = (relativePath, { api = {}, orders = [], search = "", cart = [], addresses = [] } = {}) => {
+const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, cart = [], addresses = [] } = {}) => {
   let hookIndex = 0;
   let dirty = true;
   const hooks = [];
@@ -46,7 +46,7 @@ const pageHarness = (relativePath, { api = {}, orders = [], search = "", cart = 
     },
   };
   const navigate = (...args) => redirects.push(args);
-  const router = { useLocation: () => ({ search }), useNavigate: () => navigate, Link: "RouterLink" };
+  const router = { useLocation: () => ({ search, state }), useNavigate: () => navigate, Link: "RouterLink" };
   const mockApi = { fetchBuyerOrders: async () => orders, fetchSellerOrders: async () => orders,
     fetchPaymentMethods: async () => ({ payment_method_types: ["gcash", "paymaya", "card", "qrph"] }),
     fetchBuyerPayment: async () => ({ payment_status: orders[0]?.paymentStatus || "Pending", orders }),
@@ -154,7 +154,7 @@ test("Checkout selects a saved address, prevents double submission and redirects
   page.unmount();
 });
 
-test("checkout return waits for server Paid before opening Orders and refreshing the cart", async () => {
+test("checkout return waits for server Paid before opening OrderFinish and refreshing the cart", async () => {
   let current = { payment_status: "Pending", orders: [pending] };
   const page = pageHarness("../pages/buyer/Checkout.jsx", { search: "?payment=success&reference=AM-first", api: { fetchBuyerPayment: async () => current } });
   await page.flush();
@@ -171,7 +171,10 @@ test("checkout return waits for server Paid before opening Orders and refreshing
   assert.equal(page.button("Continue payment"), undefined);
   assert.equal(page.button("Cancel checkout"), undefined);
   assert.deepEqual(page.events, ["cart-updated"]);
-  assert.equal(page.redirects[0][0], "/buyer/profile/orders?payment=success&reference=AM-first");
+  assert.equal(page.redirects[0][0], "/buyer/order-finish");
+  assert.equal(page.redirects[0][1].replace, true);
+  assert.equal(page.redirects[0][1].state.paymentMethod, "paymongo");
+  assert.deepEqual(JSON.parse(JSON.stringify(page.redirects[0][1].state.orders)), current.orders);
   assert.equal(page.timers.size, 0);
   page.unmount();
 });
@@ -339,7 +342,8 @@ test("cancel return cannot cancel an already Paid checkout", async () => {
   await page.flush();
   assert.deepEqual(calls, []);
   assert.match(page.text(), /Payment received/);
-  assert.equal(page.redirects[0][0], "/buyer/profile/orders?payment=success&reference=AM-first");
+  assert.equal(page.redirects[0][0], "/buyer/order-finish");
+  assert.equal(page.redirects[0][1].state.paymentMethod, "paymongo");
   page.unmount();
 });
 
@@ -433,9 +437,24 @@ test("old PayMongo return URLs are verified in Checkout while normal Orders navi
     search: "?payment=success&reference=AM-first", orders: [{ ...pending, paymentStatus: "Paid" }],
   });
   await paid.flush();
-  assert.deepEqual(paid.redirects, []);
-  assert.match(paid.text(), /Payment confirmed/);
+  assert.equal(paid.redirects[0][0], "/buyer/checkout?payment=success&reference=AM-first");
+  assert.equal(paid.redirects[0][1].replace, true);
   paid.unmount();
+});
+
+test("OrderFinish displays online confirmation for paid checkout state and retains the COD receipt", () => {
+  const orders = [{ ...pending, paymentStatus: "Paid" }];
+  const online = pageHarness("../pages/buyer/OrderFinish.jsx", { state: { orders, paymentMethod: "paymongo" } });
+  assert.match(online.text(), /PAYMENT CONFIRMED.*Payment successful.*Online payment received/s);
+  assert.match(online.text(), /ORDER-1/);
+  assert.doesNotMatch(online.text(), /CASH ON DELIVERY|Pay the courier|Payment due on delivery/);
+  online.button("View order status").props.onClick();
+  assert.equal(online.redirects[0][0], "/buyer/profile/orders");
+  online.unmount();
+  const cod = pageHarness("../pages/buyer/OrderFinish.jsx", { state: { orders, paymentMethod: "cod" } });
+  assert.match(cod.text(), /CASH ON DELIVERY.*Order placed.*Payment due on delivery/s);
+  assert.doesNotMatch(cod.text(), /PAYMENT CONFIRMED|Online payment received/);
+  cod.unmount();
 });
 
 test("Cart checkout carries only checked artwork IDs and disables checkout when none are checked", async () => {
@@ -451,6 +470,11 @@ test("Cart checkout carries only checked artwork IDs and disables checkout when 
   await page.flush();
   assert.match(page.text(), /1\s+of\s+3\s+artworks selected/);
   page.button("Checkout").props.onClick();
+  await page.flush();
+  const confirmation = page.nodes().find((node) => node?.type?.endsWith?.("/Cart/CartConfirm"));
+  assert.equal(confirmation.props.open, true);
+  assert.deepEqual(page.redirects, [], "Cart confirmation must precede navigation");
+  confirmation.props.onSubmit(confirmation.props.selectedItems.map((item) => String(item.artwork_id)));
   assert.equal(page.redirects[0][0], "/buyer/checkout?artwork_ids=20");
   table().props.onSelectionChange([]);
   await page.flush();

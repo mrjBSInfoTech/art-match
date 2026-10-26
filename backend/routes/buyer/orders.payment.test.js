@@ -55,15 +55,19 @@ test("online checkout trusts MySQL prices and creates two seller orders with one
   assert.equal(result.body.payment_status, "Pending");
   assert.equal(sessions.length, 1);
   assert.equal(fixture.state.orders.length, 2);
-  assert.deepEqual(fixture.state.orders.map(order => Number(order.total_amount)), [1150, 2150]);
+  assert.deepEqual(fixture.state.orders.map(order => Number(order.total_amount)), [1000, 2000]);
   assert.deepEqual(fixture.state.orders.map(order => order.seller_id), [5, 7]);
   const references = new Set(fixture.state.orders.map(order => order.payment_reference));
   assert.equal(references.size, 1);
   assert.ok([...references][0].startsWith("AM-"));
   assert.ok(fixture.state.orders.every(order => order.payment_method === "paymongo" && order.payment_status === "Pending" && order.paymongo_checkout_session_id === "cs_test_checkout"));
+  assert.equal(fixture.state.paymentSplits.length, 2);
+  assert.deepEqual(fixture.state.paymentSplits.map(split => split.order_id), fixture.state.orders.map(order => order.order_id));
+  assert.deepEqual(fixture.state.paymentSplits.map(split => split.gross_amount), [1000, 2000]);
+  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Held" && split.commission_amount === 0 && split.net_amount === split.gross_amount));
   assert.equal(sessions[0].referenceNumber, [...references][0]);
-  assert.equal(sessions[0].lineItems.reduce((total, item) => total + item.amount * item.quantity, 0), 330000);
-  assert.deepEqual(sessions[0].lineItems.map(item => item.amount), [100000, 200000, 30000]);
+  assert.equal(sessions[0].lineItems.reduce((total, item) => total + item.amount * item.quantity, 0), 300000);
+  assert.deepEqual(sessions[0].lineItems.map(item => item.amount), [100000, 200000]);
   assert.ok(sessions[0].lineItems.every(item => item.currency === "PHP"));
   assert.equal(fixture.state.interactions.length, 0, "pending online checkout must not record purchases");
   assert.equal(fixture.state.cartItems.length, 3, "pending payment must retain buyer and other buyer carts");
@@ -113,6 +117,7 @@ test("a confirmed webhook makes checkout purchases visible and reports Paid with
     verifyPayMongoSignature: options => verifyPayMongoSignature({ ...options, secret: "isolated-webhook-fixture" }),
   });
   assert.equal((await invoke(webhook, "post", "/webhook", signedEvent())).status, 200);
+  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Eligible" && split.eligible_at));
   assert.equal((await invoke(routes, "get", "/payments/:reference", { params })).body.payment_status, "Paid");
   assert.equal((await invoke(routes, "get", "/")).body.length, 2);
 });
@@ -136,7 +141,7 @@ test("selected COD checkout orders only checked artwork and retains unchecked it
   assert.equal(result.status, 201);
   assert.equal(sessions.length, 0);
   assert.deepEqual(fixture.state.orderItems.map(item => item.artwork_id), [21]);
-  assert.deepEqual(fixture.state.orders.map(order => Number(order.total_amount)), [2150]);
+  assert.deepEqual(fixture.state.orders.map(order => Number(order.total_amount)), [2000]);
   assert.deepEqual(fixture.state.cartItems, [{ add_to_id: 1, artwork_id: 20 }, { add_to_id: 2, artwork_id: 20 }]);
   assert.equal(fixture.state.carts[0].total_price, 1000);
 });
@@ -148,8 +153,8 @@ test("selected online checkout charges only checked artwork and keeps all cart i
   const result = await checkout({ address_id: 4, payment_method: "paymongo", artwork_ids: [21, 21] });
   assert.equal(result.status, 201);
   assert.deepEqual(fixture.state.orderItems.map(item => item.artwork_id), [21]);
-  assert.deepEqual(fixture.state.orders.map(order => Number(order.total_amount)), [2150]);
-  assert.equal(sessions[0].lineItems.reduce((total, item) => total + item.amount * item.quantity, 0), 215000);
+  assert.deepEqual(fixture.state.orders.map(order => Number(order.total_amount)), [2000]);
+  assert.equal(sessions[0].lineItems.reduce((total, item) => total + item.amount * item.quantity, 0), 200000);
   assert.deepEqual(fixture.state.cartItems, before);
 });
 
@@ -171,6 +176,8 @@ test("COD never calls PayMongo, records placed purchases, and removes only its p
   assert.equal(result.body.payment_method, "cod");
   assert.equal(sessions.length, 0);
   assert.ok(fixture.state.orders.every(order => order.payment_method === "cod" && order.payment_status === "Pending"));
+  assert.equal(fixture.state.paymentSplits.length, 2);
+  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Eligible" && split.commission_amount === 0 && split.net_amount === split.gross_amount));
   assert.deepEqual(fixture.state.interactions.map(item => item.artworkId), [20, 21]);
   assert.deepEqual(fixture.state.cartItems, [{ add_to_id: 2, artwork_id: 20 }]);
   assert.equal(fixture.state.carts[0].total_price, 0);

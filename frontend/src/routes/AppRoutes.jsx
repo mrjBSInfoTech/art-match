@@ -26,6 +26,7 @@ import AdminSystemSetting from "../pages/admin/SystemSetting";
 import AdminSystemSettingsPlaceholder from "../pages/admin/SystemSettingsPlaceholder";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
+import AdminEvent from "../pages/admin/Event";
 import AdminArtwork from "../pages/admin/Artwork";
 import AdminSettings from "../pages/admin/Settings";
 import AdminStudent from "../pages/admin/Student";
@@ -178,6 +179,7 @@ export default function AppRoutes() {
                 <Route path="manage/access" element={<AdminAccountAccess />} />
                 <Route path="manage/admins" element={<AdminControl />} />
                 <Route path="sales" element={<AdminSales />} />
+                <Route path="event" element={<AdminEvent />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="audit-logs" element={<AdminAuditLogs />} />
                 <Route path="admin" element={<AdminControl />} />

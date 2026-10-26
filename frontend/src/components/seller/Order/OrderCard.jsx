@@ -10,6 +10,7 @@ import { formatCurrency, formatOrderDate, statusColorMap } from "./orderPresenta
 export default function OrderCard({
   order,
   onViewDetails,
+  onViewReturn,
   onStatusChange,
   nextStatuses = [],
   statusHint = "",
@@ -51,9 +52,10 @@ export default function OrderCard({
         </Box>
         <Stack direction="row" gap={0.75} flexWrap="wrap">
           <Chip label={order.status} color={statusColorMap[order.status] || "default"}
-            size="small" sx={{ fontWeight: 700 }} />
+            size="small" sx={{ color: "#fff", fontWeight: 700 }} />
+          {order.activeReturn && <Chip label={`Return: ${order.activeReturn.status}`} size="small" color="warning" variant="outlined" />}
           <Chip label={getPaymentLabel(order)} color={getPaymentColor(order)}
-            size="small" variant="outlined" />
+            size="small" variant="outlined"/>
         </Stack>
       </Stack>
 
@@ -129,10 +131,14 @@ export default function OrderCard({
           </Select>
           <FormHelperText sx={{ mx: 0 }}>{updating ? "Saving order status..." : statusHint}</FormHelperText>
         </FormControl>
-        <Button variant="outlined" endIcon={<ArrowForwardOutlinedIcon />} onClick={() => onViewDetails(order)}
-          sx={{ borderRadius: 2, whiteSpace: "nowrap", minHeight: 40, textTransform: "none" }}>
-          View details
-        </Button>
+        <Stack direction={{ xs: "column", sm: "row" }} gap={1}>
+          {order.activeReturn && <Button variant="outlined" onClick={() => onViewReturn(order.activeReturn)}
+            sx={{ borderRadius: 2, minHeight: 40, textTransform: "none" }}>View return in Messages</Button>}
+          <Button variant="outlined" endIcon={<ArrowForwardOutlinedIcon />} onClick={() => onViewDetails(order)}
+            sx={{ borderRadius: 2, whiteSpace: "nowrap", minHeight: 40, textTransform: "none" }}>
+            View details
+          </Button>
+        </Stack>
       </Stack>
     </Paper>
   );

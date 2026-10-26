@@ -36,6 +36,8 @@ const getNotificationTypeLabel = (notificationType) => {
       return "Order update";
     case "ban":
       return "Account notice";
+    case "return":
+      return "Return update";
     case "strike":
       return "Account alert";
     default:

@@ -9,6 +9,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
@@ -24,6 +25,7 @@ export default function OrderFinish() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const orders = Array.isArray(state?.orders) ? state.orders : [];
+  const onlinePayment = state?.paymentMethod === "paymongo";
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
@@ -41,14 +43,15 @@ export default function OrderFinish() {
               color="success.main"
               fontWeight={800}
             >
-              CASH ON DELIVERY
+              {onlinePayment ? "PAYMENT CONFIRMED" : "CASH ON DELIVERY"}
             </Typography>
             <Typography variant="h4" fontWeight={800}>
-              Order placed
+              {onlinePayment ? "Payment successful" : "Order placed"}
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              Your order is now with the seller. Pay the courier in cash when
-              your artwork arrives.
+              {onlinePayment
+                ? "Your payment is confirmed and your order is now with the seller."
+                : "Your order is now with the seller. Pay the courier in cash when your artwork arrives."}
             </Typography>
           </Box>
 
@@ -67,14 +70,17 @@ export default function OrderFinish() {
               alignItems="center"
               textAlign="left"
             >
-              <LocalAtmOutlinedIcon color="primary" />
+              {onlinePayment
+                ? <AccountBalanceWalletOutlinedIcon color="success" />
+                : <LocalAtmOutlinedIcon color="primary" />}
               <Box>
                 <Typography variant="subtitle2" fontWeight={800}>
-                  Payment due on delivery
+                  {onlinePayment ? "Online payment received" : "Payment due on delivery"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Have the order total ready in cash. No online payment is due
-                  now.
+                  {onlinePayment
+                    ? "Your payment has been securely confirmed. No further payment is due."
+                    : "Have the order total ready in cash. No online payment is due now."}
                 </Typography>
               </Box>
             </Stack>
@@ -127,16 +133,18 @@ export default function OrderFinish() {
             <Button
               fullWidth
               variant="contained"
+              color="error"
               onClick={() =>
                 navigate("/buyer/profile/orders", { replace: true })
               }
-              sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
+              sx={{ borderRadius: 999, textTransform: "none", py: 1.2, color:"#fff" }}
             >
               View order status
             </Button>
             <Button
               fullWidth
               variant="outlined"
+              color="error"
               onClick={() => navigate("/buyer/shop")}
               sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
             >

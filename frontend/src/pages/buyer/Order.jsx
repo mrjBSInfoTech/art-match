@@ -21,10 +21,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import { cancelBuyerOrder, fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import { submitBuyerReview } from "../../api/buyer/reviewsAPI";
 import OrderGrid from "../../components/buyer/Order/OrderGrid";
+import ReturnRequestDialog from "../../components/buyer/Message/ReturnRequestDialog.jsx";
 import {
   getPaymentReference,
   getPaymentReturnNotice,
-  isPayMongoOrder,
   isPlacedOrder,
 } from "../../utils/orderPayments.js";
 
@@ -38,6 +38,7 @@ export default function Orders() {
   const [actionPending, setActionPending] = useState("");
   const paymentAction = useRef(false);
   const [reviewTarget, setReviewTarget] = useState(null);
+  const [returnTarget, setReturnTarget] = useState(null);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
@@ -72,8 +73,7 @@ export default function Orders() {
         const nextOrders = Array.isArray(response) ? response.filter(isPlacedOrder) : [];
         const params = new URLSearchParams(search);
         const reference = params.get("reference");
-        if (["success", "cancelled"].includes(params.get("payment")) && reference &&
-            !nextOrders.some((order) => isPayMongoOrder(order) && getPaymentReference(order) === reference)) {
+        if (["success", "cancelled"].includes(params.get("payment")) && reference) {
           // Sessions created before the checkout return page was introduced can still return here.
           // Authenticate and verify their status in Checkout before exposing a purchase.
           navigate(`/buyer/checkout${search}`, { replace: true });
@@ -206,9 +206,18 @@ export default function Orders() {
             actionPending={actionPending}
             onCancel={handleCancel}
             onReview={openReview}
+            onRequestReturn={setReturnTarget}
+            onViewReturn={(request) => navigate(`/buyer/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`)}
           />
         )}
       </Stack>
+
+      {returnTarget && <ReturnRequestDialog key={returnTarget.orderId} order={returnTarget}
+        onClose={() => setReturnTarget(null)}
+        onSubmitted={(request) => {
+          setReturnTarget(null);
+          navigate(`/buyer/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`);
+        }} />}
 
       <Dialog open={Boolean(reviewTarget)} onClose={() => setReviewTarget(null)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
         {reviewTarget && <>

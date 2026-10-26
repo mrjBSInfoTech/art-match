@@ -52,7 +52,7 @@ function setup(order = {}) {
     },
   };
   const router = {
-    get(path, ...handlers) { listHandler = handlers.at(-1); },
+    get(path, ...handlers) { if (path === "/") listHandler = handlers.at(-1); },
     put(path, ...handlers) { statusHandler = handlers.at(-1); },
   };
   const multer = () => ({ array: () => () => {} });
@@ -62,6 +62,7 @@ function setup(order = {}) {
     deleteParcelPhoto: async () => {},
     saveParcelPhoto: async () => { state.uploads++; return "test-parcel.webp"; },
     isB2Configured: () => false, normalizeTrackingUrl, validateParcelPhotoCount,
+    attachOrderReturns: async (_executor, orders) => orders,
     console: { error() {} },
   });
   const response = {
@@ -77,7 +78,18 @@ function setup(order = {}) {
         body: { status, ...extra.body }, files: extra.files || [] }, response);
       return response;
     },
-    list() { listHandler({ user: { student_id: 8 } }, response); return { response, sql: listSql }; },
+    async list() {
+      await new Promise((resolve) => {
+        const originalJson = response.json;
+        response.json = function (body) {
+          originalJson.call(this, body);
+          resolve();
+          return this;
+        };
+        listHandler({ user: { student_id: 8 } }, response);
+      });
+      return { response, sql: listSql };
+    },
   };
 }
 
@@ -157,13 +169,23 @@ test("COD delivery atomically records collected payment with its timestamp", asy
   assert.equal(route.response.body.paymentStatus, "Paid");
   assert.match(route.state.updateSql, /payment_status = CASE[\s\S]*payment_method = 'cod' AND \? = 'Delivered' THEN 'Paid'/);
   assert.match(route.state.updateSql, /paid_at = CASE[\s\S]*COALESCE\(paid_at, NOW\(\)\)/);
+  assert.match(route.state.updateSql, /delivered_at = CASE\s+WHEN \? = 'Delivered' THEN COALESCE\(delivered_at, NOW\(\)\)\s+ELSE delivered_at/);
   assert.deepEqual(route.state.updateParams.slice(4, 6), ["Delivered", "Delivered"]);
+  assert.equal(route.state.updateParams[6], "Delivered");
   assert.equal(route.state.commits, 1);
 });
 
-test("seller list exposes payment state and channel for sales/UI decisions", () => {
+test("online delivery records the first delivery time without replacing an existing timestamp", async () => {
+  const route = setup({ status: "Shipped", payment_status: "Paid", delivered_at: "2026-10-01 09:00:00" });
+  assert.equal((await route.update("Delivered", { body: { delivered_at: "2099-01-01 00:00:00" } })).statusCode, 200);
+  assert.match(route.state.updateSql, /THEN COALESCE\(delivered_at, NOW\(\)\)/);
+  assert.equal(route.state.updateParams[6], "Delivered");
+  assert.ok(!route.state.updateParams.includes("2099-01-01 00:00:00"));
+});
+
+test("seller list exposes payment state and channel for sales/UI decisions", async () => {
   const route = setup({ payment_status: "Paid" });
-  const { response, sql } = route.list();
+  const { response, sql } = await route.list();
   assert.match(sql, /WHERE o\.seller_id = \?/);
   assert.match(sql, /AND \(o\.payment_method <> 'paymongo' OR o\.payment_status IN \('Paid', 'Refunded'\)\)/);
   assert.deepEqual(route.state.listParams, [8]);

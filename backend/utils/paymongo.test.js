@@ -99,6 +99,21 @@ test("missing return URLs or reference are rejected before calling PayMongo", as
   assert.equal(requests, 0);
 });
 
+test("PayMongo maintenance is reported as temporary unavailability without exposing provider details", async t => {
+  t.mock.method(globalThis, "fetch", async () => ({
+    ok: false, status: 404,
+    async json() { return { errors: [{ code: "maintenance", detail: "Internal provider details" }] }; },
+  }));
+  await assert.rejects(() => createPayMongoCheckoutSession(validCheckout()), error => {
+    assert.equal(error.status, 503);
+    assert.equal(error.providerStatus, 404);
+    assert.equal(error.providerCode, "maintenance");
+    assert.match(error.message, /maintenance.*try again later/i);
+    assert.doesNotMatch(error.message, /Internal provider details/);
+    return true;
+  });
+});
+
 test("PayMongo non-2xx and invalid successful responses are not accepted as Checkout Sessions", async t => {
   t.mock.method(globalThis, "fetch", async () => ({ ok: false, status: 422, async json() { return { errors: [{ detail: "Payment method unavailable" }] }; } }));
   await assert.rejects(() => createPayMongoCheckoutSession(validCheckout()), /unavailable|PayMongo/i);

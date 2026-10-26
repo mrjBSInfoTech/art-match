@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import CartTable from "../../components/buyer/Cart/CartTable";
+import CartConfirm from "../../components/buyer/Cart/CartConfirm";
 import CartDelete from "../../components/buyer/Cart/CartDelete";
 import {
   Alert,
@@ -25,6 +26,7 @@ export default function Cart() {
   const [selection, setSelection] = useState(null);
   const navigate = useNavigate();
   const [selectedCart, setSelectedCart] = useState(null);
+  const [confirmingOrder, setConfirmingOrder] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const deletingRef = useRef(false);
@@ -33,6 +35,12 @@ export default function Cart() {
     if (deletingRef.current) return;
     setSelectedCart(null);
     setDeleteError("");
+  };
+  const closeOrderConfirmation = () => setConfirmingOrder(false);
+  const continueToCheckout = (artworkIds) => {
+    if (!artworkIds.length) return;
+    setConfirmingOrder(false);
+    navigate(`/buyer/checkout?artwork_ids=${artworkIds.join(",")}`);
   };
 
   useEffect(() => {
@@ -217,14 +225,6 @@ export default function Cart() {
                 <Typography variant="body2" color="text.secondary">{selectedItems.length} of {cartItems.length} artworks selected</Typography>
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
                   <Row label="Subtotal" value={`₱${subtotal}`} />
-                  <Row
-                    label="Shipping"
-                    value="Paid to courier"
-                  />
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
-                    Delivery is arranged with a third-party courier (J&T,
-                    Lalamove, etc.) and paid directly to the seller.
-                  </Typography>
                   <Divider />
                   <Row label="Total" value={`₱${total}`} bold />
                 </Stack>
@@ -233,9 +233,8 @@ export default function Cart() {
                   fullWidth
                   size="large"
                   disabled={selectedItems.length === 0 || deleting}
-                  onClick={() => {
-                    if (selectedIds.length) navigate(`/buyer/checkout?artwork_ids=${selectedIds.join(",")}`);
-                  }}
+                  onClick={() => setConfirmingOrder(true)}
+                  color="error"
                   sx={{
                     mt: 4,
                     borderRadius: 999,
@@ -263,6 +262,13 @@ export default function Cart() {
             </Grid>
           </Grid>
         )}
+        <CartConfirm
+          open={confirmingOrder}
+          selectedItems={selectedItems}
+          total={total}
+          handleClose={closeOrderConfirmation}
+          onSubmit={continueToCheckout}
+        />
         <CartDelete
           open={Boolean(selectedCart)}
           selectedCart={selectedCart}
