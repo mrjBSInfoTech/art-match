@@ -40,6 +40,9 @@ import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
+import SlideshowRoundedIcon from "@mui/icons-material/SlideshowRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ConstructionRoundedIcon from "@mui/icons-material/ConstructionRounded";
 import CloseIcon from "@mui/icons-material/Close";
 import KeyIcon from "@mui/icons-material/Key";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
@@ -54,6 +57,11 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
+
+const ADMIN_SIDEBAR_PREFERENCES = {
+  manageUsers: "admin_sidebar_manage_users_expanded",
+  systemSettings: "admin_sidebar_system_settings_expanded",
+};
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -87,7 +95,20 @@ function AdminLayoutContent() {
   const handleClose = () => setOpen(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
-  const [manageUsersExpanded, setManageUsersExpanded] = useState(true);
+  const [manageUsersExpanded, setManageUsersExpanded] = useState(
+    () => localStorage.getItem(ADMIN_SIDEBAR_PREFERENCES.manageUsers) === "true",
+  );
+  const [systemSettingsExpanded, setSystemSettingsExpanded] = useState(
+    () => localStorage.getItem(ADMIN_SIDEBAR_PREFERENCES.systemSettings) === "true",
+  );
+
+  const toggleSidebarGroup = (preferenceKey, setExpanded) => {
+    setExpanded((expanded) => {
+      const nextExpanded = !expanded;
+      localStorage.setItem(preferenceKey, String(nextExpanded));
+      return nextExpanded;
+    });
+  };
 
   useEffect(() => {
     const loadAdminProfile = () => {
@@ -183,9 +204,26 @@ function AdminLayoutContent() {
       icon: <DashboardIcon />,
     },
     {
-      segment: "system-setting",
-      title: "System Setting",
+      segment: "system-settings",
+      title: "System Settings",
       icon: <SettingsIcon />,
+      children: [
+        {
+          segment: "promotion-slide",
+          title: "Promotion Slide",
+          icon: <SlideshowRoundedIcon />,
+        },
+        {
+          segment: "about-us",
+          title: "About Us",
+          icon: <InfoOutlinedIcon />,
+        },
+        {
+          segment: "mechanicals",
+          title: "Mechanicals",
+          icon: <ConstructionRoundedIcon />,
+        },
+      ],
     },
     {
       segment: "sales",
@@ -561,6 +599,21 @@ function AdminLayoutContent() {
         }}
         slotProps={{ header: { branding } }}
         renderPageItem={(item) => {
+          if (item.segment === "system-settings") {
+            return (
+              <DashboardSidebarPageItem
+                item={item}
+                expanded={systemSettingsExpanded}
+                onClick={() =>
+                  toggleSidebarGroup(
+                    ADMIN_SIDEBAR_PREFERENCES.systemSettings,
+                    setSystemSettingsExpanded,
+                  )
+                }
+              />
+            );
+          }
+
           if (item.segment !== "manage") {
             return <DashboardSidebarPageItem item={item} />;
           }
@@ -569,7 +622,12 @@ function AdminLayoutContent() {
             <DashboardSidebarPageItem
               item={item}
               expanded={manageUsersExpanded}
-              onClick={() => setManageUsersExpanded((expanded) => !expanded)}
+              onClick={() =>
+                toggleSidebarGroup(
+                  ADMIN_SIDEBAR_PREFERENCES.manageUsers,
+                  setManageUsersExpanded,
+                )
+              }
             />
           );
         }}

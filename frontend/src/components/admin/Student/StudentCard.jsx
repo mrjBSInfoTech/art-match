@@ -15,9 +15,15 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import ReplayIcon from "@mui/icons-material/Replay";
 import StudentInfo from "./StudentInfo";
 
-export default function StudentCard({ students = [], onEdit, onDelete }) {
+export default function StudentCard({
+  students = [],
+  onEdit,
+  onDelete,
+  onReactivate,
+}) {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -213,6 +219,18 @@ export default function StudentCard({ students = [], onEdit, onDelete }) {
                     <EditIcon sx={{ mr: 1, fontSize: 20 }} />
                     Edit
                   </MenuItem>
+                  {student.account_status === "expired" && (
+                    <MenuItem
+                      onClick={() => {
+                        onReactivate?.(selectedStudent);
+                        handleMenuClose();
+                      }}
+                      sx={{ color: "success.main" }}
+                    >
+                      <ReplayIcon sx={{ mr: 1, fontSize: 20 }} />
+                      Reactivate
+                    </MenuItem>
+                  )}
                   <MenuItem
                     onClick={() => {
                       onDelete?.(id);

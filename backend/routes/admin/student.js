@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
+import { getAccountExpirationDate } from "../../database/systemSettings.js";
 
 const router = express.Router();
 
@@ -113,7 +114,7 @@ router.post(
     let reactivatedCount = 0;
     let skippedCount = 0;
 
-    const processStudent = (index) => {
+    const processStudent = (index, expirationDate) => {
       if (index >= students.length) {
         const summary = `Bulk import complete: ${createdCount} added, ${reactivatedCount} reactivated, ${skippedCount} already active/skipped`;
         return res.status(201).json({
@@ -131,13 +132,13 @@ router.post(
       const studentNumber = studentData.student_number;
 
       const createStudent = () => {
-        createStudentRecord(studentData, adminId, (err) => {
+        createStudentRecord(studentData, adminId, expirationDate, (err) => {
           if (err) {
             return res.status(err.status || 500).json({ message: err.message });
           }
 
           createdCount += 1;
-          processStudent(index + 1);
+          processStudent(index + 1, expirationDate);
         });
       };
 
@@ -161,15 +162,15 @@ router.post(
           const existingStudent = results[0];
           if (!existingStudent.is_expired) {
             skippedCount += 1;
-            return processStudent(index + 1);
+            return processStudent(index + 1, expirationDate);
           }
 
           db.query(
             `UPDATE student
              SET account_status = 'active',
-                 expire_date = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 3 MONTH)
+                 expire_date = DATE_ADD(?, INTERVAL 1 DAY)
              WHERE student_id = ? AND expire_date <= CURRENT_TIMESTAMP`,
-            [existingStudent.student_id],
+            [expirationDate, existingStudent.student_id],
             (reactivationError, updateResult) => {
               if (reactivationError) {
                 return res.status(500).json({ message: reactivationError.message });
@@ -180,14 +181,53 @@ router.post(
               } else {
                 skippedCount += 1;
               }
-              processStudent(index + 1);
+              processStudent(index + 1, expirationDate);
             },
           );
         },
       );
     };
 
-    processStudent(0);
+    getAccountExpirationDate((settingsError, expirationDate) => {
+      if (settingsError) {
+        console.error("Unable to load student expiration date:", settingsError);
+        return res.status(500).json({ message: "Unable to load account expiration date." });
+      }
+      processStudent(0, expirationDate);
+    });
+  },
+);
+
+router.post(
+  "/:id/reactivate",
+  authenticateAdmin,
+  requireAdminPermission("can_edit"),
+  (req, res) => {
+    getAccountExpirationDate((settingsError, expirationDate) => {
+      if (settingsError) {
+        console.error("Unable to load student expiration date:", settingsError);
+        return res.status(500).json({ message: "Unable to load account expiration date." });
+      }
+
+      db.query(
+        `UPDATE student
+         SET account_status = 'active',
+             expire_date = DATE_ADD(?, INTERVAL 1 DAY)
+         WHERE student_id = ? AND expire_date <= CURRENT_TIMESTAMP`,
+        [expirationDate, req.params.id],
+        (err, result) => {
+          if (err) return res.status(500).json({ message: err.message });
+          if (result.affectedRows === 0) {
+            return res.status(409).json({
+              message: "Student account is already active or does not exist.",
+            });
+          }
+          return res.json({
+            message: `Student account reactivated through ${expirationDate}.`,
+          });
+        },
+      );
+    });
   },
 );
 
@@ -296,7 +336,7 @@ router.put(
 const formatDateTime = () =>
   new Date().toISOString().slice(0, 19).replace("T", " ");
 
-const createStudentRecord = (studentData, adminId, callback) => {
+const createStudentRecord = (studentData, adminId, expirationDate, callback) => {
   const requiredFields = [
     "first_name",
     "last_name",
@@ -358,7 +398,7 @@ const passwordHash =
       created_at,
       account_status,
       expire_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 3 MONTH))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', DATE_ADD(?, INTERVAL 1 DAY))
   `;
 
   db.query(
@@ -376,6 +416,7 @@ const passwordHash =
       studentData.course,
       studentData.student_number,
       passwordHash,
+      expirationDate,
     ],
     (err, result) => {
       if (err) {
@@ -443,14 +484,21 @@ router.post(
   (req, res) => {
     const studentData = req.body || {};
 
-    createStudentRecord(studentData, req.user?.admin_id, (err, result) => {
-      if (err) {
-        return res.status(err.status || 500).json({ message: err.message });
+    getAccountExpirationDate((settingsError, expirationDate) => {
+      if (settingsError) {
+        console.error("Unable to load student expiration date:", settingsError);
+        return res.status(500).json({ message: "Unable to load account expiration date." });
       }
 
-      return res.status(201).json({
-        message: "Student added successfully",
-        student: result,
+      createStudentRecord(studentData, req.user?.admin_id, expirationDate, (err, result) => {
+        if (err) {
+          return res.status(err.status || 500).json({ message: err.message });
+        }
+
+        return res.status(201).json({
+          message: "Student added successfully",
+          student: result,
+        });
       });
     });
   },

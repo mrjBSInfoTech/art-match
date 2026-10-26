@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
+import { getAccountExpirationDate } from "../../database/systemSettings.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -119,57 +120,65 @@ router.post("/register", upload.single("cor"), (req, res) => {
       created_at, account_status, expire_date
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active',
-      DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 3 MONTH)
+      DATE_ADD(?, INTERVAL 1 DAY)
     )
   `;
 
-  db.query(
-    sql,
-    [
-      first_name,
-      middle_name,
-      last_name,
-      birthdate,
-      email,
-      address,
-      phone_number,
-      corPath,
-      year_level,
-      course,
-      student_number,
-      hashedPassword,
-    ],
-    (err, result) => {
-      if (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-          return res
-            .status(409)
-            .json({ message: "Email or student number already exists" });
-        }
-        console.error("Database error:", err);
-        return res.status(500).json({ message: "Database error" });
-      }
+  getAccountExpirationDate((settingsError, expirationDate) => {
+    if (settingsError) {
+      console.error("Unable to load student expiration date:", settingsError);
+      return res.status(500).json({ message: "Unable to load account expiration date." });
+    }
 
-      const studentId = result.insertId;
-      const registeredDate = new Date();
-
-      const accSql = `
-        INSERT INTO accregistration (student_id, registered_date, register_status)
-        VALUES (?, ?, 'pending')
-      `;
-
-      db.query(accSql, [studentId, registeredDate], (accErr) => {
-        if (accErr) {
-          console.error("AccRegistration DB error:", accErr);
-          return res
-            .status(500)
-            .json({ message: "Database error recording registration" });
+    db.query(
+      sql,
+      [
+        first_name,
+        middle_name,
+        last_name,
+        birthdate,
+        email,
+        address,
+        phone_number,
+        corPath,
+        year_level,
+        course,
+        student_number,
+        hashedPassword,
+        expirationDate,
+      ],
+      (err, result) => {
+        if (err) {
+          if (err.code === "ER_DUP_ENTRY") {
+            return res
+              .status(409)
+              .json({ message: "Email or student number already exists" });
+          }
+          console.error("Database error:", err);
+          return res.status(500).json({ message: "Database error" });
         }
 
-        res.status(201).json({ message: "User registered successfully" });
-      });
-    },
-  );
+        const studentId = result.insertId;
+        const registeredDate = new Date();
+
+        const accSql = `
+          INSERT INTO accregistration (student_id, registered_date, register_status)
+          VALUES (?, ?, 'pending')
+        `;
+
+        db.query(accSql, [studentId, registeredDate], (accErr) => {
+          if (accErr) {
+            console.error("AccRegistration DB error:", accErr);
+            return res
+              .status(500)
+              .json({ message: "Database error recording registration" });
+          }
+
+          res.status(201).json({ message: "User registered successfully" });
+        });
+      },
+    );
+  });
 });
 
 // Login route

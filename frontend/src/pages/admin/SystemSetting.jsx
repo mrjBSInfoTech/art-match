@@ -189,7 +189,7 @@ export default function SystemSetting() {
 
   return (
     <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", maxWidth: "none", mx: 0, boxSizing: "border-box" }}>
-      <Helmet titleTemplate="%s - ArtMatch"><title>System Setting</title></Helmet>
+      <Helmet titleTemplate="%s - ArtMatch"><title>About Us</title></Helmet>
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={2} sx={{ mb: 4 }}>
         <Box>
           <Typography variant="h3" fontWeight={800}>About Us Content</Typography>

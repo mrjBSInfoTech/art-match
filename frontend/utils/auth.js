@@ -19,6 +19,16 @@ const ADMIN_AUTH_KEYS = [
   "admin_updated_at",
 ];
 
+const ADMIN_SIDEBAR_PREFERENCE_KEYS = [
+  "admin_sidebar_manage_users_expanded",
+  "admin_sidebar_system_settings_expanded",
+];
+
+const SELLER_SIDEBAR_PREFERENCE_KEYS = [
+  "seller_sidebar_orders_expanded",
+  "seller_sidebar_vouchers_expanded",
+];
+
 // For seller part
 const SELLER_AUTH_KEYS = [
   "seller_token",
@@ -58,12 +68,14 @@ const TOKEN_KEYS = {
 export function clearAuthData(section = null) {
   if (section === "admin") {
     ADMIN_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    ADMIN_SIDEBAR_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
     // If the active track matches, clear the section marker too
     if (localStorage.getItem("auth_section") === "admin") {
       localStorage.removeItem("auth_section");
     }
   } else if (section === "seller") {
     SELLER_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    SELLER_SIDEBAR_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
     // If the active track matches, clear the section marker too
     if (localStorage.getItem("auth_section") === "seller") {
       localStorage.removeItem("auth_section");
@@ -77,7 +89,9 @@ export function clearAuthData(section = null) {
   } else {
     // Brutal cleanup: Wipe absolutely everything out to be completely safe
     ADMIN_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    ADMIN_SIDEBAR_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
     SELLER_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    SELLER_SIDEBAR_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
     BUYER_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     COMMON_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem("token"); // Clean up legacy key remnants

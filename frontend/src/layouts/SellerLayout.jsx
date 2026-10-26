@@ -60,6 +60,11 @@ import {
   useThemeMode,
 } from "../theme/ThemeModeProvider";
 
+const SELLER_SIDEBAR_PREFERENCES = {
+  orders: "seller_sidebar_orders_expanded",
+  vouchers: "seller_sidebar_vouchers_expanded",
+};
+
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -90,19 +95,22 @@ function SellerLayoutContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
-  const [ordersExpanded, setOrdersExpanded] = useState(true);
-  const [vouchersExpanded, setVouchersExpanded] = useState(true);
+  const [ordersExpanded, setOrdersExpanded] = useState(
+    () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.orders) === "true",
+  );
+  const [vouchersExpanded, setVouchersExpanded] = useState(
+    () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.vouchers) === "true",
+  );
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  useEffect(() => {
-    if (location.pathname.startsWith("/seller/orders")) {
-      setOrdersExpanded(true);
-    }
-    if (location.pathname.startsWith("/seller/vouchers")) {
-      setVouchersExpanded(true);
-    }
-  }, [location.pathname]);
+  const toggleSidebarGroup = (preferenceKey, setExpanded) => {
+    setExpanded((expanded) => {
+      const nextExpanded = !expanded;
+      localStorage.setItem(preferenceKey, String(nextExpanded));
+      return nextExpanded;
+    });
+  };
 
   useEffect(() => {
     const loadSellerProfile = () => {
@@ -579,7 +587,12 @@ function SellerLayoutContent() {
               <DashboardSidebarPageItem
                 item={item}
                 expanded={ordersExpanded}
-                onClick={() => setOrdersExpanded((expanded) => !expanded)}
+                onClick={() =>
+                  toggleSidebarGroup(
+                    SELLER_SIDEBAR_PREFERENCES.orders,
+                    setOrdersExpanded,
+                  )
+                }
               />
             );
           }
@@ -588,7 +601,12 @@ function SellerLayoutContent() {
               <DashboardSidebarPageItem
                 item={item}
                 expanded={vouchersExpanded}
-                onClick={() => setVouchersExpanded((expanded) => !expanded)}
+                onClick={() =>
+                  toggleSidebarGroup(
+                    SELLER_SIDEBAR_PREFERENCES.vouchers,
+                    setVouchersExpanded,
+                  )
+                }
               />
             );
           }

@@ -70,6 +70,15 @@ export const updateStudent = async (studentId, data) => {
   }
 };
 
+export const reactivateStudent = async (studentId) => {
+  try {
+    const res = await api.post(`/${studentId}/reactivate`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 // Delete student
 export const deleteStudent = async (studentId) => {
   try {
@@ -79,5 +88,4 @@ export const deleteStudent = async (studentId) => {
     handleError(error);
   }
 };
-
 

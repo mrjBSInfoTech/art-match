@@ -31,9 +31,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
-import BackupIcon from "@mui/icons-material/Backup";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -181,7 +179,6 @@ export default function Settings() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
-      <ThemeModeSetting />
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         <Box
           sx={{
@@ -368,39 +365,6 @@ export default function Settings() {
             }}
           >
             Update
-          </Button>
-        </Box>
-      </Paper>
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            alignItems: { xs: "stretch", sm: "center" },
-            gap: 2,
-            justifyContent: "space-between",
-          }}
-        >
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2.5,
-              bgcolor: "rgba(30, 31, 135, 0.08)",
-              color: "#1e1f87",
-            }}
-          >
-            <BackupIcon />
-          </Box>
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="body1" fontWeight="700">
-              Backup
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Backup and restore options will be available here.
-            </Typography>
-          </Box>
-          <Button variant="outlined" disabled sx={{ textTransform: "none" }}>
-            Backup
           </Button>
         </Box>
       </Paper>

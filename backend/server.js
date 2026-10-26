@@ -16,6 +16,7 @@ import adminCustomerRoutes from "./routes/admin/customer.js";
 import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
 import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import adminAdminRoutes from "./routes/admin/admin.js";
+import adminSystemSettingsRoutes from "./routes/admin/systemSettings.js";
 import aboutContentRoutes from "./routes/aboutContent.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
@@ -31,6 +32,7 @@ import { ensureEventsTable } from "./database/events.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureStudentAccountSchema } from "./database/student.js";
+import { ensureSystemSettingsTable } from "./database/systemSettings.js";
 import { ensurePaymentSplitTable } from "./database/paymentSplits.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
@@ -600,6 +602,7 @@ app.use("/api/admin/customer", adminCustomerRoutes);
 app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
 app.use("/api/admin/account-access", adminAccountAccessRoutes);
 app.use("/api/admin/admin", adminAdminRoutes);
+app.use("/api/admin/system-settings", adminSystemSettingsRoutes);
 app.use("/api/about-content", aboutContentRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
@@ -655,6 +658,7 @@ ensureAccountAccessTable()
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
   .then(() => ensureStudentAccountSchema())
+  .then(() => ensureSystemSettingsTable())
   .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())

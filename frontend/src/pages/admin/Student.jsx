@@ -27,6 +27,7 @@ import {
   addStudents,
   deleteStudent,
   fetchStudents,
+  reactivateStudent,
   updateStudent,
 } from "../../api/admin/studentAPI";
 
@@ -124,6 +125,16 @@ export default function Student() {
       setSelectedStudent(null);
     } catch (err) {
       showSnackbar(err.message || "Unable to delete student.", "error");
+    }
+  };
+
+  const handleReactivateStudent = async (student) => {
+    try {
+      const result = await reactivateStudent(student.student_id);
+      await loadStudents();
+      showSnackbar(result.message || "Student account reactivated.", "success");
+    } catch (err) {
+      showSnackbar(err.message || "Unable to reactivate student account.", "error");
     }
   };
 
@@ -418,6 +429,7 @@ export default function Student() {
             students={filteredStudents}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
+            onReactivate={handleReactivateStudent}
           />
         )}
       </Paper>

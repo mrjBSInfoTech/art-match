@@ -23,6 +23,7 @@ import BuyerRoute from "../middleware/BuyerRoute";
 // Admin Pages
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminSystemSetting from "../pages/admin/SystemSetting";
+import AdminSystemSettingsPlaceholder from "../pages/admin/SystemSettingsPlaceholder";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
 import AdminArtwork from "../pages/admin/Artwork";
@@ -156,7 +157,19 @@ export default function AppRoutes() {
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route
                   path="system-setting"
+                  element={<Navigate to="/admin/system-settings/about-us" replace />}
+                />
+                <Route
+                  path="system-settings/promotion-slide"
+                  element={<AdminSystemSettingsPlaceholder title="Promotion Slide" />}
+                />
+                <Route
+                  path="system-settings/about-us"
                   element={<AdminSystemSetting />}
+                />
+                <Route
+                  path="system-settings/mechanicals"
+                  element={<AdminSystemSettingsPlaceholder title="Mechanicals" />}
                 />
                 <Route path="profile" element={<AdminProfile />} />
                 <Route path="artwork" element={<AdminArtwork />} />
