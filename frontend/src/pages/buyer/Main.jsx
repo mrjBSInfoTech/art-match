@@ -139,7 +139,6 @@ export default function Main() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-
   const handleAddToCart = async (artworkId) => {
     try {
       const result = await addToCart(artworkId);
@@ -245,7 +244,6 @@ export default function Main() {
   );
   const featuredArtist = popularArtists[0];
   const galleryArtists = popularArtists.slice(1, 9);
-  const heroArtwork = artworks[0];
   const warmSurface =
     theme.palette.mode === "light" ? "#fff9ef" : theme.palette.background.paper;
 
@@ -355,119 +353,7 @@ export default function Main() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Main</title>
       </Helmet>
-      {/* Hero */}
-      <Box
-        sx={{
-          width: "100%",
-          overflow: "hidden",
-          mt: { xs: 0, md: -1 },
-          backgroundColor: warmSurface,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Container
-          maxWidth="lg"
-          sx={{ py: { xs: 6, md: 8 }, px: { xs: 3, sm: 5 } }}
-        >
-          <Grid
-            container
-            spacing={{ xs: 5, md: 7 }}
-            sx={{ alignItems: "center" }}
-          >
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography
-                variant="h2"
-                sx={{
-                  fontSize: { xs: 34, sm: 44, md: 52 },
-                  lineHeight: 1.02,
-                  letterSpacing: "-0.03em",
-                  fontWeight: 800,
-                  maxWidth: 590,
-                }}
-              >
-                Discover Original Art by Emerging CAFA Artists
-              </Typography>
-              <Typography
-                variant="body1"
-                color="text.secondary"
-                sx={{ mt: 3, maxWidth: 500, lineHeight: 1.65 }}
-              >
-                Acquire hand-crafted paintings, fine art printworks, digital
-                assets and miniature architectural mockups straight from the
-                studios of Beijing's premier Fine Arts academy.
-              </Typography>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                sx={{ mt: 4 }}
-              >
-                <Button
-                  size="large"
-                  variant="contained"
-                  component={RouterLink}
-                  to="/buyer/shop"
-                  endIcon={<ArrowForwardIcon />}
-                  sx={{
-                    borderRadius: 99999,
-                    color: "#fff",
-                    backgroundColor: theme.palette.error.main,
-                    px: 2.5,
-                    "&:hover": { backgroundColor: theme.palette.error.dark },
-                  }}
-                >
-                  Shop Now
-                </Button>
-                <Button
-                  size="large"
-                  variant="outlined"
-                  component={RouterLink}
-                  to="/buyer/gallery"
-                  endIcon={<ArrowForwardIcon />}
-                  sx={{
-                    borderRadius: 99999,
-                    color: "text.primary",
-                    borderColor: "text.primary",
-                    px: 2.5,
-                  }}
-                >
-                  Explore Gallery
-                </Button>
-              </Stack>
-            </Grid>
-            <Grid
-              size={{ xs: 12, md: 5 }}
-              sx={{ display: { xs: "none", md: "block" } }}
-            >
-              <Box
-                sx={{
-                  position: "relative",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  aspectRatio: "4 / 5",
-                  backgroundColor: "#e0e0e0",
-                }}
-              >
-                <WatermarkedArtworkImage
-                  image={heroArtwork?.image}
-                  alt={heroArtwork?.title || "Featured artwork"}
-                  variant="web"
-                  hideWhenBlurred
-                  sx={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              </Box>
-            </Grid>
-          </Grid>
-        </Container>
-      </Box>
-      <UpcomingEventsSlider />
+      <UpcomingEventsSlider heroArtwork={artworks[0]} />
       {/* Genres */}
       <Box
         sx={{

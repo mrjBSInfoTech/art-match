@@ -48,6 +48,8 @@ import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
@@ -63,6 +65,7 @@ import {
 const SELLER_SIDEBAR_PREFERENCES = {
   orders: "seller_sidebar_orders_expanded",
   vouchers: "seller_sidebar_vouchers_expanded",
+  authenticity: "seller_sidebar_authenticity_expanded",
 };
 
 // Animation transition
@@ -100,6 +103,9 @@ function SellerLayoutContent() {
   );
   const [vouchersExpanded, setVouchersExpanded] = useState(
     () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.vouchers) === "true",
+  );
+  const [authenticityExpanded, setAuthenticityExpanded] = useState(
+    () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.authenticity) === "true",
   );
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -303,6 +309,25 @@ function SellerLayoutContent() {
       ],
     },
     {
+      segment: "authenticity",
+      title: "Authenticity",
+      icon: <VerifiedOutlinedIcon />,
+      children: [
+        {
+          segment: "certificate",
+          title: "Certificate of Authenticity",
+          icon: <VerifiedOutlinedIcon />,
+          pattern: "/seller/authenticity/certificate",
+        },
+        {
+          segment: "check",
+          title: "Check Art Authenticity",
+          icon: <SearchOutlinedIcon />,
+          pattern: "/seller/authenticity/check",
+        },
+      ],
+    },
+    {
       segment: "audit-logs",
       title: "Audit Logs",
       icon: <HistoryIcon />,
@@ -311,7 +336,18 @@ function SellerLayoutContent() {
   ];
 
   const branding = {
-    logo: <Box component="img" src={Nexus} alt="" sx={{ width: { xs: 24, sm: 30 }, height: { xs: 32, sm: 40 }, objectFit: "contain" }} />,
+    logo: (
+      <Box
+        component="img"
+        src={Nexus}
+        alt=""
+        sx={{
+          width: { xs: 24, sm: 30 },
+          height: { xs: 32, sm: 40 },
+          objectFit: "contain",
+        }}
+      />
+    ),
     title: (
       <Typography component="span" noWrap sx={{ color: "text.primary", fontWeight: 700, fontSize: { xs: 16, sm: 20, lg: 22 } }}>
         Red <Box component="span" sx={{ color: "#ff0000" }}>Nexus</Box>
@@ -605,6 +641,20 @@ function SellerLayoutContent() {
                   toggleSidebarGroup(
                     SELLER_SIDEBAR_PREFERENCES.vouchers,
                     setVouchersExpanded,
+                  )
+                }
+              />
+            );
+          }
+          if (item.segment === "authenticity") {
+            return (
+              <DashboardSidebarPageItem
+                item={item}
+                expanded={authenticityExpanded}
+                onClick={() =>
+                  toggleSidebarGroup(
+                    SELLER_SIDEBAR_PREFERENCES.authenticity,
+                    setAuthenticityExpanded,
                   )
                 }
               />

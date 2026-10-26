@@ -23,6 +23,7 @@ import BuyerRoute from "../middleware/BuyerRoute";
 // Admin Pages
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminSystemSetting from "../pages/admin/SystemSetting";
+import AdminPromotionSlides from "../pages/admin/PromotionSlides";
 import AdminSystemSettingsPlaceholder from "../pages/admin/SystemSettingsPlaceholder";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
@@ -50,6 +51,10 @@ import SellerLogin from "../pages/seller/Login";
 import SellerRegister from "../pages/seller/Register";
 import SellerPlaceholder from "../pages/seller/SellerPlaceholder";
 import SellerPayout from "../pages/seller/Payout";
+import SellerVoucherGeneration from "../pages/seller/VoucherGeneration";
+import SellerDiscountCodes from "../pages/seller/DiscountCodes";
+import SellerCertificateOfAuthenticity from "../pages/seller/CertificateOfAuthenticity";
+import SellerMarketing from "../pages/seller/Marketing";
 
 // Buyer Pages
 import BuyerMain from "../pages/buyer/Main";
@@ -162,7 +167,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="system-settings/promotion-slide"
-                  element={<AdminSystemSettingsPlaceholder title="Promotion Slide" />}
+                  element={<AdminPromotionSlides />}
                 />
                 <Route
                   path="system-settings/about-us"
@@ -206,7 +211,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="marketing"
-                  element={<SellerPlaceholder title="Marketing" />}
+                  element={<SellerMarketing />}
                 />
                 <Route path="settlement-payout" element={<SellerPayout />} />
                 <Route path="customer-service" element={<SellerMessages />} />
@@ -214,15 +219,28 @@ export default function AppRoutes() {
                 <Route path="notifications" element={<SellerNotifications />} />
                 <Route
                   path="vouchers/generation"
-                  element={<SellerPlaceholder title="Voucher Generation" />}
+                  element={<SellerVoucherGeneration />}
                 />
                 <Route
                   path="vouchers/discount-code"
-                  element={<SellerPlaceholder title="Discount Code" />}
+                  element={<SellerDiscountCodes />}
                 />
                 <Route
                   path="vouchers/promotion"
                   element={<SellerPlaceholder title="Promotion" />}
+                />
+                <Route
+                  path="authenticity/certificate"
+                  element={<SellerCertificateOfAuthenticity />}
+                />
+                <Route
+                  path="authenticity/check"
+                  element={
+                    <SellerPlaceholder
+                      title="Check Art Authenticity"
+                      description="Art authenticity checking tools will be available here soon."
+                    />
+                  }
                 />
                 <Route
                   path="audit-logs"

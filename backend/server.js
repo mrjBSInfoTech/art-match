@@ -11,6 +11,7 @@ import multer from "multer";
 import adminAuthenticateRoutes from "./routes/admin/adminAuthentication.js";
 import adminArtworkRoutes from "./routes/admin/artwork.js";
 import adminEventRoutes from "./routes/admin/event.js";
+import adminPromotionSlideRoutes from "./routes/admin/promotionSlides.js";
 import adminStudentRoutes from "./routes/admin/student.js";
 import adminCustomerRoutes from "./routes/admin/customer.js";
 import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
@@ -29,7 +30,9 @@ import {
   ensureMessageSenderNameColumn,
 } from "./database/message.js";
 import { ensureEventsTable } from "./database/events.js";
+import { ensurePromotionSlidesTable } from "./database/promotionSlides.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
+import { ensureVoucherTables } from "./database/vouchers.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureReturnTables } from "./database/returns.js";
 import { ensureStudentAccountSchema } from "./database/student.js";
@@ -64,6 +67,8 @@ import { ensureArtworkDerivatives } from "./utils/artworkDerivativeBackfill.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
 import sellerStorefrontRoutes from "./routes/seller/storefront.js";
+import sellerPromotionSlideRoutes from "./routes/seller/promotionSlides.js";
+import sellerVoucherRoutes from "./routes/seller/vouchers.js";
 import sellerOrderRoutes from "./routes/seller/orders.js";
 import sellerReturnRoutes from "./routes/seller/returns.js";
 import sellerReviewRoutes from "./routes/seller/reviews.js";
@@ -74,6 +79,7 @@ import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
 import buyerEventRoutes from "./routes/buyer/event.js";
+import buyerPromotionSlideRoutes from "./routes/buyer/promotionSlides.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
 import buyerFavoriteRoutes from "./routes/buyer/favorites.js";
 import buyerOrderRoutes from "./routes/buyer/orders.js";
@@ -563,6 +569,22 @@ app.get(
 );
 
 // =====================================================
+// Promotion slide images
+// =====================================================
+
+app.get(
+  "/uploads/admin/promotion-slides/:filename",
+
+  serveB2Cached({
+    keyPrefix: "app-uploads/admin/promotion-slides",
+
+    localFolder: path.join(__dirname, "uploads", "admin", "promotion-slides"),
+
+    label: "Promotion slide",
+  }),
+);
+
+// =====================================================
 // Chat attachments
 // =====================================================
 
@@ -600,6 +622,7 @@ app.get("/", (req, res) => {
 app.use("/api/admin/authenticate", adminAuthenticateRoutes);
 app.use("/api/admin/artwork", adminArtworkRoutes);
 app.use("/api/admin/event", adminEventRoutes);
+app.use("/api/admin/promotion-slides", adminPromotionSlideRoutes);
 app.use("/api/admin/student", adminStudentRoutes);
 app.use("/api/admin/customer", adminCustomerRoutes);
 app.use("/api/admin/audit-logs", adminAuditLogsRoutes);
@@ -612,6 +635,8 @@ app.use("/api/about-content", aboutContentRoutes);
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
 app.use("/api/seller/artwork", sellerArtworkRoutes);
 app.use("/api/seller/storefront", sellerStorefrontRoutes);
+app.use("/api/seller/promotion-slides", sellerPromotionSlideRoutes);
+app.use("/api/seller/vouchers", sellerVoucherRoutes);
 app.use("/api/seller/orders", sellerOrderRoutes);
 app.use("/api/seller/returns", sellerReturnRoutes);
 app.use("/api/seller/reviews", sellerReviewRoutes);
@@ -621,6 +646,7 @@ app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
 app.use("/api/buyer/event", buyerEventRoutes);
+app.use("/api/buyer/promotion-slides", buyerPromotionSlideRoutes);
 app.use("/api/buyer/cart", buyerCartRoutes);
 app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
@@ -662,12 +688,14 @@ ensureAccountAccessTable()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
+  .then(() => ensureVoucherTables())
   .then(() => ensureStudentAccountSchema())
   .then(() => ensureSystemSettingsTable())
   .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
   .then(() => ensureEventsTable())
+  .then(() => ensurePromotionSlidesTable())
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureReturnTables())
   .then(() => ensureChatPublicKeysTable())

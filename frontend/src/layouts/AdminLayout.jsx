@@ -210,7 +210,7 @@ function AdminLayoutContent() {
       children: [
         {
           segment: "promotion-slide",
-          title: "Promotion Slide",
+          title: "Promotion Slides",
           icon: <SlideshowRoundedIcon />,
         },
         {

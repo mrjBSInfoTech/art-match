@@ -37,3 +37,21 @@ export const saveAccountExpirationDate = async (date) => {
     throwApiError(error);
   }
 };
+
+export const fetchPromotionHeroEnabled = async () => {
+  try {
+    const response = await api.get("/promotion-hero");
+    return response.data;
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
+export const savePromotionHeroEnabled = async (enabled) => {
+  try {
+    const response = await api.put("/promotion-hero", { enabled });
+    return response.data;
+  } catch (error) {
+    throwApiError(error);
+  }
+};

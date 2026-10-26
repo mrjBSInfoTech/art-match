@@ -42,6 +42,13 @@ export const ensureSystemSettingsTable = async () => {
     );
   }
 
+  await query(
+    db,
+    `INSERT IGNORE INTO system_settings (setting_key, setting_value)
+     VALUES (?, ?)`,
+    ["promotion_hero_enabled", "1"],
+  );
+
   const settings = await query(
     db,
     "SELECT setting_value FROM system_settings WHERE setting_key = ?",
@@ -109,6 +116,26 @@ export const ensureSystemSettingsTable = async () => {
   if (!isValidDate(existingValue)) {
     throw new Error("Account expiration date setting is invalid.");
   }
+};
+
+export const getPromotionHeroEnabled = async () => {
+  const [rows] = await db
+    .promise()
+    .query(
+      "SELECT setting_value FROM system_settings WHERE setting_key = ?",
+      ["promotion_hero_enabled"],
+    );
+  return rows[0]?.setting_value !== "0";
+};
+
+export const updatePromotionHeroEnabled = async (enabled) => {
+  await db.promise().query(
+    `INSERT INTO system_settings (setting_key, setting_value)
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    ["promotion_hero_enabled", enabled ? "1" : "0"],
+  );
+  return enabled;
 };
 
 export const getAccountExpirationDate = (callback) => {
