@@ -50,6 +50,7 @@ const createEmptyArtworkForm = () => ({
   genre: "",
   price: "",
   description: "",
+  care_instructions: "",
   image: "",
   file: null,
   date_created: "",
@@ -153,6 +154,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         genre: selectedArtwork.genre || selectedArtwork.color_used || "",
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
+        care_instructions: selectedArtwork.care_instructions || "",
         image: selectedArtwork.image || "",
         file: null,
         date_created: selectedArtwork.date_created || "",
@@ -594,6 +596,18 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               fullWidth
               multiline
               rows={3}
+              sx={{ gridColumn: "1 / -1" }}
+            />
+
+            <TextField
+              label="How to Handle with Care"
+              name="care_instructions"
+              value={formData.care_instructions}
+              onChange={handleChange}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Example: Keep away from direct sunlight, avoid moisture, and store upright in a dust-free sleeve."
               sx={{ gridColumn: "1 / -1" }}
             />
           </Box>

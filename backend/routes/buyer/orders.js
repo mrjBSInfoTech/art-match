@@ -16,10 +16,17 @@ import {
   getRecommendationSessionIdFromRequest,
 } from "../../utils/recommendationInteractions.js";
 import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
+import { getCommissionRate } from "../../database/paymentSplits.js";
+import { buildPaymentSplit, validateSplits } from "../../utils/paymentSplit.js";
 
 const router = express.Router();
 
-const SHIPPING_FEE = 150;
+/*
+ * Delivery is arranged by the seller through a third-party courier
+ * (J&T, Lalamove, etc.), so ArtMatch does not quote, collect or calculate a
+ * shipping fee. The buyer pays exactly the price of the artworks.
+ */
+const SHIPPING_FEE = 0;
 
 const paymentMethods = new Set(["paymongo", "cod"]);
 
@@ -695,7 +702,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
           subtotal,
           SHIPPING_FEE,
-          subtotal + SHIPPING_FEE,
+          subtotal,
         ],
       );
 
@@ -758,8 +765,58 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
         id: `AM-${String(result.insertId).padStart(6, "0")}`,
 
+        sellerId,
+
+        subtotal,
+
         total: subtotal + SHIPPING_FEE,
       });
+    }
+
+    /*
+     * One payment, several sellers. Record how every seller's share is
+     * derived so the payout is fixed at order time and cannot drift with a
+     * later price change. Rows start as Held and are released on payment.
+     */
+    const { splits, totals: splitTotals } = buildPaymentSplit(createdOrders, {
+      commissionRate: getCommissionRate(),
+    });
+
+    const splitProblems = validateSplits(
+      splits,
+      splitTotals,
+      createdOrders.reduce((sum, created) => sum + created.total, 0),
+    );
+    if (splitProblems.length) {
+      await connection.rollback();
+      console.error(
+        "Payment split failed validation:",
+        splitProblems,
+        JSON.stringify({ splits, createdOrders, splitTotals }),
+      );
+      return res.status(500).json({ message: "Unable to compute seller payments." });
+    }
+
+    for (const split of splits) {
+      await connection.query(
+        `INSERT INTO seller_payment_split
+           (order_id, seller_id, payment_reference, gross_amount, commission_rate,
+            commission_amount, processing_fee_amount, net_amount, payout_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           payment_reference = VALUES(payment_reference)`,
+        [
+          split.orderId,
+          split.sellerId,
+          paymentReference || null,
+          split.grossAmount,
+          split.commissionRate,
+          split.commissionAmount,
+          split.processingFeeAmount,
+          split.netAmount,
+          isPayMongo ? "Held" : "Eligible",
+        ],
+      );
     }
 
     /*
@@ -782,23 +839,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         quantity: 1,
       }));
 
-      /*
-       * Shipping is ₱150 PER SELLER.
-       *
-       * This matches your current
-       * marketplace_order calculation.
-       */
-      const totalShipping = SHIPPING_FEE * bySeller.size;
-
-      lineItems.push({
-        name: "Shipping Fee",
-
-        amount: pesosToCentavos(totalShipping),
-
-        currency: "PHP",
-
-        quantity: 1,
-      });
+      // No shipping line item: the courier is arranged outside ArtMatch.
 
       /*
        * Remove a trailing slash so we do

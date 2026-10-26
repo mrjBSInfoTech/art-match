@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS artwork (
   genre VARCHAR(100) NOT NULL,
   price DECIMAL(12, 2) NOT NULL,
   description TEXT NOT NULL,
+  care_instructions TEXT NULL,
   image VARCHAR(255) NOT NULL,
   product VARCHAR(50) NULL,
   artwork_details JSON NULL,

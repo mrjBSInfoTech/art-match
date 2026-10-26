@@ -43,7 +43,8 @@ const orderTableSql = `
     shipping_postal_code VARCHAR(20) NOT NULL,
 
     subtotal DECIMAL(12, 2) NOT NULL,
-    shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 150.00,
+    -- No shipping fee: couriers are arranged outside ArtMatch.
+    shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     total_amount DECIMAL(12, 2) NOT NULL,
 
     status ENUM(

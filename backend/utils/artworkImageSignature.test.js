@@ -13,7 +13,7 @@ const filename = "artwork-1.jpg";
 const code = "AB23C";
 
 test("accepts a valid signed artwork URL before expiry", () => {
-  const signature = signArtworkImageUrl(filename, code, expiresAt, secret);
+  const signature = signArtworkImageUrl(filename, code, expiresAt, { secret });
 
   assert.equal(
     verifyArtworkImageUrl(filename, code, expiresAt, signature, { now, secret }),
@@ -22,7 +22,7 @@ test("accepts a valid signed artwork URL before expiry", () => {
 });
 
 test("rejects signed artwork URLs with altered fields", () => {
-  const signature = signArtworkImageUrl(filename, code, expiresAt, secret);
+  const signature = signArtworkImageUrl(filename, code, expiresAt, { secret });
 
   assert.equal(
     verifyArtworkImageUrl("other.jpg", code, expiresAt, signature, { now, secret }),
@@ -39,7 +39,7 @@ test("rejects signed artwork URLs with altered fields", () => {
 });
 
 test("rejects expired, overlong, and malformed signed artwork URLs", () => {
-  const signature = signArtworkImageUrl(filename, code, expiresAt, secret);
+  const signature = signArtworkImageUrl(filename, code, expiresAt, { secret });
 
   assert.equal(
     verifyArtworkImageUrl(filename, code, expiresAt, signature, {
@@ -58,5 +58,51 @@ test("rejects expired, overlong, and malformed signed artwork URLs", () => {
   assert.equal(
     verifyArtworkImageUrl(filename, code, expiresAt, "not-a-signature", { now, secret }),
     false,
+  );
+});
+
+test("a signature is bound to its image variant", () => {
+  const thumbSignature = signArtworkImageUrl(filename, code, expiresAt, {
+    variant: "thumb",
+    secret,
+  });
+
+  assert.equal(
+    verifyArtworkImageUrl(filename, code, expiresAt, thumbSignature, {
+      variant: "thumb",
+      now,
+      secret,
+    }),
+    true,
+  );
+  // A signed thumbnail URL cannot be edited into the larger gallery image.
+  assert.equal(
+    verifyArtworkImageUrl(filename, code, expiresAt, thumbSignature, {
+      variant: "web",
+      now,
+      secret,
+    }),
+    false,
+  );
+  assert.equal(
+    verifyArtworkImageUrl(filename, code, expiresAt, thumbSignature, {
+      variant: "original",
+      now,
+      secret,
+    }),
+    false,
+  );
+});
+
+test("defaults to the web variant for existing callers", () => {
+  const signature = signArtworkImageUrl(filename, code, expiresAt, { secret });
+
+  assert.equal(
+    verifyArtworkImageUrl(filename, code, expiresAt, signature, {
+      variant: "web",
+      now,
+      secret,
+    }),
+    true,
   );
 });

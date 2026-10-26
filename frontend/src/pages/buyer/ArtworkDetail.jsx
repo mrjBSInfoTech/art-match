@@ -249,10 +249,12 @@ export default function ArtworkDetail() {
     );
   }
 
+  // Raw upload paths are private and no longer served; the signed image
+  // component resolves the stored filename itself.
   const imageUrl = artwork.image
     ? artwork.image.startsWith("http")
       ? artwork.image
-      : `http://localhost:5000/uploads/seller/uploadArtwork/${encodeURIComponent(artwork.image)}`
+      : artwork.image
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
   const detailCategory = getArtworkDetailCategory(artwork.art_type, artwork.product);
@@ -322,6 +324,8 @@ export default function ArtworkDetail() {
           <WatermarkedArtworkImage
             image={artwork.image || imageUrl}
             alt={artwork.title}
+            variant="web"
+            hideWhenBlurred
             sx={{
               width: { xs: "100%", md: 600 },
               height: { xs: 460, sm: 620, md: 730 },
@@ -466,6 +470,30 @@ export default function ArtworkDetail() {
                   sx={{ mt: 0.5, lineHeight: 1.6 }}
                 >
                   {artwork.description || "No description provided."}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    display: "block",
+                  }}
+                >
+                  How to Handle with Care
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  sx={{ mt: 0.5, lineHeight: 1.6, whiteSpace: "pre-line" }}
+                >
+                  {artwork.care_instructions?.trim()
+                    ? artwork.care_instructions
+                    : "No handling instructions provided."}
                 </Typography>
               </Box>
 
@@ -664,6 +692,8 @@ export default function ArtworkDetail() {
           <WatermarkedArtworkImage
             image={artwork.image || imageUrl}
             alt={artwork.title}
+            variant="web"
+            hideWhenBlurred
             sx={{
               display: "block",
               maxWidth: "100%",

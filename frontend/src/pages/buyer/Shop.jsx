@@ -115,6 +115,7 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
         <WatermarkedArtworkImage
           image={artwork.image}
           alt={artwork.title || "Artwork"}
+          variant="thumb"
           sx={{
             position: "absolute",
             inset: 0,

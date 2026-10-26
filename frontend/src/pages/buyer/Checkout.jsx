@@ -230,12 +230,38 @@ export default function Checkout() {
   const hasSoldOutItems = cartItems.some(
     (item) => Number(item.is_sold_out) === 1,
   );
-  const sellerCount = new Set(
-    cartItems.map((item) => item.seller_id).filter(Boolean),
-  ).size;
-  const estimatedShipping =
-    cartItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
-  const total = subtotal + estimatedShipping;
+  // Delivery is arranged by each seller through a third-party courier
+  // (J&T, Lalamove, etc.), so no shipping fee is charged at checkout.
+  const total = subtotal;
+
+  /*
+   * One payment, several storefronts. The buyer is charged once, but each
+   * seller ships and is paid separately, so show that split up front rather
+   * than surprising them with N orders after paying.
+   */
+  const storefrontGroups = useMemo(() => {
+    const groups = new Map();
+    cartItems.forEach((item) => {
+      const key = item.seller_id != null ? String(item.seller_id) : "unknown";
+      const group = groups.get(key) || {
+        sellerId: key,
+        // Prefer the storefront name, then fall back to the seller's name.
+        shopName:
+          item.shop_name ||
+          item.store_name ||
+          item.artist_name ||
+          item.artist ||
+          "Independent artist",
+        items: [],
+        subtotal: 0,
+      };
+      group.items.push(item);
+      group.subtotal += Number(item.price || 0);
+      groups.set(key, group);
+    });
+    return [...groups.values()];
+  }, [cartItems]);
+  const multiStorefront = storefrontGroups.length > 1;
   const selectionIncomplete = selectedArtworkIds !== null &&
     (!selectedArtworkIds.length || selectedArtworkIds.length !== cartItems.length);
 
@@ -414,7 +440,7 @@ export default function Checkout() {
                     ))}
                   </Box>
                 ))}
-                <SummaryRow label="Total including shipping" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
+                <SummaryRow label="Total" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
               </Stack>
             )}
             <Stack direction={{ xs: "column", sm: "row" }} flexWrap="wrap" gap={1.5}>
@@ -776,10 +802,82 @@ export default function Checkout() {
                   label="Subtotal"
                   value={`₱${subtotal.toLocaleString()}`}
                 />
+                {multiStorefront && (
+                  <Box
+                    sx={{
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 2.5,
+                      p: 1.75,
+                      bgcolor: "action.hover",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontWeight: 700, letterSpacing: 0.4 }}
+                    >
+                      SPLIT ACROSS {storefrontGroups.length} STOREFRONTS
+                    </Typography>
+                    <Stack spacing={1.25} sx={{ mt: 1.25 }}>
+                      {storefrontGroups.map((group) => (
+                        <Button
+                          key={group.sellerId}
+                          variant="text"
+                          disabled
+                          disableElevation
+                          sx={{
+                            p: 0,
+                            justifyContent: "space-between",
+                            textTransform: "none",
+                            color: "text.primary",
+                            width: "100%",
+                            "&.Mui-disabled": { color: "text.primary" },
+                          }}
+                        >
+                          <Stack alignItems="flex-start" sx={{ minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              fontWeight={700}
+                              noWrap
+                              sx={{ maxWidth: 190 }}
+                            >
+                              {group.shopName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {group.items.length}{" "}
+                              {group.items.length === 1 ? "artwork" : "artworks"}
+                            </Typography>
+                          </Stack>
+                          <Typography variant="body2" fontWeight={700} sx={{ ml: 1 }}>
+                            ₱{group.subtotal.toLocaleString()}
+                          </Typography>
+                        </Button>
+                      ))}
+                    </Stack>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 1.25 }}
+                    >
+                      You pay once for all artworks. Each storefront ships
+                      separately through a third-party courier (J&T, Lalamove,
+                      etc.) and is paid separately.
+                    </Typography>
+                  </Box>
+                )}
                 <SummaryRow
-                  label="Estimated Shipping"
-                  value={`₱${estimatedShipping.toLocaleString()}`}
+                  label="Shipping"
+                  value="Paid to courier"
                 />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mt: -1, mb: 1 }}
+                >
+                  Not included in the total. You arrange and pay the courier
+                  directly with the seller.
+                </Typography>
                 <Divider sx={{ my: 1 }} />
                 <SummaryRow
                   label="Total Amount"

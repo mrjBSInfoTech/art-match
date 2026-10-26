@@ -3,8 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import db from "../database/db.js";
-import { getFromB2 } from "./b2Storage.js";
+import { getFromB2, isB2Configured, uploadToB2 } from "./b2Storage.js";
 import { renderWatermarkedArtwork } from "./artworkWatermarkImage.js";
+import {
+  ARTWORK_VARIANT_NAMES,
+  DEFAULT_ARTWORK_VARIANT,
+  createArtworkDerivatives,
+  derivativeFileName,
+  isArtworkVariant,
+} from "./artworkDerivatives.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backendRoot = path.resolve(__dirname, "..");
@@ -22,6 +29,8 @@ const b2CacheFolder = path.join(
   "seller",
   "uploadArtwork",
 );
+const derivativeFolder = localArtworkFolder;
+const derivativeB2Prefix = "app-uploads/seller/uploadArtwork";
 const cacheTtlMs = 3 * 60 * 1000;
 const maxCacheEntries = 12;
 const watermarkCache = new Map();
@@ -70,6 +79,75 @@ export const getCustomerIdForWatermarkCode = async (code) => {
     [code],
   );
   return rows[0]?.customer_id ?? null;
+};
+
+// Public delivery only ever uses the small derived files. If one is missing
+// (an artwork uploaded before derivatives existed, or a B2-hosted original),
+// it is generated from the private source on demand and stored for reuse.
+const readDerivative = async (filename, variant) => {
+  if (!isArtworkVariant(variant)) {
+    const error = new Error("Invalid artwork image variant.");
+    error.status = 400;
+    throw error;
+  }
+
+  const baseName = path.parse(filename).name;
+  const target = derivativeFileName(baseName, variant);
+  const localPath = path.join(derivativeFolder, target);
+  if (fs.existsSync(localPath)) return fs.promises.readFile(localPath);
+
+  const source = await readSourceImageOnce(filename);
+  const derivatives = await createArtworkDerivatives(source);
+
+  for (const name of ARTWORK_VARIANT_NAMES) {
+    const fileName = derivativeFileName(baseName, name);
+    if (isB2Configured()) {
+      await uploadToB2({
+        key: `${derivativeB2Prefix}/${fileName}`,
+        body: derivatives[name],
+        contentType: "image/webp",
+      }).catch((error) =>
+        console.warn(`Unable to store ${fileName} derivative:`, error.message),
+      );
+    } else {
+      await fs.promises.mkdir(derivativeFolder, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(derivativeFolder, fileName),
+        derivatives[name],
+      );
+    }
+  }
+
+  return derivatives[variant];
+};
+
+export const getArtworkDerivative = async (
+  filename,
+  customerId = null,
+  variant = DEFAULT_ARTWORK_VARIANT,
+) => {
+  if (!filename || path.basename(filename) !== filename) {
+    const error = new Error("Invalid artwork image.");
+    error.status = 400;
+    throw error;
+  }
+
+  const body = await readDerivative(filename, variant);
+
+  // Keep the per-buyer audit trail: the watermark ID identifies who viewed it.
+  if (customerId) {
+    const code = await getWatermarkCode(customerId);
+    const artworkId = await getArtworkId(filename);
+    await query(
+      `INSERT INTO buyer_artwork_image_view
+        (customer_id, artwork_id, image_filename, watermark_code)
+       VALUES (?, ?, ?, ?)`,
+      [customerId, artworkId, filename, code],
+    );
+    return { body, contentType: "image/webp", code };
+  }
+
+  return { body, contentType: "image/webp", code: "GUEST" };
 };
 
 const getArtworkId = async (filename) => {

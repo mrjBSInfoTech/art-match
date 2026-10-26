@@ -9,6 +9,7 @@ function SellerArtworkImage({ artwork, background }) {
         <WatermarkedArtworkImage
           image={artwork.image}
           alt={artwork.title || "Artwork"}
+          variant="thumb"
           sx={{ width: "100%", height: "100%", minHeight: 0, objectFit: "contain", display: "block" }}
         />
       ) : (

@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import {
   artworkImageProtectionProps,
   artworkImageProtectionSx,
+  useArtworkBlurOnAway,
 } from "../../../utils/artworkImageProtection";
 
 const API_BASE_URL = "http://localhost:5000";
@@ -36,11 +37,15 @@ export default function WatermarkedArtworkImage({
   sx,
   useBuyerIdentity = true,
   fallbackSrc = "",
+  // "web" (1600 px) for detail views, "thumb" (400 px) for grids.
+  variant = "web",
+  hideWhenBlurred = false,
   ...imageProps
 }) {
   const imageRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [src, setSrc] = useState("");
+  const { blurSx } = useArtworkBlurOnAway({ enabled: hideWhenBlurred });
 
   useEffect(() => {
     if (!image) {
@@ -80,8 +85,8 @@ export default function WatermarkedArtworkImage({
       setSrc(fallbackSrc);
       return undefined;
     }
-    const artworkPath = `${API_BASE_URL}/uploads/seller/uploadArtwork/`;
-    const signedUrlPath = `${API_BASE_URL}/api/artwork-image-url/${encodeURIComponent(filename)}`;
+
+    const signedUrlPath = `${API_BASE_URL}/api/artwork-image-url/${encodeURIComponent(filename)}?variant=${encodeURIComponent(variant)}`;
     const controller = new AbortController();
     let objectUrl;
     const token = useBuyerIdentity ? localStorage.getItem("buyer_token") : null;
@@ -102,7 +107,7 @@ export default function WatermarkedArtworkImage({
         const signedUrl = new URL(url, API_BASE_URL);
         if (
           signedUrl.origin !== new URL(API_BASE_URL).origin ||
-          !signedUrl.pathname.startsWith(new URL(artworkPath).pathname)
+          !signedUrl.pathname.startsWith("/api/artwork-images/")
         ) {
           throw new Error("Server returned an invalid signed artwork URL.");
         }
@@ -132,7 +137,7 @@ export default function WatermarkedArtworkImage({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [image, shouldLoad, useBuyerIdentity, fallbackSrc]);
+  }, [image, shouldLoad, useBuyerIdentity, fallbackSrc, variant]);
 
   if (!image) return null;
 
@@ -148,6 +153,8 @@ export default function WatermarkedArtworkImage({
       sx={{
         ...artworkImageProtectionSx,
         ...sx,
+        ...blurSx,
+        transition: "filter 120ms ease-out",
         visibility: src ? "visible" : "hidden",
       }}
     />

@@ -30,6 +30,8 @@ import {
 import { ensureEventsTable } from "./database/events.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureOrderTables } from "./database/orders.js";
+import { ensureStudentAccountSchema } from "./database/student.js";
+import { ensurePaymentSplitTable } from "./database/paymentSplits.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
 import { ensureArtworkSchema } from "./database/artwork.js";
@@ -37,15 +39,24 @@ import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
 import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
 import {
+  getArtworkDerivative,
   getCustomerIdForWatermarkCode,
   getWatermarkCode,
-  getWatermarkedArtwork,
 } from "./utils/artworkWatermark.js";
 import {
   ARTWORK_IMAGE_URL_TTL_SECONDS,
   signArtworkImageUrl,
   verifyArtworkImageUrl,
 } from "./utils/artworkImageSignature.js";
+import {
+  DEFAULT_ARTWORK_VARIANT,
+  isArtworkVariant,
+} from "./utils/artworkDerivatives.js";
+import {
+  artworkImageRateLimit,
+  recordArtworkDenied,
+} from "./middleware/artworkRateLimit.js";
+import { ensureArtworkDerivatives } from "./utils/artworkDerivativeBackfill.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
@@ -379,12 +390,20 @@ const optionalBuyerAuthentication = (req, res, next) => {
   authenticateBuyer(req, res, next);
 };
 
+// Only the low-res derivatives are ever published. The original stays private:
+// it is never signed, never sent, and never named in a response.
 app.get(
   "/api/artwork-image-url/:filename",
+  artworkImageRateLimit,
   optionalBuyerAuthentication,
   async (req, res) => {
     const filename = req.params.filename;
-    if (!filename || path.basename(filename) !== filename) {
+    const variant = req.query.variant || DEFAULT_ARTWORK_VARIANT;
+    if (
+      !filename ||
+      path.basename(filename) !== filename ||
+      !isArtworkVariant(variant)
+    ) {
       return res.status(400).json({ message: "Invalid artwork image." });
     }
 
@@ -393,50 +412,79 @@ app.get(
       : "GUEST";
     const expiresAt =
       Math.floor(Date.now() / 1000) + ARTWORK_IMAGE_URL_TTL_SECONDS;
-    const signature = signArtworkImageUrl(filename, code, expiresAt);
+    const signature = signArtworkImageUrl(filename, code, expiresAt, { variant });
     const imageUrl = new URL(
-      `/uploads/seller/uploadArtwork/${encodeURIComponent(filename)}`,
+      `/api/artwork-images/${encodeURIComponent(filename)}`,
       "http://artmatch.invalid",
     );
+    imageUrl.searchParams.set("variant", variant);
     imageUrl.searchParams.set("expires", String(expiresAt));
     imageUrl.searchParams.set("code", code);
     imageUrl.searchParams.set("signature", signature);
 
     res.set("Cache-Control", "no-store");
-    res.json({ url: `${imageUrl.pathname}${imageUrl.search}` });
+    res.json({ url: `${imageUrl.pathname}${imageUrl.search}`, variant });
   },
 );
 
-app.get("/uploads/seller/uploadArtwork/:filename", async (req, res) => {
+app.get(
+  "/api/artwork-images/:filename",
+  artworkImageRateLimit,
+  async (req, res, next) => {
+    const filename = req.params.filename;
+    const { expires, code, signature } = req.query;
+    const variant = req.query.variant || DEFAULT_ARTWORK_VARIANT;
+    if (
+      !filename ||
+      path.basename(filename) !== filename ||
+      !verifyArtworkImageUrl(filename, code, expires, signature, { variant })
+    ) {
+      await recordArtworkDenied(req);
+      return res.status(403).json({ message: "Invalid or expired image URL." });
+    }
+
+    try {
+      const customerId =
+        code === "GUEST" ? null : await getCustomerIdForWatermarkCode(code);
+      if (code !== "GUEST" && !customerId) {
+        await recordArtworkDenied(req);
+        return res.status(403).json({ message: "Invalid or expired image URL." });
+      }
+
+      const image = await getArtworkDerivative(filename, customerId, variant);
+
+      res.set({
+        "Cache-Control": `private, max-age=${Math.max(
+          0,
+          Math.min(180, Number(expires) - Math.floor(Date.now() / 1000)),
+        )}`,
+        "Content-Type": image.contentType,
+        Vary: "Authorization",
+        "X-ArtMatch-Watermark-Code": image.code,
+        "X-ArtMatch-Invisible-Watermark": image.code === "GUEST" ? "none" : "DCT-8x8-v1",
+        "X-ArtMatch-Variant": variant,
+        "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": "inline",
+      });
+      return res.send(image.body);
+    } catch (error) {
+      // Never echo storage details or file paths to the browser.
+      if (error.status === 404) {
+        return res.status(404).json({ message: "Artwork image not found." });
+      }
+      return next(error);
+    }
+  },
+);
+
+// Legacy path kept as a signing oracle only: it never returns image bytes, so
+// the raw upload directory is not a public file server.
+app.get("/uploads/seller/uploadArtwork/:filename", artworkImageRateLimit, (req, res) => {
   const filename = req.params.filename;
-  const { expires, code, signature } = req.query;
-  if (
-    !filename ||
-    path.basename(filename) !== filename ||
-    !verifyArtworkImageUrl(filename, code, expires, signature)
-  ) {
-    return res.status(403).json({ message: "Invalid or expired image URL." });
+  if (!filename || path.basename(filename) !== filename) {
+    return res.status(404).json({ message: "Artwork image not found." });
   }
-
-  const customerId =
-    code === "GUEST" ? null : await getCustomerIdForWatermarkCode(code);
-  if (code !== "GUEST" && !customerId) {
-    return res.status(403).json({ message: "Invalid or expired image URL." });
-  }
-  const image = await getWatermarkedArtwork(filename, customerId);
-
-  res.set({
-    "Cache-Control": `private, max-age=${Math.max(
-      0,
-      Math.min(180, Number(expires) - Math.floor(Date.now() / 1000)),
-    )}`,
-    "Content-Type": image.contentType,
-    Vary: "Authorization",
-    "X-ArtMatch-Watermark-Code": image.code,
-    "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
-    "X-Content-Type-Options": "nosniff",
-  });
-  res.send(image.body);
+  return res.status(404).json({ message: "Artwork image not found." });
 });
 
 // =====================================================
@@ -525,12 +573,18 @@ app.get(
   }),
 );
 
-app.use("/uploads/seller/uploadArtwork", (req, res) => {
-  res.status(404).json({ message: "Artwork image not found." });
-});
-
-// Serve static files with absolute path
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Serve static files with absolute path.
+// The artwork directory is excluded: originals live there and must never be
+// reachable without a signed, rate-limited request.
+const artworkUploadFolder = path.join(__dirname, "uploads", "seller", "uploadArtwork");
+app.use(
+  "/uploads",
+  (req, res, next) =>
+    req.path.startsWith("/seller/uploadArtwork")
+      ? res.status(404).json({ message: "Artwork image not found." })
+      : next(),
+  express.static(path.join(__dirname, "uploads")),
+);
 
 // Root route (just to test if server runs)
 app.get("/", (req, res) => {
@@ -600,15 +654,30 @@ ensureAccountAccessTable()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
+  .then(() => ensureStudentAccountSchema())
+  .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
   .then(() => ensureEventsTable())
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureChatPublicKeysTable())
   .then(() => ensureChatKeyRecoveryTable())
-  .then(() =>
-    app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`)),
+  .then(
+    () =>
+      new Promise((resolve) => {
+        const server = app.listen(PORT, () => {
+          console.log(`✅ Server running on port ${PORT}`);
+          resolve(server);
+        });
+      }),
   )
+  .then(() => {
+    // Background: generate the low-res public files for older artworks.
+    // Never blocks startup and never rejects.
+    ensureArtworkDerivatives({ logger: console }).catch((error) =>
+      console.error("Artwork derivative backfill error:", error.message),
+    );
+  })
   .catch((error) => {
     console.error("Unable to initialize database schema:", error.message);
     process.exit(1);

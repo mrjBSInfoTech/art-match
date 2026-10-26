@@ -50,6 +50,8 @@ import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
@@ -201,6 +203,12 @@ function SellerLayoutContent() {
       pattern: "/seller/dashboard",
     },
     {
+      segment: "artwork",
+      title: "Post Artwork",
+      icon: <PaletteOutlinedIcon />,
+      pattern: "/seller/artwork",
+    },
+    {
       segment: "orders",
       title: "Orders",
       icon: <ShoppingCartIcon />,
@@ -230,6 +238,21 @@ function SellerLayoutContent() {
       title: "Settlement and Payout",
       icon: <AccountBalanceWalletOutlinedIcon />,
       pattern: "/seller/settlement-payout",
+    },
+    {
+      segment: "messages",
+      title: "Chat",
+      icon: (
+        <Badge
+          badgeContent={unreadMessageCount}
+          color="error"
+          invisible={unreadMessageCount === 0}
+          max={99}
+        >
+          <ChatBubbleOutlineIcon />
+        </Badge>
+      ),
+      pattern: "/seller/messages",
     },
     {
       segment: "customer-service",

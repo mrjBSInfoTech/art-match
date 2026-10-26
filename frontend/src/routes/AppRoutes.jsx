@@ -47,6 +47,7 @@ import SellerSettings from "../pages/seller/Settings";
 import SellerLogin from "../pages/seller/Login";
 import SellerRegister from "../pages/seller/Register";
 import SellerPlaceholder from "../pages/seller/SellerPlaceholder";
+import SellerPayout from "../pages/seller/Payout";
 
 // Buyer Pages
 import BuyerMain from "../pages/buyer/Main";
@@ -192,15 +193,9 @@ export default function AppRoutes() {
                   path="marketing"
                   element={<SellerPlaceholder title="Marketing" />}
                 />
-                <Route
-                  path="settlement-payout"
-                  element={<SellerPlaceholder title="Settlement and Payout" />}
-                />
+                <Route path="settlement-payout" element={<SellerPayout />} />
                 <Route path="customer-service" element={<SellerMessages />} />
-                <Route
-                  path="messages"
-                  element={<Navigate to="/seller/customer-service" replace />}
-                />
+                <Route path="messages" element={<SellerMessages />} />
                 <Route path="notifications" element={<SellerNotifications />} />
                 <Route
                   path="vouchers/generation"

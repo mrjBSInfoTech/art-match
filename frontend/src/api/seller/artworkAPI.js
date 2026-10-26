@@ -136,6 +136,7 @@ export const addArtwork = async (artworkData) => {
     formData.append("file", artworkData.file);
     formData.append("title", artworkData.title.trim());
     formData.append("description", artworkData.description.trim());
+    formData.append("care_instructions", artworkData.care_instructions?.trim() || "");
     formData.append("price", artworkData.price);
     formData.append("genre", artworkData.genre.trim());
     formData.append("art_size", artworkData.art_size.trim());
@@ -178,6 +179,7 @@ export const updateArtwork = async (id, artworkData) => {
     }
     formData.append("title", artworkData.title.trim());
     formData.append("description", artworkData.description.trim());
+    formData.append("care_instructions", artworkData.care_instructions?.trim() || "");
     formData.append("price", artworkData.price);
     formData.append("genre", artworkData.genre.trim());
     formData.append("art_size", artworkData.art_size.trim());

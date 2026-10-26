@@ -452,6 +452,8 @@ export default function Main() {
                 <WatermarkedArtworkImage
                   image={heroArtwork?.image}
                   alt={heroArtwork?.title || "Featured artwork"}
+                  variant="web"
+                  hideWhenBlurred
                   sx={{
                     position: "absolute",
                     inset: 0,
@@ -707,6 +709,8 @@ export default function Main() {
                 artworks[0]?.title ||
                 "Featured artwork"
               }
+              variant="web"
+              hideWhenBlurred
               sx={{
                 position: "absolute",
                 inset: 0,

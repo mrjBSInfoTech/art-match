@@ -112,9 +112,8 @@ export default function Cart() {
     (selection === null || selection.includes(String(item.artwork_id))));
   const selectedIds = selectedItems.map((item) => String(item.artwork_id));
   const subtotal = selectedItems.reduce((s, i) => s + i.subtotal, 0);
-  const sellerCount = new Set(selectedItems.map((item) => item.seller_id).filter(Boolean)).size;
-  const shipping = selectedItems.length > 0 ? 150 * Math.max(1, sellerCount) : 0;
-  const total = subtotal + shipping;
+  // No shipping fee: delivery is arranged with a third-party courier.
+  const total = subtotal;
 
   const onRemove = async (artworkId) => {
     if (deletingRef.current) return;
@@ -218,7 +217,14 @@ export default function Cart() {
                 <Typography variant="body2" color="text.secondary">{selectedItems.length} of {cartItems.length} artworks selected</Typography>
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
                   <Row label="Subtotal" value={`₱${subtotal}`} />
-                  <Row label="Shipping" value={`₱${shipping}`} />
+                  <Row
+                    label="Shipping"
+                    value="Paid to courier"
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+                    Delivery is arranged with a third-party courier (J&T,
+                    Lalamove, etc.) and paid directly to the seller.
+                  </Typography>
                   <Divider />
                   <Row label="Total" value={`₱${total}`} bold />
                 </Stack>

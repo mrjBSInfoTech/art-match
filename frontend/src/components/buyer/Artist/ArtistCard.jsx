@@ -141,6 +141,7 @@ export default function ArtistCard({ artist, onViewProfile }) {
             <WatermarkedArtworkImage
               image={artwork.image}
               alt={artwork.title || "Artwork"}
+              variant="thumb"
               onError={(event) => {
                 event.currentTarget.style.display = "none";
               }}

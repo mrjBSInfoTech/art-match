@@ -7,3 +7,21 @@ node_modules/
 dist/gi
 backend/.cache/
 backend/uploads/orders/
+# Local database dumps (contain real user data)
+backend/database/backups/
+
+# Local logs and runtime artifacts
+backend-server.log
+backend-server.err.log
+*.log
+
+# Editor / OS
+.vscode/
+.DS_Store
+
+# Stray local backups and one-off scripts
+*.bak
+backend/debug-delete.mjs
+backend/verify-delete.mjs
+backend/add-placeholder.cjs
+restart-backend.ps1

@@ -83,6 +83,7 @@ export default function ArtworkCard({
           <WatermarkedArtworkImage
             image={artwork.image}
             alt={artwork.title || "Artwork"}
+            variant="thumb"
             sx={{
               display: "block",
               width: "100%",

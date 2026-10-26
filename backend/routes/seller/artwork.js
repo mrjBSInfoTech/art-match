@@ -20,6 +20,7 @@ import {
   parseArtworkScanOverrides,
   resolveArtworkScanUpdate,
 } from "../../utils/artworkScanAttributes.js";
+import { baseNameOf, removeDerivatives, writeDerivatives } from "../../utils/artworkStorage.js";
 
 const router = express.Router();
 
@@ -146,6 +147,7 @@ router.get("/", authenticateSeller, (req, res) => {
         a.title,
         a.price,
         a.description,
+        a.care_instructions,
         a.image,
         a.genre,
         a.color_used,
@@ -202,6 +204,7 @@ router.get("/:id", authenticateSeller, (req, res) => {
         a.title,
         a.price,
         a.description,
+        a.care_instructions,
         a.image,
         a.genre,
         a.color_used,
@@ -291,6 +294,7 @@ router.post(
         genre,
         price,
         description,
+        care_instructions,
         date_posted,
       } = req.body;
       const createdAt =
@@ -334,8 +338,14 @@ router.post(
           contentType: "image/webp",
         });
 
+        // Public browsers only ever receive the small derived files. They are
+        // generated from the processed image, so the published copy carries no
+        // camera/GPS metadata and is capped at 1600 px (web) / 400 px (thumb).
+        await writeDerivatives(compressedImage, baseNameOf(imageName));
+
         console.log("Artwork uploaded to B2:", b2Key);
       } catch (b2Error) {
+        await removeDerivatives(baseNameOf(imageName));
         console.error("B2 artwork upload failed:", b2Error.message);
         removeTemporaryUpload(req.file);
 
@@ -345,8 +355,8 @@ router.post(
       }
       const sql = `
       INSERT INTO artwork
-      (student_id, title, art_size, art_type, product, artwork_details, genre, color_used, price, description, image, date_created)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (student_id, title, art_size, art_type, product, artwork_details, genre, color_used, price, description, care_instructions, image, date_created)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
       db.query(
@@ -362,6 +372,7 @@ router.post(
           detectedColors,
           price,
           description.trim(),
+          (care_instructions || "").trim(),
           imageName,
           createdAt,
         ],
@@ -475,7 +486,8 @@ router.put(
       genre,
       price,
       description,
-      color_used,
+    care_instructions,
+    color_used,
     } = req.body;
 
     if (!studentId) {
@@ -552,6 +564,8 @@ router.put(
           contentType: "image/webp",
         });
 
+        await writeDerivatives(compressedImage, baseNameOf(imageName));
+
         console.log("Updated artwork image uploaded to B2:", newB2Key);
       }
 
@@ -567,6 +581,7 @@ router.put(
           color_used = ?,
           price = ?,
           description = ?,
+          care_instructions = ?,
           image = COALESCE(?, image)
         WHERE artwork_id = ?
           AND student_id = ?
@@ -585,6 +600,7 @@ router.put(
             typeof color_used === "string" ? color_used.trim() : currentArtwork.color_used ?? "",
             price,
             description.trim(),
+            (care_instructions || "").trim(),
             imageName,
             id,
             studentId,
@@ -769,6 +785,10 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
       if (fs.existsSync(localPath)) {
         fs.unlinkSync(localPath);
       }
+
+      // Remove the published low-res derivatives too, so a deleted artwork
+      // cannot still be fetched by URL.
+      await removeDerivatives(baseNameOf(artwork.image));
     }
 
     return res.json({

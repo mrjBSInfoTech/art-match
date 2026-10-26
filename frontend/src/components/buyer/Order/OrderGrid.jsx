@@ -42,6 +42,10 @@ export default function OrderGrid({ orders = [], actionPending = "", onCancel, o
                 <Typography fontWeight={800}>{formatCurrency(order.total)}</Typography>
               </Stack>
             </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              Artworks only. Delivery is arranged with a third-party courier
+              and paid directly to the seller.
+            </Typography>
             {isPayMongoOrder(order) && getPaymentReference(order) && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}>
                 Checkout: {getPaymentReference(order)}

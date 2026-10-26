@@ -128,6 +128,21 @@ router.post("/webhook", async (req, res) => {
          paymongo_payment_method = ?, paid_at = ? WHERE order_id IN (?)`,
       [payment.id, channel, paidAt, unpaidIds],
     );
+    /*
+     * Release every seller's share of this one payment. Buyers pay once; each
+     * seller's amount is already fixed in seller_payment_split, so marking them
+     * Eligible is the whole hand-off and is naturally idempotent (a duplicate
+     * webhook delivery cannot release anything twice).
+     */
+    await connection.query(
+      `UPDATE seller_payment_split s
+         JOIN marketplace_order o ON o.order_id = s.order_id
+       SET s.payout_status = 'Eligible',
+           s.eligible_at = COALESCE(s.eligible_at, ?),
+           s.payment_reference = COALESCE(s.payment_reference, o.payment_reference)
+       WHERE s.order_id IN (?) AND s.payout_status = 'Held'`,
+      [paidAt, unpaidIds],
+    );
     // Delayed real payment for a legacy cancelled order records financial truth,
     // retains Cancelled, and leaves its cart/fulfillment untouched.
     const [purchasedItems] = await connection.query(

@@ -369,6 +369,12 @@ function ArtworkInfo({
                   {artwork.description || "Not provided"}
                 </Typography>
               </Box>
+              <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                <Typography sx={detailLabelSx}>How to Handle with Care</Typography>
+                <Typography sx={detailValueSx}>
+                  {artwork.care_instructions?.trim() || "Not provided"}
+                </Typography>
+              </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Features</Typography>
                 <Typography sx={detailValueSx}>

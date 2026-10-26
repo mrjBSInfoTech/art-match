@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { DEFAULT_ARTWORK_VARIANT, isArtworkVariant } from "./artworkDerivatives.js";
 
 export const ARTWORK_IMAGE_URL_TTL_SECONDS = 10 * 60;
 
@@ -13,17 +14,19 @@ const getSigningSecret = () => {
   return secret;
 };
 
-const createSignature = (filename, code, expiresAt, secret) =>
+// The variant is part of the signed payload, so a signed thumbnail URL cannot
+// be edited into the larger `web` URL.
+const createSignature = (filename, code, variant, expiresAt, secret) =>
   createHmac("sha256", secret)
-    .update(`${filename}\n${code}\n${expiresAt}`)
+    .update(`${filename}\n${code}\n${variant}\n${expiresAt}`)
     .digest("hex");
 
 export const signArtworkImageUrl = (
   filename,
   code,
   expiresAt,
-  secret = getSigningSecret(),
-) => createSignature(filename, code, expiresAt, secret);
+  { variant = DEFAULT_ARTWORK_VARIANT, secret = getSigningSecret() } = {},
+) => createSignature(filename, code, variant, expiresAt, secret);
 
 export const verifyArtworkImageUrl = (
   filename,
@@ -31,6 +34,7 @@ export const verifyArtworkImageUrl = (
   expiresAt,
   signature,
   {
+    variant = DEFAULT_ARTWORK_VARIANT,
     now = Math.floor(Date.now() / 1000),
     secret = getSigningSecret(),
   } = {},
@@ -39,6 +43,7 @@ export const verifyArtworkImageUrl = (
   if (
     !filename ||
     !/^(?:GUEST|[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{5})$/.test(code) ||
+    !isArtworkVariant(variant) ||
     !Number.isSafeInteger(expiry) ||
     expiry <= now ||
     expiry > now + ARTWORK_IMAGE_URL_TTL_SECONDS ||
@@ -49,7 +54,7 @@ export const verifyArtworkImageUrl = (
   }
 
   const expected = Buffer.from(
-    createSignature(filename, code, expiry, secret),
+    createSignature(filename, code, variant, expiry, secret),
     "hex",
   );
   const provided = Buffer.from(signature, "hex");
