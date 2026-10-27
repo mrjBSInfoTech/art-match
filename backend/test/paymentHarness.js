@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual, randomUUID } from "node:crypto";
 import * as paymongo from "../utils/paymongo.js";
 import * as availability from "../utils/artworkAvailability.js";
 import * as paymentSplit from "../utils/paymentSplit.js";
+import * as paymongoReconciliation from "../utils/paymongoReconciliation.js";
 
 // Execute the real route handlers with isolated dependencies: no TCP, MySQL,
 // environment credentials, or PayMongo calls are used by these tests.
@@ -17,7 +18,7 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     .replace(/^import[\s\S]*?;\s*/gm, "")
     .replace(/export default router;?/, "");
   const context = {
-    ...paymongo, ...availability, ...paymentSplit, createHmac, timingSafeEqual, randomUUID,
+    ...paymongo, ...availability, ...paymentSplit, ...paymongoReconciliation, createHmac, timingSafeEqual, randomUUID,
     Buffer, URL, URLSearchParams, Date, setTimeout, clearTimeout,
     express: { Router: () => router },
     authenticateBuyer: () => {},

@@ -1,5 +1,6 @@
 import { Alert, alpha, Box, Button, Chip, Grid, Paper, Stack, Typography, useTheme } from "@mui/material";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
+import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 import {
   getPaymentColor,
   getPaymentLabel,
@@ -119,6 +120,7 @@ export default function OrderGrid({
         const returnStatus = order.activeReturn?.status;
         const returnChipColor = returnColor[returnStatus] || "default";
         const orderChipColor = statusColor[order.status] || "default";
+        const trackingUrl = getSecureTrackingUrl(order.trackingUrl);
         const placedDate = formatDate(order.date, {
           year: "numeric",
           month: "numeric",
@@ -233,6 +235,18 @@ export default function OrderGrid({
               {(order.status === "Shipped" || order.status === "Delivered") && (
                 <Alert
                   severity={order.status === "Delivered" ? "success" : "info"}
+                  action={trackingUrl ? (
+                    <Button
+                      component="a"
+                      href={trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="small"
+                      sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap" }}
+                    >
+                      {order.status === "Delivered" ? "View delivery tracking" : "Track delivery"}
+                    </Button>
+                  ) : undefined}
                   sx={isDark ? {
                     mt: 2,
                     color: "#fff",

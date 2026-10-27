@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { transformSync } from "@swc/core";
 import * as paymentHelpers from "./orderPayments.js";
+import * as trackingHelpers from "./trackingUrl.js";
 
 // Exercise the actual JSX handlers/effects without adding a browser or test framework dependency.
 const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, cart = [], addresses = [] } = {}) => {
@@ -47,6 +48,20 @@ const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, 
   };
   const navigate = (...args) => redirects.push(args);
   const router = { useLocation: () => ({ search, state }), useNavigate: () => navigate, Link: "RouterLink" };
+  const theme = {
+    palette: {
+      mode: "light",
+      background: { paper: "white" },
+      text: { primary: "black", secondary: "grey" },
+      divider: "grey",
+      grey: { 600: "#666", 700: "#555" },
+      warning: { main: "#ed6c02", dark: "#b45309" },
+      info: { main: "#0288d1", dark: "#01579b" },
+      primary: { main: "#1976d2", dark: "#115293" },
+      success: { main: "#2e7d32", dark: "#1b5e20" },
+      error: { main: "#d32f2f", dark: "#9a0007" },
+    },
+  };
   const mockApi = { fetchBuyerOrders: async () => orders, fetchSellerOrders: async () => orders,
     fetchPaymentMethods: async () => ({ payment_method_types: ["gcash", "paymaya", "card", "qrph"] }),
     fetchBuyerPayment: async () => ({ payment_status: orders[0]?.paymentStatus || "Pending", orders }),
@@ -70,14 +85,16 @@ const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, 
       if (specifier === "react") return react;
       if (specifier === "react-router-dom") return router;
       if (specifier.endsWith("orderPayments.js")) return paymentHelpers;
+      if (specifier.endsWith("trackingUrl.js")) return trackingHelpers;
       if (specifier.endsWith("/buyer/Order/OrderGrid")) {
         const module = loadJsxModule("../components/buyer/Order/OrderGrid.jsx");
         renderedComponents.add(module.default);
         return module;
       }
       if (specifier.includes("/api/")) return mockApi;
-      if (specifier === "@mui/material/styles") return { useTheme: () => ({ palette: { background: { paper: "white" }, text: { primary: "black", secondary: "grey" }, divider: "grey" } }) };
-      if (specifier === "@mui/material") return new Proxy({}, { get: (_, name) => name });
+      if (specifier === "@mui/material/styles") return { useTheme: () => theme };
+      if (specifier === "@mui/material") return new Proxy({}, { get: (_, name) =>
+        name === "useTheme" ? () => theme : name === "alpha" ? (color, opacity) => `rgba(${color},${opacity})` : name });
       if (specifier === "react-helmet-async") return { Helmet: "Helmet" };
       if (specifier.includes("/buyer/Cart/")) return { __esModule: true, default: specifier };
       return { default: specifier };
@@ -303,6 +320,33 @@ test("a cancel URL alone does not mutate payment; manual resume and cancel use t
   page.unmount();
 });
 
+test("manual resume refreshes the order when PayMongo already reports the payment as paid", async () => {
+  let current = { payment_status: "Pending", orders: [pending] };
+  const calls = [];
+  const page = pageHarness("../pages/buyer/Checkout.jsx", {
+    search: "?reference=AM-first",
+    api: {
+      fetchBuyerPayment: async () => current,
+      retryBuyerPayment: async (reference) => {
+        calls.push(reference);
+        current = { payment_status: "Paid", orders: [{ ...pending, paymentStatus: "Paid" }] };
+        return { payment_status: "Paid", message: "Payment confirmed." };
+      },
+    },
+  });
+  await page.flush();
+  await page.button("Continue payment").props.onClick();
+  await page.flush();
+
+  assert.deepEqual(calls, ["AM-first"]);
+  assert.equal(page.redirects[0][0], "/buyer/order-finish");
+  assert.equal(page.redirects[0][1].replace, true);
+  assert.equal(page.redirects[0][1].state.orders[0].paymentStatus, "Paid");
+  assert.equal(page.redirects[0][1].state.paymentMethod, "paymongo");
+  assert.doesNotMatch(page.text(), /PayMongo has received this payment/);
+  page.unmount();
+});
+
 test("PayMongo Cancel return for the checkout launched in this tab expires the group and preserves the cart", async () => {
   let current = [pending];
   const calls = [];
@@ -413,6 +457,30 @@ test("buyer Orders lists paid purchases and COD without incomplete payment attem
   assert.equal(page.button("Resume payment"), undefined);
   assert.equal(page.button("Cancel checkout"), undefined);
   assert.ok(page.button("Cancel order"));
+  page.unmount();
+});
+
+test("buyer can open the exact secure courier link from Shipped and Delivered orders in a new tab", async () => {
+  const trackingUrl = "https://share.lalamove.com/order?id=abc%2F123";
+  const page = pageHarness("../pages/buyer/Order.jsx", {
+    orders: [
+      { ...pending, orderId: 31, id: "AM-000031", paymentStatus: "Paid", status: "Shipped", trackingUrl },
+      { ...pending, orderId: 32, id: "AM-000032", paymentStatus: "Paid", status: "Delivered", trackingUrl },
+      { ...pending, orderId: 33, id: "AM-000033", paymentStatus: "Paid", status: "Shipped", trackingUrl: "javascript:alert(1)" },
+    ],
+  });
+  await page.flush();
+  const track = page.button("Track delivery");
+  const view = page.button("View delivery tracking");
+  assert.equal(track.props.component, "a");
+  assert.equal(track.props.href, trackingUrl);
+  assert.equal(track.props.target, "_blank");
+  assert.equal(track.props.rel, "noopener noreferrer");
+  assert.equal(view.props.href, trackingUrl);
+  assert.equal(view.props.target, "_blank");
+  assert.equal(page.button("Track delivery")?.props.href, trackingUrl);
+  assert.equal(page.nodes().some((node) =>
+    node?.type === "Button" && node.props.href === "javascript:alert(1)"), false);
   page.unmount();
 });
 

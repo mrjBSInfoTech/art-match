@@ -10,13 +10,19 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import {
+  fetchArtworks,
+  fetchArtistSummaries,
+  followArtist,
+  unfollowArtist,
+} from "../../api/buyer/artworkAPI";
 import ArtistCard from "../../components/buyer/Artist/ArtistCard";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import { formatArtistRating } from "../../utils/artistEngagement.js";
 
 const API_URL = "http://localhost:5000";
 
-const getProfileFallback = (name = "Artist") =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=243b53&color=ffffff&size=200`;
+const getProfileFallback = () => `${API_URL}/uploads/seller/profile.jpg`;
 
 const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
@@ -36,7 +42,7 @@ const parseSpecialties = (value) => {
   }
 };
 
-const buildArtistSummaries = (artworks = []) => {
+const buildArtistSummaries = (artworks = [], engagementByArtist = new Map()) => {
   const grouped = new Map();
 
   artworks.forEach((artwork) => {
@@ -60,6 +66,9 @@ const buildArtistSummaries = (artworks = []) => {
       works: 0,
       artworks: [],
       specialties: parseSpecialties(artwork.specialties),
+      averageRating: 0,
+      followerCount: 0,
+      isFollowing: false,
     };
 
     existing.works += 1;
@@ -85,6 +94,7 @@ const buildArtistSummaries = (artworks = []) => {
   return [...grouped.values()]
     .map((artist) => ({
       ...artist,
+      ...(engagementByArtist.get(String(artist.student_id)) || {}),
       image: getProfileImage(artist),
       artworks: artist.artworks.slice(0, 3),
       specialties: artist.specialties.slice(0, 3),
@@ -97,15 +107,31 @@ export default function Artist() {
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [followError, setFollowError] = useState("");
 
   useEffect(() => {
     const loadArtists = async () => {
       try {
         setLoading(true);
         setError("");
-        const response = await fetchArtworks();
-        const list = Array.isArray(response) ? response : response?.data || [];
-        setArtists(buildArtistSummaries(list));
+        const [artworkResponse, artistSummaries] = await Promise.all([
+          fetchArtworks(),
+          fetchArtistSummaries(),
+        ]);
+        const list = Array.isArray(artworkResponse)
+          ? artworkResponse
+          : artworkResponse?.data || [];
+        const engagementByArtist = new Map(
+          (Array.isArray(artistSummaries) ? artistSummaries : []).map((summary) => [
+            String(summary.student_id),
+            {
+              averageRating: Number(summary.averageRating) || 0,
+              followerCount: Number(summary.followerCount) || 0,
+              isFollowing: Boolean(summary.isFollowing),
+            },
+          ]),
+        );
+        setArtists(buildArtistSummaries(list, engagementByArtist));
       } catch (err) {
         setError(err.message || "Failed to load artist listings.");
         setArtists([]);
@@ -116,6 +142,32 @@ export default function Artist() {
     loadArtists();
   }, []);
 
+  const toggleArtistFollow = async (artist) => {
+    if (artist.followPending) return;
+    setFollowError("");
+    setArtists((current) => current.map((item) =>
+      item.student_id === artist.student_id ? { ...item, followPending: true } : item));
+
+    try {
+      const result = artist.isFollowing
+        ? await unfollowArtist(artist.student_id)
+        : await followArtist(artist.student_id);
+      setArtists((current) => current.map((item) =>
+        item.student_id === artist.student_id
+          ? {
+              ...item,
+              followerCount: Number(result.followerCount),
+              isFollowing: Boolean(result.isFollowing),
+              followPending: false,
+            }
+          : item));
+    } catch (followRequestError) {
+      setArtists((current) => current.map((item) =>
+        item.student_id === artist.student_id ? { ...item, followPending: false } : item));
+      setFollowError(followRequestError.message || "Unable to update artist follow.");
+    }
+  };
+
   const artistCountLabel = useMemo(
     () => `${artists.length} ${artists.length === 1 ? "artist" : "artists"}`,
     [artists.length],
@@ -125,7 +177,7 @@ export default function Artist() {
     return <Container sx={{ py: 10, display: "flex", justifyContent: "center" }}><CircularProgress /></Container>;
   }
   if (error) {
-    return <Container maxWidth="md" sx={{ py: 8 }}><Alert severity="error">{error}</Alert></Container>;
+    return <ConnectionErrorPanel title="Artists Unavailable" />;
   }
 
   return (
@@ -140,7 +192,9 @@ export default function Artist() {
               <Button key={artist.student_id} onClick={() => navigate(`/buyer/seller/${artist.student_id}`)} sx={{ flexShrink: 0, minWidth: 0, p: 0.35, pr: 1, borderRadius: 2, color: "#1d2433", backgroundColor: "rgba(255,255,255,0.55)", fontSize: "0.56rem", fontWeight: 700 }}>
                 <Avatar src={artist.image} sx={{ width: 19, height: 19, mr: 0.5 }} />
                 {artist.name}
-                <Box component="span" sx={{ color: "#e22847", ml: 0.4 }}>★ 4.8</Box>
+                <Box component="span" sx={{ color: "#e22847", ml: 0.4 }}>
+                  ★ {formatArtistRating(artist.averageRating)}
+                </Box>
               </Button>
             ))}
           </Box>
@@ -156,10 +210,17 @@ export default function Artist() {
             </Stack>
           </Stack>
 
+          {followError && <Alert severity="error">{followError}</Alert>}
+
           {artists.length ? (
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: { xs: 1.5, md: 1.75 } }}>
               {artists.map((artist) => (
-                <ArtistCard key={artist.student_id} artist={artist} onViewProfile={(id) => navigate(`/buyer/seller/${id}`)} />
+                <ArtistCard
+                  key={artist.student_id}
+                  artist={artist}
+                  onToggleFollow={toggleArtistFollow}
+                  onViewProfile={(id) => navigate(`/buyer/seller/${id}`)}
+                />
               ))}
             </Box>
           ) : (

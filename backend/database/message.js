@@ -69,7 +69,7 @@ const backfillSenderNames = () => {
   });
 };
 
-export const ensureMessageSenderNameColumn = () => {
+export const ensureMessageSenderNameColumn = () => new Promise((resolve, reject) => {
   const schemaUpdates = [
     ["message sender_name", "ALTER TABLE message ADD COLUMN sender_name VARCHAR(201) NULL AFTER sender_type"],
     ["message sender_public_key", "ALTER TABLE message ADD COLUMN sender_public_key TEXT NULL AFTER sender_name"],
@@ -81,13 +81,14 @@ export const ensureMessageSenderNameColumn = () => {
   const applyNextUpdate = (index) => {
     if (index >= schemaUpdates.length) {
       backfillSenderNames();
+      resolve();
       return;
     }
 
     const [label, sql] = schemaUpdates[index];
     db.query(sql, (error) => {
       if (error && error.code !== "ER_DUP_FIELDNAME") {
-        console.error(`Failed to add ${label}:`, error.message);
+        reject(new Error(`Failed to add ${label}: ${error.message}`));
         return;
       }
       applyNextUpdate(index + 1);
@@ -95,4 +96,4 @@ export const ensureMessageSenderNameColumn = () => {
   };
 
   applyNextUpdate(0);
-};
+});

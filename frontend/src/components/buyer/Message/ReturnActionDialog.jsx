@@ -81,7 +81,7 @@ export default function ReturnActionDialog({
           )}
           {action === "cancel" && (
             <Typography variant="body2">
-              Are you sure you want to cancel the refund.
+              Are you sure you want to cancel this return request?
             </Typography>
           )}
           {action === "receive" && (

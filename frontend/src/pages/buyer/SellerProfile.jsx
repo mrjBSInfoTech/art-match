@@ -27,6 +27,7 @@ import {
   fetchPublicSellerProfile,
   fetchPublicSellerReviews,
 } from "../../api/buyer/artworkAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const getProfileFallback = () =>
   "http://localhost:5000/uploads/seller/profile.jpg";
@@ -303,13 +304,16 @@ export default function SellerProfile() {
   }
 
   if (error || !selectedSeller) {
+    if (error) return <ConnectionErrorPanel title="Seller profile unavailable" />;
     return (
       <Container maxWidth="md" sx={{ py: 8 }}>
-        <Alert severity="error">
-          {error || "This seller could not be found."}
-        </Alert>
+        <Alert severity="error">This seller could not be found.</Alert>
       </Container>
     );
+  }
+
+  if (reviewsError && !reviewsLoading) {
+    return <ConnectionErrorPanel title="Seller profile unavailable" />;
   }
 
   const specialties = selectedSeller.specialties || [];

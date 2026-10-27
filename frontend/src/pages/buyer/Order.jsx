@@ -22,6 +22,7 @@ import { cancelBuyerOrder, fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import { submitBuyerReview } from "../../api/buyer/reviewsAPI";
 import OrderGrid from "../../components/buyer/Order/OrderGrid";
 import ReturnRequestDialog from "../../components/buyer/Message/ReturnRequestDialog.jsx";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import {
   getPaymentReference,
   getPaymentReturnNotice,
@@ -178,6 +179,10 @@ export default function Orders() {
       setReviewSaving(false);
     }
   };
+
+  if (error && !loading) {
+    return <ConnectionErrorPanel title="Orders Unavailable" onRetry={loadOrders} />;
+  }
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>

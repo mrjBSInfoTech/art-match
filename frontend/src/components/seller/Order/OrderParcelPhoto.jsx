@@ -39,6 +39,7 @@ export default function OrderParcelPhoto({
   open,
   fulfillmentTarget,
   statusError,
+  setStatusError,
   parcelPhotos,
   setParcelPhotos,
   photoPreviews,
@@ -53,6 +54,26 @@ export default function OrderParcelPhoto({
 }) {
   const theme = useTheme();
   const isPacked = fulfillmentTarget?.status === "Packed";
+  const isShipped = fulfillmentTarget?.status === "Shipped";
+  const handlePhotoSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+    if (parcelPhotos.length + files.length > 5) {
+      setStatusError("Choose no more than 5 parcel photos in total.");
+      return;
+    }
+    if (files.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type))) {
+      setStatusError("Parcel photos must be JPEG, PNG, or WebP images.");
+      return;
+    }
+    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+      setStatusError("Each parcel photo must be 5 MB or smaller.");
+      return;
+    }
+    setStatusError("");
+    setParcelPhotos((current) => [...current, ...files]);
+  };
 
   return (
     <Dialog
@@ -84,7 +105,7 @@ export default function OrderParcelPhoto({
         }}
       >
         <LocalShippingOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
-        {isPacked ? "Add parcel photos" : "Add tracking link"}
+        {isPacked ? "Add Parcel Photos" : "Add Tracking Link"}
         <Button
           aria-label="Close fulfillment dialog"
           onClick={onClose}
@@ -179,24 +200,23 @@ export default function OrderParcelPhoto({
                   <Button
                     component="label"
                     variant="outlined"
-                    disabled={saving}
+                    disabled={saving || parcelPhotos.length >= 5}
                     fullWidth
                     sx={{ textTransform: "none", alignSelf: "flex-start" }}
                   >
-                    Choose parcel photos
+                    {parcelPhotos.length ? "Add more parcel photos" : "Choose parcel photos"}
                     <input
                       hidden
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       multiple
-                      onChange={(event) =>
-                        setParcelPhotos(Array.from(event.target.files || []))
-                      }
+                      onChange={handlePhotoSelection}
                     />
                   </Button>
                   <FormHelperText sx={{ mt: 0 }}>
-                    {parcelPhotos.length} of 1–5 photos selected (JPEG, PNG, or
-                    WebP; maximum 5 MB each)
+                    {parcelPhotos.length} of 5 photos selected. You can select
+                    several at once or add more (JPEG, PNG, or WebP; maximum 5
+                    MB each).
                   </FormHelperText>
                 </Stack>
               </Box>
@@ -204,15 +224,18 @@ export default function OrderParcelPhoto({
           ) : (
             <>
               <Typography variant="body2" color="text.secondary">
-                Add the carrier tracking URL if one is available. This is
-                optional and will be shown to the buyer in Notifications.
+                Paste the courier's tracking or share link. For Lalamove, open
+                the booked delivery and copy its Share link. The buyer will use
+                this link to track the delivery.
               </Typography>
               <TextField
-                label="Tracking link (optional)"
-                placeholder="https://..."
+                label="Courier tracking / share link"
+                placeholder="https://share.lalamove.com/..."
+                required
                 value={trackingUrl}
                 onChange={(event) => setTrackingUrl(event.target.value)}
                 inputProps={{ maxLength: 2048 }}
+                helperText="A secure HTTPS tracking link is required before marking this order as shipped."
                 fullWidth
               />
             </>
@@ -227,7 +250,7 @@ export default function OrderParcelPhoto({
           variant="contained"
           color="error"
           onClick={onSubmit}
-          disabled={saving}
+          disabled={saving || (isShipped && !trackingUrl.trim())}
           sx={{ color: "#fff", textTransform: "none" }}
         >
           {saving ? "Saving..." : `Mark ${fulfillmentTarget?.status}`}

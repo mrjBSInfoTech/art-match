@@ -78,6 +78,7 @@ import BuyerPaymentMethods from "../pages/buyer/PaymentMethods";
 import BuyerSettings from "../pages/buyer/Settings";
 import BuyerOrder from "../pages/buyer/Order";
 import BuyerOrderFinish from "../pages/buyer/OrderFinish";
+import BuyerCertificateView from "../pages/buyer/CertificateView";
 import BuyerNotifications from "../pages/buyer/Notifications";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
@@ -130,6 +131,7 @@ export default function AppRoutes() {
                 <Route path="checkout" element={<BuyerCheckout />} />
                 <Route path="favorites" element={<BuyerFavorites />} />
                 <Route path="order-finish" element={<BuyerOrderFinish />} />
+                <Route path="certificate/:orderItemId" element={<BuyerCertificateView />} />
                 <Route path="messages" element={<BuyerMessage />} />
                 <Route path="notifications" element={<BuyerNotifications />} />
                 <Route

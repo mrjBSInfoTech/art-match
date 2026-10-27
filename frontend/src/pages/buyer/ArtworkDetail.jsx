@@ -36,6 +36,7 @@ import { getArtworkDetailCategory } from "../../utils/artworkDetails";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -224,16 +225,7 @@ export default function ArtworkDetail() {
   }
 
   if (artworkErrorMessage) {
-    return (
-      <Container sx={{ py: 8 }}>
-        <Button sx={{ mt: 2 }} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Typography align="center" color="error" sx={{ mt: 2 }}>
-          {artworkErrorMessage}
-        </Typography>
-      </Container>
-    );
+    return <ConnectionErrorPanel title="Artwork Unavailable" />;
   }
 
   if (!artwork) {

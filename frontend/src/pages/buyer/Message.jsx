@@ -39,6 +39,7 @@ import MessageConversationCard from "../../components/buyer/Message/MessageConve
 import MessageNoticeCard from "../../components/buyer/Message/MessageNoticeCard";
 import MessageMedia from "../../components/buyer/Message/MessageMedia";
 import MessageMediaPreview from "../../components/buyer/Message/MessageMediaPreview";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 import {
@@ -85,6 +86,11 @@ const clearConversationUnreadCount = (items, conversationId) =>
       : conversation,
   );
 
+const isConnectionFailure = (error) =>
+  (typeof navigator !== "undefined" && navigator.onLine === false) ||
+  /network|timeout|failed to fetch|econnrefused|server unavailable|internal server error|database error/i
+    .test(String(error?.message || ""));
+
 const toAbsoluteMediaUrl = (url) => {
   if (!url) return null;
   if (/^https?:\/\//i.test(url)) return url;
@@ -127,6 +133,7 @@ export default function Messages({ embedded = false }) {
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [connectionError, setConnectionError] = useState(false);
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState("");
   // "" = closed, "create" = no PIN yet, "enter" = unlock with existing PIN
@@ -209,6 +216,7 @@ export default function Messages({ embedded = false }) {
         setEncryptionReady(true);
       } catch (err) {
         setError(err.message || "Secure messaging could not be initialized");
+        if (isConnectionFailure(err)) setConnectionError(true);
       }
     };
 
@@ -399,7 +407,10 @@ export default function Messages({ embedded = false }) {
         setBlockStatusConversationId(selectedConversationId);
       })
       .catch((err) => {
-        if (active) setError(err.message || "Unable to load chat settings");
+        if (active) {
+          setError(err.message || "Unable to load chat settings");
+          if (isConnectionFailure(err)) setConnectionError(true);
+        }
       });
 
     return () => {
@@ -437,6 +448,7 @@ export default function Messages({ embedded = false }) {
         }
       } catch (err) {
         setError(err.message || "Unable to load conversations");
+        if (isConnectionFailure(err)) setConnectionError(true);
       } finally {
         if (initialLoad) setLoading(false);
       }
@@ -543,7 +555,9 @@ export default function Messages({ embedded = false }) {
                   })
                 : {
                     text: msg.message_data || "",
-                    image: toAbsoluteMediaUrl(msg.image),
+                    image: msg.media_type === "application/vnd.artmatch.certificate-link"
+                      ? msg.image
+                      : toAbsoluteMediaUrl(msg.image),
                   };
               return {
                 id: msg.message_id,
@@ -603,6 +617,7 @@ export default function Messages({ embedded = false }) {
         }
       } catch (err) {
         setError(err.message || "Unable to load messages");
+        if (isConnectionFailure(err)) setConnectionError(true);
       }
     };
 
@@ -780,6 +795,10 @@ export default function Messages({ embedded = false }) {
       setError(err.message || "Unable to send message");
     }
   };
+
+  if (connectionError && !loading) {
+    return <ConnectionErrorPanel title="Messages Unavailable" />;
+  }
 
   return (
     <Box

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   createPayMongoCheckoutSession,
   pesosToCentavos,
+  getPayMongoMode,
   getPayMongoPaymentMethodTypes,
   retrievePayMongoCheckoutSession,
   expirePayMongoCheckoutSession,
@@ -19,6 +20,7 @@ import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuant
 import { getCommissionRate } from "../../database/paymentSplits.js";
 import { buildPaymentSplit, validateSplits } from "../../utils/paymentSplit.js";
 import { attachOrderReturns } from "../../utils/returns.js";
+import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 
 const router = express.Router();
 
@@ -50,6 +52,7 @@ const groupOrderRows = (rows) => {
         date: row.created_at,
         status: row.status,
         deliveredAt: row.delivered_at,
+        trackingUrl: row.tracking_url || null,
         customerId: row.customer_id,
         sellerId: row.seller_id,
         payment: row.payment_method,
@@ -130,6 +133,7 @@ const ordersSql = `
     o.created_at,
     o.status,
     o.delivered_at,
+    o.tracking_url,
     o.customer_id,
     o.payment_method,
     o.payment_status,
@@ -1020,14 +1024,14 @@ const paymentGroup = async (connection, customerId, reference) => {
   return orders;
 };
 
-const providerSession = async orders => {
+const providerSession = async (orders, { allowPaid = false } = {}) => {
   const sessionId = orders[0].paymongo_checkout_session_id;
   if (!sessionId) throw new PayMongoError("This checkout has no payment session. Please contact support.", 409);
   const session = await retrievePayMongoCheckoutSession(sessionId);
   if (session.attributes.reference_number !== orders[0].payment_reference) {
     throw new PayMongoError("The payment session does not match this checkout.", 409);
   }
-  if ((session.attributes.payments || []).some(payment => payment.attributes?.status === "paid")) {
+  if (!allowPaid && (session.attributes.payments || []).some(payment => payment.attributes?.status === "paid")) {
     throw new PayMongoError("PayMongo has received this payment. Please wait for payment verification and refresh your orders.", 409);
   }
   return session;
@@ -1072,8 +1076,10 @@ const paymentAction = handler => async (req, res) => {
   } catch (error) {
     if (connection) await connection.rollback().catch(() => {});
     console.error("Buyer payment action failed:", error.code || error.name);
-    return res.status(error instanceof PayMongoError ? error.status : 500).json({
-      message: error instanceof PayMongoError ? error.message : "Unable to update checkout. Please try again.",
+    const status = error instanceof PayMongoError || error instanceof PayMongoReconciliationError ? error.status : 500;
+    return res.status(status).json({
+      message: error instanceof PayMongoError || error instanceof PayMongoReconciliationError
+        ? error.message : "Unable to update checkout. Please try again.",
     });
   } finally {
     connection?.release();
@@ -1084,6 +1090,24 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
   const orders = await paymentGroup(connection, req.user.customer_id, req.params.reference);
   if (orders.some(order => order.status === "Cancelled" || order.payment_status === "Expired")) {
     throw new PayMongoError("This checkout has expired. Return to your cart to place a new order.", 409);
+  }
+  const session = await providerSession(orders, { allowPaid: true });
+  const paidPayment = (session.attributes.payments || []).some(payment => payment.attributes?.status === "paid");
+  if (paidPayment) {
+    const result = await reconcilePaidCheckout(connection, session, getPayMongoMode(), {
+      recordInteraction: recordRecommendationInteraction,
+      sourcePage: "paymongo_buyer_reconciliation",
+    });
+    return {
+      ...result,
+      payment_reference: req.params.reference,
+      message: result.requires_refund_review
+        ? "Payment was recorded, but the order needs support review."
+        : "Payment confirmed.",
+    };
+  }
+  if (session.attributes.status !== "active") {
+    throw new PayMongoError("This payment session has expired. Cancel the checkout and return to your cart.", 409);
   }
   const items = await query(connection,
     `SELECT oi.artwork_id, oi.quantity, a.status, a.is_sold,
@@ -1097,10 +1121,6 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
   if (!items.length || items.some(item => String(item.status || "").toLowerCase() !== "available" || !Number(item.is_verified) ||
       getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1).isSoldOut)) {
     throw new PayMongoError("An artwork in this checkout is no longer available. Cancel this checkout and review your cart.", 409);
-  }
-  const session = await providerSession(orders);
-  if (session.attributes.status !== "active") {
-    throw new PayMongoError("This payment session has expired. Cancel the checkout and return to your cart.", 409);
   }
   const checkoutUrl = session.attributes.checkout_url || orders[0].paymongo_checkout_url;
   if (!checkoutUrl || !/^https:\/\/checkout\.paymongo\.com\//.test(checkoutUrl)) {

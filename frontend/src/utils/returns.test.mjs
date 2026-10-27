@@ -37,7 +37,7 @@ function returnComponent(name, initialProps, api = {}) {
       }
     },
   };
-  const componentFolder = fileURLToPath(new URL("../components/seller/Message/", import.meta.url));
+  const componentFolder = fileURLToPath(new URL("../components/buyer/Message/", import.meta.url));
   const modules = new Map();
   const loadComponent = filename => {
     if (modules.has(filename)) return modules.get(filename);
@@ -47,7 +47,10 @@ function returnComponent(name, initialProps, api = {}) {
         if (specifier === "react") return react;
         if (specifier === "@mui/material") return new Proxy({}, { get: (_, component) => component });
         if (specifier.includes("/api/")) return api;
-        if (specifier.startsWith("./")) return loadComponent(resolve(dirname(filename), specifier + ".jsx"));
+        if (specifier.startsWith("./")) {
+          const componentPath = specifier.endsWith(".jsx") ? specifier : `${specifier}.jsx`;
+          return loadComponent(resolve(dirname(filename), componentPath));
+        }
         return { __esModule: true, default: specifier };
       },
       exports: {},
@@ -185,9 +188,9 @@ test("return dialog ignores synchronous duplicate submission, disables dismissal
 });
 
 test("return cards expose actions only to the matching actor at the server's exact status", () => {
-  const actionLabels = ["Approve return", "Reject return", "Cancel request", "Mark return shipped", "Confirm items received"];
+  const actionLabels = ["Approve Return", "Reject return", "Cancel Request", "Mark return shipped", "Confirm items received"];
   const expected = {
-    "buyer:Requested": ["Cancel request"], "seller:Requested": ["Approve return", "Reject return"],
+    "buyer:Requested": ["Cancel Request"], "seller:Requested": ["Approve Return", "Reject return"],
     "buyer:Approved": ["Mark return shipped"], "seller:Return Shipped": ["Confirm items received"],
   };
   for (const role of ["buyer", "seller", "admin"]) {
@@ -209,7 +212,7 @@ test("return cards display trusted items, details, seller response, completion a
   assert.match(card.text(), /Returned item received.*Items received\s*:.*Completed\s*:/s);
   assert.match(card.text(), /do not issue a refund automatically/);
   assert.equal(card.nodes().find(node => node?.type === "Chip").props.label, "Completed");
-  assert.equal(card.nodes().find(node => node?.type === "Paper").props.sx.borderColor, "primary.main");
+  assert.equal(card.nodes().find(node => node?.type === "Paper").props.sx.borderColor, "error.main");
   assert.equal(card.nodes().find(node => node?.type === "../../common/ArtworkImage").props.image, "portrait.webp");
   assert.equal(card.nodes().find(node => node?.type === "Link").props.href, "https://tracking.example/8");
   card.setProps({ request: { ...completed, return_tracking_url: "javascript:alert(1)" } });
@@ -224,7 +227,7 @@ test("seller approval and rejection submit trimmed responses and refresh authori
       approveReturnRequest: async (...args) => calls.push(["approve", ...plain(args)]),
       rejectReturnRequest: async (...args) => calls.push(["reject", ...plain(args)]),
     });
-    await openAction(card, action === "approve" ? "Approve return" : "Reject return");
+    await openAction(card, action === "approve" ? "Approve Return" : "Reject return");
     if (action === "reject") {
       assert.equal(card.button("Confirm").props.disabled, true);
       await card.button("Confirm").props.onClick();
@@ -258,7 +261,7 @@ test("buyer return shipment permits optional tracking, rejects unsafe URLs, and 
 
 test("buyer cancellation and seller receipt call only their dedicated transaction APIs", async () => {
   const cases = [
-    ["buyer", "Requested", "Cancel request", "cancelReturnRequest"],
+    ["buyer", "Requested", "Cancel Request", "cancelReturnRequest"],
     ["seller", "Return Shipped", "Confirm items received", "receiveReturnRequest"],
   ];
   for (const [role, status, label, method] of cases) {
@@ -280,7 +283,7 @@ test("return card holds one in-flight mutation and leaves failed actions retryab
   const card = returnComponent("ReturnRequestCard", { request, role: "seller", onUpdated: async () => { refreshes++; } }, {
     approveReturnRequest: () => { calls++; return new Promise((_, reject) => { rejectRequest = reject; }); },
   });
-  await openAction(card, "Approve return");
+  await openAction(card, "Approve Return");
   const submit = card.button("Confirm").props.onClick;
   const first = submit();
   await submit();

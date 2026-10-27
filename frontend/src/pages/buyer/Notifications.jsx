@@ -19,6 +19,7 @@ import {
   fetchBuyerParcelPhoto,
   markBuyerNotificationsRead,
 } from "../../api/buyer/messageAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const formatNotificationDate = (value) => {
   if (!value) return "Just now";
@@ -34,10 +35,15 @@ const getNotificationTypeLabel = (notificationType) => {
       return "Shipping update";
     case "order_status":
       return "Order update";
+    case "return":
+    case "return_approved":
+    case "return_rejected":
+    case "return_cancelled":
+    case "return_shipped":
+    case "return_completed":
+      return "Return Update";
     case "ban":
       return "Account notice";
-    case "return":
-      return "Return update";
     case "strike":
       return "Account alert";
     default:
@@ -119,15 +125,16 @@ export default function BuyerNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [selectedParcelPhoto, setSelectedParcelPhoto] = useState(null);
 
   const loadNotifications = async () => {
     try {
-      setError("");
       const rows = await fetchBuyerNotifications();
       setNotifications(Array.isArray(rows) ? rows : []);
+      setLoadError("");
     } catch (loadError) {
-      setError(loadError.message || "Unable to load notifications");
+      setLoadError(loadError.message || "Unable to load notifications");
     } finally {
       setLoading(false);
     }
@@ -149,6 +156,18 @@ export default function BuyerNotifications() {
       setError(markError.message || "Unable to update notifications");
     }
   };
+
+  if (loadError && !loading) {
+    return (
+      <ConnectionErrorPanel
+        title="Notifications Unavailable"
+        onRetry={() => {
+          setLoading(true);
+          loadNotifications();
+        }}
+      />
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>

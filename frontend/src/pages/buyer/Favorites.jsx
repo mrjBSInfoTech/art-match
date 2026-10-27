@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import { ART_TYPES } from "../../constants/artworkOptions";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const tabs = ["All hearts", ...ART_TYPES];
 
@@ -215,6 +216,7 @@ export default function BuyerFavorites() {
   const [artworks, setArtworks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -222,13 +224,13 @@ export default function BuyerFavorites() {
     const loadFavorites = async () => {
       try {
         setLoading(true);
-        setError("");
+        setLoadError("");
         const favorites = await fetchFavorites();
         if (!active) return;
         setArtworks(Array.isArray(favorites) ? favorites : []);
       } catch (loadError) {
         if (!active) return;
-        setError(loadError.message || "Failed to load favorites.");
+        setLoadError(loadError.message || "Failed to load favorites.");
       } finally {
         if (active) setLoading(false);
       }
@@ -262,6 +264,10 @@ export default function BuyerFavorites() {
 
   const openArtwork = (artworkId) =>
     navigate(`/buyer/artwork/view/${artworkId}`);
+
+  if (loadError && !loading) {
+    return <ConnectionErrorPanel title="Favorites Unavailable" />;
+  }
 
   return (
     <Box
@@ -376,7 +382,7 @@ export default function BuyerFavorites() {
 
         {!loading && error && <Alert severity="error">{error}</Alert>}
 
-        {!loading && !error && visibleArtworks.length === 0 && (
+        {!loading && !loadError && !error && visibleArtworks.length === 0 && (
           <Box sx={{ py: 5, textAlign: "center" }}>
             <Typography variant="h6" sx={{ color: "text.primary", mb: 1 }}>
               {selectedTab === "All hearts"
@@ -400,7 +406,7 @@ export default function BuyerFavorites() {
           </Box>
         )}
 
-        {!loading && !error && visibleArtworks.length > 0 && (
+        {!loading && !loadError && !error && visibleArtworks.length > 0 && (
           <Box
             sx={{
               display: "grid",

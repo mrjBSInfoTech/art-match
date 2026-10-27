@@ -19,6 +19,7 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const profileImageUrl = (image) => {
   if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
@@ -251,6 +252,7 @@ export default function Gallery() {
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -259,7 +261,7 @@ export default function Gallery() {
     const loadGallery = async () => {
       try {
         setLoading(true);
-        setError("");
+        setLoadError("");
         const response = await fetchArtworks();
         const artworks = Array.isArray(response)
           ? response
@@ -267,7 +269,7 @@ export default function Gallery() {
         if (active) setArtists(groupArtworksByArtist(artworks));
       } catch (loadError) {
         if (active)
-          setError(loadError.message || "Failed to load the gallery.");
+          setLoadError(loadError.message || "Failed to load the gallery.");
       } finally {
         if (active) setLoading(false);
       }
@@ -320,6 +322,10 @@ export default function Gallery() {
 
   const openArtwork = (artworkId) =>
     navigate(`/buyer/artwork/view/${artworkId}`);
+
+  if (loadError && !loading) {
+    return <ConnectionErrorPanel title="Gallery unavailable" />;
+  }
 
   return (
     <Box
@@ -383,7 +389,7 @@ export default function Gallery() {
             </Box>
           )}
           {error && <Alert severity="error">{error}</Alert>}
-          {!loading && !error && artists.length === 0 && (
+          {!loading && !loadError && artists.length === 0 && (
             <Typography
               color="text.secondary"
               sx={{ py: 6, textAlign: "center" }}
@@ -393,7 +399,7 @@ export default function Gallery() {
           )}
 
           {!loading &&
-            !error &&
+            !loadError &&
             artists.map((artist) => (
               <Box
                 key={artist.id}

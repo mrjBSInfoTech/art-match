@@ -122,6 +122,10 @@ function BuyerLayoutContent({ children }) {
   const handleCloseDialog = () => setOpenDialog(false);
 
   useEffect(() => {
+    setSearchQuery(new URLSearchParams(location.search).get("q") || "");
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
     const refreshProfile = () => {
       const storedLoggedIn = localStorage.getItem("buyer_token");
       const storedUsername = localStorage.getItem("buyer_username");

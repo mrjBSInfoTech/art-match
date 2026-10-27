@@ -29,6 +29,7 @@ import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from
 import { scoreArtworkSearch } from "../../utils/artworkSearch";
 import { matchesArtworkCategoryFilters } from "../../utils/artworkCategoryFilters";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const PAGE_SIZE = 8;
 
@@ -275,6 +276,7 @@ export default function Shop() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -282,7 +284,7 @@ export default function Shop() {
     const loadArtworks = async () => {
       try {
         setLoading(true);
-        setError("");
+        setLoadError("");
         const response = recommendationsOnly
           ? await fetchRecommendations("all") : await fetchArtworks();
         if (recommendationsOnly && response?.mode === "unavailable") {
@@ -292,7 +294,7 @@ export default function Shop() {
           : Array.isArray(response) ? response : response?.data || [];
         if (active) setArtworks(list);
       } catch (loadError) {
-        if (active) setError(loadError.message || "Failed to load artworks.");
+        if (active) setLoadError(loadError.message || "Failed to load artworks.");
       } finally {
         if (active) setLoading(false);
       }
@@ -364,6 +366,10 @@ export default function Shop() {
   useEffect(() => {
     setPage(1);
   }, [searchQuery, selectedGenre, minimumPrice, maximumPrice, recommendationsOnly, searchParams]);
+
+  if (loadError && !loading) {
+    return <ConnectionErrorPanel title="Shop Unavailable" />;
+  }
 
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
@@ -499,7 +505,7 @@ export default function Shop() {
           </Box>
         )}
         {error && <Alert severity="error">{error}</Alert>}
-        {!loading && !error && visibleArtworks.length === 0 && (
+        {!loading && !loadError && !error && visibleArtworks.length === 0 && (
           <Typography
             sx={{ py: 8, color: "text.secondary", textAlign: "center" }}
           >
@@ -507,7 +513,7 @@ export default function Shop() {
           </Typography>
         )}
 
-        {!loading && !error && visibleArtworks.length > 0 && (
+        {!loading && !loadError && !error && visibleArtworks.length > 0 && (
           <>
             <Box
               sx={{

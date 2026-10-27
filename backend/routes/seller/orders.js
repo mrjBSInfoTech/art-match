@@ -36,13 +36,15 @@ const allowedTransitions = {
   Shipped: new Set(["Delivered"]),
 };
 
-const createOrderStatusNotification = (orderId, buyerId, status) =>
+const createOrderStatusNotification = (orderId, buyerId, status, hasTrackingLink = false) =>
   new Promise((resolve) => {
     const orderLabel = `AM-${String(orderId).padStart(6, "0")}`;
     const statusMessages = {
       Confirmed: `Your order ${orderLabel} has been confirmed and is now being prepared.`,
       Packed: `Your order ${orderLabel} has been packed and is ready for shipment.`,
-      Shipped: `Your order ${orderLabel} has shipped and is on the way.`,
+      Shipped: hasTrackingLink
+        ? `Your order ${orderLabel} has shipped. Tracking is now available in My Orders.`
+        : `Your order ${orderLabel} has shipped and is on the way.`,
       Delivered: `Your order ${orderLabel} has been delivered.`,
       Cancelled: `Your order ${orderLabel} has been cancelled.`,
     };
@@ -279,7 +281,11 @@ router.put(
 
       let trackingUrl;
       try {
-        trackingUrl = normalizeTrackingUrl(req.body.tracking_url);
+        trackingUrl = normalizeTrackingUrl(req.body.tracking_url, {
+          required: requestedStatus === "Shipped",
+          httpsOnly: requestedStatus === "Shipped",
+          preserveInput: requestedStatus === "Shipped",
+        });
       } catch (error) {
         fail(400, error.message);
       }
@@ -343,7 +349,7 @@ router.put(
       }
 
       await connection.commit();
-      await createOrderStatusNotification(orderId, order.customer_id, requestedStatus);
+      await createOrderStatusNotification(orderId, order.customer_id, requestedStatus, Boolean(trackingUrl));
       return res.json({
         message: "Order status updated",
         status: requestedStatus,

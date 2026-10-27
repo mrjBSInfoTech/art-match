@@ -21,6 +21,7 @@ function setup({ onlineFailure = false, enabledChannels = ["card", "gcash", "pay
   } });
   const routes = loadPaymentRoute("../routes/buyer/orders.js", {
     ...fixture,
+    getPayMongoMode: () => false,
     getPayMongoPaymentMethodTypes: async () => enabledChannels,
     async createPayMongoCheckoutSession(options) {
       sessions.push(structuredClone(options));
@@ -81,18 +82,25 @@ test("online checkout trusts MySQL prices and creates two seller orders with one
 
 test("only paid/refunded online purchases and COD appear in buyer Orders", async () => {
   const base = databaseFixture().state.orders[0];
+  const trackingUrl = "https://share.lalamove.com/order?id=buyer-owned";
   const orders = [
     ...["Pending", "Failed", "Expired"].map((payment_status, index) => ({ ...base, order_id: index + 1, payment_status, status: index === 2 ? "Cancelled" : "Pending" })),
-    { ...base, order_id: 4, payment_status: "Paid", status: "Pending" },
+    { ...base, order_id: 4, payment_status: "Paid", status: "Shipped", tracking_url: trackingUrl },
     { ...base, order_id: 5, payment_status: "Paid", status: "Cancelled" },
     { ...base, order_id: 6, payment_status: "Refunded", status: "Cancelled" },
     { ...base, order_id: 7, payment_method: "cod", payment_status: "Pending" },
     { ...base, order_id: 8, customer_id: 2, payment_status: "Paid" },
   ];
-  const { routes } = setup({ orders, orderItems: [] });
+  const { routes, fixture } = setup({ orders, orderItems: [] });
   const response = await invoke(routes, "get", "/");
   assert.equal(response.status, 200);
   assert.deepEqual(response.body.map(order => order.orderId), [4, 5, 6, 7]);
+  assert.equal(response.body[0].trackingUrl, trackingUrl);
+  const buyerOrdersQuery = fixture.calls.find(call =>
+    call.type === "query" && /FROM marketplace_order o/i.test(call.sql || ""));
+  assert.match(buyerOrdersQuery.sql, /o\.tracking_url/);
+  const otherBuyerOrders = (await invoke(routes, "get", "/", { user: { customer_id: 2 } })).body;
+  assert.ok(!otherBuyerOrders.some(order => order.orderId === 4));
 });
 
 test("checkout status is owner-scoped and unpaid attempts are available only through checkout", async () => {
@@ -351,6 +359,68 @@ test("retry resumes the existing provider checkout without creating new seller o
   assert.equal(fixture.state.interactions.length, 0);
 });
 
+test("retry reconciles an authenticated provider-paid checkout when its webhook is delayed", async () => {
+  const initial = databaseFixture().state;
+  const { fixture, routes, provider, retrievedSessions } = setup({
+    orders: initial.orders,
+    orderItems: initial.orderItems,
+  });
+  provider.status = "completed";
+  provider.payments = [{
+    id: "pay_delayed_webhook",
+    attributes: {
+      status: "paid",
+      amount: 330000,
+      currency: "PHP",
+      livemode: false,
+      source: { type: "card" },
+      paid_at: 1792872000,
+    },
+  }];
+
+  const result = await invoke(routes, "post", "/payments/:reference/retry", {
+    params: { reference: "AM-fixture-group" },
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.payment_status, "Paid");
+  assert.equal(result.body.payment_reference, "AM-fixture-group");
+  assert.equal(result.body.message, "Payment confirmed.");
+  assert.deepEqual(retrievedSessions, ["cs_test_checkout"]);
+  assert.ok(fixture.state.orders.every(order =>
+    order.payment_status === "Paid" && order.paymongo_payment_id === "pay_delayed_webhook"));
+  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Eligible" && split.eligible_at));
+  assert.deepEqual(fixture.state.cartItems, [{ add_to_id: 2, artwork_id: 20 }]);
+  assert.equal(fixture.state.interactions.length, 2);
+  assert.ok(fixture.calls.some(call => call.type === "commit"));
+});
+
+test("retry will not reconcile a provider-paid session with an amount mismatch", async () => {
+  const initial = databaseFixture().state;
+  const { fixture, routes, provider } = setup({
+    orders: initial.orders,
+    orderItems: initial.orderItems,
+  });
+  provider.payments = [{
+    id: "pay_wrong_amount",
+    attributes: {
+      status: "paid",
+      amount: 100,
+      currency: "PHP",
+      livemode: false,
+      source: { type: "card" },
+    },
+  }];
+  const before = structuredClone(fixture.state);
+
+  const result = await invoke(routes, "post", "/payments/:reference/retry", {
+    params: { reference: "AM-fixture-group" },
+  });
+
+  assert.equal(result.status, 400);
+  assert.deepEqual(fixture.state, before);
+});
+
 test("retry rejects paid local orders and expired provider sessions", async () => {
   for (const condition of ["paid", "expired"]) {
     const initial = databaseFixture().state;
@@ -437,7 +507,7 @@ test("retry checks current availability, upload approval, manual sold flag and s
     const before = structuredClone(fixture.state);
     const result = await invoke(routes, "post", "/payments/:reference/retry", { params: { reference: "AM-fixture-group" } });
     assert.equal(result.status, 409);
-    assert.equal(retrievedSessions.length, 0);
+    assert.equal(retrievedSessions.length, 1);
     assert.deepEqual(fixture.state, before);
   }
 });

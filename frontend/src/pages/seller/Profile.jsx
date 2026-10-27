@@ -73,6 +73,7 @@ export default function Profile() {
   const [artworksError, setArtworksError] = useState("");
   const [specialties, setSpecialties] = useState([]);
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
+  const [followerCount, setFollowerCount] = useState(null);
 
   useEffect(() => {
     const loadSellerData = () => {
@@ -105,6 +106,7 @@ export default function Profile() {
         if (!active) return;
         const description = storefront?.shop_description || "";
         setAboutMe(description);
+        setFollowerCount(Number(storefront?.follower_count) || 0);
         setSpecialties(parseArray(storefront?.specialties));
         setPinnedArtworkIds(
           parseArray(storefront?.pinned_artwork_ids).map(String),
@@ -164,7 +166,7 @@ export default function Profile() {
     : 0;
 
   const stats = [
-    { label: "Followers", value: "234" },
+    { label: "Followers", value: followerCount === null ? "..." : followerCount },
     { label: "Followings", value: "47" },
     { label: "Artworks", value: artworksLoading ? "..." : artworks.length },
     { label: "Sales", value: "4.8" },

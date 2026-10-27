@@ -25,6 +25,13 @@ const getNotificationTypeLabel = (notificationType) => {
       return "Shipping update";
     case "order_status":
       return "Order update";
+    case "return":
+    case "return_approved":
+    case "return_rejected":
+    case "return_cancelled":
+    case "return_shipped":
+    case "return_completed":
+      return "Return Update";
     case "ban":
       return "Account notice";
     case "strike":

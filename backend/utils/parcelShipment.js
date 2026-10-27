@@ -4,9 +4,15 @@ export function validateParcelPhotoCount(photos) {
   }
 }
 
-export function normalizeTrackingUrl(value) {
+export function normalizeTrackingUrl(
+  value,
+  { required = false, httpsOnly = false, preserveInput = false } = {},
+) {
   const trackingUrl = String(value || "").trim();
-  if (!trackingUrl) return null;
+  if (!trackingUrl) {
+    if (required) throw new Error("Add a courier tracking link before marking this order as shipped");
+    return null;
+  }
   if (trackingUrl.length > 2048) {
     throw new Error("Tracking link must be 2048 characters or fewer");
   }
@@ -17,11 +23,14 @@ export function normalizeTrackingUrl(value) {
   } catch {
     throw new Error("Enter a valid HTTP or HTTPS tracking link");
   }
-  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-    throw new Error("Tracking link must use HTTP or HTTPS");
+  if (!["http:", "https:"].includes(parsedUrl.protocol) || (httpsOnly && parsedUrl.protocol !== "https:") ||
+      !parsedUrl.hostname || parsedUrl.username || parsedUrl.password) {
+    throw new Error(httpsOnly
+      ? "Enter a valid HTTPS courier tracking link"
+      : "Tracking link must use HTTP or HTTPS");
   }
 
-  return parsedUrl.toString();
+  return preserveInput ? trackingUrl : parsedUrl.toString();
 }
 
 export function getShippedNotificationTrackingUrl(
@@ -31,7 +40,7 @@ export function getShippedNotificationTrackingUrl(
 ) {
   if (
     notificationType !== "shipping" ||
-    !/has shipped and is on the way\./i.test(String(message || ""))
+    !/has shipped(?: and is on the way|\. Tracking is now available in My Orders)\./i.test(String(message || ""))
   ) {
     return null;
   }

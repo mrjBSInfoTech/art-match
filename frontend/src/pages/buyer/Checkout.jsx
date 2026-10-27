@@ -357,6 +357,12 @@ export default function Checkout() {
         setPaymentRefresh((value) => value + 1);
       } else {
         const result = await retryBuyerPayment(paymentReference);
+        if (String(result.payment_status).toLowerCase() === "paid") {
+          setPaymentActionError("");
+          setPaymentMessage(result.message || "Payment confirmed. Updating your order status.");
+          setPaymentRefresh((value) => value + 1);
+          return;
+        }
         if (!result.checkout_url) throw new Error("Unable to open payment. Check its status and try again.");
         try { sessionStorage.setItem("paymongo_payment_reference", paymentReference); } catch { /* The return URL includes the reference. */ }
         window.location.assign(result.checkout_url);
@@ -374,6 +380,8 @@ export default function Checkout() {
   const paymentCanResume = paymentOrders.length > 0 && paymentOrders.every(canResumePayment);
   const paymentPaid = String(payment?.payment_status).toLowerCase() === "paid" && paymentOrders.length > 0 && paymentOrders.every(isOrderPaid);
   const paymentRefunded = String(payment?.payment_status).toLowerCase() === "refunded";
+  const paymentNeedsReview = String(payment?.payment_status).toLowerCase() === "paid" &&
+    paymentOrders.length > 0 && paymentOrders.every((order) => String(order.status).toLowerCase() === "cancelled");
   const paymentClosed = paymentOrders.length > 0 && paymentOrders.every((order) => String(order.status).toLowerCase() === "cancelled") || ["expired", "refunded"].includes(String(payment?.payment_status).toLowerCase());
 
   return (
@@ -414,10 +422,10 @@ export default function Checkout() {
           <Stack spacing={2}>
             <Box>
               <Typography variant="h5" fontWeight={700}>
-                {paymentPaid ? "Payment received" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}
+                {paymentPaid ? "Payment received" : paymentNeedsReview ? "Payment needs review" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {paymentPaid ? "Opening your order confirmation…" : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
+                {paymentPaid ? "Opening your order confirmation…" : paymentNeedsReview ? "PayMongo confirmed this payment, but ArtMatch could not confirm the order. Please contact support about your payment." : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
                   ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
                   : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection."}
               </Typography>
@@ -463,7 +471,7 @@ export default function Checkout() {
             >
               {paymentCanResume && <Button variant="contained" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("resume")}>Continue payment</Button>}
               {paymentCanResume && <Button color="error" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("cancel")}>Cancel checkout</Button>}
-              {paymentRefunded && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
+              {(paymentRefunded || paymentNeedsReview) && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
               <Button variant="contained" color="error" fullWidth  disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
             </Stack>
           </Stack>

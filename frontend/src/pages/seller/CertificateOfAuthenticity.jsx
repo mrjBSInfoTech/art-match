@@ -18,6 +18,10 @@ import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 import { fetchStorefront } from "../../api/seller/storefrontAPI";
+import {
+  fetchPublishedCertificate,
+  publishCertificate,
+} from "../../api/seller/certificateAPI.js";
 
 const today = () => {
   const date = new Date();
@@ -107,6 +111,10 @@ export default function CertificateOfAuthenticity() {
   const [templateData, setTemplateData] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [publishedCertificate, setPublishedCertificate] = useState(null);
+  const [publicationLoading, setPublicationLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishMessage, setPublishMessage] = useState("");
 
   const approvedArtworks = useMemo(
     () =>
@@ -173,6 +181,29 @@ export default function CertificateOfAuthenticity() {
     );
   }, [selectedArtwork]);
 
+  useEffect(() => {
+    if (!selectedArtworkId) {
+      setPublishedCertificate(null);
+      return undefined;
+    }
+    let active = true;
+    setPublicationLoading(true);
+    setPublishedCertificate(null);
+    fetchPublishedCertificate(selectedArtworkId)
+      .then((certificate) => {
+        if (!active) return;
+        setPublishedCertificate(certificate?.published === false ? null : certificate);
+        if (certificate?.certificateId) setCertificateId(certificate.certificateId);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "Unable to check certificate publication.");
+      })
+      .finally(() => {
+        if (active) setPublicationLoading(false);
+      });
+    return () => { active = false; };
+  }, [selectedArtworkId]);
+
   const handleTemplateChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -215,6 +246,34 @@ export default function CertificateOfAuthenticity() {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const publishBuyerCertificate = async () => {
+    if (!selectedArtwork || publishing || publishedCertificate) return;
+    setPublishing(true);
+    setError("");
+    setPublishMessage("");
+    try {
+      const svg = createCertificateSvg({
+        artworkTitle,
+        medium,
+        artistName,
+        certificateId,
+        issueDate,
+        templateData,
+      });
+      const published = await publishCertificate({
+        artworkId: selectedArtwork.artwork_id,
+        certificateId,
+        svg,
+      });
+      setPublishedCertificate({ ...published, publishedAt: new Date().toISOString() });
+      setPublishMessage("Published. The certificate link will be sent in the buyer's messages one day after delivery.");
+    } catch (publishError) {
+      setError(publishError.message || "Unable to publish this certificate.");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const previewSvg = createCertificateSvg({
@@ -407,6 +466,26 @@ export default function CertificateOfAuthenticity() {
                     >
                       Download certificate (SVG)
                     </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<VerifiedOutlinedIcon />}
+                      onClick={publishBuyerCertificate}
+                      disabled={!selectedArtwork || !artworkTitle.trim() || publicationLoading || publishing || Boolean(publishedCertificate)}
+                    >
+                      {publicationLoading
+                        ? "Checking publication..."
+                        : publishing
+                          ? "Publishing..."
+                          : publishedCertificate
+                            ? "Published for buyer delivery"
+                            : "Publish for buyer messages"}
+                    </Button>
+                    {publishedCertificate && (
+                      <Alert severity="info">
+                        This certificate is published. Its link will be sent one day after delivery and becomes unavailable when the order return is completed.
+                      </Alert>
+                    )}
+                    {publishMessage && <Alert severity="success">{publishMessage}</Alert>}
                   </Stack>
                 </CardContent>
               </Card>

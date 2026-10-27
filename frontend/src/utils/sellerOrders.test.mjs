@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { transformSync } from "@swc/core";
 import * as paymentHelpers from "./orderPayments.js";
+import * as trackingHelpers from "./trackingUrl.js";
 
 // Exercise the actual seller page's events and state without additional dependencies.
 function sellerPage({ orders = [], api = {} } = {}) {
@@ -82,11 +83,12 @@ function sellerPage({ orders = [], api = {} } = {}) {
       if (specifier === "react") return react;
       if (specifier === "react-router-dom") return { useNavigate: () => (...args) => redirects.push(args) };
       if (specifier.endsWith("orderPayments.js")) return paymentHelpers;
-      if (/\/(OrderCard|OrderInfo)(\.jsx)?$/.test(specifier) || /orderPresentation(\.js)?$/.test(specifier)) {
+      if (specifier.endsWith("trackingUrl.js")) return trackingHelpers;
+      if (/\/(OrderCard|OrderInfo|OrderParcelPhoto)(\.jsx)?$/.test(specifier) || /orderPresentation(\.js)?$/.test(specifier)) {
         const extension = /\.(jsx|js)$/.test(specifier) ? "" : /orderPresentation$/.test(specifier) ? ".js" : ".jsx";
         const exports = loadModule(new URL(`${specifier}${extension}`, url));
-        if (/\/(OrderCard|OrderInfo)(\.jsx)?$/.test(specifier)) {
-          components[specifier.match(/\/(OrderCard|OrderInfo)/)[1]] = exports.default;
+        if (/\/(OrderCard|OrderInfo|OrderParcelPhoto)(\.jsx)?$/.test(specifier)) {
+          components[specifier.match(/\/(OrderCard|OrderInfo|OrderParcelPhoto)/)[1]] = exports.default;
         }
         return exports;
       }
@@ -123,7 +125,8 @@ function sellerPage({ orders = [], api = {} } = {}) {
     if (typeof node !== "object") return [node];
     if (node.type === "Dialog" && !node.props.open) return [node];
     // Render the extracted stateless views while preserving MUI and other component boundaries.
-    if (typeof node.type === "function" && (node.type === components.OrderCard || node.type === components.OrderInfo)) {
+    if (typeof node.type === "function" &&
+        [components.OrderCard, components.OrderInfo, components.OrderParcelPhoto].includes(node.type)) {
       return [node, ...flatten(node.type(node.props))];
     }
     return [node, ...flatten(node.props?.children)];
@@ -273,18 +276,35 @@ test("seller paid order follows Confirmed, parcel photos, tracking and delivery 
   await page.flush();
   assert.match(page.text(), /Choose 1 to 5 parcel photos/);
   assert.equal(calls.length, 0);
-  const photo = new Blob(["parcel-photo"], { type: "image/webp" });
-  page.nodes().find((node) => node?.type === "input" && node.props.type === "file").props.onChange({ target: { files: [photo] } });
+  const photoInput = () => page.nodes().find((node) => node?.type === "input" && node.props.type === "file");
+  const firstBatch = [
+    new Blob(["parcel-photo-1"], { type: "image/webp" }),
+    new Blob(["parcel-photo-2"], { type: "image/jpeg" }),
+  ];
+  photoInput().props.onChange({ target: { files: firstBatch, value: "photos-a" } });
+  await page.flush();
+  const secondBatch = [
+    new Blob(["parcel-photo-3"], { type: "image/png" }),
+    new Blob(["parcel-photo-4"], { type: "image/webp" }),
+    new Blob(["parcel-photo-5"], { type: "image/jpeg" }),
+  ];
+  photoInput().props.onChange({ target: { files: secondBatch, value: "photos-b" } });
   await page.flush();
   await page.button("Mark Packed").props.onClick();
   await page.flush();
   assert.equal(calls[0][1], "Packed");
-  assert.equal(calls[0][2].getAll("parcel_photos").length, 1);
+  assert.equal(calls[0][2].getAll("parcel_photos").length, 5);
   assert.equal(page.status(paidOrder.id).props.value, "Packed");
   await page.status(paidOrder.id).props.onChange({ target: { value: "Shipped" } });
   await page.flush();
-  page.nodes().find((node) => node?.type === "TextField" && node.props.label === "Tracking link (optional)").props.onChange({ target: { value: "https://carrier.example/123" } });
+  const trackingField = page.nodes().find((node) => node?.type === "TextField" && node.props.label === "Courier tracking / share link");
+  assert.ok(trackingField.props.required);
+  assert.match(trackingField.props.helperText, /HTTPS tracking link is required/);
+  const shippedButton = page.button("Mark Shipped");
+  assert.equal(shippedButton.props.disabled, true);
+  trackingField.props.onChange({ target: { value: "https://carrier.example/123" } });
   await page.flush();
+  assert.equal(page.button("Mark Shipped").props.disabled, false);
   await page.button("Mark Shipped").props.onClick();
   await page.flush();
   assert.equal(calls[1][1], "Shipped");

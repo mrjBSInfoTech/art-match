@@ -12,14 +12,16 @@ import {
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
+import { formatArtistRating } from "../../../utils/artistEngagement.js";
 const BIO_FALLBACK = "The seller currently doesn't have a bio.";
 
-export default function ArtistCard({ artist, onViewProfile }) {
+export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
   const tags = artist.specialties.length
     ? artist.specialties
     : [artist.department || "Contemporary Art"];
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const followerCount = Math.max(0, Number(artist.followerCount) || 0);
   const colors = {
     page: isDark ? "#020817" : "#f4efe9",
     card: isDark ? "#111827" : "#f8f4f0",
@@ -55,7 +57,7 @@ export default function ArtistCard({ artist, onViewProfile }) {
     >
       <Stack direction="row" spacing={1.5} alignItems="center">
         <Avatar
-          src={artist.image || "http://localhost:5000/uploads/profile.jpg"}
+          src={artist.image || "http://localhost:5000/uploads/seller/profile.jpg"}
           alt={artist.name}
           sx={{ width: 52, height: 52, border: "2px solid #f2eee8" }}
         />
@@ -198,18 +200,20 @@ export default function ArtistCard({ artist, onViewProfile }) {
           <Typography
             sx={{ color: "#e22847", fontSize: "0.72rem", fontWeight: 800 }}
           >
-            4.8 <span style={{ color: "#f3a51d" }}>★</span>
+            {formatArtistRating(artist.averageRating)} <span style={{ color: "#f3a51d" }}>★</span>
           </Typography>
         </Stack>
         <Typography sx={{ color: "text.secondary", fontSize: "0.72rem" }}>
-          {Math.max(8, artist.works * 3)} followers
+          {followerCount} {followerCount === 1 ? "follower" : "followers"}
         </Typography>
       </Stack>
 
       <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
         <Button
           variant="outlined"
-          aria-label={`Follow ${artist.name}`}
+          aria-label={`${artist.isFollowing ? "Unfollow" : "Follow"} ${artist.name}`}
+          disabled={artist.followPending || !onToggleFollow}
+          onClick={() => onToggleFollow?.(artist)}
           sx={{
             minWidth: 0,
             px: 1.25,
@@ -219,7 +223,7 @@ export default function ArtistCard({ artist, onViewProfile }) {
           }}
         >
           <FavoriteBorderIcon sx={{ fontSize: 16, mr: 0.35 }} />
-          Follow
+          {artist.isFollowing ? "Following" : "Follow"}
         </Button>
         <Button
           fullWidth

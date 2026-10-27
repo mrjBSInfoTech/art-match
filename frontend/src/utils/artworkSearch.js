@@ -21,8 +21,11 @@ export function scoreArtworkSearch(artwork, query) {
   const fields = [
     [artwork.title, 8],
     [artwork.mediums_used, 6],
+    [artwork.materials_used, 6],
+    [artwork.medium, 6],
     [artwork.feature_scanned, 6],
-    [artwork.genre, 5],
+    [artwork.features, 6],
+    [artwork.genre || artwork.style, 5],
     [artwork.art_type, 5],
     [artwork.product, 5],
     [artwork.artist || artwork.student_name, 4],

@@ -49,6 +49,35 @@ export const fetchArtworks = async () => {
   }
 };
 
+export const fetchArtistSummaries = async () => {
+  try {
+    const res = await api.get("/buyer/artists", {
+      headers: { "Cache-Control": "no-cache" },
+    });
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const followArtist = async (studentId) => {
+  try {
+    const res = await api.post(`/buyer/artists/${encodeURIComponent(studentId)}/follow`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const unfollowArtist = async (studentId) => {
+  try {
+    const res = await api.delete(`/buyer/artists/${encodeURIComponent(studentId)}/follow`);
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const fetchPublicSellerProfile = async (sellerId) => {
   try {
     const res = await api.get(
@@ -85,4 +114,3 @@ export const fetchArtworkById = async (id) => {
     handleError(error);
   }
 };
-

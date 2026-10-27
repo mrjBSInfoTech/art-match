@@ -35,11 +35,14 @@ import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureVoucherTables } from "./database/vouchers.js";
 import { ensureOrderTables } from "./database/orders.js";
 import { ensureReturnTables } from "./database/returns.js";
+import { ensureCertificateTables } from "./database/certificates.js";
+import { startCertificateDeliveryScheduler } from "./utils/certificates.js";
 import { ensureStudentAccountSchema } from "./database/student.js";
 import { ensureSystemSettingsTable } from "./database/systemSettings.js";
 import { ensurePaymentSplitTable } from "./database/paymentSplits.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
+import { ensureArtistFollowTable } from "./database/artistFollows.js";
 import { ensureArtworkSchema } from "./database/artwork.js";
 import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
@@ -71,6 +74,7 @@ import sellerPromotionSlideRoutes from "./routes/seller/promotionSlides.js";
 import sellerVoucherRoutes from "./routes/seller/vouchers.js";
 import sellerOrderRoutes from "./routes/seller/orders.js";
 import sellerReturnRoutes from "./routes/seller/returns.js";
+import sellerCertificateRoutes from "./routes/seller/certificates.js";
 import sellerReviewRoutes from "./routes/seller/reviews.js";
 //import sellerSalesRoutes from "./routes/seller/sales.js";
 import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
@@ -78,12 +82,14 @@ import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
 import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
 import buyerArtworkRoutes from "./routes/buyer/artwork.js";
+import buyerArtistRoutes from "./routes/buyer/artists.js";
 import buyerEventRoutes from "./routes/buyer/event.js";
 import buyerPromotionSlideRoutes from "./routes/buyer/promotionSlides.js";
 import buyerCartRoutes from "./routes/buyer/cart.js";
 import buyerFavoriteRoutes from "./routes/buyer/favorites.js";
 import buyerOrderRoutes from "./routes/buyer/orders.js";
 import buyerReturnRoutes from "./routes/buyer/returns.js";
+import buyerCertificateRoutes from "./routes/buyer/certificates.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
 import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 
@@ -639,11 +645,13 @@ app.use("/api/seller/promotion-slides", sellerPromotionSlideRoutes);
 app.use("/api/seller/vouchers", sellerVoucherRoutes);
 app.use("/api/seller/orders", sellerOrderRoutes);
 app.use("/api/seller/returns", sellerReturnRoutes);
+app.use("/api/seller/certificates", sellerCertificateRoutes);
 app.use("/api/seller/reviews", sellerReviewRoutes);
 //app.use("/api/seller/sales", sellerSalesRoutes);
 // Routes (Buyer)
 app.use("/api/buyer/authenticate", buyerAuthenticateRoutes);
 app.use("/api/buyer/artworks", buyerArtworkRoutes);
+app.use("/api/buyer/artists", buyerArtistRoutes);
 app.use("/api/buyer/addresses", buyerAddressRoutes);
 app.use("/api/buyer/event", buyerEventRoutes);
 app.use("/api/buyer/promotion-slides", buyerPromotionSlideRoutes);
@@ -651,6 +659,7 @@ app.use("/api/buyer/cart", buyerCartRoutes);
 app.use("/api/buyer/favorites", buyerFavoriteRoutes);
 app.use("/api/buyer/orders", buyerOrderRoutes);
 app.use("/api/buyer/returns", buyerReturnRoutes);
+app.use("/api/buyer/certificates", buyerCertificateRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/buyer/recommendation", buyerRecommendationRoutes);
 
@@ -681,7 +690,6 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 createAuditLogsTable().catch(() => {});
-ensureMessageSenderNameColumn();
 ensureAccountAccessTable()
   .then(() => ensureBuyerPrivacyColumn())
   .then(() => ensureFavoriteTable())
@@ -690,6 +698,7 @@ ensureAccountAccessTable()
   .then(() => ensureArtworkSchema())
   .then(() => ensureVoucherTables())
   .then(() => ensureStudentAccountSchema())
+  .then(() => ensureArtistFollowTable())
   .then(() => ensureSystemSettingsTable())
   .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
@@ -698,6 +707,8 @@ ensureAccountAccessTable()
   .then(() => ensurePromotionSlidesTable())
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureReturnTables())
+  .then(() => ensureMessageSenderNameColumn())
+  .then(() => ensureCertificateTables())
   .then(() => ensureChatPublicKeysTable())
   .then(() => ensureChatKeyRecoveryTable())
   .then(
@@ -710,6 +721,7 @@ ensureAccountAccessTable()
       }),
   )
   .then(() => {
+    startCertificateDeliveryScheduler();
     // Background: generate the low-res public files for older artworks.
     // Never blocks startup and never rejects.
     ensureArtworkDerivatives({ logger: console }).catch((error) =>

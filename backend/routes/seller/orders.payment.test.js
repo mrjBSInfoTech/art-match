@@ -11,6 +11,7 @@ const source = fs.readFileSync(new URL("./orders.js", import.meta.url), "utf8")
 function setup(order = {}) {
   const state = { updates: 0, commits: 0, rollbacks: 0, uploads: 0, released: false };
   const currentOrder = {
+    seller_id: 8,
     status: "Pending", customer_id: 14, parcel_photos: [], tracking_url: null,
     handling_instructions: [], payment_method: "paymongo", payment_status: "Pending",
     paid_at: null, ...order,
@@ -24,7 +25,8 @@ function setup(order = {}) {
       if (/SELECT status/.test(sql)) {
         assert.match(sql, /WHERE order_id = \? AND seller_id = \?/);
         assert.match(sql, /FOR UPDATE/);
-        assert.deepEqual(Array.from(params), [31, 8]);
+        assert.deepEqual(Array.from(params), [31, Number(params[1])]);
+        if (Number(params[1]) !== Number(currentOrder.seller_id)) return [[]];
         return [[{ ...currentOrder }]];
       }
       if (/UPDATE marketplace_order/.test(sql)) {
@@ -74,7 +76,7 @@ function setup(order = {}) {
   return {
     state, response,
     async update(status, extra = {}) {
-      await statusHandler({ params: { id: "31" }, user: { student_id: 8 },
+      await statusHandler({ params: { id: "31" }, user: { student_id: extra.sellerId ?? 8 },
         body: { status, ...extra.body }, files: extra.files || [] }, response);
       return response;
     },
@@ -129,6 +131,8 @@ for (const [status, next] of [["Confirmed", "Packed"], ["Packed", "Shipped"], ["
     const route = setup({ status, payment_status: "Paid", parcel_photos: ["parcel.webp"] });
     const extra = next === "Packed"
       ? { files: [{ mimetype: "image/webp", buffer: Buffer.from("photo") }] }
+      : next === "Shipped"
+        ? { body: { tracking_url: "https://tracking.example/parcel/123" } }
       : {};
     assert.equal((await route.update(next, extra)).statusCode, 200);
     assert.equal(route.state.commits, 1);
@@ -176,22 +180,31 @@ test("COD delivery atomically records collected payment with its timestamp", asy
 });
 
 test("online delivery records the first delivery time without replacing an existing timestamp", async () => {
-  const route = setup({ status: "Shipped", payment_status: "Paid", delivered_at: "2026-10-01 09:00:00" });
+  const trackingUrl = "https://track.example.com/parcel/keep-after-delivery";
+  const route = setup({
+    status: "Shipped", payment_status: "Paid", delivered_at: "2026-10-01 09:00:00",
+    tracking_url: trackingUrl,
+  });
   assert.equal((await route.update("Delivered", { body: { delivered_at: "2099-01-01 00:00:00" } })).statusCode, 200);
   assert.match(route.state.updateSql, /THEN COALESCE\(delivered_at, NOW\(\)\)/);
   assert.equal(route.state.updateParams[6], "Delivered");
   assert.ok(!route.state.updateParams.includes("2099-01-01 00:00:00"));
+  assert.equal(route.state.updateParams[2], trackingUrl);
+  assert.equal(route.response.body.trackingUrl, trackingUrl);
 });
 
 test("seller list exposes payment state and channel for sales/UI decisions", async () => {
-  const route = setup({ payment_status: "Paid" });
+  const trackingUrl = "https://track.example.com/parcel/123";
+  const route = setup({ payment_status: "Paid", tracking_url: trackingUrl });
   const { response, sql } = await route.list();
   assert.match(sql, /WHERE o\.seller_id = \?/);
   assert.match(sql, /AND \(o\.payment_method <> 'paymongo' OR o\.payment_status IN \('Paid', 'Refunded'\)\)/);
+  assert.match(sql, /o\.tracking_url/);
   assert.deepEqual(route.state.listParams, [8]);
   assert.equal(response.body[0].payment, "paymongo");
   assert.equal(response.body[0].paymentStatus, "Paid");
   assert.equal(response.body[0].paymentChannel, "gcash");
+  assert.equal(response.body[0].trackingUrl, trackingUrl);
 });
 
 test("seller cannot skip fulfillment steps even after online payment", async () => {
@@ -217,13 +230,29 @@ test("a paid packed order without stored photos cannot be shipped", async () => 
 
 test("seller can attach the carrier tracking link while shipping a paid order", async () => {
   const route = setup({ status: "Packed", payment_status: "Paid", parcel_photos: ["parcel.webp"] });
-  assert.equal((await route.update("Shipped", { body: { tracking_url: "https://tracking.example/parcel/123" } })).statusCode, 200);
-  assert.equal(route.response.body.trackingUrl, "https://tracking.example/parcel/123");
+  const link = "https://share.lalamove.com/order?id=abc%2F123";
+  assert.equal((await route.update("Shipped", { body: { tracking_url: link } })).statusCode, 200);
+  assert.equal(route.response.body.trackingUrl, link);
+  assert.equal(route.state.updateParams[2], link);
   assert.equal(route.state.commits, 1);
 });
 
-test("seller cannot attach unsafe tracking URLs to a paid order", async () => {
+test("a different seller cannot modify the order tracking URL", async () => {
   const route = setup({ status: "Packed", payment_status: "Paid", parcel_photos: ["parcel.webp"] });
-  assert.equal((await route.update("Shipped", { body: { tracking_url: "javascript:alert(1)" } })).statusCode, 400);
+  assert.equal((await route.update("Shipped", {
+    sellerId: 99,
+    body: { tracking_url: "https://track.example.com/parcel/123" },
+  })).statusCode, 404);
   assert.equal(route.state.updates, 0);
+  assert.equal(route.state.commits, 0);
+  assert.equal(route.state.rollbacks, 1);
+});
+
+test("seller must provide a valid HTTPS tracking URL before shipping", async () => {
+  for (const link of ["", "hello", "javascript(1)", "javascript:alert(1)", "file:///test", "ftp://example.com", "http://tracking.example/123"]) {
+    const route = setup({ status: "Packed", payment_status: "Paid", parcel_photos: ["parcel.webp"] });
+    assert.equal((await route.update("Shipped", { body: { tracking_url: link } })).statusCode, 400, link);
+    assert.equal(route.state.updates, 0, link);
+    assert.equal(route.state.commits, 0, link);
+  }
 });

@@ -1,6 +1,5 @@
 import { createElement, useEffect, useState } from "react";
 import {
-  Alert,
   Box,
   CircularProgress,
   Container,
@@ -29,6 +28,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import ContactPageOutlinedIcon from "@mui/icons-material/ContactPageOutlined";
 import { useThemeMode } from "../../theme/ThemeModeProvider";
 import { fetchAboutContent } from "../../api/aboutContentAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const navigationItems = [
   { label: "About Us", icon: InfoOutlinedIcon, href: "#about-us", active: true },
@@ -76,15 +76,19 @@ export default function AboutUs() {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setError("");
     fetchAboutContent()
       .then((data) => {
         if (active) setContent(data);
       })
       .catch((loadError) => {
-        if (active) setError(loadError.message);
+        if (!active) return;
+        setError(loadError?.message || "Unable to load About page content.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -92,7 +96,7 @@ export default function AboutUs() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [retryCount]);
 
   const contactIcon = (label) => {
     const normalizedLabel = label.toLowerCase();
@@ -113,11 +117,10 @@ export default function AboutUs() {
 
   if (error || !content) {
     return (
-      <Box sx={{ minHeight: "100%", backgroundColor: canvas }}>
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-          <Alert severity="error">{error || "About page content is unavailable."}</Alert>
-        </Container>
-      </Box>
+      <ConnectionErrorPanel
+        title="About Page Unavailable"
+        onRetry={() => setRetryCount((count) => count + 1)}
+      />
     );
   }
 

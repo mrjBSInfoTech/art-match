@@ -13,6 +13,7 @@ import {
   getPaymentMethodLabel, needsPaymentSupport,
 } from "../../../utils/orderPayments.js";
 import { formatCurrency, formatOrderDate, statusColorMap } from "./orderPresentation.js";
+import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 
 const Transition = forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -32,6 +33,7 @@ export default function OrderInfo({
 }) {
   const theme = useTheme();
   const items = order?.items || [];
+  const trackingUrl = getSecureTrackingUrl(order?.trackingUrl);
   const detailLabelSx = {
     display: "block", color: "text.secondary", fontSize: 11,
     lineHeight: 1.2, mb: 0.35,
@@ -122,6 +124,21 @@ export default function OrderInfo({
                 <Box sx={{ gridColumn: "1 / -1" }}>
                   <Typography sx={detailLabelSx}>Customer note</Typography>
                   <Typography sx={detailValueSx}>{order.note}</Typography>
+                </Box>
+              )}
+              {trackingUrl && (
+                <Box sx={{ gridColumn: "1 / -1" }}>
+                  <Typography sx={detailLabelSx}>Courier tracking</Typography>
+                  <Button
+                    component="a"
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    size="small"
+                    sx={{ px: 0, textTransform: "none" }}
+                  >
+                    Open tracking
+                  </Button>
                 </Box>
               )}
             </Box>

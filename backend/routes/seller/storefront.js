@@ -51,11 +51,13 @@ router.get("/", authenticateSeller, (req, res) => {
 
   db.query(
     `SELECT storefront_id, student_id, shop_name, shop_description,
-            specialties, pinned_artwork_ids, created_at, updated_at
+            specialties, pinned_artwork_ids, created_at, updated_at,
+            (SELECT COUNT(*) FROM customer_artist_follow caf
+             WHERE caf.student_id = ?) AS follower_count
      FROM storefront
      WHERE student_id = ?
      LIMIT 1`,
-    [studentId],
+    [studentId, studentId],
     (err, results) => {
       if (err) {
         console.error("Get storefront DB error:", err);
@@ -72,6 +74,7 @@ router.get("/", authenticateSeller, (req, res) => {
           shop_description: null,
           specialties: null,
           pinned_artwork_ids: null,
+          follower_count: 0,
         });
       }
 

@@ -511,7 +511,12 @@ export default function Messages() {
                         ? recipientPublicKey
                         : msg.sender_public_key,
                   })
-                : { text: msg.message_data || "", image: toAbsoluteMediaUrl(msg.image) };
+                : {
+                    text: msg.message_data || "",
+                    image: msg.media_type === "application/vnd.artmatch.certificate-link"
+                      ? msg.image
+                      : toAbsoluteMediaUrl(msg.image),
+                  };
               return {
                 id: msg.message_id,
                 sender: msg.sender_type,

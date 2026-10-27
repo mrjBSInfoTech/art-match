@@ -355,3 +355,16 @@ accounts. Physical shipping and reimbursement are outside the software workflow.
 
 Return authorization is separate from financial refund processing.
 
+## 11. Certificate delivery and return access
+
+The seller still creates the certificate SVG in the browser. After publishing
+that SVG for an approved artwork, the backend sends an order-item-specific link
+in the buyer/seller conversation once the order has been delivered for one day.
+The buyer link requires buyer authentication and is rechecked against the
+delivered order item each time it is opened.
+
+A completed return blocks that order item's link. Earlier return statuses and
+refund status do not change certificate authenticity or access. The stored
+certificate remains associated with the artwork and is not deleted or revoked.
+Certificate delivery unit coverage is in `backend/test/certificates.test.js`;
+live database and browser verification of this addition remains outstanding.

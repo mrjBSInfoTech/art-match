@@ -252,7 +252,12 @@ export default function SellerOrder() {
       parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
       formData.append("handling_instructions", JSON.stringify(handlingInstructions));
     } else {
-      formData.append("tracking_url", trackingUrl.trim());
+      const submittedTrackingUrl = trackingUrl.trim();
+      if (!submittedTrackingUrl) {
+        setStatusError("Add a courier tracking link before marking this order as shipped.");
+        return;
+      }
+      formData.append("tracking_url", submittedTrackingUrl);
     }
 
     setSavingFulfillment(true);
@@ -672,6 +677,7 @@ export default function SellerOrder() {
         open={Boolean(fulfillmentTarget)}
         fulfillmentTarget={fulfillmentTarget}
         statusError={statusError}
+        setStatusError={setStatusError}
         parcelPhotos={parcelPhotos}
         setParcelPhotos={setParcelPhotos}
         photoPreviews={photoPreviews}

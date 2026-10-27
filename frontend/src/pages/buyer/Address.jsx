@@ -16,12 +16,12 @@ import {
   Typography,
   Snackbar,
   Slide,
-  useTheme,
 } from "@mui/material";
 import { fetchAddresses, addAddress, updateAddress, deleteAddress } from "../../api/buyer/addressAPI"; 
 import AddressCard from "../../components/buyer/Address/AddressCard";
 import AddressForm from "../../components/buyer/Address/AddressForm";
 import AddressDelete from "../../components/buyer/Address/AddressDelete";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
@@ -33,13 +33,13 @@ function SlideTransition(props) {
 }
 
 export default function Address() {
-  const theme = useTheme();
   const [addresses, setAddresses] = useState([]);
   const [openAddressForm, setOpenAddressForm] = useState(false);
   const [openAddressDelete, setOpenAddressDelete] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [addressErrorMessage, setAddressErrorMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [addressLoadError, setAddressLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -48,15 +48,13 @@ export default function Address() {
   const loadAddresses = async () => {
     try {
       setLoading(true);
+      setAddressLoadError("");
       const data = await fetchAddresses();
       console.log("Addresses loaded:", data);
       setAddresses(data || []);
     } catch (err) {
       console.error("Error loading addresses:", err);
-      setAddressErrorMessage(
-        "Failed to load addresses: " + err.message,
-        "error",
-      );
+      setAddressLoadError(err.message || "Failed to load addresses.");
     } finally {
       setLoading(false);
     }
@@ -66,6 +64,10 @@ export default function Address() {
   useEffect(() => {
     loadAddresses();
   }, []);
+
+  if (addressLoadError && !loading) {
+    return <ConnectionErrorPanel title="Addresses Unavailable" onRetry={loadAddresses} />;
+  }
 
   // ========== ADDRESS HANDLERS ==========
   // ➕ Open Add Address Modal

@@ -17,6 +17,7 @@ import {
   Container,
 } from "@mui/material";
 import { fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 export default function Cart() {
   const [items, setItems] = useState([]);
@@ -122,6 +123,10 @@ export default function Cart() {
   const subtotal = selectedItems.reduce((s, i) => s + i.subtotal, 0);
   // No shipping fee: delivery is arranged with a third-party courier.
   const total = subtotal;
+
+  if (cartErrorMessage && !loading) {
+    return <ConnectionErrorPanel title="Cart Unavailable" onRetry={() => setRefresh((value) => value + 1)} />;
+  }
 
   const onRemove = async (artworkId) => {
     if (deletingRef.current) return;

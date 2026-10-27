@@ -24,7 +24,7 @@ export default function MessageCard({ message: msg, onViewMedia }) {
           borderColor: "divider",
         }}
       >
-        {msg.image && (
+        {msg.image && msg.mediaType !== "application/vnd.artmatch.certificate-link" && (
           msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
             <Box
               sx={{
