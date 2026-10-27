@@ -55,6 +55,7 @@ import SellerVoucherGeneration from "../pages/seller/VoucherGeneration";
 import SellerDiscountCodes from "../pages/seller/DiscountCodes";
 import SellerCertificateOfAuthenticity from "../pages/seller/CertificateOfAuthenticity";
 import SellerMarketing from "../pages/seller/Marketing";
+import SellerAuditLogs from "../pages/seller/AuditLogs";
 
 // Buyer Pages
 import BuyerMain from "../pages/buyer/Main";
@@ -246,7 +247,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="audit-logs"
-                  element={<SellerPlaceholder title="Audit Logs" />}
+                  element={<SellerAuditLogs />}
                 />
                 <Route path="profile" element={<SellerProfile />} />
                 <Route path="settings" element={<SellerSettings />} />

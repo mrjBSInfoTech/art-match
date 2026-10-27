@@ -130,21 +130,42 @@ const rolePermissions = (role, values = {}) => {
   };
 };
 
+const auditAdminManagement = async (req, action, status, information) => {
+  try {
+    await logAudit({
+      action,
+      actor: req.user?.username || req.user?.admin_id,
+      role: req.user?.role || "Admin",
+      status,
+      information,
+    });
+  } catch (auditError) {
+    console.error("Unable to record admin management audit:", auditError.message);
+  }
+};
+
 const changeRole = (direction) => (req, res) => {
   const roleOrder = ["customize", "moderator", "admin", "super admin"];
   const targetId = req.params.id;
+  const action = direction > 0 ? "PROMOTE_ADMIN_ACCOUNT" : "DEMOTE_ADMIN_ACCOUNT";
 
   db.query(
     "SELECT role FROM admin_role WHERE admin_id = ?",
     [targetId],
-    (error, results) => {
-      if (error) return res.status(500).json({ error: error.message });
-      if (!results.length)
+    async (error, results) => {
+      if (error) {
+        await auditAdminManagement(req, action, "FAILED", `Role change failed for admin ID ${targetId}: ${error.message}`);
+        return res.status(500).json({ error: error.message });
+      }
+      if (!results.length) {
+        await auditAdminManagement(req, action, "FAILED", `Role change failed: admin role not found for ID ${targetId}.`);
         return res.status(404).json({ error: "Admin role not found." });
+      }
 
       const currentIndex = roleOrder.indexOf(results[0].role);
       const nextIndex = currentIndex + direction;
       if (nextIndex < 0 || nextIndex >= roleOrder.length) {
+        await auditAdminManagement(req, action, "FAILED", `Admin ID ${targetId} cannot be ${direction > 0 ? "promoted" : "demoted"} further.`);
         return res.status(400).json({
           error: `Admin cannot be ${direction > 0 ? "promoted" : "demoted"} further.`,
         });
@@ -159,17 +180,20 @@ const changeRole = (direction) => (req, res) => {
         db.query(
           "SELECT admin_id FROM admin_role WHERE role = ? AND admin_id != ?",
           ["super admin", targetId],
-          (findError, superAdminResults) => {
-            if (findError)
+          async (findError, superAdminResults) => {
+            if (findError) {
+              await auditAdminManagement(req, action, "FAILED", `Role change failed for admin ID ${targetId}: ${findError.message}`);
               return res.status(500).json({ error: findError.message });
+            }
 
             let updateCount = 1; // Count for the target user promotion
             let updateErrors = [];
+            let existingSuperAdminId = null;
 
             const performUpdates = () => {
               // Demote existing super admin to admin
               if (superAdminResults.length > 0) {
-                const existingSuperAdminId = superAdminResults[0].admin_id;
+                existingSuperAdminId = superAdminResults[0].admin_id;
                 const adminPermissions = rolePermissions("admin");
 
                 db.query(
@@ -211,10 +235,15 @@ const changeRole = (direction) => (req, res) => {
               );
             };
 
-            const finishUpdate = () => {
+            const finishUpdate = async () => {
               if (updateErrors.length > 0) {
+                await auditAdminManagement(req, action, "FAILED", `Promotion of admin ID ${targetId} to Super Admin failed: ${updateErrors[0].message}`);
                 return res.status(500).json({ error: updateErrors[0].message });
               }
+              if (existingSuperAdminId !== null) {
+                await auditAdminManagement(req, "DEMOTE_ADMIN_ACCOUNT", "SUCCESS", `Admin ID ${existingSuperAdminId} was demoted to admin after admin ID ${targetId} was promoted to Super Admin.`);
+              }
+              await auditAdminManagement(req, action, "SUCCESS", `Admin ID ${targetId} was promoted from ${results[0].role} to ${newRole}.`);
               res.json({
                 message: `Admin promoted to Super Admin successfully. Previous Super Admin has been demoted to Admin.`,
                 role: newRole,
@@ -237,9 +266,12 @@ const changeRole = (direction) => (req, res) => {
             permissions.can_demote,
             targetId,
           ],
-          (updateError) => {
-            if (updateError)
+          async (updateError) => {
+            if (updateError) {
+              await auditAdminManagement(req, action, "FAILED", `Role change failed for admin ID ${targetId}: ${updateError.message}`);
               return res.status(500).json({ error: updateError.message });
+            }
+            await auditAdminManagement(req, action, "SUCCESS", `Admin ID ${targetId} was ${direction > 0 ? "promoted" : "demoted"} from ${results[0].role} to ${newRole}.`);
             res.json({
               message: `Admin ${direction > 0 ? "promoted" : "demoted"} successfully.`,
               role: newRole,
@@ -370,6 +402,12 @@ router.post(
       } = req.body;
 
       if (!username || !password || !first_name || !last_name || !email) {
+        await auditAdminManagement(
+          req,
+          "CREATE_ADMIN_ACCOUNT",
+          "FAILED",
+          "Admin account creation failed: required fields were missing.",
+        );
         return res.status(400).json({
           error: "Please fill in all required fields.",
         });
@@ -390,6 +428,12 @@ router.post(
       const allowedRoles = creatableRoles[currentUserRole] || [];
 
       if (!allowedRoles.includes(role)) {
+        await auditAdminManagement(
+          req,
+          "CREATE_ADMIN_ACCOUNT",
+          "FAILED",
+          `Admin account creation was rejected because role ${role} cannot be assigned by ${currentUserRole}.`,
+        );
         return res.status(403).json({
           error: `Your role cannot create ${role} accounts. Allowed roles: ${
             allowedRoles.join(", ") || "none"
@@ -406,6 +450,12 @@ router.post(
       });
 
       if (!permissions) {
+        await auditAdminManagement(
+          req,
+          "CREATE_ADMIN_ACCOUNT",
+          "FAILED",
+          `Admin account creation failed: role ${role} is invalid.`,
+        );
         return res.status(400).json({
           error: "Invalid admin role.",
         });
@@ -431,6 +481,12 @@ router.post(
           console.log("Admin image uploaded to B2:", uploadedB2Key);
         } catch (b2Error) {
           console.error("Admin B2 upload failed:", b2Error.message);
+          await auditAdminManagement(
+            req,
+            "CREATE_ADMIN_ACCOUNT",
+            "FAILED",
+            `Admin account creation failed because its image upload failed: ${b2Error.message}`,
+          );
 
           return res.status(502).json({
             error: "Admin image could not be uploaded to cloud storage.",
@@ -464,6 +520,12 @@ router.post(
       });
 
       transactionCommitted = true;
+      await auditAdminManagement(
+        req,
+        "CREATE_ADMIN_ACCOUNT",
+        "SUCCESS",
+        `Admin account ID ${newAdminId} (${username.trim()}) was created with role ${role}.`,
+      );
 
       return res.json({
         message: "✅ Admin created successfully",
@@ -488,6 +550,12 @@ router.post(
         }
       }
 
+      await auditAdminManagement(
+        req,
+        "CREATE_ADMIN_ACCOUNT",
+        "FAILED",
+        `Admin account creation failed: ${error.message || "Unexpected error"}`,
+      );
       if (error.code === "ER_DUP_ENTRY") {
         return res.status(400).json({
           error: "Username or email already exists.",
@@ -826,6 +894,12 @@ router.delete(
       );
 
       if (!rows.length) {
+        await auditAdminManagement(
+          req,
+          "DELETE_ADMIN_ACCOUNT",
+          "FAILED",
+          `Admin account deletion failed: admin ID ${id} was not found.`,
+        );
         return res.status(404).json({
           error: "Admin not found.",
         });
@@ -870,11 +944,23 @@ router.delete(
         }
       }
 
+      await auditAdminManagement(
+        req,
+        "DELETE_ADMIN_ACCOUNT",
+        "SUCCESS",
+        `Admin account ID ${id} was deleted.`,
+      );
       return res.json({
         message: "✅ Admin account deleted successfully",
       });
     } catch (error) {
       console.error("Admin deletion error:", error);
+      await auditAdminManagement(
+        req,
+        "DELETE_ADMIN_ACCOUNT",
+        "FAILED",
+        `Admin account deletion failed for ID ${id}: ${error.message || "Unexpected error"}`,
+      );
 
       return res.status(500).json({
         error: error.message || "Unable to delete admin account.",

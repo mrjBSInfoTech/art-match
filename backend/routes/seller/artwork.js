@@ -21,6 +21,7 @@ import {
   resolveArtworkScanUpdate,
 } from "../../utils/artworkScanAttributes.js";
 import { baseNameOf, removeDerivatives, writeDerivatives } from "../../utils/artworkStorage.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
@@ -398,13 +399,18 @@ router.post(
             if (fs.existsSync(absoluteImagePath)) {
               fs.unlinkSync(absoluteImagePath);
             }
-            const respond = () =>
-              res.json({
+            const respond = async () => {
+              await logSellerAudit(req.user, {
+                action: "CREATE_ARTWORK",
+                information: `Artwork ID ${artworkId} (${title.trim()}) was submitted for verification.`,
+              });
+              return res.json({
                 message: "Artwork added successfully!",
                 id: artworkId,
                 request_status: "Unverified",
                 colors: detectedColors,
               });
+            };
 
             if (scanAttributes.feature_scanned === null && scanAttributes.mediums_used === null) {
               return respond();
@@ -455,7 +461,7 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
      WHERE a.artwork_id = ? AND a.student_id = ?
        AND LOWER(TRIM(au.request_status)) IN ('unverified', 'rejected')`,
     [req.params.id, studentId],
-    (err, result) => {
+    async (err, result) => {
       if (err) {
         console.error("DB Error:", err);
         return res.status(500).json({ error: err.message });
@@ -463,6 +469,10 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
       if (result.affectedRows === 0) {
         return res.status(404).json({ error: "Artwork not found" });
       }
+      await logSellerAudit(req.user, {
+        action: "REQUEST_ARTWORK_VERIFICATION",
+        information: `Verification was requested for artwork ID ${req.params.id}.`,
+      });
       res.json({ message: "Artwork updated successfully" });
     },
   );
@@ -678,6 +688,10 @@ router.put(
         fs.unlinkSync(temporaryImagePath);
       }
 
+      await logSellerAudit(req.user, {
+        action: "UPDATE_ARTWORK",
+        information: `Artwork ID ${id} (${title.trim()}) was updated${imageName ? " with a new image" : ""}.`,
+      });
       return res.json({
         message: "Artwork updated successfully",
       });
@@ -688,6 +702,11 @@ router.put(
       if (!validationError) {
         console.error("Artwork update error:", error);
       }
+      await logSellerAudit(req.user, {
+        action: "UPDATE_ARTWORK",
+        status: "FAILED",
+        information: `Update failed for artwork ID ${id}: ${error.message || "Unexpected error"}`,
+      });
 
       // Clean temporary file
       // even when update fails.
@@ -791,6 +810,10 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
       await removeDerivatives(baseNameOf(artwork.image));
     }
 
+    await logSellerAudit(req.user, {
+      action: "DELETE_ARTWORK",
+      information: `Artwork ID ${id} was deleted.`,
+    });
     return res.json({
       message: "Artwork deleted successfully",
     });

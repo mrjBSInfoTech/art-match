@@ -1,6 +1,7 @@
 import express from "express";
 import db from "../../database/db.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
@@ -195,7 +196,7 @@ router.put("/", authenticateSeller, (req, res) => {
               JSON.stringify(savedSpecialties),
               JSON.stringify(savedPinnedArtworkIds),
             ],
-            (saveErr) => {
+            async (saveErr) => {
               if (saveErr) {
                 console.error("Save storefront DB error:", saveErr);
                 return res
@@ -203,6 +204,10 @@ router.put("/", authenticateSeller, (req, res) => {
                   .json({ message: "Database error saving storefront." });
               }
 
+              await logSellerAudit(req.user, {
+                action: "UPDATE_STOREFRONT",
+                information: `Storefront details, specialties, or pinned artwork were updated${shopName ? ` for "${shopName}"` : ""}.`,
+              });
               res.json({
                 message: "Storefront updated successfully.",
                 shop_name: shopName,

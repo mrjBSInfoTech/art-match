@@ -43,7 +43,7 @@ export async function reconcilePaidCheckout(
   if (Number.isNaN(paidAt.getTime())) fail(400, "Invalid payment timestamp");
 
   const orders = await query(connection,
-    `SELECT order_id, customer_id, payment_method, payment_reference,
+    `SELECT order_id, customer_id, seller_id, payment_method, payment_reference,
             paymongo_checkout_session_id, payment_status, paymongo_payment_id,
             total_amount, status
      FROM marketplace_order WHERE payment_reference = ?
@@ -156,5 +156,13 @@ export async function reconcilePaidCheckout(
     payment_status: "Paid",
     already_processed: false,
     requires_refund_review: requiresRefundReview,
+    sellerTransactions: orders
+      .filter((order) => unpaidIds.includes(order.order_id))
+      .map((order) => ({
+        sellerId: order.seller_id,
+        orderId: order.order_id,
+        totalAmount: order.total_amount,
+        paymentReference: reference,
+      })),
   };
 }

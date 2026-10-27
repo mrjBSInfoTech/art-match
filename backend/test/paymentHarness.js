@@ -25,6 +25,7 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     attachOrderReturns: async (_executor, orders) => orders,
     getCommissionRate: () => 0,
     getRecommendationSessionIdFromRequest: () => "test-browser-session",
+    logSellerAudit: async () => {},
     readParcelPhoto: () => { throw new Error("Unexpected parcel photo access"); },
     process: { env: {
       PAYMONGO_SECRET_KEY: "sk_test_isolated_fixture",

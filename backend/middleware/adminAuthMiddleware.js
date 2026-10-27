@@ -21,7 +21,7 @@ export const authenticateAdmin = (req, res, next) => {
         return res.status(403).json({ message: "Invalid or expired token." });
       }
 
-      const adminId = user.admin_id || user.id;
+      const adminId = user.admin_id;
       if (!adminId) {
         return res.status(403).json({ message: "Unable to identify admin." });
       }

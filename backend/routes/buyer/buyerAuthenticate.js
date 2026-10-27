@@ -12,6 +12,20 @@ import { fileURLToPath } from "url";
 
 const router = express.Router();
 
+const auditBuyerPasswordChange = async (req, status, information) => {
+  try {
+    await logAudit({
+      action: "CHANGE_PASSWORD",
+      actor: req.user?.username || req.user?.customer_id,
+      role: "Customer",
+      status,
+      information,
+    });
+  } catch (auditError) {
+    console.error("Unable to record buyer password change audit:", auditError.message);
+  }
+};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const profileUploadDir = path.join(
@@ -257,6 +271,11 @@ router.put("/change-password", authenticateBuyer, async (req, res) => {
   const newPassword = String(req.body.newPassword || "");
 
   if (!currentPassword || newPassword.length < 8 || newPassword.length > 128) {
+    await auditBuyerPasswordChange(
+      req,
+      "FAILED",
+      "Buyer password change failed: required password values were missing or the new password length was invalid.",
+    );
     return res.status(400).json({
       message: "Enter your current password and a new password of at least 8 characters.",
     });
@@ -268,9 +287,19 @@ router.put("/change-password", authenticateBuyer, async (req, res) => {
       [req.user.customer_id],
     );
     if (!rows.length) {
+      await auditBuyerPasswordChange(
+        req,
+        "FAILED",
+        "Buyer password change failed: account was not found.",
+      );
       return res.status(404).json({ message: "Buyer not found." });
     }
     if (!(await bcrypt.compare(currentPassword, rows[0].password))) {
+      await auditBuyerPasswordChange(
+        req,
+        "FAILED",
+        "Buyer password change failed: current password was incorrect.",
+      );
       return res.status(400).json({ message: "Current password is incorrect." });
     }
 
@@ -279,9 +308,19 @@ router.put("/change-password", authenticateBuyer, async (req, res) => {
       "UPDATE customer SET password = ? WHERE customer_id = ?",
       [passwordHash, req.user.customer_id],
     );
+    await auditBuyerPasswordChange(
+      req,
+      "SUCCESS",
+      "Buyer password was changed successfully.",
+    );
     res.json({ message: "Password changed successfully." });
   } catch (error) {
     console.error("Buyer password change failed:", error);
+    await auditBuyerPasswordChange(
+      req,
+      "FAILED",
+      `Buyer password change failed: ${error.message || "Unexpected error"}`,
+    );
     res.status(500).json({ message: "Unable to change password." });
   }
 });

@@ -21,6 +21,7 @@ import { getCommissionRate } from "../../database/paymentSplits.js";
 import { buildPaymentSplit, validateSplits } from "../../utils/paymentSplit.js";
 import { attachOrderReturns } from "../../utils/returns.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
@@ -924,9 +925,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
        * Step 4's webhook will confirm
        * the payment first.
        */
-      await connection.commit();
+       await connection.commit();
 
-      return res.status(201).json({
+       return res.status(201).json({
         message: "PayMongo checkout created",
 
         payment_method: "paymongo",
@@ -976,6 +977,12 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     );
 
     await connection.commit();
+    for (const order of createdOrders) {
+      await logSellerAudit({ student_id: order.sellerId }, {
+        action: "SALE_ORDER_RECEIVED",
+        information: `Order AM-${String(order.orderId).padStart(6, "0")} was placed by a buyer (PHP ${Number(order.total).toFixed(2)}, cash on delivery).`,
+      });
+    }
 
     return res.status(201).json({
       message: "Order placed successfully",
@@ -1006,7 +1013,7 @@ const paymentGroup = async (connection, customerId, reference) => {
     throw new PayMongoError("Invalid payment reference", 400);
   }
   const orders = await query(connection,
-    `SELECT order_id, customer_id, payment_method, payment_status, payment_reference,
+    `SELECT order_id, customer_id, seller_id, total_amount, payment_method, payment_status, payment_reference,
        paymongo_checkout_session_id, paymongo_checkout_url, status, total_amount
      FROM marketplace_order WHERE customer_id = ? AND payment_reference = ?
        AND payment_method = 'paymongo' ORDER BY order_id FOR UPDATE`, [customerId, reference],
@@ -1062,6 +1069,7 @@ const cancelGroup = async (connection, customerId, reference) => {
     `UPDATE marketplace_order SET status = 'Cancelled', payment_status = 'Expired'
      WHERE order_id IN (?) AND payment_status <> 'Paid'`, [orders.map(order => order.order_id)],
   );
+  return orders;
 };
 
 const paymentAction = handler => async (req, res) => {
@@ -1071,8 +1079,25 @@ const paymentAction = handler => async (req, res) => {
     await connection.beginTransaction();
     const result = await handler(connection, req);
     await connection.commit();
+    const {
+      sellerTransactions = [],
+      sellerAuditEntries = [],
+      ...responseResult
+    } = result;
+    for (const sale of sellerTransactions) {
+      await logSellerAudit({ student_id: sale.sellerId }, {
+        action: "SALE_PAYMENT_RECEIVED",
+        information: `Payment was confirmed for order AM-${String(sale.orderId).padStart(6, "0")} (PHP ${Number(sale.totalAmount).toFixed(2)}; reference ${sale.paymentReference}).`,
+      });
+    }
+    for (const entry of sellerAuditEntries) {
+      await logSellerAudit({ student_id: entry.sellerId }, {
+        action: entry.action,
+        information: entry.information,
+      });
+    }
     res.set("Cache-Control", "no-store");
-    return res.json(result);
+    return res.json(responseResult);
   } catch (error) {
     if (connection) await connection.rollback().catch(() => {});
     console.error("Buyer payment action failed:", error.code || error.name);
@@ -1130,8 +1155,16 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
 }));
 
 router.put("/payments/:reference/cancel", authenticateBuyer, paymentAction(async (connection, req) => {
-  await cancelGroup(connection, req.user.customer_id, req.params.reference);
-  return { message: "Checkout cancelled. Your cart items were kept.", payment_status: "Expired" };
+  const orders = await cancelGroup(connection, req.user.customer_id, req.params.reference);
+  return {
+    message: "Checkout cancelled. Your cart items were kept.",
+    payment_status: "Expired",
+    sellerAuditEntries: (orders || []).map((order) => ({
+      sellerId: order.seller_id,
+      action: "SALE_ORDER_CANCELLED",
+      information: `Buyer cancelled order AM-${String(order.order_id).padStart(6, "0")} (PHP ${Number(order.total_amount).toFixed(2)}; payment reference ${order.payment_reference}).`,
+    })),
+  };
 }));
 
 router.put("/:id/cancel", authenticateBuyer, paymentAction(async (connection, req) => {
@@ -1139,20 +1172,34 @@ router.put("/:id/cancel", authenticateBuyer, paymentAction(async (connection, re
   if (!Number.isSafeInteger(id) || id <= 0) throw new PayMongoError("Invalid order", 400);
   // Resolve the group first, then use the same group lock order as the webhook.
   const rows = await query(connection,
-    `SELECT order_id, payment_method, payment_reference FROM marketplace_order
+    `SELECT order_id, seller_id, total_amount, payment_method, payment_reference FROM marketplace_order
      WHERE order_id = ? AND customer_id = ?`, [id, req.user.customer_id],
   );
   if (!rows.length) throw new PayMongoError("Order not found", 404);
   if (rows[0].payment_method === "paymongo") {
-    await cancelGroup(connection, req.user.customer_id, rows[0].payment_reference);
-    return { message: "Checkout cancelled. Your cart items were kept." };
+    const orders = await cancelGroup(connection, req.user.customer_id, rows[0].payment_reference);
+    return {
+      message: "Checkout cancelled. Your cart items were kept.",
+      sellerAuditEntries: (orders || []).map((order) => ({
+        sellerId: order.seller_id,
+        action: "SALE_ORDER_CANCELLED",
+        information: `Buyer cancelled order AM-${String(order.order_id).padStart(6, "0")} (PHP ${Number(order.total_amount).toFixed(2)}; payment reference ${order.payment_reference}).`,
+      })),
+    };
   }
   const result = await query(connection,
     `UPDATE marketplace_order SET status = 'Cancelled' WHERE order_id = ?
      AND customer_id = ? AND payment_method = 'cod' AND status = 'Pending'`, [id, req.user.customer_id],
   );
   if (!result.affectedRows) throw new PayMongoError("Only pending COD orders can be cancelled", 409);
-  return { message: "Order cancelled" };
+  return {
+    message: "Order cancelled",
+    sellerAuditEntries: [{
+      sellerId: rows[0].seller_id,
+      action: "SALE_ORDER_CANCELLED",
+      information: `Buyer cancelled order AM-${String(id).padStart(6, "0")} (PHP ${Number(rows[0].total_amount).toFixed(2)}; cash on delivery).`,
+    }],
+  };
 }));
 
 export default router;

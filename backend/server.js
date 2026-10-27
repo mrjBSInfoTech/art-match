@@ -48,9 +48,9 @@ import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
 import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
 import {
-  getArtworkDerivative,
   getCustomerIdForWatermarkCode,
   getWatermarkCode,
+  getWatermarkedArtwork,
 } from "./utils/artworkWatermark.js";
 import {
   ARTWORK_IMAGE_URL_TTL_SECONDS,
@@ -78,6 +78,7 @@ import sellerCertificateRoutes from "./routes/seller/certificates.js";
 import sellerReviewRoutes from "./routes/seller/reviews.js";
 //import sellerSalesRoutes from "./routes/seller/sales.js";
 import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
+import sellerAuditLogsRoutes from "./routes/seller/auditLogs.js";
 // Routes (Buyer)
 import buyerAuthenticateRoutes from "./routes/buyer/buyerAuthenticate.js";
 import buyerAddressRoutes from "./routes/buyer/address.js";
@@ -468,7 +469,7 @@ app.get(
         return res.status(403).json({ message: "Invalid or expired image URL." });
       }
 
-      const image = await getArtworkDerivative(filename, customerId, variant);
+      const image = await getWatermarkedArtwork(filename, customerId, variant);
 
       res.set({
         "Cache-Control": `private, max-age=${Math.max(
@@ -478,7 +479,7 @@ app.get(
         "Content-Type": image.contentType,
         Vary: "Authorization",
         "X-ArtMatch-Watermark-Code": image.code,
-        "X-ArtMatch-Invisible-Watermark": image.code === "GUEST" ? "none" : "DCT-8x8-v1",
+        "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
         "X-ArtMatch-Variant": variant,
         "X-Content-Type-Options": "nosniff",
         "Content-Disposition": "inline",
@@ -639,6 +640,7 @@ app.use("/api/about-content", aboutContentRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
+app.use("/api/seller/audit-logs", sellerAuditLogsRoutes);
 app.use("/api/seller/artwork", sellerArtworkRoutes);
 app.use("/api/seller/storefront", sellerStorefrontRoutes);
 app.use("/api/seller/promotion-slides", sellerPromotionSlideRoutes);

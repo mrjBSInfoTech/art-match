@@ -65,6 +65,7 @@ function setup(order = {}) {
     saveParcelPhoto: async () => { state.uploads++; return "test-parcel.webp"; },
     isB2Configured: () => false, normalizeTrackingUrl, validateParcelPhotoCount,
     attachOrderReturns: async (_executor, orders) => orders,
+    logSellerAudit: async () => {},
     console: { error() {} },
   });
   const response = {

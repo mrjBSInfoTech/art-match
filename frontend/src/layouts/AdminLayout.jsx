@@ -273,7 +273,7 @@ function AdminLayoutContent() {
     },
     {
       segment: "audit-logs",
-      title: "Audit Logs",
+      title: "System Audit Logs",
       icon: <HistoryIcon />,
     },
   ];

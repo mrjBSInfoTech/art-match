@@ -113,7 +113,7 @@ export default function AuditLogs() {
               color: theme.palette.text.primary,
             }}
           >
-            Audit Logs
+            System Audit Logs
           </Typography>
           <Typography
             sx={{
@@ -122,8 +122,8 @@ export default function AuditLogs() {
               fontSize: 13,
             }}
           >
-            Monitor the actions and activities performed by users on the
-            platform
+            Review recorded activity across the system, including admins,
+            students and sellers, and customers.
           </Typography>
         </Box>
       </Box>
@@ -277,7 +277,7 @@ export default function AuditLogs() {
           <Typography
             sx={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}
           >
-            Audit Log List
+            All System Activity
           </Typography>
           {!loading && !logsErrorMessage && (
             <Typography

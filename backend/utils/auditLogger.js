@@ -39,3 +39,14 @@ export const logAudit = ({ action, actor, role, status, information }) => {
     );
   });
 };
+
+export const logSellerAudit = (seller, { action, status = "SUCCESS", information }) =>
+  logAudit({
+    action,
+    actor: seller?.student_id || seller?.student_number,
+    role: "Student",
+    status,
+    information,
+  }).catch((error) => {
+    console.error("Unable to record seller audit:", error.message);
+  });

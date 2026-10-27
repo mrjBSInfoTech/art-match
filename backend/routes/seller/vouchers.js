@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import express from "express";
 import db from "../../database/db.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 const validDiscountTypes = new Set(["fixed", "percentage", "freebie"]);
@@ -186,6 +187,10 @@ router.post("/", authenticateSeller, async (req, res) => {
     if (!created) {
       throw new Error("Unable to generate a unique voucher code.");
     }
+    await logSellerAudit(req.user, {
+      action: "CREATE_VOUCHER",
+      information: `Voucher ${code} (${discountType}) was created, valid ${startsOn} through ${expiresOn}.`,
+    });
     res.status(201).json({
       voucher_id: voucherId,
       code,

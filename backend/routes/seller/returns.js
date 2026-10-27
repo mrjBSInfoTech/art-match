@@ -2,6 +2,7 @@ import express from "express";
 import db from "../../database/db.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { listReturnRequests, transitionReturnRequest, ReturnError } from "../../utils/returns.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 router.use(authenticateSeller);
@@ -30,7 +31,23 @@ router.get("/:id", handle(async (req, res) => {
 
 for (const action of ["approve", "reject", "receive"]) {
   router.put(`/:id/${action}`, handle(async (req, res) => {
-    res.json(await transitionReturnRequest("seller", req.user.student_id, req.params.id, action, req.body));
+    const result = await transitionReturnRequest(
+      "seller",
+      req.user.student_id,
+      req.params.id,
+      action,
+      req.body,
+    );
+    const actionLabel = {
+      approve: "approved",
+      reject: "rejected",
+      receive: "marked received",
+    }[action];
+    await logSellerAudit(req.user, {
+      action: `RETURN_${action.toUpperCase()}`,
+      information: `Return request ID ${req.params.id} was ${actionLabel}.`,
+    });
+    res.json(result);
   }));
 }
 

@@ -12,6 +12,7 @@ import {
   validateParcelPhotoCount,
 } from "../../utils/parcelShipment.js";
 import { attachOrderReturns } from "../../utils/returns.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 const parcelPhotoTypes = new Map([
@@ -209,7 +210,7 @@ router.put(
       connection = await db.promise().getConnection();
       await connection.beginTransaction();
       const [orders] = await connection.query(
-        `SELECT status, customer_id, parcel_photos, tracking_url, handling_instructions,
+        `        SELECT status, customer_id, total_amount, payment_status, parcel_photos, tracking_url, handling_instructions,
                 payment_method, payment_status, paid_at
          FROM marketplace_order
          WHERE order_id = ? AND seller_id = ?
@@ -350,6 +351,14 @@ router.put(
 
       await connection.commit();
       await createOrderStatusNotification(orderId, order.customer_id, requestedStatus, Boolean(trackingUrl));
+      const resultingPaymentStatus =
+        order.payment_method === "cod" && requestedStatus === "Delivered"
+          ? "Paid"
+          : order.payment_status;
+      await logSellerAudit(req.user, {
+        action: "UPDATE_ORDER_STATUS",
+        information: `Order AM-${String(orderId).padStart(6, "0")} changed from ${order.status} to ${requestedStatus} (total PHP ${Number(order.total_amount).toFixed(2)}, payment ${resultingPaymentStatus}).`,
+      });
       return res.json({
         message: "Order status updated",
         status: requestedStatus,

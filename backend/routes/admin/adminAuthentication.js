@@ -7,6 +7,20 @@ import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 
 const router = express.Router();
 
+const auditAdminPasswordChange = async (req, status, information) => {
+  try {
+    await logAudit({
+      action: "CHANGE_PASSWORD",
+      actor: req.user?.username || req.user?.admin_id,
+      role: req.user?.role || "Admin",
+      status,
+      information,
+    });
+  } catch (auditError) {
+    console.error("Unable to record admin password change audit:", auditError.message);
+  }
+};
+
 // Login route
 router.post("/login", (req, res) => {
   const { username, password } = req.body;
@@ -199,12 +213,22 @@ router.put("/change-password", authenticateAdmin, async (req, res) => {
   const adminId = req.user?.admin_id;
 
   if (!adminId || !currentPassword || !newPassword) {
+    await auditAdminPasswordChange(
+      req,
+      "FAILED",
+      "Admin password change was attempted without the required password values.",
+    );
     return res.status(400).json({
       message: "Current password and new password are required.",
     });
   }
 
   if (newPassword.length < 8) {
+    await auditAdminPasswordChange(
+      req,
+      "FAILED",
+      "Admin password change failed: new password is shorter than 8 characters.",
+    );
     return res.status(400).json({
       message: "New password must be at least 8 characters long.",
     });
@@ -223,6 +247,11 @@ router.put("/change-password", authenticateAdmin, async (req, res) => {
     });
 
     if (!user) {
+      await auditAdminPasswordChange(
+        req,
+        "FAILED",
+        "Admin password change failed: account was not found.",
+      );
       return res.status(404).json({ message: "Admin account not found." });
     }
 
@@ -231,12 +260,22 @@ router.put("/change-password", authenticateAdmin, async (req, res) => {
       user.password,
     );
     if (!currentPasswordMatches) {
+      await auditAdminPasswordChange(
+        req,
+        "FAILED",
+        "Admin password change failed: current password was incorrect.",
+      );
       return res
         .status(401)
         .json({ message: "Current password is incorrect." });
     }
 
     if (currentPassword === newPassword) {
+      await auditAdminPasswordChange(
+        req,
+        "FAILED",
+        "Admin password change failed: new password matched the current password.",
+      );
       return res.status(400).json({
         message: "New password must be different from the current password.",
       });
@@ -251,12 +290,22 @@ router.put("/change-password", authenticateAdmin, async (req, res) => {
       );
     });
 
+    await auditAdminPasswordChange(
+      req,
+      "SUCCESS",
+      "Admin password was changed successfully.",
+    );
     res.json({
       message: "Password changed successfully.",
       password_changed: 1,
     });
   } catch (error) {
     console.error("Error changing admin password:", error);
+    await auditAdminPasswordChange(
+      req,
+      "FAILED",
+      `Admin password change failed: ${error.message || "Unexpected error"}`,
+    );
     res.status(500).json({ message: "Unable to change password." });
   }
 });

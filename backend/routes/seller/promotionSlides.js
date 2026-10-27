@@ -16,6 +16,7 @@ import {
   updateStudentPromotionSlide,
 } from "../../database/promotionSlides.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 import { deleteFromB2, uploadToB2 } from "../../utils/b2Storage.js";
 
 const router = express.Router();
@@ -254,6 +255,10 @@ const saveStudentSlide = async (req, res) => {
     if (uploadedKey && previous?.image_key !== uploadedKey) {
       await cleanImage(previous?.image_key);
     }
+    await logSellerAudit(req.user, {
+      action: req.slideId ? "UPDATE_PROMOTION_SLIDE" : "CREATE_PROMOTION_SLIDE",
+      information: `Promotion slide "${slide.title}" was ${req.slideId ? "updated" : "created"}.`,
+    });
     res.status(req.slideId ? 200 : 201).json(serializeSlide(slide));
   } catch (error) {
     if (connection && !committed) await connection.rollback().catch(() => {});
@@ -327,6 +332,10 @@ router.post(
         },
       });
       await connection.commit();
+      await logSellerAudit(req.user, {
+        action: "REQUEST_PROMOTION_REVIEW",
+        information: `Promotion slide "${updated.title}" was submitted for admin review.`,
+      });
       res.json(serializeSlide(updated));
     } catch (error) {
       if (connection) await connection.rollback().catch(() => {});
@@ -389,6 +398,10 @@ router.post(
         },
       });
       await connection.commit();
+      await logSellerAudit(req.user, {
+        action: "WITHDRAW_PROMOTION_REVIEW",
+        information: `The review request for promotion slide "${updated.title}" was withdrawn.`,
+      });
       res.json(serializeSlide(updated));
     } catch (error) {
       if (connection) await connection.rollback().catch(() => {});
@@ -452,6 +465,10 @@ router.delete(
       await setPromotionSlideOrder(connection);
       await connection.commit();
       await cleanImage(slide.image_key);
+      await logSellerAudit(req.user, {
+        action: "DELETE_PROMOTION_SLIDE",
+        information: `Promotion slide "${slide.title}" was deleted.`,
+      });
       res.json({ message: "Promotion slide deleted.", slide_id: req.slideId });
     } catch (error) {
       if (connection) await connection.rollback().catch(() => {});

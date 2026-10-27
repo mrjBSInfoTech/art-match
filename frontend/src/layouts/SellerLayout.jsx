@@ -329,7 +329,7 @@ function SellerLayoutContent() {
     },
     {
       segment: "audit-logs",
-      title: "Audit Logs",
+      title: "My Activity",
       icon: <HistoryIcon />,
       pattern: "/seller/audit-logs",
     },

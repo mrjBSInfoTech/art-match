@@ -210,21 +210,31 @@ const pruneWatermarkCache = () => {
   }
 };
 
-export const getWatermarkedArtwork = async (filename, customerId = null) => {
+export const getWatermarkedArtwork = async (
+  filename,
+  customerId = null,
+  variant = DEFAULT_ARTWORK_VARIANT,
+) => {
   if (!filename || path.basename(filename) !== filename) {
     const error = new Error("Invalid artwork image.");
     error.status = 400;
     throw error;
   }
 
+  if (!isArtworkVariant(variant)) {
+    const error = new Error("Invalid artwork image variant.");
+    error.status = 400;
+    throw error;
+  }
+
   const code = customerId ? await getWatermarkCode(customerId) : "GUEST";
-  const cacheKey = `${filename}:${code}`;
+  const cacheKey = `${filename}:${variant}:${code}`;
   let result = watermarkCache.get(cacheKey);
   if (!result || result.expiresAt <= Date.now()) {
     let pending = imageInFlight.get(cacheKey);
     if (!pending) {
-      pending = readSourceImageOnce(filename)
-        .then((source) => renderWatermarkedArtwork(source, code))
+      pending = readDerivative(filename, variant)
+        .then((derivative) => renderWatermarkedArtwork(derivative, code))
         .finally(() => imageInFlight.delete(cacheKey));
       imageInFlight.set(cacheKey, pending);
     }

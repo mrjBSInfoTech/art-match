@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { getSellerCertificate, publishCertificate, CertificateError } from "../../utils/certificates.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 const upload = multer({
@@ -51,6 +52,10 @@ router.post("/", parseCertificateUpload, async (req, res) => {
       req.body.certificate_id,
       svg,
     );
+    await logSellerAudit(req.user, {
+      action: "PUBLISH_CERTIFICATE",
+      information: `Certificate ${certificate.certificateId} was published for artwork ID ${certificate.artworkId}.`,
+    });
     return res.status(201).json(certificate);
   } catch (error) {
     return handleError(res, error);

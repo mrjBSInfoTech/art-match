@@ -3,6 +3,7 @@ import db from "../../database/db.js";
 import { getPayMongoMode, verifyPayMongoSignature } from "../../utils/paymongo.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
+import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 
@@ -35,11 +36,18 @@ router.post("/webhook", async (req, res) => {
       recordInteraction: recordRecommendationInteraction,
     });
     await connection.commit();
+    const { sellerTransactions = [], ...responseResult } = result;
+    for (const sale of sellerTransactions) {
+      await logSellerAudit({ student_id: sale.sellerId }, {
+        action: "SALE_PAYMENT_RECEIVED",
+        information: `Payment was confirmed for order AM-${String(sale.orderId).padStart(6, "0")} (PHP ${Number(sale.totalAmount).toFixed(2)}; reference ${sale.paymentReference}).`,
+      });
+    }
     console.log("PayMongo payment confirmed:", session.attributes.reference_number, session.id);
     if (result.requires_refund_review) {
       console.warn("Paid checkout requires refund review:", session.attributes.reference_number);
     }
-    return res.json({ received: true, ...result });
+    return res.json({ received: true, ...responseResult });
   } catch (error) {
     if (connection) await connection.rollback().catch(() => {});
     console.error("PayMongo webhook processing failed:", error.code || error.name);
