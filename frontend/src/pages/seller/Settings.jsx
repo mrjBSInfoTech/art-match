@@ -5,7 +5,12 @@ import {
   Box,
   Button,
   CircularProgress,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   TextField,
   Typography,
   Snackbar,
@@ -16,19 +21,22 @@ import ChangeInfoProfile from "../../components/seller/Settings/ChangeInfoProfil
 import ChangeProfileImage from "../../components/seller/Settings/ChangeProfileImage";
 import {
   updateSeller,
+  getSellerProfile,
   verifyPassword,
   changePassword,
 } from "../../api/seller/sellerAPI";
+import {
+  getMissingSellerProfileFields,
+  requiredSellerProfileFields,
+} from "../../utils/sellerProfile";
 import {
   fetchStorefront,
   saveStorefront,
 } from "../../api/seller/storefrontAPI";
 // Icons
-import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
-import BackupIcon from "@mui/icons-material/Backup";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
 
@@ -36,6 +44,23 @@ import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
 }
+
+const normalizeDateInput = (value) => {
+  const stringValue = String(value || "");
+  if (/^\d{4}-\d{2}-\d{2}/.test(stringValue)) {
+    return stringValue.slice(0, 10);
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "" : date.toISOString().slice(0, 10);
+};
+
+const courseOptions = [
+  "Bachelor of Science in Architecture",
+  "Bachelor of Science in Fine Arts",
+  "Bachelor of Science in Interior Design",
+  "Bachelor of Fine Arts in Visual Communication",
+  "Bachelor of Fine Arts in Painting",
+];
 
 export default function Settings() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -46,8 +71,21 @@ export default function Settings() {
     first_name: "",
     middle_name: "",
     last_name: "",
+    birthdate: "",
     email: "",
+    address: "",
+    phone_number: "",
+    year_level: "",
+    student_number: "",
+    course: "",
+    cor: "",
   });
+  const [corFile, setCorFile] = useState(null);
+  const [loadingAccountInformation, setLoadingAccountInformation] =
+    useState(true);
+  const [accountInformationError, setAccountInformationError] = useState("");
+  const [accountInformationValidationError, setAccountInformationValidationError] =
+    useState("");
   const [savingAccountInformation, setSavingAccountInformation] =
     useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -62,13 +100,80 @@ export default function Settings() {
   const [aboutError, setAboutError] = useState("");
 
   useEffect(() => {
-    // Load account information from localStorage
-    setAccountInformation({
-      first_name: localStorage.getItem("seller_first_name") || "",
-      middle_name: localStorage.getItem("seller_middle_name") || "",
-      last_name: localStorage.getItem("seller_last_name") || "",
-      email: localStorage.getItem("seller_email") || "",
-    });
+    let active = true;
+    getSellerProfile()
+      .then((profile) => {
+        if (!active) return;
+        const fields = [
+          "first_name",
+          "middle_name",
+          "last_name",
+          "birthdate",
+          "email",
+          "address",
+          "phone_number",
+          "year_level",
+          "student_number",
+          "course",
+          "cor",
+        ];
+        const nextInformation = Object.fromEntries(
+          fields.map((field) => [
+            field,
+            field === "birthdate"
+              ? normalizeDateInput(profile[field])
+              : String(
+                  field === "course"
+                    ? profile.course ||
+                        localStorage.getItem("seller_course") ||
+                        ""
+                    : profile[field] || "",
+                ),
+          ]),
+        );
+        setAccountInformation(nextInformation);
+        fields.forEach((field) =>
+          localStorage.setItem(`seller_${field}`, nextInformation[field]),
+        );
+        setAccountInformationError("");
+      })
+      .catch((error) => {
+        if (active) {
+          setAccountInformation(
+            Object.fromEntries(
+              [
+                "first_name",
+                "middle_name",
+                "last_name",
+                "birthdate",
+                "email",
+                "address",
+                "phone_number",
+                "year_level",
+                "student_number",
+                "course",
+                "cor",
+              ].map((field) => [
+                field,
+                field === "birthdate"
+                  ? normalizeDateInput(
+                      localStorage.getItem(`seller_${field}`),
+                    )
+                  : localStorage.getItem(`seller_${field}`) || "",
+              ]),
+            ),
+          );
+          setAccountInformationError(
+            `Unable to refresh your account information: ${error.message || "Unknown error"}. Showing saved sign-in details.`,
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingAccountInformation(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -127,20 +232,39 @@ export default function Settings() {
   const handleAccountInformationChange = (event) => {
     const { name, value } = event.target;
     setAccountInformation((current) => ({ ...current, [name]: value }));
+    setAccountInformationValidationError("");
+  };
+
+  const handleCORChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAccountInformationValidationError("Upload an image file for your COR.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAccountInformationValidationError("The COR image must be 2 MB or smaller.");
+      return;
+    }
+    setCorFile(file);
+    setAccountInformationValidationError("");
   };
 
   const handleSaveAccountInformation = () => {
     const sellerId = localStorage.getItem("seller_student_id");
-    const requiredFields = [
-      accountInformation.first_name,
-      accountInformation.last_name,
-      accountInformation.email,
-    ];
-
-    if (!sellerId || requiredFields.some((value) => !String(value).trim())) {
-      showSnackbar(
-        "Please fill in your first name, last name, and email.",
-        "error",
+    if (!sellerId) {
+      setAccountInformationValidationError("Seller account not found. Please sign in again.");
+      return;
+    }
+    if (accountInformationValidationError) return;
+    const missingFields = getMissingSellerProfileFields({
+      ...accountInformation,
+      cor: corFile?.name || accountInformation.cor,
+    });
+    if (missingFields.length) {
+      setAccountInformationValidationError(
+        `Complete these fields before saving: ${missingFields.join(", ")}.`,
       );
       return;
     }
@@ -180,15 +304,41 @@ export default function Settings() {
     try {
       setSavingAccountInformation(true);
       await verifyPassword(confirmationPassword);
-      await updateSeller(localStorage.getItem("seller_student_id"), {
+      const profileFields = requiredSellerProfileFields
+        .map(({ key }) => key)
+        .concat("middle_name");
+      const updateData = corFile ? new FormData() : {};
+      profileFields
+        .filter((field) => field !== "cor")
+        .forEach((field) => {
+          if (updateData instanceof FormData) {
+            updateData.append(field, accountInformation[field].trim());
+          } else {
+            updateData[field] = accountInformation[field].trim();
+          }
+        });
+      if (corFile) updateData.append("cor", corFile);
+      const saved = await updateSeller(
+        localStorage.getItem("seller_student_id"),
+        updateData,
+      );
+      const savedInformation = {
         ...accountInformation,
-      });
-      Object.entries(accountInformation).forEach(([key, value]) => {
-        localStorage.setItem(`seller_${key}`, value.trim());
+        cor: saved.cor || corFile?.name || accountInformation.cor,
+      };
+      setAccountInformation(savedInformation);
+      setCorFile(null);
+      profileFields.forEach((key) => {
+        localStorage.setItem(
+          `seller_${key}`,
+          String(savedInformation[key] || "").trim(),
+        );
       });
       setPasswordDialogOpen(false);
       setConfirmationPassword("");
       window.dispatchEvent(new Event("seller-profile-updated"));
+      setAccountInformationError("");
+      setAccountInformationValidationError("");
       showSnackbar("Account information updated successfully", "success");
     } catch (error) {
       setPasswordVerificationError(
@@ -211,7 +361,7 @@ export default function Settings() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
@@ -356,10 +506,26 @@ export default function Settings() {
               Account Information
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Update the information associated with your seller account.
+              Complete your student information here. All fields except middle
+              name are required before you can add new artwork.
             </Typography>
           </Box>
         </Box>
+        {accountInformationError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {accountInformationError}
+          </Alert>
+        )}
+        {accountInformationValidationError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {accountInformationValidationError}
+          </Alert>
+        )}
+        {loadingAccountInformation && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
         <Box
           sx={{
             display: "grid",
@@ -372,21 +538,33 @@ export default function Settings() {
             name="first_name"
             value={accountInformation.first_name}
             onChange={handleAccountInformationChange}
-            disabled={savingAccountInformation}
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
           />
           <TextField
             label="Last Name"
             name="last_name"
             value={accountInformation.last_name}
             onChange={handleAccountInformationChange}
-            disabled={savingAccountInformation}
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
           />
           <TextField
             label="Middle Name"
             name="middle_name"
             value={accountInformation.middle_name}
             onChange={handleAccountInformationChange}
-            disabled={savingAccountInformation}
+            disabled={loadingAccountInformation || savingAccountInformation}
+          />
+          <TextField
+            label="Birthdate"
+            name="birthdate"
+            type="date"
+            value={normalizeDateInput(accountInformation.birthdate)}
+            onChange={handleAccountInformationChange}
+            required
+            InputLabelProps={{ shrink: true }}
+            disabled={loadingAccountInformation || savingAccountInformation}
           />
           <TextField
             label="Email"
@@ -394,14 +572,112 @@ export default function Settings() {
             type="email"
             value={accountInformation.email}
             onChange={handleAccountInformationChange}
-            disabled={savingAccountInformation}
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
           />
+          <TextField
+            label="Phone Number"
+            name="phone_number"
+            type="tel"
+            value={accountInformation.phone_number}
+            onChange={handleAccountInformationChange}
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
+          />
+          <TextField
+            label="Address"
+            name="address"
+            value={accountInformation.address}
+            onChange={handleAccountInformationChange}
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
+            sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}
+          />
+          <TextField
+            label="Student Number"
+            name="student_number"
+            value={accountInformation.student_number}
+            onChange={handleAccountInformationChange}
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
+          />
+          <FormControl
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
+          >
+            <InputLabel id="seller-settings-year-level-label">
+              Year Level
+            </InputLabel>
+            <Select
+              labelId="seller-settings-year-level-label"
+              name="year_level"
+              label="Year Level"
+              value={accountInformation.year_level}
+              onChange={handleAccountInformationChange}
+            >
+              <MenuItem value="First Year">First Year</MenuItem>
+              <MenuItem value="Second Year">Second Year</MenuItem>
+              <MenuItem value="Third Year">Third Year</MenuItem>
+              <MenuItem value="Fourth Year">Fourth Year</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl
+            required
+            disabled={loadingAccountInformation || savingAccountInformation}
+          >
+            <InputLabel id="seller-settings-course-label">Course</InputLabel>
+            <Select
+              labelId="seller-settings-course-label"
+              name="course"
+              label="Course"
+              value={accountInformation.course}
+              onChange={handleAccountInformationChange}
+            >
+              {accountInformation.course &&
+                !courseOptions.includes(accountInformation.course) && (
+                  <MenuItem value={accountInformation.course}>
+                    {accountInformation.course}
+                  </MenuItem>
+                )}
+              {courseOptions.map((course) => (
+                <MenuItem key={course} value={course}>
+                  {course}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+              Certificate of Registration (COR)
+            </Typography>
+            <Button
+              component="label"
+              variant="outlined"
+              startIcon={<CloudUploadIcon />}
+              disabled={loadingAccountInformation || savingAccountInformation}
+            >
+              {corFile ? "Change COR image" : "Upload COR image"}
+              <input
+                hidden
+                type="file"
+                accept="image/*"
+                onChange={handleCORChange}
+              />
+            </Button>
+            <FormHelperText>
+              {corFile
+                ? `Selected: ${corFile.name}`
+                : accountInformation.cor
+                  ? `Current file: ${accountInformation.cor}`
+                  : "Optional. Image file up to 2 MB."}
+            </FormHelperText>
+          </Box>
         </Box>
         <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
           <Button
             variant="contained"
             onClick={handleSaveAccountInformation}
-            disabled={savingAccountInformation}
+            disabled={loadingAccountInformation || savingAccountInformation}
             sx={{
               mt: 3,
               color: "#fff",

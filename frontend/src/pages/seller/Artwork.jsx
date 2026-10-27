@@ -1,4 +1,11 @@
-import { createElement, useState, useEffect, useMemo } from "react";
+import {
+  createElement,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
+import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -24,8 +31,10 @@ import ArtworkCard from "../../components/seller/Artwork/ArtworkCard";
 import ArtworkForm from "../../components/seller/Artwork/ArtworkForm";
 import ArtworkDelete from "../../components/seller/Artwork/ArtworkDelete";
 import ArtworkVerify from "../../components/seller/Artwork/ArtworkVerify";
-import ArtworkErrorAdd from "../../components/seller/Artwork/ArtworkErrorAdd";
 import ArtworkConfirm from "../../components/seller/Artwork/ArtworkConfirm";
+import ArtworkWarning from "../../components/seller/Artwork/ArtworkWarning";
+import { getSellerProfile } from "../../api/seller/sellerAPI";
+import { getMissingSellerProfileFields } from "../../utils/sellerProfile";
 import {
   fetchArtworks,
   addArtwork,
@@ -47,6 +56,7 @@ function SlideTransition(props) {
 
 export default function Artwork() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [artworks, setArtworks] = useState([]);
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [pendingArtwork, setPendingArtwork] = useState(null);
@@ -54,6 +64,11 @@ export default function Artwork() {
   const [openArtworkDelete, setOpenArtworkDelete] = useState(false);
   const [openArtworkVerify, setOpenArtworkVerify] = useState(false);
   const [openArtworkErrorAdd, setOpenArtworkErrorAdd] = useState(false);
+  const [artworkWarningReason, setArtworkWarningReason] =
+    useState("unverified");
+  const [sellerProfile, setSellerProfile] = useState(null);
+  const [sellerProfileLoading, setSellerProfileLoading] = useState(true);
+  const [sellerProfileError, setSellerProfileError] = useState("");
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -64,6 +79,21 @@ export default function Artwork() {
   const [sortOption, setSortOption] = useState("az");
   const [priceOption, setPriceOption] = useState("lthPrice");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const loadSellerProfile = useCallback(async () => {
+    setSellerProfileLoading(true);
+    setSellerProfileError("");
+    try {
+      setSellerProfile(await getSellerProfile());
+    } catch (error) {
+      setSellerProfile(null);
+      setSellerProfileError(
+        error.message || "Unable to load your seller account information.",
+      );
+    } finally {
+      setSellerProfileLoading(false);
+    }
+  }, []);
 
   const filteredArtworks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -148,16 +178,39 @@ export default function Artwork() {
     loadArtworks();
   }, []);
 
+  useEffect(() => {
+    loadSellerProfile();
+    window.addEventListener("seller-profile-updated", loadSellerProfile);
+    return () =>
+      window.removeEventListener("seller-profile-updated", loadSellerProfile);
+  }, [loadSellerProfile]);
+
   // ========== ARTWORK HANDLERS ==========
   // ➕ Open Add Artwork Modal
   const handleOpenArtworkAdd = () => {
     setSelectedArtwork(null);
     setPendingArtwork(null);
-    if (isVerified) {
-      setOpenArtworkForm(true);
-    } else {
+    if (sellerProfileLoading) {
+      setArtworkWarningReason("loading");
       handleOpenArtworkErrorAdd();
+      return;
     }
+    if (sellerProfileError || !sellerProfile) {
+      setArtworkWarningReason("profile-error");
+      handleOpenArtworkErrorAdd();
+      return;
+    }
+    if (getMissingSellerProfileFields(sellerProfile).length) {
+      setArtworkWarningReason("incomplete");
+      handleOpenArtworkErrorAdd();
+      return;
+    }
+    if (!isVerified) {
+      setArtworkWarningReason("unverified");
+      handleOpenArtworkErrorAdd();
+      return;
+    }
+    setOpenArtworkForm(true);
   };
 
   // ✅ Open Confirm Artwork Modal
@@ -655,9 +708,13 @@ export default function Artwork() {
         onSubmit={handleVerifyArtwork}
         selectedArtwork={selectedArtwork}
       />
-      <ArtworkErrorAdd
+      <ArtworkWarning
         open={openArtworkErrorAdd}
         handleClose={() => setOpenArtworkErrorAdd(false)}
+        navigate={navigate}
+        reason={artworkWarningReason}
+        missingFields={getMissingSellerProfileFields(sellerProfile || {})}
+        profileError={sellerProfileError}
       />
       {/* Snackbar Notification */}
       <Snackbar

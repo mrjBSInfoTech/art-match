@@ -86,25 +86,54 @@ export default function VoucherGeneration() {
   };
 
   return (
-    <>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: (theme) => theme.palette.background.default,
+        color: (theme) => theme.palette.text.primary,
+      }}
+    >
       <Helmet>
         <title>Voucher Generation | Red Nexus Seller</title>
       </Helmet>
-      <Box sx={{ width: "100%", minWidth: 0, flex: 1, boxSizing: "border-box" }}>
-        <Stack spacing={3} sx={{ width: "100%", minHeight: "100%" }}>
-          <Box>
-            <Typography variant="h4" fontWeight={700}>
-              Voucher Generation
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              Create shop-only discount codes for your customers.
-            </Typography>
-          </Box>
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          Voucher Generation
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Create shop-only discount codes for your customers.
+        </Typography>
+      </Box>
 
-          {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      )}
 
-          <Card>
-            <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+      <Card
+        variant="outlined"
+        sx={{
+          mt: 3,
+          borderRadius: 4,
+          borderColor: "divider",
+          background: (theme) =>
+            theme.palette.mode === "dark"
+              ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+              : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+          boxShadow: (theme) =>
+            theme.palette.mode === "dark"
+              ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+              : "0 18px 36px rgba(15, 23, 42, 0.08)",
+        }}
+      >
+          <CardContent
+            sx={{
+              p: { xs: 2, md: 3 },
+              "&:last-child": { pb: { xs: 2, md: 3 } },
+            }}
+          >
               <Stack
                 direction="row"
                 spacing={1}
@@ -317,22 +346,20 @@ export default function VoucherGeneration() {
                   </Button>
                 </Box>
               </Box>
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
 
-          {!loading && artworks.length === 0 && (
-            <Alert severity="info">
-              Add listings to your shop to make a voucher eligible for specific items.
-            </Alert>
-          )}
-        </Stack>
-      </Box>
+      {!loading && artworks.length === 0 && (
+        <Alert severity="info" sx={{ mt: 3 }}>
+          Add listings to your shop to make a voucher eligible for specific items.
+        </Alert>
+      )}
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={6000}
         onClose={() => setNotice("")}
         message={notice}
       />
-    </>
+    </Box>
   );
 }

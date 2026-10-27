@@ -227,38 +227,58 @@ export default function CertificateOfAuthenticity() {
   });
 
   return (
-    <>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: (theme) => theme.palette.background.default,
+        color: (theme) => theme.palette.text.primary,
+      }}
+    >
       <Helmet>
         <title>Certificate of Authenticity | Red Nexus Seller</title>
       </Helmet>
-      <Box sx={{ width: "100%", minWidth: 0, flex: 1, boxSizing: "border-box" }}>
-        <Stack spacing={2.5}>
-          <Box>
-            <Typography variant="h4" fontWeight={700}>
-              Certificate of Authenticity
-            </Typography>
-            <Typography color="text.secondary">
-              Create a certificate for a platform-approved artwork from your shop.
-            </Typography>
+      <Stack spacing={2.5}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+            Certificate of Authenticity
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Create a certificate for a platform-approved artwork from your shop.
+          </Typography>
+        </Box>
+        {error && <Alert severity="error">{error}</Alert>}
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
+            <CircularProgress />
           </Box>
-          {error && <Alert severity="error">{error}</Alert>}
-          {loading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  xl: "minmax(320px, 0.8fr) minmax(0, 1.4fr)",
-                },
-                gap: 2.5,
-                alignItems: "start",
-              }}
-            >
-              <Card>
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                xl: "minmax(320px, 0.8fr) minmax(0, 1.4fr)",
+              },
+              gap: 2.5,
+              alignItems: "start",
+            }}
+          >
+              <Card
+                variant="outlined"
+                sx={{
+                  borderRadius: 4,
+                  borderColor: "divider",
+                  background: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                      : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                  boxShadow: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                      : "0 18px 36px rgba(15, 23, 42, 0.08)",
+                }}
+              >
                 <CardContent sx={{ p: { xs: 2, md: 3 } }}>
                   <Stack spacing={2}>
                     <Box>
@@ -349,6 +369,7 @@ export default function CertificateOfAuthenticity() {
                         component="label"
                         variant="outlined"
                         size="small"
+                        fullWidth
                         sx={{ mt: 1.5 }}
                       >
                         {template ? "Change template" : "Upload template"}
@@ -380,6 +401,8 @@ export default function CertificateOfAuthenticity() {
                       sx={{
                         bgcolor: "#941b27",
                         "&:hover": { bgcolor: "#78151f" },
+                        color:"#fff",
+                        fontWeight:"bold"
                       }}
                     >
                       Download certificate (SVG)
@@ -398,10 +421,20 @@ export default function CertificateOfAuthenticity() {
                   </Typography>
                 </Box>
                 <Card
+                  variant="outlined"
                   sx={{
                     p: { xs: 1, sm: 2 },
                     minWidth: 0,
-                    bgcolor: "#f8fafc",
+                    borderRadius: 4,
+                    borderColor: "divider",
+                    background: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                        : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                    boxShadow: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                        : "0 18px 36px rgba(15, 23, 42, 0.08)",
                   }}
                 >
                   <Box
@@ -421,10 +454,9 @@ export default function CertificateOfAuthenticity() {
                   Red Nexus certificate • {storeName}
                 </Typography>
               </Stack>
-            </Box>
-          )}
-        </Stack>
-      </Box>
-    </>
+          </Box>
+        )}
+      </Stack>
+    </Box>
   );
 }

@@ -115,7 +115,9 @@ export default function PromotionSlides() {
       })
       .catch((error) => {
         if (active) {
-          setNotice(error.message || "Unable to load the default hero setting.");
+          setNotice(
+            error.message || "Unable to load the default hero setting.",
+          );
           setNoticeSeverity("error");
         }
       })
@@ -205,9 +207,7 @@ export default function PromotionSlides() {
       setDialogOpen(false);
       setSelectedSlide(null);
       setNotice(
-        selectedSlide
-          ? "Promotion slide updated."
-          : "Promotion slide created.",
+        selectedSlide ? "Promotion slide updated." : "Promotion slide created.",
       );
       setNoticeSeverity("success");
       await loadSlides();
@@ -330,34 +330,59 @@ export default function PromotionSlides() {
   };
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minHeight: "100vh" }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: (theme) => theme.palette.background.default,
+        color: (theme) => theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Promotion Slides</title>
       </Helmet>
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "stretch", sm: "center" }}
-        spacing={2}
-        sx={{ mb: 2.5 }}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: 2,
+          mb: 2,
+        }}
       >
         <Box>
-          <Typography variant="h4" fontWeight={800}>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: "text.primary",
+            }}
+          >
             Promotion Slides
           </Typography>
-          <Typography color="text.secondary">
+          <Typography sx={{ mt: 0.75, color: "text.secondary", fontSize: 13 }}>
             Create and order the promotions shown in the Buyer Panel.
           </Typography>
         </Box>
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ alignSelf: { xs: "flex-start", sm: "auto" } }}
+        <Box
+          sx={{ display: "flex", gap: 1, width: { xs: "100%", sm: "auto" } }}
         >
           {canEdit && (
             <Button
               variant="outlined"
               onClick={() => setReviewDialogOpen(true)}
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                height: { xs: 38, sm: 44 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+                borderRadius: 1.5,
+                textTransform: "none",
+                fontWeight: 700,
+              }}
             >
               Review{slideRequests.length ? ` (${slideRequests.length})` : ""}
             </Button>
@@ -365,193 +390,237 @@ export default function PromotionSlides() {
           {canAdd && (
             <Button
               variant="contained"
+              color="error"
               startIcon={<AddIcon />}
               onClick={openCreate}
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                height: { xs: 38, sm: 44 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+                borderRadius: 1.5,
+                textTransform: "none",
+                fontWeight: 700,
+              }}
             >
               Add slide
             </Button>
           )}
-        </Stack>
-      </Stack>
+        </Box>
+      </Box>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8, mt: 3 }}>
           <CircularProgress />
         </Box>
       ) : loadError ? (
         <Alert
           severity="error"
           action={<Button onClick={loadSlides}>Retry</Button>}
+          sx={{ mt: 3 }}
         >
           {loadError}
         </Alert>
       ) : (
         <>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(3, minmax(0, 1fr))",
-            },
-            gap: 2,
-          }}
-        >
-          <Card
-            variant="outlined"
+          <Box
             sx={{
-              overflow: "hidden",
-              borderRadius: 2.5,
-              gridColumn: { md: "1 / -1" },
-              borderColor: heroEnabled ? "success.main" : "divider",
+              mt: 3,
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 2,
             }}
           >
-            <CardContent>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                alignItems={{ xs: "stretch", sm: "center" }}
-                justifyContent="space-between"
-                spacing={2}
-              >
-                <Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="h6" fontWeight={700}>
-                      Default Buyer Panel Hero
+            <Card
+              variant="outlined"
+              sx={{
+                overflow: "hidden",
+                borderRadius: 4,
+                gridColumn: { md: "1 / -1" },
+                borderColor: heroEnabled ? "success.main" : "divider",
+                background: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
+              }}
+            >
+              <CardContent>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  alignItems={{ xs: "stretch", sm: "center" }}
+                  justifyContent="space-between"
+                  spacing={2}
+                >
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="h6" fontWeight={700}>
+                        Default Buyer Panel Hero
+                      </Typography>
+                      <Chip size="small" label="Position 1" color="primary" />
+                      <Chip
+                        size="small"
+                        label={heroEnabled ? "Enabled" : "Disabled"}
+                        color={heroEnabled ? "success" : "default"}
+                      />
+                    </Stack>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.75 }}
+                    >
+                      The original Buyer Panel hero appears as the first
+                      carousel slide. Custom promotions begin at position 2.
                     </Typography>
-                    <Chip size="small" label="Position 1" color="primary" />
+                  </Box>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={heroEnabled}
+                        onChange={handleHeroChange}
+                        disabled={
+                          !canEdit || placementLoading || placementSaving
+                        }
+                      />
+                    }
+                    label={heroEnabled ? "On" : "Off"}
+                    sx={{ m: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
+                  />
+                </Stack>
+              </CardContent>
+            </Card>
+            {slides.map((slide) => (
+              <Card
+                key={slide.slide_id}
+                variant="outlined"
+                sx={{
+                  overflow: "hidden",
+                  borderRadius: 4,
+                  borderColor: "divider",
+                  background: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                      : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                  boxShadow: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                      : "0 18px 36px rgba(15, 23, 42, 0.08)",
+                }}
+              >
+                <Box
+                  component="img"
+                  src={slide.image_url || undefined}
+                  alt={slide.title}
+                  sx={{
+                    display: "block",
+                    width: "100%",
+                    height: 190,
+                    objectFit: "cover",
+                    bgcolor: "action.hover",
+                  }}
+                />
+                <CardContent>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    spacing={1}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="h6" fontWeight={700} noWrap>
+                        {slide.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Order {slide.sort_order}
+                      </Typography>
+                    </Box>
                     <Chip
                       size="small"
-                      label={heroEnabled ? "Enabled" : "Disabled"}
-                      color={heroEnabled ? "success" : "default"}
+                      label={slide.status}
+                      color={
+                        slide.status === "Published" ? "success" : "default"
+                      }
                     />
                   </Stack>
                   <Typography
                     variant="body2"
                     color="text.secondary"
-                    sx={{ mt: 0.75 }}
+                    sx={{
+                      mt: 1,
+                      minHeight: 40,
+                      overflow: "hidden",
+                      display: "-webkit-box",
+                      WebkitBoxOrient: "vertical",
+                      WebkitLineClamp: 2,
+                    }}
                   >
-                    The original Buyer Panel hero appears as the first carousel
-                    slide. Custom promotions begin at position 2.
+                    {slide.description || "No description"}
                   </Typography>
-                </Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={heroEnabled}
-                      onChange={handleHeroChange}
-                      disabled={!canEdit || placementLoading || placementSaving}
-                    />
-                  }
-                  label={heroEnabled ? "On" : "Off"}
-                  sx={{ m: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
-                />
-              </Stack>
-            </CardContent>
-          </Card>
-          {slides.map((slide) => (
-            <Card
-              key={slide.slide_id}
-              variant="outlined"
-              sx={{ overflow: "hidden", borderRadius: 2.5 }}
-            >
-              <Box
-                component="img"
-                src={slide.image_url || undefined}
-                alt={slide.title}
-                sx={{
-                  display: "block",
-                  width: "100%",
-                  height: 190,
-                  objectFit: "cover",
-                  bgcolor: "action.hover",
-                }}
-              />
-              <CardContent>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
-                  spacing={1}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="h6" fontWeight={700} noWrap>
-                      {slide.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Order {slide.sort_order}
-                    </Typography>
-                  </Box>
-                  <Chip
-                    size="small"
-                    label={slide.status}
-                    color={slide.status === "Published" ? "success" : "default"}
-                  />
-                </Stack>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    mt: 1,
-                    minHeight: 40,
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitBoxOrient: "vertical",
-                    WebkitLineClamp: 2,
-                  }}
-                >
-                  {slide.description || "No description"}
-                </Typography>
-                <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
-                  {!slide.student_id && canEdit && slide.status !== "Published" && (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      color="success"
-                      startIcon={<PublishOutlinedIcon />}
-                      onClick={() => handlePublish(slide)}
-                      disabled={publishingSlideId === slide.slide_id}
-                    >
-                      {publishingSlideId === slide.slide_id
-                        ? "Publishing..."
-                        : "Publish"}
-                    </Button>
-                  )}
-                  {canEdit && slide.status === "Published" && (
-                    <Button
-                      size="small"
-                      color="warning"
-                      onClick={() => handleUnpublish(slide)}
-                      disabled={unpublishingSlideId === slide.slide_id}
-                    >
-                      {unpublishingSlideId === slide.slide_id
-                        ? "Unpublishing..."
-                        : "Unpublish"}
-                    </Button>
-                  )}
-                  {!slide.student_id && canEdit && (
-                    <Button
-                      size="small"
-                      startIcon={<EditOutlinedIcon />}
-                      onClick={() => openEdit(slide)}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <IconButton
-                      aria-label={`Delete ${slide.title}`}
-                      color="error"
-                      onClick={() => handleDelete(slide)}
-                    >
-                      <DeleteOutlineIcon />
-                    </IconButton>
-                  )}
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
+                  <Stack
+                    direction="row"
+                    justifyContent="flex-end"
+                    spacing={1}
+                    sx={{ mt: 1 }}
+                  >
+                    {!slide.student_id &&
+                      canEdit &&
+                      slide.status !== "Published" && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          startIcon={<PublishOutlinedIcon />}
+                          onClick={() => handlePublish(slide)}
+                          disabled={publishingSlideId === slide.slide_id}
+                        >
+                          {publishingSlideId === slide.slide_id
+                            ? "Publishing..."
+                            : "Publish"}
+                        </Button>
+                      )}
+                    {canEdit && slide.status === "Published" && (
+                      <Button
+                        size="small"
+                        color="warning"
+                        onClick={() => handleUnpublish(slide)}
+                        disabled={unpublishingSlideId === slide.slide_id}
+                      >
+                        {unpublishingSlideId === slide.slide_id
+                          ? "Unpublishing..."
+                          : "Unpublish"}
+                      </Button>
+                    )}
+                    {!slide.student_id && canEdit && (
+                      <Button
+                        size="small"
+                        startIcon={<EditOutlinedIcon />}
+                        onClick={() => openEdit(slide)}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <IconButton
+                        aria-label={`Delete ${slide.title}`}
+                        color="error"
+                        onClick={() => handleDelete(slide)}
+                      >
+                        <DeleteOutlineIcon />
+                      </IconButton>
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
         </>
       )}
 
@@ -667,7 +736,11 @@ export default function PromotionSlides() {
             Cancel
           </Button>
           <Button type="submit" variant="contained" disabled={saving}>
-            {saving ? "Saving..." : selectedSlide ? "Save changes" : "Create slide"}
+            {saving
+              ? "Saving..."
+              : selectedSlide
+                ? "Save changes"
+                : "Create slide"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -684,7 +757,9 @@ export default function PromotionSlides() {
         </DialogTitle>
         <DialogContent dividers>
           {slideRequests.length === 0 ? (
-            <Alert severity="info">There are no pending promotion requests.</Alert>
+            <Alert severity="info">
+              There are no pending promotion requests.
+            </Alert>
           ) : (
             <Stack spacing={2}>
               {slideRequests.map((slide) => (
@@ -717,9 +792,17 @@ export default function PromotionSlides() {
                         <Typography variant="h6" fontWeight={700}>
                           {slide.title}
                         </Typography>
-                        <Chip size="small" color="warning" label="Pending review" />
+                        <Chip
+                          size="small"
+                          color="warning"
+                          label="Pending review"
+                        />
                       </Stack>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
                         Submitted by{" "}
                         {`${slide.first_name || ""} ${slide.last_name || ""}`.trim() ||
                           slide.student_number}
@@ -772,7 +855,10 @@ export default function PromotionSlides() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={closeReviewRequest} disabled={reviewingSlideId !== null}>
+          <Button
+            onClick={closeReviewRequest}
+            disabled={reviewingSlideId !== null}
+          >
             Close
           </Button>
         </DialogActions>

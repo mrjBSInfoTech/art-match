@@ -66,7 +66,8 @@ if (!fs.existsSync(profileUploadDir))
   fs.mkdirSync(profileUploadDir, { recursive: true });
 const profileUpload = multer({
   storage: multer.diskStorage({
-    destination: profileUploadDir,
+    destination: (req, file, cb) =>
+      cb(null, file.fieldname === "cor" ? uploadDir : profileUploadDir),
     filename: (req, file, cb) =>
       cb(
         null,
@@ -319,7 +320,7 @@ router.post("/login", (req, res) => {
 
 router.get("/me", authenticateSeller, (req, res) => {
   db.query(
-    "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, address, phone_number, year_level, course, profile_image FROM student WHERE student_id = ?",
+    "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, address, phone_number, cor, year_level, course, profile_image FROM student WHERE student_id = ?",
     [req.user.student_id],
     (err, result) => {
       if (err) return res.status(500).json({ message: "Database error" });
@@ -430,7 +431,10 @@ router.post("/verify-password", authenticateSeller, async (req, res) => {
 router.put(
   "/me",
   authenticateSeller,
-  profileUpload.single("profile_image"),
+  profileUpload.fields([
+    { name: "profile_image", maxCount: 1 },
+    { name: "cor", maxCount: 1 },
+  ]),
   async (req, res) => {
     const actor =
       req.user?.student_number ||
@@ -440,13 +444,18 @@ router.put(
     const studentId =
       req.user?.student_id;
 
+    const profileImageFile = req.files?.profile_image?.[0];
+    const corFile = req.files?.cor?.[0];
     const temporaryProfilePath =
-      req.file
+      profileImageFile
         ? path.join(
             profileUploadDir,
-            req.file.filename,
+            profileImageFile.filename,
           )
         : null;
+    const temporaryCorPath = corFile
+      ? path.join(uploadDir, corFile.filename)
+      : null;
 
     let newB2Key = null;
 
@@ -460,7 +469,7 @@ router.put(
         await new Promise(
           (resolve, reject) => {
             db.query(
-              `SELECT profile_image
+              `SELECT profile_image, cor
                FROM student
                WHERE student_id = ?
                LIMIT 1`,
@@ -490,6 +499,9 @@ router.put(
             temporaryProfilePath,
           );
         }
+        if (temporaryCorPath && fs.existsSync(temporaryCorPath)) {
+          fs.unlinkSync(temporaryCorPath);
+        }
 
         return res.status(404).json({
           message:
@@ -501,9 +513,9 @@ router.put(
        * Upload the new profile image
        * to B2 before changing the database.
        */
-      if (req.file) {
+      if (profileImageFile) {
         newB2Key =
-          `app-uploads/seller/uploadProfile/${req.file.filename}`;
+          `app-uploads/seller/uploadProfile/${profileImageFile.filename}`;
 
         try {
           await uploadToB2({
@@ -515,7 +527,7 @@ router.put(
               ),
 
             contentType:
-              req.file.mimetype ||
+              profileImageFile.mimetype ||
               "application/octet-stream",
           });
 
@@ -538,6 +550,9 @@ router.put(
             fs.unlinkSync(
               temporaryProfilePath,
             );
+          }
+          if (temporaryCorPath && fs.existsSync(temporaryCorPath)) {
+            fs.unlinkSync(temporaryCorPath);
           }
 
           await logAudit({
@@ -584,13 +599,18 @@ router.put(
             req.body[field],
         );
 
-      if (req.file) {
+      if (corFile) {
+        updates.push("cor");
+        values.push(corFile.filename);
+      }
+
+      if (profileImageFile) {
         updates.push(
           "profile_image",
         );
 
         values.push(
-          req.file.filename,
+          profileImageFile.filename,
         );
       }
 
@@ -667,10 +687,10 @@ router.put(
        * safely be deleted.
        */
       if (
-        req.file &&
+        profileImageFile &&
         currentStudent.profile_image &&
         currentStudent.profile_image !==
-          req.file.filename
+          profileImageFile.filename
       ) {
         const oldB2Key =
           `app-uploads/seller/uploadProfile/${currentStudent.profile_image}`;
@@ -714,6 +734,18 @@ router.put(
         }
       }
 
+      if (
+        corFile &&
+        currentStudent.cor &&
+        currentStudent.cor !== corFile.filename
+      ) {
+        const oldCorPath = path.join(
+          uploadDir,
+          path.basename(currentStudent.cor),
+        );
+        if (fs.existsSync(oldCorPath)) fs.unlinkSync(oldCorPath);
+      }
+
       /*
        * New image was only temporarily
        * stored locally for multer.
@@ -750,7 +782,8 @@ router.put(
           "Seller profile updated successfully.",
 
         profile_image:
-          req.file?.filename,
+          profileImageFile?.filename,
+        cor: corFile?.filename,
       });
     } catch (error) {
       console.error(
@@ -787,6 +820,9 @@ router.put(
         fs.unlinkSync(
           temporaryProfilePath,
         );
+      }
+      if (temporaryCorPath && fs.existsSync(temporaryCorPath)) {
+        fs.unlinkSync(temporaryCorPath);
       }
 
       await logAudit({

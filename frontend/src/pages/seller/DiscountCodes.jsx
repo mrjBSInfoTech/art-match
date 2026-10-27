@@ -142,50 +142,75 @@ export default function DiscountCodes() {
   };
 
   return (
-    <>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        backgroundColor: (theme) => theme.palette.background.default,
+        color: (theme) => theme.palette.text.primary,
+      }}
+    >
       <Helmet>
         <title>Discount Codes | Red Nexus Seller</title>
       </Helmet>
-      <Box sx={{ width: "100%", minWidth: 0, flex: 1, boxSizing: "border-box" }}>
-        <Stack spacing={3} sx={{ width: "100%", minHeight: "100%" }}>
-          <Box>
-            <Typography variant="h4" fontWeight={700}>
-              Discount Codes
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          Discount Codes
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Your shop vouchers, ready to copy, share, or download.
+        </Typography>
+      </Box>
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 6, mt: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : vouchers.length === 0 ? (
+        <Card
+          variant="outlined"
+          sx={{
+            mt: 3,
+            borderRadius: 4,
+            borderColor: "divider",
+            background: (theme) =>
+              theme.palette.mode === "dark"
+                ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+            boxShadow: (theme) =>
+              theme.palette.mode === "dark"
+                ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                : "0 18px 36px rgba(15, 23, 42, 0.08)",
+          }}
+        >
+          <CardContent sx={{ py: 6, textAlign: "center" }}>
+            <ConfirmationNumberOutlinedIcon
+              color="primary"
+              sx={{ fontSize: 48, mb: 1 }}
+            />
+            <Typography variant="h6" fontWeight={700}>
+              No discount codes yet
             </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              Your shop vouchers, ready to copy, share, or download.
+            <Typography color="text.secondary">
+              Create a voucher in Voucher Generation and it will appear here.
             </Typography>
-          </Box>
-          {error && <Alert severity="error">{error}</Alert>}
-          {loading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
-              <CircularProgress />
-            </Box>
-          ) : vouchers.length === 0 ? (
-            <Card>
-              <CardContent sx={{ py: 6, textAlign: "center" }}>
-                <ConfirmationNumberOutlinedIcon
-                  color="primary"
-                  sx={{ fontSize: 48, mb: 1 }}
-                />
-                <Typography variant="h6" fontWeight={700}>
-                  No discount codes yet
-                </Typography>
-                <Typography color="text.secondary">
-                  Create a voucher in Voucher Generation and it will appear here.
-                </Typography>
-              </CardContent>
-            </Card>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
-                gap: 2.5,
-                alignItems: "stretch",
-              }}
-            >
-              {vouchers.map((voucher) => (
+          </CardContent>
+        </Card>
+      ) : (
+        <Box
+          sx={{
+            mt: 3,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
+            gap: 2.5,
+            alignItems: "stretch",
+          }}
+        >
+          {vouchers.map((voucher) => (
                 <Card
                   key={voucher.voucher_id}
                   sx={{
@@ -335,17 +360,15 @@ export default function DiscountCodes() {
                     </Stack>
                   </CardContent>
                 </Card>
-              ))}
-            </Box>
-          )}
-        </Stack>
-      </Box>
+          ))}
+        </Box>
+      )}
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={4000}
         onClose={() => setNotice("")}
         message={notice}
       />
-    </>
+    </Box>
   );
 }

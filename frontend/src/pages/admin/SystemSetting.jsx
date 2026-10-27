@@ -56,7 +56,23 @@ function validateAboutContent(content) {
 
 function ContentSection({ title, description, children, action }) {
   return (
-    <Paper variant="outlined" sx={{ width: "100%", p: { xs: 2.5, md: 4 }, borderRadius: 2 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        width: "100%",
+        p: { xs: 2, sm: 2.5, md: 3 },
+        borderRadius: 4,
+        borderColor: "divider",
+        background: (theme) =>
+          theme.palette.mode === "dark"
+            ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+            : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+        boxShadow: (theme) =>
+          theme.palette.mode === "dark"
+            ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+            : "0 18px 36px rgba(15, 23, 42, 0.08)",
+      }}
+    >
       <Stack
         direction={{ xs: "column", sm: "row" }}
         alignItems={{ xs: "flex-start", sm: "center" }}
@@ -184,25 +200,86 @@ export default function SystemSetting() {
   };
 
   if (loading) {
-    return <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}><CircularProgress /></Box>;
+    return (
+      <Box
+        sx={{
+          p: { xs: 1.5, sm: 2.5 },
+          minHeight: "100vh",
+          backgroundColor: (theme) => theme.palette.background.default,
+          color: (theme) => theme.palette.text.primary,
+        }}
+      >
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>About Us</title>
+        </Helmet>
+        <Typography
+          sx={{
+            fontSize: { xs: 28, sm: 38 },
+            fontWeight: 800,
+            lineHeight: 1.1,
+          }}
+        >
+          About Us Content
+        </Typography>
+        <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
   }
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", maxWidth: "none", mx: 0, boxSizing: "border-box" }}>
-      <Helmet titleTemplate="%s - ArtMatch"><title>About Us</title></Helmet>
-      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} spacing={2} sx={{ mb: 4 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        width: "100%",
+        boxSizing: "border-box",
+        backgroundColor: (theme) => theme.palette.background.default,
+        color: (theme) => theme.palette.text.primary,
+      }}
+    >
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>About Us</title>
+      </Helmet>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "stretch", sm: "flex-start" }}
+        spacing={2}
+      >
         <Box>
-          <Typography variant="h3" fontWeight={800}>About Us Content</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: "1.05rem" }}>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: "text.primary",
+            }}
+          >
+            About Us Content
+          </Typography>
+          <Typography
+            color="text.secondary"
+            sx={{ mt: 0.75, fontSize: 13 }}
+          >
             Edit the information shown on the public About Us page.
           </Typography>
         </Box>
       </Stack>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {notice && <Alert severity="success" sx={{ mb: 2 }}>{notice}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert severity="success" sx={{ mt: 2 }}>
+          {notice}
+        </Alert>
+      )}
       {!content ? null : (
-        <Stack spacing={3}>
+        <Stack spacing={2.5} sx={{ mt: 3 }}>
           <ContentSection title="Institution profile">
             <Grid container spacing={2.5}>
               <Grid size={{ xs: 12, lg: 6 }}>
@@ -271,7 +348,19 @@ export default function SystemSetting() {
             <Grid container spacing={2}>
               {content.offerings.map((offering, index) => (
                 <Grid size={{ xs: 12, xl: 6 }} key={`offering-${index}`}>
-                  <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2.5,
+                      height: "100%",
+                      borderRadius: 3,
+                      borderColor: "divider",
+                      background: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
+                          : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                    }}
+                  >
                     <Stack direction="row" spacing={1.5} alignItems="flex-start">
                       <Stack spacing={2} sx={{ flex: 1 }}>
                         <TextField required label="Offering name" value={offering.title} onChange={(event) => updateListItem("offerings", index, "title", event.target.value)} error={hasAttemptedSave && !offering.title.trim()} helperText={hasAttemptedSave && !offering.title.trim() ? "Offering name is required." : ""} fullWidth />
@@ -311,23 +400,23 @@ export default function SystemSetting() {
           startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveRoundedIcon />}
           onClick={handleSave}
           disabled={saving}
-          sx={{
-            position: "fixed",
-            right: { xs: 16, sm: 28 },
-            bottom: { xs: 16, sm: 28 },
-            zIndex: (theme) => theme.zIndex.snackbar + 1,
-            px: 3,
-            py: 1.5,
-            borderRadius: 999,
-            boxShadow: 6,
-          }}
+            sx={{
+              position: "fixed",
+              color: "#fff",
+              right: { xs: 16, sm: 28 },
+              bottom: { xs: 16, sm: 28 },
+              zIndex: (theme) => theme.zIndex.snackbar + 1,
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+            }}
         >
           {saving ? "Saving…" : "Save changes"}
         </Button>
       )}
       <Dialog
         open={passwordDialogOpen}
-        onClose={() => {
+        onClose={() => {SystemSetting
           if (!saving) {
             setPasswordDialogOpen(false);
             setConfirmationPassword("");

@@ -9,6 +9,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import BackupIcon from "@mui/icons-material/Backup";
 import { Helmet } from "react-helmet-async";
 import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
@@ -25,6 +26,7 @@ const getTodayDateValue = () => {
 };
 
 export default function SystemSettingsPlaceholder({ title }) {
+  const theme = useTheme();
   const [expirationDate, setExpirationDate] = useState("");
   const [loadingExpiration, setLoadingExpiration] = useState(true);
   const [savingExpiration, setSavingExpiration] = useState(false);
@@ -75,17 +77,52 @@ export default function SystemSettingsPlaceholder({ title }) {
   };
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", boxSizing: "border-box" }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        width: "100%",
+        boxSizing: "border-box",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>{title}</title>
       </Helmet>
-      <Typography variant="h3" fontWeight={800}>
-        {title}
-      </Typography>
+      <Box>
+        <Typography
+          sx={{
+            fontSize: { xs: 28, sm: 38 },
+            fontWeight: 800,
+            lineHeight: 1.1,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {title}
+        </Typography>
+      </Box>
       {title === "Mechanicals" && (
-        <Stack spacing={3} sx={{ mt: 3 }}>
+        <Stack
+          spacing={2.5}
+          sx={{
+            mt: 3,
+            "& .MuiPaper-root": {
+              borderRadius: 4,
+              borderColor: "divider",
+              background: (currentTheme) =>
+                currentTheme.palette.mode === "dark"
+                  ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                  : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+              boxShadow: (currentTheme) =>
+                currentTheme.palette.mode === "dark"
+                  ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                  : "0 18px 36px rgba(15, 23, 42, 0.08)",
+            },
+          }}
+        >
           <ThemeModeSetting />
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
             <Stack
               component="form"
               onSubmit={handleSaveExpiration}
@@ -138,7 +175,7 @@ export default function SystemSettingsPlaceholder({ title }) {
               </Alert>
             )}
           </Paper>
-          <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
             <Stack
               direction={{ xs: "column", sm: "row" }}
               alignItems={{ xs: "stretch", sm: "center" }}

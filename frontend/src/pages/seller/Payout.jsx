@@ -46,15 +46,22 @@ const statusLabel = {
 function Metric({ label, value, hint, emphasis }) {
   return (
     <Card
-      elevation={0}
+      variant="outlined"
       sx={{
         height: "100%",
-        border: "1px solid",
         borderColor: emphasis ? "primary.light" : "divider",
-        borderRadius: 3,
+        borderRadius: 4,
+        background: (theme) =>
+          theme.palette.mode === "dark"
+            ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
+            : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+        boxShadow: (theme) =>
+          theme.palette.mode === "dark"
+            ? "0 20px 38px rgba(2, 6, 23, 0.28)"
+            : "0 18px 36px rgba(15, 23, 42, 0.08)",
       }}
     >
-      <CardContent>
+      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
         <Typography variant="caption" color="text.secondary" fontWeight={700}>
           {label}
         </Typography>
@@ -130,7 +137,7 @@ export default function SellerPayout() {
         </Box>
       </Box>
 
-      <Stack spacing={2.5}>
+      <Stack spacing={2.5} sx={{ mt: 3 }}>
         {loading && (
           <Stack alignItems="center" sx={{ py: 6 }}>
             <CircularProgress />
@@ -174,11 +181,18 @@ export default function SellerPayout() {
             </Grid>
 
             <Card
-              elevation={0}
+              variant="outlined"
               sx={{
-                border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 3,
+                borderRadius: 4,
+                background: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
               }}
             >
               <CardContent sx={{ p: 0 }}>
