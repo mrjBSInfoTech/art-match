@@ -43,6 +43,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import SlideshowRoundedIcon from "@mui/icons-material/SlideshowRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ConstructionRoundedIcon from "@mui/icons-material/ConstructionRounded";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import CloseIcon from "@mui/icons-material/Close";
 import KeyIcon from "@mui/icons-material/Key";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
@@ -204,6 +206,11 @@ function AdminLayoutContent() {
       icon: <DashboardIcon />,
     },
     {
+      segment: "chat-support",
+      title: "Chat Support",
+      icon: <SupportAgentRoundedIcon />,
+    },
+    {
       segment: "system-settings",
       title: "System Settings",
       icon: <SettingsIcon />,
@@ -222,6 +229,11 @@ function AdminLayoutContent() {
           segment: "mechanicals",
           title: "Mechanicals",
           icon: <ConstructionRoundedIcon />,
+        },
+        {
+          segment: "faq-edit",
+          title: "FAQ Edit",
+          icon: <HelpOutlineRoundedIcon />,
         },
       ],
     },

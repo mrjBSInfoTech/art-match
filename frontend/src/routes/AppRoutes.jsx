@@ -25,6 +25,8 @@ import AdminDashboard from "../pages/admin/Dashboard";
 import AdminSystemSetting from "../pages/admin/SystemSetting";
 import AdminPromotionSlides from "../pages/admin/PromotionSlides";
 import AdminSystemSettingsPlaceholder from "../pages/admin/SystemSettingsPlaceholder";
+import AdminFaqEdit from "../pages/admin/FaqEdit";
+import AdminChatSupport from "../pages/admin/ChatSupport";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
 import AdminEvent from "../pages/admin/Event";
@@ -164,6 +166,7 @@ export default function AppRoutes() {
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="chat-support" element={<AdminChatSupport />} />
                 <Route
                   path="system-setting"
                   element={<Navigate to="/admin/system-settings/about-us" replace />}
@@ -179,6 +182,10 @@ export default function AppRoutes() {
                 <Route
                   path="system-settings/mechanicals"
                   element={<AdminSystemSettingsPlaceholder title="Mechanicals" />}
+                />
+                <Route
+                  path="system-settings/faq-edit"
+                  element={<AdminFaqEdit />}
                 />
                 <Route path="profile" element={<AdminProfile />} />
                 <Route path="artwork" element={<AdminArtwork />} />

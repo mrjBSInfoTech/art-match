@@ -46,6 +46,10 @@ import { ensureArtistFollowTable } from "./database/artistFollows.js";
 import { ensureArtworkSchema } from "./database/artwork.js";
 import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
+import { ensureFaqTable } from "./database/faq.js";
+import { ensureSupportChatTables } from "./database/supportChat.js";
+import buyerFaqRoutes from "./routes/buyer/faq.js";
+import supportChatRoutes from "./routes/supportChat.js";
 import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
 import {
   getCustomerIdForWatermarkCode,
@@ -664,12 +668,16 @@ app.use("/api/buyer/returns", buyerReturnRoutes);
 app.use("/api/buyer/certificates", buyerCertificateRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/buyer/recommendation", buyerRecommendationRoutes);
+app.use("/api/buyer/faqs", buyerFaqRoutes);
 
 // Routes (Payments)
 app.use("/api/payments/paymongo", paymongoPaymentRoutes);
 
 // Routes (Chat of both buyer and seller)
 app.use("/api/chat", chatRoutes);
+
+// Routes (Buyer <-> admin support chat)
+app.use("/api/support-chat", supportChatRoutes);
 
 // Handle 404 (unknown routes)
 app.use((req, res) => {
@@ -705,6 +713,8 @@ ensureAccountAccessTable()
   .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
+  .then(() => ensureFaqTable())
+  .then(() => ensureSupportChatTables())
   .then(() => ensureEventsTable())
   .then(() => ensurePromotionSlidesTable())
   .then(() => ensureConversationReadStateTable())

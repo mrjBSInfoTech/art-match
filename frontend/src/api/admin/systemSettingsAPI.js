@@ -55,3 +55,21 @@ export const savePromotionHeroEnabled = async (enabled) => {
     throwApiError(error);
   }
 };
+
+export const fetchFaqs = async () => {
+  try {
+    const response = await api.get("/faqs");
+    return Array.isArray(response.data?.faqs) ? response.data.faqs : [];
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
+export const saveFaqs = async (faqs) => {
+  try {
+    const response = await api.put("/faqs", { faqs });
+    return Array.isArray(response.data?.faqs) ? response.data.faqs : [];
+  } catch (error) {
+    throwApiError(error);
+  }
+};
