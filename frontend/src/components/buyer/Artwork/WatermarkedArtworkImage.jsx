@@ -5,6 +5,7 @@ import {
   artworkImageProtectionSx,
   useArtworkBlurOnAway,
 } from "../../../utils/artworkImageProtection";
+import { loadArtworkImage } from "../../../utils/artworkImageLoader.js";
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -86,55 +87,25 @@ export default function WatermarkedArtworkImage({
       return undefined;
     }
 
-    const signedUrlPath = `${API_BASE_URL}/api/artwork-image-url/${encodeURIComponent(filename)}?variant=${encodeURIComponent(variant)}`;
-    const controller = new AbortController();
+    let active = true;
     let objectUrl;
     const token = useBuyerIdentity ? localStorage.getItem("buyer_token") : null;
 
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    fetch(signedUrlPath, {
-      cache: "no-store",
-      headers,
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Unable to sign artwork image (${response.status}).`);
-        }
-        return response.json();
-      })
-      .then(({ url }) => {
-        const signedUrl = new URL(url, API_BASE_URL);
-        if (
-          signedUrl.origin !== new URL(API_BASE_URL).origin ||
-          !signedUrl.pathname.startsWith("/api/artwork-images/")
-        ) {
-          throw new Error("Server returned an invalid signed artwork URL.");
-        }
-        return fetch(signedUrl, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-      })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Unable to load artwork image (${response.status}).`);
-        }
-        return response.blob();
-      })
+    loadArtworkImage({ filename, variant, token })
       .then((blob) => {
+        if (!active) return;
         objectUrl = URL.createObjectURL(blob);
         setSrc(objectUrl);
       })
       .catch((error) => {
-        if (error.name !== "AbortError") {
+        if (active && error.name !== "AbortError") {
           console.error("Unable to load watermarked artwork:", error);
           setSrc(fallbackSrc);
         }
       });
 
     return () => {
-      controller.abort();
+      active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [image, shouldLoad, useBuyerIdentity, fallbackSrc, variant]);

@@ -24,7 +24,7 @@ import {
   useTheme,
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
-import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
@@ -122,6 +122,9 @@ export default function Main() {
   const [artworks, setArtworks] = useState([]);
   const [artworksLoading, setArtworksLoading] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
+  const [followedArtists, setFollowedArtists] = useState([]);
+  const [followingLoading, setFollowingLoading] = useState(true);
+  const [followingError, setFollowingError] = useState("");
   const [recommendedArtworks, setRecommendedArtworks] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationMode, setRecommendationMode] = useState("");
@@ -217,6 +220,54 @@ export default function Main() {
   useEffect(() => {
     loadArtworks();
   }, []);
+
+  useEffect(() => {
+    let request = 0;
+    const loadFollowing = async () => {
+      const current = ++request;
+      if (!localStorage.getItem("buyer_token")) {
+        setFollowedArtists([]);
+        setFollowingError("");
+        setFollowingLoading(false);
+        return;
+      }
+      setFollowingLoading(true);
+      setFollowingError("");
+      try {
+        const summaries = await fetchArtistSummaries();
+        if (current === request) {
+          setFollowedArtists((Array.isArray(summaries) ? summaries : [])
+            .filter((artist) => artist.isFollowing)
+            .map((artist) => String(artist.student_id)));
+        }
+      } catch {
+        if (current === request) {
+          setFollowedArtists([]);
+          setFollowingError("Unable to load artworks from your followed artists. Please try again.");
+        }
+      } finally {
+        if (current === request) setFollowingLoading(false);
+      }
+    };
+    loadFollowing();
+    window.addEventListener("artist-follow-updated", loadFollowing);
+    window.addEventListener("focus", loadFollowing);
+    return () => {
+      request++;
+      window.removeEventListener("artist-follow-updated", loadFollowing);
+      window.removeEventListener("focus", loadFollowing);
+    };
+  }, []);
+
+  const followedArtworks = useMemo(() => {
+    const followedIds = new Set(followedArtists);
+    return artworks
+      .filter((artwork) => followedIds.has(String(artwork.student_id)))
+      .sort((a, b) =>
+        (Date.parse(b.date_created) || 0) - (Date.parse(a.date_created) || 0) ||
+        Number(b.artwork_id || b.id) - Number(a.artwork_id || a.id))
+      .slice(0, 4);
+  }, [artworks, followedArtists]);
 
   useEffect(() => {
     let refreshTimer;
@@ -354,7 +405,7 @@ export default function Main() {
         <title>Main</title>
       </Helmet>
       <UpcomingEventsSlider heroArtwork={artworks[0]} />
-      {/* Genres */}
+      {/* Styles */}
       <Box
         sx={{
           px: { xs: 2, sm: 5, lg: 6 },
@@ -438,6 +489,50 @@ export default function Main() {
               />
             ))}
           </Box>
+        </Box>
+      )}
+
+      {/* Recently Added Artworks From the Users Followings */}
+      {Boolean(localStorage.getItem("buyer_token")) && !artworksLoading && !artworkErrorMessage && (
+        <Box
+          sx={{
+            px: { xs: 3, sm: 5, lg: 7 },
+            py: { xs: 5, md: 7 },
+            backgroundColor: warmSurface,
+          }}
+        >
+          <SectionHeader
+            title="Recently Added Artworks from your Followed Artists"
+            to="/buyer/shop"
+          />
+          {followingLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress aria-label="Loading followed artists' artworks" /></Box>
+          ) : followingError ? (
+            <Alert severity="warning">{followingError}</Alert>
+          ) : followedArtworks.length === 0 ? (
+            <Typography color="text.secondary">
+              No artworks from followed artists yet. <Button component={RouterLink} to="/buyer/artist">Explore artists</Button>
+            </Typography>
+          ) : <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(1,1fr)",
+                sm: "repeat(3,1fr)",
+                md: "repeat(4,1fr)",
+                lg: "repeat(4,1fr)",
+              },
+              gap: 3,
+            }}
+          >
+            {followedArtworks.map((artwork) => (
+              <ArtworkCard
+                onAddToCart={handleAddToCart}
+                key={artwork.artwork_id || artwork.id}
+                artwork={artwork}
+              />
+            ))}
+          </Box>}
         </Box>
       )}
 

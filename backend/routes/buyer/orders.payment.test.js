@@ -125,7 +125,7 @@ test("a confirmed webhook makes checkout purchases visible and reports Paid with
     verifyPayMongoSignature: options => verifyPayMongoSignature({ ...options, secret: "isolated-webhook-fixture" }),
   });
   assert.equal((await invoke(webhook, "post", "/webhook", signedEvent())).status, 200);
-  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Eligible" && split.eligible_at));
+  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Held" && split.eligible_at == null));
   assert.equal((await invoke(routes, "get", "/payments/:reference", { params })).body.payment_status, "Paid");
   assert.equal((await invoke(routes, "get", "/")).body.length, 2);
 });
@@ -389,7 +389,7 @@ test("retry reconciles an authenticated provider-paid checkout when its webhook 
   assert.deepEqual(retrievedSessions, ["cs_test_checkout"]);
   assert.ok(fixture.state.orders.every(order =>
     order.payment_status === "Paid" && order.paymongo_payment_id === "pay_delayed_webhook"));
-  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Eligible" && split.eligible_at));
+  assert.ok(fixture.state.paymentSplits.every(split => split.payout_status === "Held" && split.eligible_at == null));
   assert.deepEqual(fixture.state.cartItems, [{ add_to_id: 2, artwork_id: 20 }]);
   assert.equal(fixture.state.interactions.length, 2);
   assert.ok(fixture.calls.some(call => call.type === "commit"));

@@ -129,6 +129,16 @@ test("clock recheck rejects a deadline crossed after the order lock and rolls ba
   assert.equal(current.events.length, 0);
 });
 
+test("a payout reservation under the same order lock blocks a deadline-boundary return", async () => {
+  const current = fixture();
+  current.state.order.payout_reserved = 1;
+  await assert.rejects(current.service.createReturnRequest(7, body), error => error.status === 409);
+  assert.ok(current.calls.includes("ROLLBACK"));
+  assert.ok(!current.calls.some((call) => /^INSERT INTO marketplace_return_request/.test(call.sql || "")));
+  assert.equal(current.state.items.length, 0);
+  assert.equal(current.events.length, 0);
+});
+
 test("a failed receipt notification rolls both Received and Completed updates back together", async () => {
   const current = fixture({ status: "Return Shipped", failSql: sql => /^INSERT INTO account_notifications/.test(sql) });
   await assert.rejects(current.service.transitionReturnRequest("seller", 17, 61, "receive", {}), /Injected/);

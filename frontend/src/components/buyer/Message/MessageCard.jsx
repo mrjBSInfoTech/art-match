@@ -1,4 +1,5 @@
-import { Box, Button, IconButton, Paper, Typography } from "@mui/material";
+import { Box, IconButton, Paper, Typography } from "@mui/material";
+import CertificateMessage from "./CertificateMessage.jsx";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 
 const certificateLinkType = "application/vnd.artmatch.certificate-link";
@@ -26,11 +27,7 @@ export default function MessageCard({ message: msg, onViewMedia }) {
           borderColor: "divider",
         }}
       >
-        {msg.image && msg.mediaType === certificateLinkType && !isMine && (
-          <Button component="a" href={msg.image} variant="contained" size="small" sx={{ mb: msg.text ? 1 : 0, color:"#fff",}}>
-            View Certificate
-          </Button>
-        )}
+        {msg.image && msg.mediaType === certificateLinkType && <CertificateMessage message={msg} />}
         {msg.image && msg.mediaType !== certificateLinkType && (
           msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
             <Box
@@ -44,7 +41,7 @@ export default function MessageCard({ message: msg, onViewMedia }) {
               }}
             >
               <video
-                src={msg.image}
+                src={msg.image}a
                 controls
                 onClick={(event) => event.stopPropagation()}
                 style={{

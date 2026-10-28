@@ -117,11 +117,11 @@ export async function reconcilePaidCheckout(
   await connection.query(
     `UPDATE seller_payment_split s
        JOIN marketplace_order o ON o.order_id = s.order_id
-     SET s.payout_status = 'Eligible',
-         s.eligible_at = COALESCE(s.eligible_at, ?),
+     SET s.payout_status = 'Held',
+         s.eligible_at = NULL,
          s.payment_reference = COALESCE(s.payment_reference, o.payment_reference)
      WHERE s.order_id IN (?) AND s.payout_status = 'Held'`,
-    [paidAt, unpaidIds],
+    [unpaidIds],
   );
   const purchasedItems = await query(connection,
     `SELECT o.customer_id, oi.artwork_id FROM marketplace_order o

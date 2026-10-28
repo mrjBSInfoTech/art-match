@@ -2,6 +2,13 @@ import db from "./db.js";
 
 export async function ensureCertificateTables() {
   await db.promise().query(`
+    CREATE TABLE IF NOT EXISTS marketplace_certificate_identity (
+      artwork_id INT NOT NULL PRIMARY KEY,
+      public_token CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+      FOREIGN KEY (artwork_id) REFERENCES artwork(artwork_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+  await db.promise().query(`
     CREATE TABLE IF NOT EXISTS marketplace_certificate (
       artwork_id INT NOT NULL PRIMARY KEY,
       seller_id INT NOT NULL,

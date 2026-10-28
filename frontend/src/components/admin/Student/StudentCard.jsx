@@ -60,6 +60,7 @@ export default function StudentCard({
       >
         {students.map((student) => {
           const id = getId(student);
+          const image = student.profile_image || student.image;
 
           return (
             <Card
@@ -104,8 +105,8 @@ export default function StudentCard({
                     objectPosition: "center",
                   }}
                   image={
-                    student.image
-                      ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(student.image)}`
+                    /^https?:\/\//i.test(image || "") ? image : image
+                      ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
                       : "http://localhost:5000/uploads/seller/profile.jpg"
                   }
                   alt={getName(student)}

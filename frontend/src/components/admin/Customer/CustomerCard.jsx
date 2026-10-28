@@ -131,6 +131,7 @@ export default function CustomerCard({
       >
         {customers.map((customer) => {
           const id = getId(customer);
+          const image = customer.profile_image || customer.image;
           return (
             <Card
               key={id}
@@ -173,8 +174,8 @@ export default function CustomerCard({
                     objectPosition: "center",
                   }}
                   image={
-                    customer.image
-                      ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(customer.image)}`
+                    /^https?:\/\//i.test(image || "") ? image : image
+                      ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
                       : "http://localhost:5000/uploads/buyer/profile.jpg"
                   }
                   alt={getName(customer)}

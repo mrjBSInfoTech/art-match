@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
-import { getSellerCertificate, publishCertificate, CertificateError } from "../../utils/certificates.js";
+import { getSellerCertificate, publishCertificate, reserveCertificateIdentity, getSellerOrderCertificateIdentity, CertificateError } from "../../utils/certificates.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
@@ -32,6 +32,17 @@ const parseCertificateUpload = (req, res, next) => {
 };
 
 router.use(authenticateSeller);
+
+router.get("/order-items/:orderItemId/verification", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try { return res.json(await getSellerOrderCertificateIdentity(req.user.student_id, req.params.orderItemId)); }
+  catch (error) { return handleError(res, error); }
+});
+
+router.post("/:artworkId/identity", async (req, res) => {
+  try { return res.json(await reserveCertificateIdentity(req.user.student_id, req.params.artworkId)); }
+  catch (error) { return handleError(res, error); }
+});
 
 router.get("/:artworkId", async (req, res) => {
   try {

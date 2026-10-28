@@ -63,6 +63,7 @@ export const fetchArtistSummaries = async () => {
 export const followArtist = async (studentId) => {
   try {
     const res = await api.post(`/buyer/artists/${encodeURIComponent(studentId)}/follow`);
+    window.dispatchEvent(new Event("artist-follow-updated"));
     return res.data;
   } catch (error) {
     handleError(error);
@@ -72,6 +73,7 @@ export const followArtist = async (studentId) => {
 export const unfollowArtist = async (studentId) => {
   try {
     const res = await api.delete(`/buyer/artists/${encodeURIComponent(studentId)}/follow`);
+    window.dispatchEvent(new Event("artist-follow-updated"));
     return res.data;
   } catch (error) {
     handleError(error);

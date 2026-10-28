@@ -27,9 +27,14 @@
     "multer": "^2.0.2",
     "mysql2": "^3.24.0",
     "nodemon": "^3.1.10",
+    "qrcode": "^1.5.4",
     "sharp": "^0.35.5"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true
+  },
+  "devDependencies": {
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0"
   }
 }

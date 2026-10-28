@@ -241,8 +241,6 @@ export default function ArtworkDetail() {
     );
   }
 
-  // Raw upload paths are private and no longer served; the signed image
-  // component resolves the stored filename itself.
   const imageUrl = artwork.image
     ? artwork.image.startsWith("http")
       ? artwork.image
@@ -399,6 +397,9 @@ export default function ArtworkDetail() {
                 />
                 <Row label="Size" value={artwork.art_size || "Unknown"} />
                 <Row label="Style" value={artwork.genre || "Unknown"} />
+                {detailCategory && (
+                  <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} RowComponent={Row} />
+                )}
               </Stack>
               <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                 <Button
@@ -488,10 +489,6 @@ export default function ArtworkDetail() {
                     : "No handling instructions provided."}
                 </Typography>
               </Box>
-
-              {detailCategory && (
-                <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} />
-              )}
 
               {/* Colors Section */}
               <Box>
@@ -767,7 +764,7 @@ function Row({ label, value }) {
         {label}
       </Typography>
 
-      <Typography variant="body2" fontWeight={500} sx={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>
+      <Typography component="div" variant="body2" fontWeight={500} sx={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>
         {value || "-"}
       </Typography>
     </Stack>

@@ -173,6 +173,8 @@ export async function createReturnRequest(customerId, body = {}) {
     // All return mutations lock the seller order first, serializing duplicate
     // submissions and decisions involving the same purchased items.
     const orders = await query(connection, `SELECT order_id, customer_id, seller_id, status, delivered_at,
+        EXISTS(SELECT 1 FROM seller_payment_split payout WHERE payout.order_id=marketplace_order.order_id
+          AND payout.payout_status IN ('Processing','Paid')) AS payout_reserved,
         (CURRENT_TIMESTAMP >= delivered_at AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 7 DAY)) AS in_return_window
       FROM marketplace_order WHERE order_id = ? AND customer_id = ? FOR UPDATE`, [orderId, buyerId]);
     if (!orders.length) fail(404, "Order not found.");
@@ -180,6 +182,9 @@ export async function createReturnRequest(customerId, body = {}) {
     if (order.status !== "Delivered") fail(409, "Only delivered orders can be returned.");
     if (!order.delivered_at) fail(409, "The delivery timestamp is unavailable. Contact support about this order.");
     if (!order.in_return_window) fail(409, expiredMessage);
+    // Both operations lock the order first. At the exact seven-day boundary,
+    // an already reserved transfer and a new return cannot both commit.
+    if (order.payout_reserved) fail(409, "A seller payout has already been reserved for this order. Contact support about a return.");
     const items = await query(connection, `SELECT order_item_id, quantity FROM marketplace_order_item
       WHERE order_id = ? AND order_item_id IN (?)`, [orderId, itemIds]);
     if (items.length !== itemIds.length) fail(400, "Selected items must belong to this order.");

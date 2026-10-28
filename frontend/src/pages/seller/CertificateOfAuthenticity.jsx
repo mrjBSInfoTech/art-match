@@ -20,8 +20,11 @@ import { getSellerProfile } from "../../api/seller/sellerAPI";
 import { fetchStorefront } from "../../api/seller/storefrontAPI";
 import {
   fetchPublishedCertificate,
+  reserveCertificateIdentity,
   publishCertificate,
 } from "../../api/seller/certificateAPI.js";
+
+import { createCertificateQr } from "../../utils/certificateQr.js";
 
 const today = () => {
   const date = new Date();
@@ -74,6 +77,7 @@ const createCertificateSvg = ({
   certificateId,
   issueDate,
   templateData,
+  qrData,
 }) => {
   const template = templateData
     ? `<image href="${templateData}" x="0" y="0" width="1200" height="800" preserveAspectRatio="xMidYMid slice"/>`
@@ -95,10 +99,12 @@ const createCertificateSvg = ({
   <text x="246" y="685" fill="#687385" font-family="Arial,sans-serif" font-size="16" letter-spacing="1">RED NEXUS</text>
   <text x="954" y="685" text-anchor="end" fill="#687385" font-family="Arial,sans-serif" font-size="16" letter-spacing="1">${escapeXml(formatDate(issueDate).toUpperCase())}</text>
   <text x="600" y="730" text-anchor="middle" fill="#687385" font-family="Arial,sans-serif" font-size="15">CERTIFICATE ID: ${escapeXml(certificateId)}</text>
+${qrData ? `<g id="certificate-verification-qr"><rect x="990" y="597" width="146" height="151" fill="#fff"/><image href="${qrData}" x="1000" y="602" width="126" height="126"/><text x="1063" y="741" text-anchor="middle" fill="#202124" font-family="Arial,sans-serif" font-size="12">Scan to verify</text></g>` : ""}
 </svg>`;
 };
 
 export default function CertificateOfAuthenticity() {
+  const [qrData, setQrData] = useState("");
   const [artworks, setArtworks] = useState([]);
   const [selectedArtworkId, setSelectedArtworkId] = useState("");
   const [artworkTitle, setArtworkTitle] = useState("");
@@ -188,10 +194,13 @@ export default function CertificateOfAuthenticity() {
     }
     let active = true;
     setPublicationLoading(true);
+    setQrData("");
     setPublishedCertificate(null);
-    fetchPublishedCertificate(selectedArtworkId)
-      .then((certificate) => {
+    Promise.all([fetchPublishedCertificate(selectedArtworkId), reserveCertificateIdentity(selectedArtworkId)])
+      .then(async ([certificate, identity]) => {
+        const qr = await createCertificateQr(identity.verificationUrl);
         if (!active) return;
+        setQrData(qr);
         setPublishedCertificate(certificate?.published === false ? null : certificate);
         if (certificate?.certificateId) setCertificateId(certificate.certificateId);
       })
@@ -228,13 +237,14 @@ export default function CertificateOfAuthenticity() {
   };
 
   const downloadCertificate = () => {
-    const svg = createCertificateSvg({
+    const svg = publishedCertificate?.svg || createCertificateSvg({
       artworkTitle,
       medium,
       artistName,
       certificateId,
       issueDate,
       templateData,
+      qrData,
     });
     const url = URL.createObjectURL(
       new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
@@ -249,18 +259,19 @@ export default function CertificateOfAuthenticity() {
   };
 
   const publishBuyerCertificate = async () => {
-    if (!selectedArtwork || publishing || publishedCertificate) return;
+    if (!selectedArtwork || publishing || publishedCertificate || !qrData || publicationLoading) return;
     setPublishing(true);
     setError("");
     setPublishMessage("");
     try {
-      const svg = createCertificateSvg({
+      const svg = publishedCertificate?.svg || createCertificateSvg({
         artworkTitle,
         medium,
         artistName,
         certificateId,
         issueDate,
         templateData,
+        qrData,
       });
       const published = await publishCertificate({
         artworkId: selectedArtwork.artwork_id,
@@ -268,7 +279,7 @@ export default function CertificateOfAuthenticity() {
         svg,
       });
       setPublishedCertificate({ ...published, publishedAt: new Date().toISOString() });
-      setPublishMessage("Published. The certificate link will be sent in the buyer's messages one day after delivery.");
+      setPublishMessage("Published. The certificate QR code will be sent in the buyer's messages one day after delivery.");
     } catch (publishError) {
       setError(publishError.message || "Unable to publish this certificate.");
     } finally {
@@ -276,13 +287,14 @@ export default function CertificateOfAuthenticity() {
     }
   };
 
-  const previewSvg = createCertificateSvg({
+  const previewSvg = publishedCertificate?.svg || createCertificateSvg({
     artworkTitle,
     medium,
     artistName: artistName || "Artist name",
     certificateId,
     issueDate,
     templateData,
+    qrData,
   });
 
   return (
@@ -456,7 +468,7 @@ export default function CertificateOfAuthenticity() {
                       variant="contained"
                       startIcon={<DownloadOutlinedIcon />}
                       onClick={downloadCertificate}
-                      disabled={!selectedArtwork || !artworkTitle.trim()}
+                      disabled={!selectedArtwork || !artworkTitle.trim() || !qrData || publicationLoading}
                       sx={{
                         bgcolor: "#941b27",
                         "&:hover": { bgcolor: "#78151f" },
@@ -470,7 +482,7 @@ export default function CertificateOfAuthenticity() {
                       variant="outlined"
                       startIcon={<VerifiedOutlinedIcon />}
                       onClick={publishBuyerCertificate}
-                      disabled={!selectedArtwork || !artworkTitle.trim() || publicationLoading || publishing || Boolean(publishedCertificate)}
+                      disabled={!selectedArtwork || !artworkTitle.trim() || !qrData || publicationLoading || publishing || Boolean(publishedCertificate)}
                     >
                       {publicationLoading
                         ? "Checking publication..."
@@ -482,7 +494,7 @@ export default function CertificateOfAuthenticity() {
                     </Button>
                     {publishedCertificate && (
                       <Alert severity="info">
-                        This certificate is published. Its link will be sent one day after delivery and becomes unavailable when the order return is completed.
+                        This certificate is published. Its QR code will be sent one day after delivery and becomes unavailable when the order return is completed.
                       </Alert>
                     )}
                     {publishMessage && <Alert severity="success">{publishMessage}</Alert>}

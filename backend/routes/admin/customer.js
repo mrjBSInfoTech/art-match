@@ -12,7 +12,7 @@ const editableFields = [
   "phone_number",
 ];
 const selectFields =
-  "customer_id, username, first_name, last_name, email, phone_number";
+  "customer_id, username, first_name, last_name, email, phone_number, profile_image";
 
 router.get("/", authenticateAdmin, (req, res) => {
   db.query(

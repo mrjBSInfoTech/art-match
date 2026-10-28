@@ -29,6 +29,7 @@ import AdminFaqEdit from "../pages/admin/FaqEdit";
 import AdminChatSupport from "../pages/admin/ChatSupport";
 import AdminProfile from "../pages/admin/Profile";
 import AdminSales from "../pages/admin/Sales";
+import AdminPayout from "../pages/admin/Payout";
 import AdminEvent from "../pages/admin/Event";
 import AdminArtwork from "../pages/admin/Artwork";
 import AdminSettings from "../pages/admin/Settings";
@@ -109,6 +110,7 @@ export default function AppRoutes() {
 
             {/* Public buyer pages */}
             <Route element={<BuyerLayout />}>
+              <Route path="certificate/verify/:token" element={<BuyerCertificateView />} />
               <Route path="main" element={<BuyerMain />} />
               <Route path="shop" element={<BuyerShop />} />
               <Route path="shop/:genre" element={<BuyerShop />} />
@@ -194,6 +196,7 @@ export default function AppRoutes() {
                 <Route path="manage/access" element={<AdminAccountAccess />} />
                 <Route path="manage/admins" element={<AdminControl />} />
                 <Route path="sales" element={<AdminSales />} />
+                <Route path="payouts" element={<AdminPayout />} />
                 <Route path="event" element={<AdminEvent />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="audit-logs" element={<AdminAuditLogs />} />

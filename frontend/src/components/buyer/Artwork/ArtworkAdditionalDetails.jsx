@@ -1,4 +1,4 @@
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
 import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
 
 const missingValue = "Not provided";
@@ -28,32 +28,53 @@ function wholeNumber(value, minimum = 0) {
   return Number.isSafeInteger(number) && number >= minimum ? number : null;
 }
 
-export default function ArtworkAdditionalDetails({ artwork, category }) {
+function Row({ label, value }) {
+  return (
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      columnGap={{ xs: 2, sm: 3 }}
+    >
+      <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+        {label}
+      </Typography>
+
+      <Typography
+        component="div"
+        variant="body2"
+        fontWeight={500}
+        sx={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}
+      >
+        {value || "-"}
+      </Typography>
+    </Stack>
+  );
+}
+
+export default function ArtworkAdditionalDetails({ artwork, category, RowComponent }) {
+  const ROW = RowComponent || Row;
   const details = savedDetails(artwork);
   const isPhysical = category === "fine_art" || category === "product";
   const materials = Array.isArray(details.material_composition)
     ? [...new Set(details.material_composition.filter((value) => typeof value === "string")
       .map((value) => value.trim()).filter(Boolean))]
     : [];
-  let heading;
   let fields;
 
   if (category === "fine_art") {
-    heading = "Care and materials";
     fields = [
       ["Fragile", booleanLabel(details.is_fragile)],
       ["Sensitive to humidity", booleanLabel(details.humidity_sensitive)],
       ["Sensitive to direct light", booleanLabel(details.light_sensitive)],
     ];
   } else if (category === "product") {
-    heading = "Stock and materials";
     const stock = wholeNumber(artwork.stock_available ?? details.stock_available);
     const sold = Number(artwork.sold_quantity);
     const remaining = isArtworkSoldOut(artwork) ? 0 : stock === null ? null
       : Math.max(0, stock - (Number.isFinite(sold) && sold > 0 ? sold : 0));
     fields = [["Stock available", remaining === null ? missingValue : remaining.toLocaleString()]];
   } else if (category === "digital") {
-    heading = "Digital file details";
     const width = wholeNumber(details.resolution_width, 1);
     const height = wholeNumber(details.resolution_height, 1);
     fields = [
@@ -67,32 +88,15 @@ export default function ArtworkAdditionalDetails({ artwork, category }) {
   }
 
   return (
-    <Box component="section" aria-label={heading}>
-      <Typography variant="caption" fontWeight={700} color="text.secondary"
-        sx={{ textTransform: "uppercase", letterSpacing: 0.5, display: "block" }}>
-        {heading}
-      </Typography>
-      <Box component="dl" sx={{
-        display: "grid",
-        gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
-        gap: 2, mt: 1.5, mb: 0, "& > *": { minWidth: 0 },
-      }}>
+    <>
         {fields.map(([label, value]) => (
-          <Box key={label}>
-            <Typography component="dt" variant="caption" color="text.secondary">{label}</Typography>
-            <Typography component="dd" variant="body2" sx={{ m: 0, mt: 0.5, overflowWrap: "anywhere" }}>
-              {value}
-            </Typography>
-          </Box>
+          <ROW key={label} label={label} value={value} />
         ))}
         {isPhysical && (
-          <Box sx={{ gridColumn: "1 / -1" }}>
-            <Typography component="dt" variant="caption" color="text.secondary">
-              {category === "fine_art" ? "Material composition" : "Materials and specifications"}
-            </Typography>
-            <Box component="dd" sx={{ m: 0, mt: 0.5 }}>
-              {materials.length > 0 ? (
-                <Stack direction="row" flexWrap="wrap" gap={0.8}>
+          <ROW
+            label={category === "fine_art" ? "Material composition" : "Materials and specifications"}
+            value={materials.length > 0 ? (
+                <Stack direction="row" justifyContent="flex-end" flexWrap="wrap" gap={0.8}>
                   {materials.map((material) => (
                     <Chip key={material} label={material} size="small" variant="outlined"
                       sx={{ maxWidth: "100%", height: "auto", minHeight: 24,
@@ -102,10 +106,8 @@ export default function ArtworkAdditionalDetails({ artwork, category }) {
               ) : (
                 <Typography variant="body2" color="text.secondary">{missingValue}</Typography>
               )}
-            </Box>
-          </Box>
+          />
         )}
-      </Box>
-    </Box>
+    </>
   );
 }

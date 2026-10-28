@@ -1,278 +1,137 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
-  Card,
-  CardContent,
-  Chip,
+  Button,
   CircularProgress,
-  Divider,
-  Grid,
+  Slide,
+  Snackbar,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
+import PayoutAccount from "../../components/seller/Payout/PayoutAccount";
+import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
+import PayoutTable from "../../components/seller/Payout/PayoutTable";
+import { payoutErrorMessage } from "../../components/seller/Payout/payoutDisplay";
 
-const currency = (value) =>
-  new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(
-    Number(value || 0),
-  );
-
-const statusColor = {
-  Held: "warning",
-  Eligible: "info",
-  Processing: "primary",
-  Paid: "success",
-  Reversed: "error",
-};
-
-const statusLabel = {
-  Held: "Held until delivered",
-  Eligible: "Ready to pay out",
-  Processing: "Payout in progress",
-  Paid: "Paid out",
-  Reversed: "Reversed",
-};
-
-function Metric({ label, value, hint, emphasis }) {
-  return (
-    <Card
-      variant="outlined"
-      sx={{
-        height: "100%",
-        borderColor: emphasis ? "primary.light" : "divider",
-        borderRadius: 4,
-        background: (theme) =>
-          theme.palette.mode === "dark"
-            ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
-            : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-        boxShadow: (theme) =>
-          theme.palette.mode === "dark"
-            ? "0 20px 38px rgba(2, 6, 23, 0.28)"
-            : "0 18px 36px rgba(15, 23, 42, 0.08)",
-      }}
-    >
-      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={700}>
-          {label}
-        </Typography>
-        <Typography
-          variant="h5"
-          fontWeight={800}
-          sx={{ mt: 0.5, color: emphasis ? "primary.main" : "text.primary" }}
-        >
-          {value}
-        </Typography>
-        {hint && (
-          <Typography variant="caption" color="text.secondary">
-            {hint}
-          </Typography>
-        )}
-      </CardContent>
-    </Card>
-  );
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
 }
 
 export default function SellerPayout() {
-  const theme = useTheme(); 
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
+    let active = true;
     fetchSellerPayouts()
       .then((result) => {
-        if (!cancelled) setData(result);
+        if (!active) return;
+        setData(result);
+        setError("");
       })
-      .catch(() => {
-        if (!cancelled) setError("Unable to load your payouts.");
+      .catch((loadError) => {
+        if (active)
+          setError(
+            payoutErrorMessage(loadError, "Unable to load your payouts."),
+          );
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (active) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      active = false;
     };
-  }, []);
+  }, [refresh]);
+
+  const reload = () => {
+    setLoading(true);
+    setRefresh((value) => value + 1);
+  };
 
   return (
-    <Box
-      sx={{
-        p: { xs: 1.5, sm: 2.5 },
-        minHeight: "100vh",
-        backgroundColor: theme.palette.background.default,
-        color: theme.palette.text.primary,
-      }}
-    >
+    <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Helmet>
         <title>Settlement and Payout | Red Nexus Seller</title>
       </Helmet>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          justifyContent: "space-between",
-          alignItems: { xs: "flex-start", md: "center" },
-          gap: 2,
-        }}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        gap={2}
       >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          <Typography variant="h4" fontWeight={800}>
             Settlement and Payout
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Your share of every buyer payment. A buyer pays once; each
-            storefront is settled separately.
+            Track earnings from online buyer payments and payouts to your
+            nominated account.
           </Typography>
         </Box>
-      </Box>
-
+        <Button startIcon={<RefreshIcon />} onClick={reload} disabled={loading}>
+          Refresh
+        </Button>
+      </Stack>
       <Stack spacing={2.5} sx={{ mt: 3 }}>
+        <Alert severity="info">
+          Online earnings are held until delivery and the exact 7-day return
+          period ends. Unresolved returns or refunds keep earnings on hold. An
+          administrator reviews and sends eligible payouts.
+        </Alert>
+        <PayoutAccount onSaved={() => setSnackbarOpen(true)} />
+        {error && <Alert severity="error">{error}</Alert>}
         {loading && (
-          <Stack alignItems="center" sx={{ py: 6 }}>
-            <CircularProgress />
+          <Stack alignItems="center" sx={{ py: 3 }}>
+            <CircularProgress aria-label="Loading seller earnings" />
           </Stack>
         )}
-
-        {error && <Alert severity="error">{error}</Alert>}
-
-        {data && !loading && (
+        {data && (
           <>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6, md: 3 }}>
-                <Metric
-                  label="Available to pay out"
-                  value={currency(data.totals.eligible)}
-                  hint="Delivered and settled"
-                  emphasis
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 3 }}>
-                <Metric
-                  label="Pending"
-                  value={currency(data.totals.pending)}
-                  hint="Held until delivery"
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 3 }}>
-                <Metric
-                  label="Paid out"
-                  value={currency(data.totals.paid)}
-                  hint="Already transferred"
-                />
-              </Grid>
-              <Grid size={{ xs: 6, md: 3 }}>
-                <Metric
-                  label="Held until delivered"
-                  value={currency(data.totals.held)}
-                  hint="Released on delivery"
-                />
-              </Grid>
-            </Grid>
-
-            <Card
-              variant="outlined"
-              sx={{
-                borderColor: "divider",
-                borderRadius: 4,
-                background: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
-                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-                boxShadow: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "0 22px 48px rgba(2, 6, 23, 0.28)"
-                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
-              }}
-            >
-              <CardContent sx={{ p: 0 }}>
-                <Box sx={{ px: 3, pt: 2.5, pb: 1.5 }}>
-                  <Typography variant="h6" fontWeight={700}>
-                    Payout history
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    One row per order. You receive the full price of your
-                    artworks — ArtMatch takes no commission.
-                  </Typography>
-                </Box>
-                <Divider />
-
-                {data.orders.length === 0 ? (
-                  <Box sx={{ p: 4, textAlign: "center" }}>
-                    <Typography color="text.secondary">
-                      No paid orders yet. Your payouts appear here once a buyer
-                      completes payment.
-                    </Typography>
-                  </Box>
-                ) : (
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Order</TableCell>
-                          <TableCell>Paid</TableCell>
-                          <TableCell align="right">Artwork total</TableCell>
-                          <TableCell align="right">Shipping</TableCell>
-                          <TableCell align="right">Your share</TableCell>
-                          <TableCell>Status</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.orders.map((order) => (
-                          <TableRow key={order.splitId} hover>
-                            <TableCell sx={{ fontWeight: 700 }}>
-                              {order.orderNumber}
-                            </TableCell>
-                            <TableCell>
-                              {order.paidAt
-                                ? new Date(order.paidAt).toLocaleDateString()
-                                : "—"}
-                            </TableCell>
-                            <TableCell align="right">
-                              {currency(order.gross)}
-                            </TableCell>
-                            <TableCell
-                              align="right"
-                              sx={{ color: "text.secondary" }}
-                            >
-                              Courier
-                            </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800 }}>
-                              {currency(order.net)}
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                size="small"
-                                color={
-                                  statusColor[order.payoutStatus] || "default"
-                                }
-                                label={
-                                  statusLabel[order.payoutStatus] ||
-                                  order.payoutStatus
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </CardContent>
-            </Card>
+            <PayoutMetrics totals={data.totals} />
+            {data.providerCapability?.enabled === false && (
+              <Alert severity="warning">
+                {data.providerCapability.message}
+              </Alert>
+            )}
+            {data.providerCapability?.enabled === true &&
+              data.providerCapability?.mode === "test" && (
+                <Alert severity="info">
+                  TEST payouts only. No real funds are transferred.
+                </Alert>
+              )}
+            <PayoutTable orders={data.orders} />
+            <Typography variant="caption" color="text.secondary">
+              Cash on Delivery orders are handled separately and are not paid
+              from the ArtMatch PayMongo Wallet.
+            </Typography>
           </>
         )}
       </Stack>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={(_, reason) => {
+          if (reason !== "clickaway") setSnackbarOpen(false);
+        }}
+        TransitionComponent={SlideTransition}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity="success"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          Payout destination saved.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -1,3 +1,4 @@
+import { payoutService } from "../../utils/payouts.js";
 import express from "express";
 import multer from "multer";
 import db from "../../database/db.js";
@@ -411,97 +412,14 @@ router.put(
  * Eligible ready to pay out
  * Paid     already settled
  */
-router.get("/payouts", authenticateSeller, (req, res) => {
+router.get("/payouts", authenticateSeller, async (req, res) => {
   res.set("Cache-Control", "no-store");
-  const sellerId = req.user.student_id;
-
-  db.query(
-    `SELECT s.payout_status,
-            COUNT(*) AS order_count,
-            COALESCE(SUM(s.gross_amount), 0) AS gross,
-            COALESCE(SUM(s.commission_amount), 0) AS commission,
-            COALESCE(SUM(s.processing_fee_amount), 0) AS processing_fee,
-            COALESCE(SUM(s.net_amount), 0) AS net
-       FROM seller_payment_split s
-      WHERE s.seller_id = ?
-      GROUP BY s.payout_status`,
-    [sellerId],
-    (totalsError, totalRows) => {
-      if (totalsError) {
-        console.error("Seller payout summary error:", totalsError);
-        return res.status(500).json({ message: "Unable to load payouts" });
-      }
-
-      db.query(
-        `SELECT s.split_id, s.order_id,
-                CONCAT('AM-', LPAD(o.order_id, 6, '0')) AS order_number,
-                o.status, o.payment_method, o.payment_status, o.paid_at,
-                s.gross_amount, s.commission_amount, s.processing_fee_amount,
-                s.net_amount, s.payout_status, s.payout_reference, s.paid_at AS split_paid_at
-           FROM seller_payment_split s
-           JOIN marketplace_order o ON o.order_id = s.order_id
-          WHERE s.seller_id = ?
-          ORDER BY o.paid_at DESC, s.split_id DESC
-          LIMIT 100`,
-        [sellerId],
-        (listError, rows) => {
-          if (listError) {
-            console.error("Seller payout list error:", listError);
-            return res.status(500).json({ message: "Unable to load payouts" });
-          }
-
-          const byStatus = new Map(
-            totalRows.map((row) => [row.payout_status, row]),
-          );
-          const bucket = (status) => {
-            const row = byStatus.get(status);
-            return {
-              orderCount: Number(row?.order_count || 0),
-              gross: Number(row?.gross || 0),
-              commission: Number(row?.commission || 0),
-              processingFee: Number(row?.processing_fee || 0),
-              net: Number(row?.net || 0),
-            };
-          };
-
-          const held = bucket("Held");
-          const eligible = bucket("Eligible");
-          const processing = bucket("Processing");
-          const paid = bucket("Paid");
-          const reversed = bucket("Reversed");
-
-          res.json({
-            currency: "PHP",
-            totals: {
-              held: held.net,
-              eligible: eligible.net,
-              processing: processing.net,
-              paid: paid.net,
-              reversed: reversed.net,
-              // Not yet in the seller's hands.
-              pending: held.net + eligible.net + processing.net,
-            },
-            orders: rows.map((row) => ({
-              splitId: row.split_id,
-              orderId: row.order_id,
-              orderNumber: row.order_number,
-              status: row.status,
-              paymentMethod: row.payment_method,
-              paymentStatus: row.payment_status,
-              paidAt: row.paid_at,
-              gross: Number(row.gross_amount),
-              commission: Number(row.commission_amount),
-              processingFee: Number(row.processing_fee_amount),
-              net: Number(row.net_amount),
-              payoutStatus: row.payout_status,
-              payoutReference: row.payout_reference,
-              settledAt: row.split_paid_at,
-            })),
-          });
-        },
-      );
-    },
-  );
+  try {
+    res.json(await payoutService.list({ sellerId: req.user.student_id }));
+  } catch (error) {
+    console.error("Seller payout summary error:", error.name);
+    res.status(error.status || 500).json({ message: error.status ? error.message : "Unable to load payouts." });
+  }
 });
 
 export default router;

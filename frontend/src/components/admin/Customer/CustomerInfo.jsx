@@ -51,8 +51,9 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
         })
       : "N/A";
 
-  const imageUrl = customer?.image
-    ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(customer.image)}`
+  const image = customer?.profile_image || customer?.image;
+  const imageUrl = /^https?:\/\//i.test(image || "") ? image : image
+    ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
     : "http://localhost:5000/uploads/buyer/profile.jpg";
 
   return (

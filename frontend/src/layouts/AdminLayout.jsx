@@ -38,6 +38,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
 import SlideshowRoundedIcon from "@mui/icons-material/SlideshowRounded";
@@ -241,6 +242,11 @@ function AdminLayoutContent() {
       segment: "sales",
       title: "Sales",
       icon: <TrendingUpIcon />,
+    },
+    {
+      segment: "payouts",
+      title: "Seller Payouts",
+      icon: <AccountBalanceWalletOutlinedIcon />,
     },
     {
       segment: "event",

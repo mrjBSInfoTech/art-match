@@ -1,5 +1,6 @@
 import { Box, IconButton, Paper, Typography } from "@mui/material";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import CertificateMessage from "../../buyer/Message/CertificateMessage.jsx";
 
 export default function MessageCard({ message: msg, onViewMedia }) {
   const isMine = msg.sender === "seller";
@@ -24,6 +25,7 @@ export default function MessageCard({ message: msg, onViewMedia }) {
           borderColor: "divider",
         }}
       >
+        {msg.image && msg.mediaType === "application/vnd.artmatch.certificate-link" && <CertificateMessage message={msg} buyer={false} />}
         {msg.image && msg.mediaType !== "application/vnd.artmatch.certificate-link" && (
           msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
             <Box

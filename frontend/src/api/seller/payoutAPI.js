@@ -2,8 +2,8 @@ import axios from "axios";
 import { clearAuthData } from "../../../utils/auth";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api/seller/orders",
-  timeout: 10000,
+  baseURL: "http://localhost:5000/api/seller",
+  timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {
@@ -15,7 +15,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if ([401, 403].includes(error.response?.status)) {
+    if (error.response?.status === 401) {
       clearAuthData("seller");
       window.location.assign("/seller/login");
     }
@@ -24,6 +24,21 @@ api.interceptors.response.use(
 );
 
 export const fetchSellerPayouts = async () => {
-  const { data } = await api.get("/payouts");
+  const { data } = await api.get("/orders/payouts");
+  return data;
+};
+
+export const fetchPayoutAccount = async () => {
+  const { data } = await api.get("/payout-account");
+  return data;
+};
+
+export const fetchPayoutInstitutions = async () => {
+  const { data } = await api.get("/payout-account/institutions");
+  return data;
+};
+
+export const savePayoutAccount = async ({ institutionCode, provider, accountName, accountNumber }) => {
+  const { data } = await api.put("/payout-account", { institutionCode, provider, accountName, accountNumber });
   return data;
 };

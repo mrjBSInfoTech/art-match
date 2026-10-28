@@ -18,6 +18,10 @@ import adminAuditLogsRoutes from "./routes/admin/auditLogs.js";
 import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import adminAdminRoutes from "./routes/admin/admin.js";
 import adminSystemSettingsRoutes from "./routes/admin/systemSettings.js";
+import adminPayoutRoutes from "./routes/admin/payouts.js";
+import adminDashboardRoutes from "./routes/admin/dashboard.js";
+import sellerPayoutAccountRoutes from "./routes/seller/payouts.js";
+import { ensurePayoutTables } from "./database/payouts.js";
 import aboutContentRoutes from "./routes/aboutContent.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
@@ -130,6 +134,8 @@ app.use(
   }),
 );
 app.use(express.urlencoded({ extended: true }));
+app.use("/api/admin/payouts", adminPayoutRoutes);
+app.use("/api/seller/payout-account", sellerPayoutAccountRoutes);
 
 // Configure multer for file uploads
 const upload = multer({
@@ -632,6 +638,7 @@ app.get("/", (req, res) => {
 // Routes (Admin)
 app.use("/api/admin/authenticate", adminAuthenticateRoutes);
 app.use("/api/admin/artwork", adminArtworkRoutes);
+app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/event", adminEventRoutes);
 app.use("/api/admin/promotion-slides", adminPromotionSlideRoutes);
 app.use("/api/admin/student", adminStudentRoutes);
@@ -719,6 +726,7 @@ ensureAccountAccessTable()
   .then(() => ensurePromotionSlidesTable())
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureReturnTables())
+  .then(() => ensurePayoutTables())
   .then(() => ensureMessageSenderNameColumn())
   .then(() => ensureCertificateTables())
   .then(() => ensureChatPublicKeysTable())

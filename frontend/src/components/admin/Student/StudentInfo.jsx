@@ -56,8 +56,9 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
         })
       : "N/A";
 
-  const imageUrl = student?.image
-    ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(student.image)}`
+  const image = student?.profile_image || student?.image;
+  const imageUrl = /^https?:\/\//i.test(image || "") ? image : image
+    ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
     : "http://localhost:5000/uploads/seller/profile.jpg";
 
   const status = student?.register_status || "Pending";

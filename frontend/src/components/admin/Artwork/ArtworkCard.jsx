@@ -101,6 +101,7 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
               }}
             >
               <ArtworkImage
+                variant="thumb"
                 sx={{
                   width: "100%",
                   height: "100%",

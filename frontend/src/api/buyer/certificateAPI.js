@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const apiRoot = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
+
 const api = axios.create({
-  baseURL: "http://localhost:5000/api/buyer/certificates",
+  baseURL: `${apiRoot}/buyer/certificates`,
   timeout: 30000,
 });
 
@@ -26,4 +28,13 @@ export async function fetchBuyerCertificate(orderItemId, { signal } = {}) {
     }
     throw new Error(message || error.message || "Unable to load certificate");
   }
+}
+
+export async function fetchPublicCertificate(token, { signal } = {}) {
+  try { return (await axios.get(`${apiRoot}/buyer/certificates/verify/${encodeURIComponent(token)}`, { signal })).data; }
+  catch (error) { throw new Error(error.response?.data?.message || "Unable to verify certificate."); }
+}
+
+export async function fetchCertificateIdentity(orderItemId) {
+  return (await api.get(`/order-items/${encodeURIComponent(orderItemId)}/verification`)).data;
 }

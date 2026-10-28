@@ -37,6 +37,8 @@ import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/admin/artworkAPI";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import { fetchStudents } from "../../api/admin/studentAPI";
+import { fetchDashboard } from "../../api/admin/dashboardAPI";
+import { buildProgramDistribution } from "../../utils/adminDashboard";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import Export from "../../components/admin/Dashboard/Export";
@@ -57,6 +59,10 @@ function SlideTransition(props) {
 export default function Dashboard() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [statistics, setStatistics] = useState(null);
+  const [statisticsError, setStatisticsError] = useState("");
+  const [studentsError, setStudentsError] = useState("");
+  const [distributionMode, setDistributionMode] = useState("students");
   const [artworks, setArtworks] = useState([]);
   const [students, setStudents] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -67,6 +73,21 @@ export default function Dashboard() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openExportDialog, setOpenExportDialog] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const result = await fetchDashboard();
+        if (active) { setStatistics(result); setStatisticsError(""); }
+      } catch (error) {
+        if (active) { setStatistics(null); setStatisticsError(error.message); }
+      }
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.removeEventListener("focus", refresh); };
+  }, []);
 
   // Fetch all artworks from API
   const loadArtworks = async () => {
@@ -99,6 +120,7 @@ export default function Dashboard() {
         const response = await fetchStudents("verified");
         setStudents(Array.isArray(response) ? response : []);
       } catch {
+        setStudentsError("Unable to load verified artists for the program distribution.");
         setStudents([]);
       }
     };
@@ -192,9 +214,9 @@ export default function Dashboard() {
     setOpenExportDialog(false);
   };
 
-  const artworkCount = artworks.length;
-  const soldCount = 0;
-  const salesCount = 0;
+  const artworkCount = statistics?.totalArtworks ?? "--";
+  const soldCount = statistics?.soldCount ?? "--";
+  const salesCount = statistics?.totalSales;
 
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
@@ -219,68 +241,8 @@ export default function Dashboard() {
     }
   };
 
-  const salesData = [
-    { month: "Jan", sales: 1200 },
-    { month: "Feb", sales: 1800 },
-    { month: "Mar", sales: 1500 },
-    { month: "Apr", sales: 2500 },
-    { month: "May", sales: 3000 },
-    { month: "Jun", sales: 4200 },
-  ];
-
-  const programDefinitions = [
-    {
-      name: "BS Architecture",
-      color: "#ef2028",
-      mockStudents: 2,
-      mockArtworks: 2,
-    },
-    {
-      name: "BFA Painting",
-      color: "#f6a400",
-      mockStudents: 1,
-      mockArtworks: 2,
-    },
-    {
-      name: "BFA Advertising Arts",
-      color: "#6366e8",
-      mockStudents: 1,
-      mockArtworks: 2,
-    },
-    {
-      name: "BS Interior Design",
-      color: "#10b981",
-      mockStudents: 1,
-      mockArtworks: 1,
-    },
-    {
-      name: "BFA Industrial Design",
-      color: "#12a9c5",
-      mockStudents: 1,
-      mockArtworks: 1,
-    },
-  ];
-  const normalizeProgram = (value) =>
-    String(value || "")
-      .trim()
-      .toLowerCase();
-  const programData = programDefinitions.map((program) => {
-    const programKey = normalizeProgram(program.name);
-    const matchingStudents = students.filter((student) => {
-      const course = normalizeProgram(student.course);
-      return course === programKey || course.includes(programKey);
-    });
-    const matchingArtworks = artworks.filter((artwork) => {
-      const course = normalizeProgram(artwork.course || artwork.program);
-      return course === programKey || course.includes(programKey);
-    });
-
-    return {
-      ...program,
-      students: matchingStudents.length || program.mockStudents,
-      artworks: matchingArtworks.length || program.mockArtworks,
-    };
-  });
+  const salesData = statistics?.monthlySales || [];
+  const programData = buildProgramDistribution(students, artworks);
   const artworkDistributionCount = programData.reduce(
     (total, program) => total + program.artworks,
     0,
@@ -290,12 +252,15 @@ export default function Dashboard() {
     0,
   );
   const programChartData = programData.filter(
-    (program) => program.students > 0,
+    (program) => program[distributionMode] > 0,
   );
   const chartData = programChartData;
+  const distributionTotal = distributionMode === "students" ? enrolledArtists : artworkDistributionCount;
   const getRecordTime = (record) =>
     new Date(
-      record.created_at ||
+      record.date_created ||
+        record.request_date ||
+        record.created_at ||
         record.createdAt ||
         record.uploaded_at ||
         record.datetime ||
@@ -374,6 +339,10 @@ export default function Dashboard() {
           Export Data
         </Button>
       </Box>
+      {statisticsError && <Alert severity="error" sx={{ mt: 2 }}>{statisticsError}</Alert>}
+      {artworkErrorMessage && <Alert severity="warning" sx={{ mt: 2 }}>{artworkErrorMessage}</Alert>}
+      {studentsError && <Alert severity="warning" sx={{ mt: 2 }}>{studentsError}</Alert>}
+      {logsErrorMessage && <Alert severity="warning" sx={{ mt: 2 }}>{logsErrorMessage}</Alert>}
       <Box
         sx={{
           mt: 3,
@@ -390,7 +359,7 @@ export default function Dashboard() {
           {
             label: "TOTAL ARTWORKS",
             value: artworkCount,
-            caption: `${pendingArtworks.length} pending review`,
+            caption: `${statistics?.pendingArtworks ?? "--"} pending review`,
             icon: ColorLensRoundedIcon,
             tint: "rgba(244, 114, 182, 0.15)",
             accent: "primary.main",
@@ -398,15 +367,15 @@ export default function Dashboard() {
           {
             label: "SOLD",
             value: soldCount,
-            caption: "Completed purchases",
+            caption: "Artwork units in paid orders",
             icon: SellRoundedIcon,
             tint: "rgba(34, 197, 94, 0.18)",
             accent: "success.main",
           },
           {
             label: "TOTAL SALES",
-            value: `₱${Number(salesCount).toLocaleString()}`,
-            caption: "Total revenue generated",
+            value: salesCount == null ? "--" : `₱${Number(salesCount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            caption: "Paid artwork sales (excludes shipping)",
             icon: CreditScoreIcon,
             tint: "rgba(59, 130, 246, 0.18)",
             accent: "secondary.main",
@@ -603,7 +572,7 @@ export default function Dashboard() {
                   lineHeight: 1.4,
                 }}
               >
-                Departmental breakdown of student artists & artwork catalog
+                Verified student artists & artwork catalog by program
               </Typography>
             </Box>
           </Box>
@@ -619,7 +588,9 @@ export default function Dashboard() {
           >
             <Button
               size="small"
-              variant="contained"
+              variant={distributionMode === "students" ? "contained" : "text"}
+              onClick={() => setDistributionMode("students")}
+              aria-pressed={distributionMode === "students"}
               sx={{
                 minWidth: 0,
                 px: 1.5,
@@ -641,7 +612,9 @@ export default function Dashboard() {
             </Button>
             <Button
               size="small"
-              variant="text"
+              variant={distributionMode === "artworks" ? "contained" : "text"}
+              onClick={() => setDistributionMode("artworks")}
+              aria-pressed={distributionMode === "artworks"}
               sx={{
                 minWidth: 0,
                 px: 1.5,
@@ -684,7 +657,7 @@ export default function Dashboard() {
               <PieChart>
                 <Pie
                   data={chartData}
-                  dataKey="students"
+                  dataKey={distributionMode}
                   nameKey="name"
                   cx="50%"
                   cy="48%"
@@ -699,7 +672,7 @@ export default function Dashboard() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value) => [`${value} students`, "Enrolled"]}
+                  formatter={(value) => [`${value} ${distributionMode === "students" ? "artists" : "artworks"}`, "Total"]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -732,7 +705,7 @@ export default function Dashboard() {
                   lineHeight: 1.1,
                 }}
               >
-                {enrolledArtists}
+                {distributionTotal}
               </Typography>
               <Typography
                 variant="caption"
@@ -746,7 +719,7 @@ export default function Dashboard() {
                   whiteSpace: "normal",
                 }}
               >
-                Enrolled Artists
+                {distributionMode === "students" ? "Verified Artists" : "Listed Artworks"}
               </Typography>
             </Box>
             <Typography
@@ -776,8 +749,8 @@ export default function Dashboard() {
             }}
           >
             {programData.map((program) => {
-              const percentage = enrolledArtists
-                ? Math.round((program.students / enrolledArtists) * 100)
+              const percentage = distributionTotal
+                ? Math.round((program[distributionMode] / distributionTotal) * 100)
                 : 0;
               return (
                 <Box
@@ -924,7 +897,7 @@ export default function Dashboard() {
         variant="outlined"
       >
         <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
-          Monthly Sales
+          Monthly Sales {statistics?.salesYear || ""}
         </Typography>
 
         <Box sx={{ width: "100%", height: 330, overflowX: "auto" }}>
@@ -933,7 +906,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value) => [`?${Number(value).toLocaleString()}`, "Paid artwork sales"]} />
               <Line
                 type="monotone"
                 dataKey="sales"

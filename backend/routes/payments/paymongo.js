@@ -4,6 +4,7 @@ import { getPayMongoMode, verifyPayMongoSignature } from "../../utils/paymongo.j
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
+import { payoutService } from "../../utils/payouts.js";
 
 const router = express.Router();
 
@@ -23,6 +24,14 @@ router.post("/webhook", async (req, res) => {
   } catch (error) {
     console.error("PayMongo webhook verification unavailable:", error.name);
     return res.status(503).json({ message: "Unable to verify webhook" });
+  }
+  if (["transfer.outward.successful", "transfer.outward.failed"].includes(event?.type)) {
+    try {
+      return res.json({ received: true, ...await payoutService.handleTransferEvent(event) });
+    } catch (error) {
+      console.error("PayMongo payout reconciliation failed:", error.name);
+      return res.status(error.status || 500).json({ message: "Unable to reconcile the payout transfer." });
+    }
   }
   if (event?.type !== "checkout_session.payment.paid") {
     return res.json({ received: true, ignored: true });

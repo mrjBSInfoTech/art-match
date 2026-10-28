@@ -26,6 +26,10 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     getCommissionRate: () => 0,
     getRecommendationSessionIdFromRequest: () => "test-browser-session",
     logSellerAudit: async () => {},
+    payoutService: {
+      list: async () => ({ currency: "PHP", totals: {}, orders: [] }),
+      handleTransferEvent: async () => false,
+    },
     readParcelPhoto: () => { throw new Error("Unexpected parcel photo access"); },
     process: { env: {
       PAYMONGO_SECRET_KEY: "sk_test_isolated_fixture",
@@ -220,11 +224,11 @@ export function databaseFixture(overrides = {}) {
         return [{ insertId: state.paymentSplits.length, affectedRows: 1 }];
       }
       if (/^UPDATE seller_payment_split s/i.test(sql)) {
-        const ids = new Set(params[1].map(Number));
+        const ids = new Set(params[0].map(Number));
         const selected = state.paymentSplits.filter(split => ids.has(Number(split.order_id)) && split.payout_status === "Held");
         for (const split of selected) {
-          split.payout_status = "Eligible";
-          split.eligible_at ??= params[0];
+          split.payout_status = "Held";
+          split.eligible_at = null;
           split.payment_reference ??= state.orders.find(order => order.order_id === split.order_id)?.payment_reference;
         }
         return [{ affectedRows: selected.length }];

@@ -1,4 +1,6 @@
 import db from "../database/db.js";
+import { randomBytes } from "node:crypto";
+import QRCode from "qrcode";
 import { publishChatMessage } from "./chatEvents.js";
 
 export const CERTIFICATE_LINK_MEDIA_TYPE = "application/vnd.artmatch.certificate-link";
@@ -30,6 +32,38 @@ const validSvg = (value) => typeof value === "string" &&
   !/<\s*(?:script|style|foreignObject|iframe)\b|\son[a-z]+\s*=|javascript\s*:|url\s*\(|<!DOCTYPE|<!ENTITY/i.test(value) &&
   !/\b(?:href|src)\s*=\s*["'](?!data:image\/(?:png|jpeg|webp);base64,)[^"']*["']/i.test(value);
 
+export function certificateUrl(token) {
+  const base = process.env.PUBLIC_APP_URL || process.env.FRONTEND_URL ||
+    (process.env.NODE_ENV === "production" ? "" : "http://localhost:5173");
+  let url;
+  try { url = new URL(base); } catch { fail(503, "Certificate public site URL is not configured."); }
+  if (!/^https?:$/.test(url.protocol) || url.username || url.password ||
+      (process.env.NODE_ENV === "production" && (url.protocol !== "https:" || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(url.hostname)))) {
+    fail(503, "Configure a secure public site URL for certificates.");
+  }
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}/buyer/certificate/verify/${token}`;
+}
+
+export async function reserveCertificateIdentity(sellerId, artworkId) {
+  const ownerId = positiveId(sellerId, "seller");
+  const id = positiveId(artworkId, "artwork");
+  const [owned] = await db.promise().query(`SELECT a.artwork_id FROM artwork a
+    JOIN artupload au ON au.artwork_id = a.artwork_id WHERE a.artwork_id = ? AND a.student_id = ?
+    AND LOWER(TRIM(au.request_status)) IN ('verified', 'approved') LIMIT 1`, [id, ownerId]);
+  if (!owned.length) fail(404, "Approved artwork not found.");
+  await db.promise().query(`INSERT IGNORE INTO marketplace_certificate_identity (artwork_id, public_token) VALUES (?, ?)`,
+    [id, randomBytes(32).toString("hex")]);
+  const [rows] = await db.promise().query("SELECT public_token FROM marketplace_certificate_identity WHERE artwork_id = ?", [id]);
+  return { verificationUrl: certificateUrl(rows[0].public_token) };
+}
+
+export async function certificateWithQr(svg, verificationUrl) {
+  // Replace only our overlay, keeping the seller's design and raster template intact.
+  const clean = svg.replace(/<g id="certificate-verification-qr">[\s\S]*?<\/g>/g, "");
+  const png = await QRCode.toDataURL(verificationUrl, { width: 384, margin: 4, errorCorrectionLevel: "M" });
+  return clean.replace(/<\/svg>\s*$/i, `<g id="certificate-verification-qr"><rect x="990" y="597" width="146" height="151" fill="#fff"/><image href="${png}" x="1000" y="602" width="126" height="126"/><text x="1063" y="741" text-anchor="middle" fill="#202124" font-family="Arial,sans-serif" font-size="12">Scan to verify</text></g></svg>`);
+}
+
 export async function publishCertificate(sellerId, artworkId, certificateId, svg) {
   const ownerId = positiveId(sellerId, "seller");
   const id = positiveId(artworkId, "artwork");
@@ -48,6 +82,9 @@ export async function publishCertificate(sellerId, artworkId, certificateId, svg
   );
   if (!artworks.length) fail(404, "Approved artwork not found.");
 
+  const identity = await reserveCertificateIdentity(ownerId, id);
+  svg = await certificateWithQr(svg, identity.verificationUrl);
+
   const [result] = await db.promise().query(
     `INSERT IGNORE INTO marketplace_certificate (artwork_id, seller_id, certificate_id, certificate_svg)
      VALUES (?, ?, ?, ?)`,
@@ -56,20 +93,62 @@ export async function publishCertificate(sellerId, artworkId, certificateId, svg
   if (result.affectedRows !== 1) {
     fail(409, "A certificate has already been published for this artwork.");
   }
-  return { artworkId: id, certificateId, published: true };
+  return { artworkId: id, certificateId, published: true, ...identity, svg };
 }
 
 export async function getSellerCertificate(sellerId, artworkId) {
   const ownerId = positiveId(sellerId, "seller");
   const id = positiveId(artworkId, "artwork");
   const [rows] = await db.promise().query(
-    `SELECT certificate_id, published_at FROM marketplace_certificate
+    `SELECT certificate_id, certificate_svg, published_at FROM marketplace_certificate
      WHERE artwork_id = ? AND seller_id = ?`,
     [id, ownerId],
   );
-  return rows[0]
-    ? { artworkId: id, certificateId: rows[0].certificate_id, publishedAt: rows[0].published_at }
-    : null;
+  if (!rows[0]) return null;
+  const identity = await reserveCertificateIdentity(ownerId, id);
+  return { artworkId: id, certificateId: rows[0].certificate_id, publishedAt: rows[0].published_at,
+    ...identity, svg: await certificateWithQr(rows[0].certificate_svg, identity.verificationUrl) };
+}
+
+export async function getPublicCertificate(token) {
+  if (!/^[a-f0-9]{64}$/.test(String(token))) fail(404, "Certificate unavailable.");
+  const [rows] = await db.promise().query(`SELECT c.certificate_id, c.certificate_svg,
+      o.status, o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY) AS access_ready,
+      o.paid_at IS NOT NULL AS paid,
+      EXISTS (SELECT 1 FROM marketplace_return_item ri JOIN marketplace_return_request r
+        ON r.return_request_id = ri.return_request_id
+        WHERE ri.order_item_id = oi.order_item_id AND r.status = 'Completed') AS return_completed
+    FROM marketplace_certificate_identity i
+    JOIN marketplace_certificate c ON c.artwork_id = i.artwork_id
+    JOIN marketplace_order_item oi ON oi.artwork_id = c.artwork_id
+    JOIN marketplace_order o ON o.order_id = oi.order_id AND o.seller_id = c.seller_id
+    WHERE i.public_token = ? ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1`, [token]);
+  const row = rows[0];
+  if (!row) fail(404, "Certificate unavailable.");
+  if (Number(row.return_completed)) fail(410, "Certificate unavailable because the associated return is completed.");
+  if (row.status !== "Delivered" || !Number(row.access_ready) || !Number(row.paid)) {
+    fail(409, "Certificate unavailable until 24 hours after paid delivery.");
+  }
+  return { certificateId: row.certificate_id, status: "Active",
+    svg: await certificateWithQr(row.certificate_svg, certificateUrl(token)) };
+}
+
+export async function getBuyerCertificateIdentity(customerId, orderItemId) {
+  await getBuyerCertificate(customerId, orderItemId);
+  const [rows] = await db.promise().query(`SELECT oi.artwork_id, o.seller_id, c.certificate_id
+    FROM marketplace_order_item oi JOIN marketplace_order o ON o.order_id = oi.order_id
+    JOIN marketplace_certificate c ON c.artwork_id = oi.artwork_id AND c.seller_id = o.seller_id
+    WHERE oi.order_item_id = ? AND o.customer_id = ?`, [orderItemId, customerId]);
+  return { certificateId: rows[0].certificate_id,
+    ...await reserveCertificateIdentity(rows[0].seller_id, rows[0].artwork_id) };
+}
+
+export async function getSellerOrderCertificateIdentity(sellerId, orderItemId) {
+  const [rows] = await db.promise().query(`SELECT o.customer_id FROM marketplace_order_item oi
+    JOIN marketplace_order o ON o.order_id = oi.order_id WHERE oi.order_item_id = ? AND o.seller_id = ?`,
+    [positiveId(orderItemId, "order item"), positiveId(sellerId, "seller")]);
+  if (!rows.length) fail(404, "Certificate unavailable.");
+  return getBuyerCertificateIdentity(rows[0].customer_id, orderItemId);
 }
 
 async function deliverOrderItem(orderItemId) {
@@ -141,11 +220,12 @@ async function deliverOrderItem(orderItemId) {
        )`,
       [conversationId, item.customer_id, item.seller_id],
     );
-    const linkPath = `/buyer/certificate/${item.order_item_id}`;
+    const identity = await reserveCertificateIdentity(item.seller_id, item.artwork_id);
+    const linkPath = identity.verificationUrl;
     const [message] = await connection.query(
       `INSERT INTO message (conversation_id, sender_type, message_data, image, media_type)
        VALUES (?, 'seller', ?, ?, ?)`,
-      [conversationId, `Your Certificate of Authenticity for "${item.title || "your artwork"}" is ready.`,
+      [conversationId, `Your Certificate of Authenticity for "${item.title || "your artwork"}" is ready. Certificate ID: ${certificates[0].certificate_id}`,
         linkPath, CERTIFICATE_LINK_MEDIA_TYPE],
     );
     await connection.query(
@@ -228,6 +308,9 @@ export async function getBuyerCertificate(customerId, orderItemId) {
   const itemId = positiveId(orderItemId, "order item");
   const [rows] = await db.promise().query(
     `SELECT c.certificate_svg,
+       o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY) AS access_ready,
+       GREATEST(1, CEIL(TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP,
+         DATE_ADD(o.delivered_at, INTERVAL 1 DAY)) / 60)) AS minutes_remaining,
        EXISTS (
          SELECT 1 FROM marketplace_return_item ri
          JOIN marketplace_return_request r ON r.return_request_id = ri.return_request_id
@@ -239,7 +322,6 @@ export async function getBuyerCertificate(customerId, orderItemId) {
        ON c.artwork_id = oi.artwork_id AND c.seller_id = o.seller_id
      WHERE oi.order_item_id = ? AND o.customer_id = ?
        AND o.status = 'Delivered' AND o.delivered_at IS NOT NULL
-       AND o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
        AND o.paid_at IS NOT NULL
      LIMIT 1`,
     [itemId, buyerId],
@@ -247,6 +329,9 @@ export async function getBuyerCertificate(customerId, orderItemId) {
   if (!rows.length) fail(404, "Certificate access is unavailable for this order.");
   if (Number(rows[0].return_completed)) {
     fail(410, "Certificate access is unavailable because this return is completed.");
+  }
+  if (!Number(rows[0].access_ready)) {
+    fail(409, `Your certificate becomes available 24 hours after delivery. Please try again in ${Number(rows[0].minutes_remaining)} minute(s).`);
   }
   return rows[0].certificate_svg;
 }
