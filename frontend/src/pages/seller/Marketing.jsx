@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -15,6 +16,8 @@ import {
   IconButton,
   Snackbar,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -23,9 +26,12 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
+import SellerStorefront from "./Storefront";
 import {
   createSellerPromotionSlide,
   deleteSellerPromotionSlide,
+  createSellerPromotionHeaderRequest,
+  fetchSellerPromotionHeaderRequests,
   fetchSellerPromotionSlides,
   requestSellerPromotionSlideReview,
   updateSellerPromotionSlide,
@@ -33,6 +39,11 @@ import {
 } from "../../api/seller/promotionSlideAPI";
 
 const emptyForm = { title: "", description: "", button_label: "", button_url: "", file: null };
+const emptyHeaderForm = {
+  message: "",
+  button_label: "",
+  button_url: "/buyer/shop",
+};
 const slideLimit = 3;
 
 const statusDetails = (slide) => {
@@ -52,9 +63,19 @@ const statusDetails = (slide) => {
 };
 
 export default function Marketing() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const activeTab = ["slides", "header", "store-profile"].includes(requestedTab)
+    ? requestedTab
+    : "store-profile";
   const [slides, setSlides] = useState([]);
+  const [headerRequests, setHeaderRequests] = useState([]);
+  const [headerForm, setHeaderForm] = useState(emptyHeaderForm);
   const [loading, setLoading] = useState(true);
+  const [headerLoading, setHeaderLoading] = useState(true);
+  const [headerSaving, setHeaderSaving] = useState(false);
   const [error, setError] = useState("");
+  const [headerError, setHeaderError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedSlide, setSelectedSlide] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -79,6 +100,24 @@ export default function Marketing() {
   useEffect(() => {
     loadSlides();
   }, [loadSlides]);
+
+  const loadHeaderRequests = useCallback(async () => {
+    setHeaderLoading(true);
+    setHeaderError("");
+    try {
+      setHeaderRequests(await fetchSellerPromotionHeaderRequests());
+    } catch (loadError) {
+      setHeaderError(
+        loadError.message || "Unable to load your promo header requests.",
+      );
+    } finally {
+      setHeaderLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHeaderRequests();
+  }, [loadHeaderRequests]);
 
   useEffect(
     () => () => {
@@ -150,6 +189,23 @@ export default function Marketing() {
     }
   };
 
+  const handleHeaderRequest = async (event) => {
+    event.preventDefault();
+    setHeaderError("");
+    setHeaderSaving(true);
+    try {
+      const request = await createSellerPromotionHeaderRequest(headerForm);
+      setHeaderRequests((current) => [request, ...current]);
+      setNotice("Promo header request sent to the admin for review.");
+    } catch (requestError) {
+      setHeaderError(
+        requestError.message || "Unable to request a promo header.",
+      );
+    } finally {
+      setHeaderSaving(false);
+    }
+  };
+
   const handleRequestReview = async (slide) => {
     setBusySlideId(slide.slide_id);
     try {
@@ -209,20 +265,188 @@ export default function Marketing() {
         <Box>
           <Typography variant="h4" fontWeight={700}>Marketing</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Create up to 3 promotional slides and request admin approval. Approved
-            promotions appear in the Buyer Panel for 3 days.
+            Create promotional slides or request a custom buyer promo header.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          disabled={slides.length >= slideLimit || loading}
-          onClick={openCreate}
-        >
-          Create slide ({slides.length}/{slideLimit})
-        </Button>
+        {activeTab === "slides" && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            disabled={slides.length >= slideLimit || loading}
+            onClick={openCreate}
+          >
+            Create slide ({slides.length}/{slideLimit})
+          </Button>
+        )}
       </Stack>
 
+      <Tabs
+        value={activeTab}
+        onChange={(_, value) => {
+          const nextParams = new URLSearchParams(searchParams);
+          if (value === "slides") {
+            nextParams.delete("tab");
+          } else {
+            nextParams.set("tab", value);
+          }
+          setSearchParams(nextParams);
+        }}
+        aria-label="Seller marketing options"
+        sx={{ mb: 2 }}
+      >
+        <Tab value="store-profile" label="Store Profile" />
+        <Tab value="header" label="Promo Header" />
+        <Tab value="slides" label="Promotion Slides" />
+      </Tabs>
+
+      {activeTab === "store-profile" ? (
+        <SellerStorefront />
+      ) : activeTab === "header" ? (
+        <Stack spacing={2.5} sx={{ maxWidth: 760 }}>
+          <Typography color="text.secondary">
+            Submit your own message and button for the red buyer-panel promo
+            header. It will only appear after admin approval.
+          </Typography>
+          {headerError && <Alert severity="error">{headerError}</Alert>}
+          {headerLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              {headerRequests[0]?.status === "pending" && (
+                <Alert severity="warning">
+                  Your latest promo header request is awaiting admin review.
+                </Alert>
+              )}
+              <Card
+                component="form"
+                variant="outlined"
+                onSubmit={handleHeaderRequest}
+              >
+                <CardContent>
+                  <Stack spacing={2}>
+                    <TextField
+                      label="Announcement message"
+                      value={headerForm.message}
+                      onChange={(event) =>
+                        setHeaderForm((current) => ({
+                          ...current,
+                          message: event.target.value,
+                        }))
+                      }
+                      required
+                      fullWidth
+                      multiline
+                      minRows={2}
+                      inputProps={{ maxLength: 200 }}
+                      helperText={`${headerForm.message.length}/200 characters`}
+                      disabled={
+                        headerSaving ||
+                        headerRequests.some((request) => request.status === "pending")
+                      }
+                    />
+                    <TextField
+                      label="Button label"
+                      value={headerForm.button_label}
+                      onChange={(event) =>
+                        setHeaderForm((current) => ({
+                          ...current,
+                          button_label: event.target.value,
+                        }))
+                      }
+                      required
+                      fullWidth
+                      inputProps={{ maxLength: 60 }}
+                      disabled={
+                        headerSaving ||
+                        headerRequests.some((request) => request.status === "pending")
+                      }
+                    />
+                    <TextField
+                      label="Button destination"
+                      value={headerForm.button_url}
+                      onChange={(event) =>
+                        setHeaderForm((current) => ({
+                          ...current,
+                          button_url: event.target.value,
+                        }))
+                      }
+                      required
+                      fullWidth
+                      placeholder="/buyer/shop"
+                      helperText="Use a site path, for example /buyer/shop."
+                      disabled={
+                        headerSaving ||
+                        headerRequests.some((request) => request.status === "pending")
+                      }
+                    />
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={
+                        headerSaving ||
+                        headerRequests.some((request) => request.status === "pending")
+                      }
+                      startIcon={
+                        headerSaving ? (
+                          <CircularProgress size={18} color="inherit" />
+                        ) : (
+                          <PublishOutlinedIcon />
+                        )
+                      }
+                    >
+                      {headerSaving ? "Sending request..." : "Request promo header"}
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+              <Typography variant="h6" fontWeight={700}>
+                Your recent header requests
+              </Typography>
+              {headerRequests.length === 0 ? (
+                <Alert severity="info">You have not requested a promo header yet.</Alert>
+              ) : (
+                <Stack spacing={1.5}>
+                  {headerRequests.map((request) => (
+                    <Card key={request.request_id} variant="outlined">
+                      <CardContent>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="flex-start"
+                          spacing={1}
+                        >
+                          <Box>
+                            <Typography fontWeight={700}>
+                              {request.message}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {request.button_label} · {request.button_url}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            size="small"
+                            label={request.status}
+                            color={
+                              request.status === "accepted"
+                                ? "success"
+                                : request.status === "rejected"
+                                  ? "error"
+                                  : "warning"
+                            }
+                          />
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </>
+          )}
+        </Stack>
+      ) : (
+        <>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -369,6 +593,8 @@ export default function Marketing() {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
       <Snackbar open={Boolean(notice)} autoHideDuration={4000} onClose={() => setNotice("")}>
         <Alert severity="info" variant="filled" onClose={() => setNotice("")}>{notice}</Alert>
       </Snackbar>

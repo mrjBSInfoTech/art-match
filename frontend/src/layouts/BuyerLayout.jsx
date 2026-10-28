@@ -62,6 +62,13 @@ import {
 } from "../api/buyer/messageAPI";
 import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
 import { recordRecommendationEvent } from "../api/buyer/recommendationAPI";
+import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
+
+const DEFAULT_PROMOTION_HEADER = {
+  message: "Special Spring Exhibition: Post-Digital Sculptures by Class of 2026 out now.",
+  button_label: "Explore Collection",
+  button_url: "/buyer/shop",
+};
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -109,6 +116,9 @@ function BuyerLayoutContent({ children }) {
   const [cartCount, setCartCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [promotionHeader, setPromotionHeader] = useState(
+    DEFAULT_PROMOTION_HEADER,
+  );
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -120,6 +130,28 @@ function BuyerLayoutContent({ children }) {
   const [searchQuery, setSearchQuery] = useState("");
   const handleOpenDialog = () => setOpenDialog(true);
   const handleCloseDialog = () => setOpenDialog(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchPromotionHeader()
+      .then((header) => {
+        if (active) {
+          setPromotionHeader({
+            message: header.message || DEFAULT_PROMOTION_HEADER.message,
+            button_label:
+              header.button_label || DEFAULT_PROMOTION_HEADER.button_label,
+            button_url:
+              header.button_url || DEFAULT_PROMOTION_HEADER.button_url,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Unable to load the buyer promo header:", error);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     setSearchQuery(new URLSearchParams(location.search).get("q") || "");
@@ -409,19 +441,18 @@ function BuyerLayoutContent({ children }) {
             variant="caption"
             sx={{ color: "inherit", fontSize: "inherit" }}
           >
-            Special Spring Exhibition: Post-Digital Sculptures by Class of 2026
-            out now.
+            {promotionHeader.message}
           </Typography>
           <Button
             size="small"
-            onClick={() => navigate("/buyer/shop")}
+            onClick={() => navigate(promotionHeader.button_url)}
             sx={{
               color: "inherit",
               textTransform: "none",
               fontSize: "inherit",
             }}
           >
-            Explore Collection{" "}
+            {promotionHeader.button_label}{" "}
             <span aria-hidden="true" style={{ marginLeft: 10 }}>
               ›
             </span>

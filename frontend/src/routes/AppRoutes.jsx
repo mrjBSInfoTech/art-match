@@ -23,7 +23,6 @@ import BuyerRoute from "../middleware/BuyerRoute";
 // Admin Pages
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminSystemSetting from "../pages/admin/SystemSetting";
-import AdminPromotionSlides from "../pages/admin/PromotionSlides";
 import AdminSystemSettingsPlaceholder from "../pages/admin/SystemSettingsPlaceholder";
 import AdminFaqEdit from "../pages/admin/FaqEdit";
 import AdminChatSupport from "../pages/admin/ChatSupport";
@@ -43,7 +42,6 @@ import AdminLogin from "../pages/admin/Login";
 // Seller Pages
 import SellerDashboard from "../pages/seller/Dashboard";
 import SellerArtwork from "../pages/seller/Artwork";
-import SellerStorefront from "../pages/seller/Storefront";
 import SellerSales from "../pages/seller/Sales";
 import SellerMessages from "../pages/seller/Messages";
 import SellerNotifications from "../pages/seller/Notifications";
@@ -175,7 +173,9 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="system-settings/promotion-slide"
-                  element={<AdminPromotionSlides />}
+                  element={
+                    <Navigate to="/admin/event?tab=promotions" replace />
+                  }
                 />
                 <Route
                   path="system-settings/about-us"
@@ -190,7 +190,12 @@ export default function AppRoutes() {
                   element={<AdminFaqEdit />}
                 />
                 <Route path="profile" element={<AdminProfile />} />
-                <Route path="artwork" element={<AdminArtwork />} />
+                <Route
+                  path="artwork"
+                  element={<Navigate to="/admin/artwork/pending" replace />}
+                />
+                <Route path="artwork/verified" element={<AdminArtwork />} />
+                <Route path="artwork/pending" element={<AdminArtwork />} />
                 <Route path="manage/students" element={<AdminStudent />} />
                 <Route path="manage/customers" element={<AdminCustomer />} />
                 <Route path="manage/access" element={<AdminAccountAccess />} />
@@ -214,7 +219,15 @@ export default function AppRoutes() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<SellerDashboard />} />
                 <Route path="artwork" element={<SellerArtwork />} />
-                <Route path="storefront" element={<SellerStorefront />} />
+                <Route
+                  path="storefront"
+                  element={
+                    <Navigate
+                      to="/seller/marketing?tab=store-profile"
+                      replace
+                    />
+                  }
+                />
                 <Route path="sales" element={<SellerSales />} />
                 <Route path="orders" element={<Navigate to="manage" replace />} />
                 <Route path="orders/manage" element={<SellerOrder />} />
@@ -225,6 +238,15 @@ export default function AppRoutes() {
                 <Route
                   path="marketing"
                   element={<SellerMarketing />}
+                />
+                <Route
+                  path="marketing/store-profile"
+                  element={
+                    <Navigate
+                      to="/seller/marketing?tab=store-profile"
+                      replace
+                    />
+                  }
                 />
                 <Route path="settlement-payout" element={<SellerPayout />} />
                 <Route path="customer-service" element={<SellerMessages />} />
@@ -237,10 +259,6 @@ export default function AppRoutes() {
                 <Route
                   path="vouchers/discount-code"
                   element={<SellerDiscountCodes />}
-                />
-                <Route
-                  path="vouchers/promotion"
-                  element={<SellerPlaceholder title="Promotion" />}
                 />
                 <Route
                   path="authenticity/certificate"

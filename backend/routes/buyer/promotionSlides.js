@@ -1,9 +1,21 @@
 import express from "express";
 import { listPromotionSlides } from "../../database/promotionSlides.js";
-import { getPromotionHeroEnabled } from "../../database/systemSettings.js";
+import {
+  getPromotionHeader,
+  getPromotionHeroEnabled,
+} from "../../database/systemSettings.js";
 
 const router = express.Router();
 const imagePrefix = "app-uploads/admin/promotion-slides/";
+
+router.get("/header", async (_req, res) => {
+  try {
+    return res.json(await getPromotionHeader());
+  } catch (error) {
+    console.error("Unable to load buyer promotion header:", error.code || error.name);
+    return res.status(500).json({ message: "Unable to load promotion header." });
+  }
+});
 
 router.get("/settings", async (_req, res) => {
   try {

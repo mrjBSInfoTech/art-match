@@ -19,6 +19,20 @@ export const fetchPromotionHeroEnabled = async () => {
   }
 };
 
+export const fetchPromotionHeader = async () => {
+  try {
+    const response = await api.get("/header");
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      error.response?.data?.message ||
+        (error.request
+          ? "Server not responding. Please check your connection."
+          : error.message || "Unable to load promotion header."),
+    );
+  }
+};
+
 export const fetchPromotionSlides = async () => {
   try {
     const response = await api.get("/");

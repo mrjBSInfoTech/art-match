@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
+import { useLocation } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -34,10 +35,13 @@ function SlideTransition(props) {
 
 export default function Artwork() {
   const theme = useTheme();
+  const location = useLocation();
+  const isVerifiedSection = location.pathname.endsWith("/verified");
   const [artworks, setArtworks] = useState([]);
   const [allArtworks, setAllArtworks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [pendingStatusFilter, setPendingStatusFilter] = useState("pending");
+  const statusFilter = isVerifiedSection ? "approved" : pendingStatusFilter;
   const [sortOption, setSortOption] = useState("newest");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -47,11 +51,11 @@ export default function Artwork() {
   const [verificationArtwork, setVerificationArtwork] = useState(null);
   const [rejectionArtwork, setRejectionArtwork] = useState(null);
 
-  const loadArtworks = async () => {
+  const loadArtworks = useCallback(async () => {
     try {
       setLoading(true);
       const apiStatus = statusFilter === "approved" ? "verified" : statusFilter;
-      const data = await fetchArtworks(apiStatus === "all" ? "" : apiStatus);
+      const data = await fetchArtworks(apiStatus);
       setArtworks(Array.isArray(data) ? data : []);
       // Also fetch all artworks to compute totals across statuses
       const all = await fetchArtworks();
@@ -63,22 +67,25 @@ export default function Artwork() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     loadArtworks();
-  }, [statusFilter]);
+  }, [loadArtworks]);
 
   const normalizeStatus = (artwork) =>
     String(artwork.request_status || artwork.status || "").trim().toLowerCase();
   const totalPending = allArtworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
-    return s === "pending" || s === "pending";
+    return s === "pending" || s === "pending verification";
   }).length;
   const totalVerified = allArtworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
-    return s === "verified" || s === "approved" || s === "approved";
+    return s === "verified" || s === "approved";
   }).length;
+  const totalRejected = allArtworks.filter(
+    (artwork) => normalizeStatus(artwork) === "rejected",
+  ).length;
 
   const filteredArtworks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -106,16 +113,14 @@ export default function Artwork() {
       }
       return Number(second.artwork_id || 0) - Number(first.artwork_id || 0);
     });
-  }, [artworks, searchQuery, sortOption, statusFilter]);
+  }, [artworks, searchQuery, sortOption]);
 
   const statusCount =
     statusFilter === "pending"
       ? totalPending
       : statusFilter === "approved"
         ? totalVerified
-        : statusFilter === "rejected"
-          ? allArtworks.filter((artwork) => normalizeStatus(artwork) === "rejected").length
-          : allArtworks.length;
+        : totalRejected;
 
   const handleVerify = async (artwork) => {
     try {
@@ -282,33 +287,34 @@ export default function Artwork() {
               variant="caption"
               sx={{ color: theme.palette.text.secondary, whiteSpace: "nowrap" }}
             >
-              Status: <strong>{statusCount}</strong>
+              {isVerifiedSection ? "Verified" : "Status"}:{" "}
+              <strong>{statusCount}</strong>
             </Typography>
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              value={statusFilter}
-              onChange={(_, value) => value && setStatusFilter(value)}
-              sx={{
-                "& .MuiToggleButton-root": {
-                  px: 1,
-                  py: 0.5,
-                  fontSize: 11,
-                  color: theme.palette.text.secondary,
-                  borderColor: theme.palette.divider,
-                  backgroundColor: theme.palette.background.default,
-                },
-                "& .MuiToggleButton-root.Mui-selected": { bgcolor: "primary.main", color: "#fff" },
-                "& .MuiToggleButton-root.Mui-selected:hover": {
-                  backgroundColor: theme.palette.primary.dark,
-                },
-              }}
-            >
-              <ToggleButton value="pending">Pending</ToggleButton>
-              <ToggleButton value="rejected">Rejected</ToggleButton>
-              <ToggleButton value="approved">Approved</ToggleButton>
-              <ToggleButton value="all">All</ToggleButton>
-            </ToggleButtonGroup>
+            {!isVerifiedSection && (
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={pendingStatusFilter}
+                onChange={(_, value) => value && setPendingStatusFilter(value)}
+                sx={{
+                  "& .MuiToggleButton-root": {
+                    px: 1,
+                    py: 0.5,
+                    fontSize: 11,
+                    color: theme.palette.text.secondary,
+                    borderColor: theme.palette.divider,
+                    backgroundColor: theme.palette.background.default,
+                  },
+                  "& .MuiToggleButton-root.Mui-selected": { bgcolor: "primary.main", color: "#fff" },
+                  "& .MuiToggleButton-root.Mui-selected:hover": {
+                    backgroundColor: theme.palette.primary.dark,
+                  },
+                }}
+              >
+                <ToggleButton value="pending">Pending</ToggleButton>
+                <ToggleButton value="rejected">Rejected</ToggleButton>
+              </ToggleButtonGroup>
+            )}
             <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
               <Select
                 value={sortOption}

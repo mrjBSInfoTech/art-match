@@ -15,6 +15,10 @@ import {
   submitStudentPromotionSlide,
   updateStudentPromotionSlide,
 } from "../../database/promotionSlides.js";
+import {
+  createPromotionHeaderRequest,
+  listSellerPromotionHeaderRequests,
+} from "../../database/promotionHeaderRequests.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { deleteFromB2, uploadToB2 } from "../../utils/b2Storage.js";
@@ -95,6 +99,42 @@ const validateSlide = (body = {}) => {
   };
 };
 
+const validateHeaderRequest = (body = {}) => {
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  const buttonLabel =
+    typeof body.button_label === "string" ? body.button_label.trim() : "";
+  const buttonUrl =
+    typeof body.button_url === "string" ? body.button_url.trim() : "";
+
+  if (!message || message.length > 200) {
+    throw Object.assign(
+      new Error("Promo header message is required and must be 200 characters or fewer."),
+      { status: 400 },
+    );
+  }
+  if (!buttonLabel || buttonLabel.length > 60) {
+    throw Object.assign(
+      new Error("Button label is required and must be 60 characters or fewer."),
+      { status: 400 },
+    );
+  }
+  if (
+    !buttonUrl.startsWith("/") ||
+    buttonUrl.startsWith("//") ||
+    buttonUrl.includes("\\") ||
+    /[\u0000-\u001f]/.test(buttonUrl) ||
+    new URL(buttonUrl, "http://artmatch.local").origin !== "http://artmatch.local" ||
+    buttonUrl.length > 1000
+  ) {
+    throw Object.assign(
+      new Error("Enter a valid site path for the promo header button."),
+      { status: 400 },
+    );
+  }
+
+  return { message, button_label: buttonLabel, button_url: buttonUrl };
+};
+
 const serializeSlide = (slide) => {
   const filename = slide.image_key?.startsWith(imagePrefix)
     ? slide.image_key.slice(imagePrefix.length)
@@ -133,6 +173,49 @@ router.get("/", authenticateSeller, async (req, res) => {
   } catch (error) {
     console.error("Unable to load student promotion slides:", error.code || error.name);
     res.status(500).json({ message: "Unable to load your promotion slides." });
+  }
+});
+
+router.get("/header-requests", authenticateSeller, async (req, res) => {
+  try {
+    const requests = await listSellerPromotionHeaderRequests(
+      req.user.student_id,
+    );
+    return res.json(requests);
+  } catch (error) {
+    console.error("Unable to load seller promo header requests:", error.code || error.name);
+    return res.status(500).json({ message: "Unable to load promo header requests." });
+  }
+});
+
+router.post("/header-requests", authenticateSeller, async (req, res) => {
+  let header;
+  try {
+    header = validateHeaderRequest(req.body);
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message });
+  }
+
+  try {
+    const request = await createPromotionHeaderRequest(
+      req.user.student_id,
+      header,
+    );
+    try {
+      await logSellerAudit(req.user, {
+        action: "REQUEST_PROMO_HEADER",
+        information: "A promo header was submitted for admin review.",
+      });
+    } catch (auditError) {
+      console.error("Promo header request saved but audit logging failed:", auditError.message);
+    }
+    return res.status(201).json(request);
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    console.error("Unable to create seller promo header request:", error.code || error.name);
+    return res.status(500).json({ message: "Unable to submit promo header request." });
   }
 });
 

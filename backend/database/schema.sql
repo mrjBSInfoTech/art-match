@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS artwork (
 CREATE TABLE IF NOT EXISTS seller_voucher (
   voucher_id INT AUTO_INCREMENT PRIMARY KEY,
   student_id INT NOT NULL,
-  code VARCHAR(20) NOT NULL UNIQUE,
+  code VARCHAR(20) NOT NULL,
   discount_type ENUM('fixed', 'percentage', 'freebie') NOT NULL,
   discount_value DECIMAL(12, 2) NULL,
   minimum_purchase DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
@@ -121,7 +121,8 @@ CREATE TABLE IF NOT EXISTS seller_voucher (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_seller_voucher_student
     FOREIGN KEY (student_id) REFERENCES student (student_id) ON DELETE CASCADE,
-  INDEX idx_seller_voucher_student (student_id, created_at)
+  INDEX idx_seller_voucher_student (student_id, created_at),
+  INDEX idx_seller_voucher_code_active (code, starts_on, expires_on)
 );
 
 CREATE TABLE IF NOT EXISTS seller_voucher_artwork (

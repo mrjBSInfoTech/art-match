@@ -56,6 +56,45 @@ export const savePromotionHeroEnabled = async (enabled) => {
   }
 };
 
+export const fetchPromotionHeader = async () => {
+  try {
+    const response = await api.get("/promotion-header");
+    return response.data;
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
+export const savePromotionHeader = async (header) => {
+  try {
+    const response = await api.put("/promotion-header", header);
+    return response.data.header;
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
+export const fetchPromotionHeaderRequests = async () => {
+  try {
+    const response = await api.get("/promotion-header/requests");
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
+export const reviewPromotionHeaderRequest = async (requestId, decision) => {
+  try {
+    const response = await api.post(
+      `/promotion-header/requests/${requestId}/review`,
+      { decision },
+    );
+    return response.data.request;
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
 export const fetchFaqs = async () => {
   try {
     const response = await api.get("/faqs");

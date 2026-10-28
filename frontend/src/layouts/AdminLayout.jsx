@@ -41,7 +41,6 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import PaletteIcon from "@mui/icons-material/Palette";
 import SettingsIcon from "@mui/icons-material/Settings";
-import SlideshowRoundedIcon from "@mui/icons-material/SlideshowRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ConstructionRoundedIcon from "@mui/icons-material/ConstructionRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
@@ -62,6 +61,7 @@ import {
 } from "../theme/ThemeModeProvider";
 
 const ADMIN_SIDEBAR_PREFERENCES = {
+  artVerification: "admin_sidebar_art_verification_expanded",
   manageUsers: "admin_sidebar_manage_users_expanded",
   systemSettings: "admin_sidebar_system_settings_expanded",
 };
@@ -98,6 +98,11 @@ function AdminLayoutContent() {
   const handleClose = () => setOpen(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [artVerificationExpanded, setArtVerificationExpanded] = useState(
+    () =>
+      localStorage.getItem(ADMIN_SIDEBAR_PREFERENCES.artVerification) ===
+        "true" || location.pathname.startsWith("/admin/artwork"),
+  );
   const [manageUsersExpanded, setManageUsersExpanded] = useState(
     () => localStorage.getItem(ADMIN_SIDEBAR_PREFERENCES.manageUsers) === "true",
   );
@@ -217,11 +222,6 @@ function AdminLayoutContent() {
       icon: <SettingsIcon />,
       children: [
         {
-          segment: "promotion-slide",
-          title: "Promotion Slides",
-          icon: <SlideshowRoundedIcon />,
-        },
-        {
           segment: "about-us",
           title: "About Us",
           icon: <InfoOutlinedIcon />,
@@ -257,6 +257,18 @@ function AdminLayoutContent() {
       segment: "artwork",
       title: "Art Verification",
       icon: <PaletteIcon />,
+      children: [
+        {
+          segment: "verified",
+          title: "Verified",
+          icon: <VerifiedRoundedIcon />,
+        },
+        {
+          segment: "pending",
+          title: "Pending",
+          icon: <PaletteIcon />,
+        },
+      ],
     },
     {
       segment: "manage",
@@ -617,6 +629,21 @@ function AdminLayoutContent() {
         }}
         slotProps={{ header: { branding } }}
         renderPageItem={(item) => {
+          if (item.segment === "artwork") {
+            return (
+              <DashboardSidebarPageItem
+                item={item}
+                expanded={artVerificationExpanded}
+                onClick={() =>
+                  toggleSidebarGroup(
+                    ADMIN_SIDEBAR_PREFERENCES.artVerification,
+                    setArtVerificationExpanded,
+                  )
+                }
+              />
+            );
+          }
+
           if (item.segment === "system-settings") {
             return (
               <DashboardSidebarPageItem

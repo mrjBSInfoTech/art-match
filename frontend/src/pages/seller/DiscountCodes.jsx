@@ -8,6 +8,10 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Snackbar,
   Stack,
@@ -16,7 +20,11 @@ import {
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
-import { fetchSellerVouchers } from "../../api/seller/voucherAPI";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import {
+  deleteSellerVoucher,
+  fetchSellerVouchers,
+} from "../../api/seller/voucherAPI";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 import { fetchStorefront } from "../../api/seller/storefrontAPI";
 
@@ -100,6 +108,8 @@ export default function DiscountCodes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [voucherToDelete, setVoucherToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadVouchers = useCallback(async () => {
     setLoading(true);
@@ -138,6 +148,26 @@ export default function DiscountCodes() {
     } catch (copyError) {
       console.error("Unable to copy voucher code:", copyError);
       setError("Unable to copy the code. You can still download the voucher.");
+    }
+  };
+
+  const confirmDeleteVoucher = async () => {
+    if (!voucherToDelete) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteSellerVoucher(voucherToDelete.voucher_id);
+      setVouchers((current) =>
+        current.filter(
+          (voucher) => voucher.voucher_id !== voucherToDelete.voucher_id,
+        ),
+      );
+      setNotice(`Voucher ${voucherToDelete.code} deleted.`);
+      setVoucherToDelete(null);
+    } catch (deleteError) {
+      setError(deleteError.message || "Unable to delete voucher.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -345,24 +375,72 @@ export default function DiscountCodes() {
                                 .join(", ")}
                         </Typography>
                       </Box>
-                      <Button
-                        variant="contained"
-                        startIcon={<DownloadOutlinedIcon />}
-                        onClick={() => downloadCoupon(voucher, storeName || "Your Shop")}
-                        sx={{
-                          alignSelf: { xs: "stretch", sm: "flex-start" },
-                          bgcolor: "#881337",
-                          "&:hover": { bgcolor: "#6b102c" },
-                        }}
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        alignItems={{ xs: "stretch", sm: "center" }}
                       >
-                        Download voucher
-                      </Button>
+                        <Button
+                          variant="contained"
+                          startIcon={<DownloadOutlinedIcon />}
+                          onClick={() => downloadCoupon(voucher, storeName || "Your Shop")}
+                          sx={{
+                            alignSelf: { xs: "stretch", sm: "flex-start" },
+                            bgcolor: "#881337",
+                            "&:hover": { bgcolor: "#6b102c" },
+                          }}
+                        >
+                          Download voucher
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          startIcon={<DeleteOutlineIcon />}
+                          onClick={() => setVoucherToDelete(voucher)}
+                        >
+                          Delete
+                        </Button>
+                      </Stack>
                     </Stack>
                   </CardContent>
                 </Card>
           ))}
         </Box>
       )}
+      <Dialog
+        open={Boolean(voucherToDelete)}
+        onClose={() => !deleting && setVoucherToDelete(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete discount code?</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary">
+            {voucherToDelete
+              ? `Voucher ${voucherToDelete.code} will be deleted from your shop. This action cannot be undone.`
+              : ""}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setVoucherToDelete(null)}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmDeleteVoucher}
+            disabled={deleting}
+            startIcon={
+              deleting ? <CircularProgress size={16} color="inherit" /> : null
+            }
+          >
+            {deleting ? "Deleting..." : "Delete voucher"}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={4000}

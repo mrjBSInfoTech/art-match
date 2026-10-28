@@ -13,6 +13,8 @@ import {
   InputLabel,
   InputAdornment,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
   Snackbar,
   Stack,
@@ -21,9 +23,14 @@ import {
 } from "@mui/material";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
-import { createSellerVoucher } from "../../api/seller/voucherAPI";
+import {
+  checkSellerVoucherCode,
+  createSellerVoucher,
+} from "../../api/seller/voucherAPI";
 
 const emptyForm = {
+  code_mode: "auto",
+  custom_code: "",
   discount_type: "percentage",
   discount_value: "",
   minimum_purchase: "0",
@@ -40,6 +47,44 @@ export default function VoucherGeneration() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [codeCheck, setCodeCheck] = useState({
+    code: "",
+    status: "idle",
+  });
+
+  const normalizedCustomCode = form.custom_code.trim().toUpperCase();
+  const customCodeIsValid = /^[A-Z0-9-]{3,20}$/.test(normalizedCustomCode);
+
+  useEffect(() => {
+    if (form.code_mode !== "custom") return undefined;
+    if (!customCodeIsValid) {
+      setCodeCheck({ code: normalizedCustomCode, status: "invalid" });
+      return undefined;
+    }
+
+    let cancelled = false;
+    setCodeCheck({ code: normalizedCustomCode, status: "checking" });
+    const timeout = window.setTimeout(async () => {
+      try {
+        const result = await checkSellerVoucherCode(normalizedCustomCode);
+        if (!cancelled) {
+          setCodeCheck({
+            code: normalizedCustomCode,
+            status: result.available ? "available" : "taken",
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setCodeCheck({ code: normalizedCustomCode, status: "error" });
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [customCodeIsValid, form.code_mode, normalizedCustomCode]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -65,10 +110,26 @@ export default function VoucherGeneration() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+    if (
+      form.code_mode === "custom" &&
+      (!customCodeIsValid ||
+        codeCheck.code !== normalizedCustomCode ||
+        (codeCheck.status !== "available" && codeCheck.status !== "error"))
+    ) {
+      setError(
+        "Enter an available voucher code before creating the voucher.",
+      );
+      return;
+    }
+
     setSaving(true);
     try {
+      const { code_mode: codeMode, custom_code: customCode, ...voucher } = form;
       const created = await createSellerVoucher({
-        ...form,
+        ...voucher,
+        ...(codeMode === "custom"
+          ? { code: customCode.trim().toUpperCase() }
+          : {}),
         discount_value:
           form.discount_type === "freebie" ? null : Number(form.discount_value),
         minimum_purchase: Number(form.minimum_purchase),
@@ -157,7 +218,67 @@ export default function VoucherGeneration() {
                     alignItems: "start",
                   }}
                 >
-                  <FormControl fullWidth>
+                    <FormControl sx={{ gridColumn: { xs: "auto", md: "1 / -1" } }}>
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                        Voucher code
+                      </Typography>
+                      <RadioGroup
+                        row
+                        value={form.code_mode}
+                        onChange={(event) => {
+                          updateForm("code_mode", event.target.value);
+                          setError("");
+                        }}
+                      >
+                        <FormControlLabel
+                          value="auto"
+                          control={<Radio />}
+                          label="Generate a code for me"
+                        />
+                        <FormControlLabel
+                          value="custom"
+                          control={<Radio />}
+                          label="Create my own code"
+                        />
+                      </RadioGroup>
+                      {form.code_mode === "custom" && (
+                        <TextField
+                          fullWidth
+                          required
+                          label="Custom voucher code"
+                          value={form.custom_code}
+                          onChange={(event) =>
+                            updateForm(
+                              "custom_code",
+                              event.target.value.toUpperCase(),
+                            )
+                          }
+                          error={
+                            Boolean(form.custom_code) &&
+                            (!customCodeIsValid ||
+                              (codeCheck.code === normalizedCustomCode &&
+                                codeCheck.status === "taken"))
+                          }
+                          helperText={
+                            !form.custom_code
+                              ? "Use 3–20 letters, numbers, or hyphens. Codes are checked across all sellers and can be reused after expiry."
+                              : !customCodeIsValid
+                                ? "Use 3–20 letters, numbers, or hyphens."
+                                : codeCheck.code !== normalizedCustomCode ||
+                                    codeCheck.status === "checking"
+                                  ? "Checking code availability..."
+                                  : codeCheck.status === "available"
+                                    ? "This code is available."
+                                    : codeCheck.status === "taken"
+                                      ? "This code is currently active. Try another."
+                                      : "Could not check now. The server will check again when you create the voucher."
+                          }
+                          inputProps={{ maxLength: 20 }}
+                        />
+                      )}
+                    </FormControl>
+
+                    <FormControl fullWidth>
                     <InputLabel id="voucher-discount-type-label">
                       Discount type
                     </InputLabel>

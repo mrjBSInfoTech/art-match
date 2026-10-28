@@ -2,11 +2,17 @@ import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
+  Rating,
   Snackbar,
   Slide,
   Stack,
@@ -14,7 +20,10 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { useNavigate } from "react-router-dom";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
+import { getSellerProfile } from "../../api/seller/sellerAPI";
+import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
 import {
   fetchStorefront,
   saveStorefront,
@@ -65,10 +74,28 @@ const getSavedSpecialties = (response) => {
   return parseArray(response.specialties);
 };
 
+const getProfileImage = (profileImage) => {
+  if (!profileImage) return "http://localhost:5000/uploads/seller/profile.jpg";
+  if (profileImage.startsWith("http")) return profileImage;
+  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`;
+};
+
 export default function Storefront() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [settings, setSettings] = useState(defaultSettings);
   const [artworks, setArtworks] = useState([]);
+  const [sellerProfile, setSellerProfile] = useState({
+    first_name: localStorage.getItem("seller_first_name") || "",
+    middle_name: localStorage.getItem("seller_middle_name") || "",
+    last_name: localStorage.getItem("seller_last_name") || "",
+    course: localStorage.getItem("seller_course") || "",
+    profile_image: localStorage.getItem("seller_profile_image") || "",
+    registered_date: localStorage.getItem("seller_registered_date") || "",
+  });
+  const [profileError, setProfileError] = useState("");
+  const [sellerReviews, setSellerReviews] = useState([]);
+  const [reviewsError, setReviewsError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -77,9 +104,32 @@ export default function Storefront() {
   const [pinnedArtworkIds, setPinnedArtworkIds] = useState([]);
   const [savingPinId, setSavingPinId] = useState(null);
   const [savingSpecialties, setSavingSpecialties] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [specialtyDialogOpen, setSpecialtyDialogOpen] = useState(false);
+  const [draftSpecialties, setDraftSpecialties] = useState([]);
+  const [customSpecialty, setCustomSpecialty] = useState("");
   const visiblePinnedCount = artworks.filter((artwork) =>
     pinnedArtworkIds.includes(String(artwork.artwork_id ?? artwork.id)),
   ).length;
+  const artistName = [
+    sellerProfile.first_name,
+    sellerProfile.middle_name,
+    sellerProfile.last_name,
+  ].filter(Boolean).join(" ") || "Your artist name";
+  const averageRating = sellerReviews.length
+    ? sellerReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) /
+      sellerReviews.length
+    : null;
+  const memberDate = sellerProfile.registered_date
+    ? new Date(sellerProfile.registered_date)
+    : null;
+  const memberSince =
+    memberDate && !Number.isNaN(memberDate.getTime())
+      ? memberDate.toLocaleDateString("en", {
+          month: "long",
+          year: "numeric",
+        })
+      : "Not available";
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
@@ -104,7 +154,6 @@ export default function Storefront() {
   };
 
   const selectedSpecialties = settings.specialties || [];
-  const customSpecialtyLimitReached = selectedSpecialties.length >= 3;
 
   const saveSpecialties = async (nextSpecialties) => {
     if (savingSpecialties) return false;
@@ -115,7 +164,7 @@ export default function Storefront() {
     setSettings((current) => ({ ...current, specialties: nextSpecialties }));
     try {
       const saved = await saveStorefront({ specialties: nextSpecialties });
-    const savedSpecialties = getSavedSpecialties(saved);
+      const savedSpecialties = getSavedSpecialties(saved);
       setSettings((current) => ({
         ...current,
         specialties: savedSpecialties,
@@ -132,42 +181,6 @@ export default function Storefront() {
     } finally {
       setSavingSpecialties(false);
     }
-  };
-
-  const handleSpecialtyToggle = (specialty) => {
-    if (savingSpecialties) return;
-    const alreadySelected = selectedSpecialties.includes(specialty);
-    if (!alreadySelected && customSpecialtyLimitReached) return;
-
-    const nextSpecialties = alreadySelected
-      ? selectedSpecialties.filter((item) => item !== specialty)
-      : [...selectedSpecialties, specialty];
-    saveSpecialties(nextSpecialties);
-  };
-
-  const handleAddCustomSpecialty = () => {
-    const value = settings.customSpecialty.trim();
-
-    if (!value || customSpecialtyLimitReached) {
-      return;
-    }
-
-    const normalized = value.replace(/\s+/g, " ");
-
-    if (
-      selectedSpecialties.some(
-        (item) => item.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
-      )
-    ) {
-      showSnackbar("That specialty has already been selected.", "error");
-      return;
-    }
-
-    saveSpecialties([...selectedSpecialties, normalized]).then((saved) => {
-      if (saved) {
-        setSettings((current) => ({ ...current, customSpecialty: "" }));
-      }
-    });
   };
 
   useEffect(() => {
@@ -262,8 +275,43 @@ export default function Storefront() {
     loadArtworks();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    getSellerProfile()
+      .then((profile) => {
+        if (!active) return;
+        setSellerProfile((current) => ({ ...current, ...profile }));
+        setProfileError("");
+      })
+      .catch((err) => {
+        if (active) {
+          setProfileError(err.message || "Unable to load account profile details.");
+        }
+      });
+
+    fetchSellerReviews()
+      .then((reviews) => {
+        if (active) {
+          setSellerReviews(Array.isArray(reviews) ? reviews : []);
+          setReviewsError("");
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setReviewsError(err.message || "Unable to load seller ratings.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const saveSettings = async () => {
+    if (savingProfile) return;
     try {
+      setSavingProfile(true);
       setError("");
       const saved = await saveStorefront({
         shop_name: settings.shopName.trim(),
@@ -300,7 +348,44 @@ export default function Storefront() {
       showSnackbar("Storefront updated successfully.");
     } catch (err) {
       showSnackbar(err.message || "Unable to save storefront details.", "error");
+    } finally {
+      setSavingProfile(false);
     }
+  };
+
+  const openSpecialtyDialog = () => {
+    setDraftSpecialties([...selectedSpecialties]);
+    setCustomSpecialty("");
+    setSpecialtyDialogOpen(true);
+  };
+
+  const toggleDraftSpecialty = (specialty) => {
+    setDraftSpecialties((current) => {
+      if (current.includes(specialty)) {
+        return current.filter((item) => item !== specialty);
+      }
+      if (current.length >= 3) return current;
+      return [...current, specialty];
+    });
+  };
+
+  const addDraftSpecialty = () => {
+    const normalized = customSpecialty.trim().replace(/\s+/g, " ");
+    if (!normalized) return;
+    if (draftSpecialties.length >= 3) {
+      showSnackbar("You can select up to 3 specialties.", "error");
+      return;
+    }
+    if (
+      draftSpecialties.some(
+        (item) => item.toLocaleLowerCase() === normalized.toLocaleLowerCase(),
+      )
+    ) {
+      showSnackbar("That specialty has already been selected.", "error");
+      return;
+    }
+    setDraftSpecialties((current) => [...current, normalized]);
+    setCustomSpecialty("");
   };
 
   const resetSettings = async () => {
@@ -366,11 +451,11 @@ export default function Storefront() {
       <Stack spacing={3}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>
-            Storefront
+            Store Profile
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage your shop profile and choose which artworks to pin on your
-            storefront.
+            Edit how your artist profile appears to buyers and choose which
+            verified artworks to feature.
           </Typography>
         </Box>
 
@@ -383,195 +468,345 @@ export default function Storefront() {
             borderRadius: 3,
           }}
         >
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Shop profile
-              </Typography>
-
-              <Stack spacing={2} sx={{ maxWidth: 520 }}>
-                <TextField
-                  fullWidth
-                  label="Shop name"
-                  value={settings.shopName}
-                  onChange={(e) =>
-                    setSettings((current) => ({
-                      ...current,
-                      shopName: e.target.value,
-                    }))
-                  }
-                />
-
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  label="Shop description"
-                  value={settings.shopDescription}
-                  onChange={(e) =>
-                    setSettings((current) => ({
-                      ...current,
-                      shopDescription: e.target.value,
-                    }))
-                  }
-                />
-              </Stack>
-            </Box>
-
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              alignItems={{ xs: "stretch", sm: "flex-start" }}
+              justifyContent="space-between"
+              spacing={1}
+            >
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Public profile preview
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Preview updates as you edit your shop name, description, and specialties.
+                </Typography>
+              </Box>
               <Button
-                variant="contained"
-                sx={{
-                  color: "#fff",
-                  bgcolor: "#1e1f87",
-                  textTransform: "none",
-                  fontWeight: "bold",
-                  boxShadow: "none",
-                  "&:hover": { bgcolor: "#151663" },
-                }}
-                onClick={saveSettings}
-              >
-                Save changes
-              </Button>
-
-              <Button
-                color="text.secondary"
-                sx={{ px: 3, textTransform: "none" }}
+                color="error"
+                size="small"
                 onClick={resetSettings}
+                sx={{
+                  alignSelf: { xs: "flex-end", sm: "flex-start" },
+                  textTransform: "none",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
               >
-                Reset
+                Reset Store Profile
               </Button>
+            </Stack>
+
+            {profileError && (
+              <Alert severity="warning">
+                {profileError} Showing saved account details where available.
+              </Alert>
+            )}
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "minmax(0, 2fr) minmax(240px, 1fr)" },
+                gap: 2,
+              }}
+            >
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2, sm: 3 },
+                  borderRadius: 3,
+                  display: "flex",
+                  gap: { xs: 2, sm: 3 },
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "center", sm: "flex-start" },
+                  textAlign: { xs: "center", sm: "left" },
+                  minWidth: 0,
+                }}
+              >
+                <Avatar
+                  src={getProfileImage(sellerProfile.profile_image)}
+                  alt={artistName}
+                  sx={{
+                    width: { xs: 96, sm: 120 },
+                    height: { xs: 96, sm: 120 },
+                    border: "2px solid",
+                    borderColor: "divider",
+                    flexShrink: 0,
+                  }}
+                />
+                <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
+                  <Box>
+                    <TextField
+                      fullWidth
+                      variant="standard"
+                      label="Shop name"
+                      placeholder={artistName}
+                      value={settings.shopName}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          shopName: event.target.value,
+                        }))
+                      }
+                      inputProps={{ "aria-label": "Shop name" }}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: { xs: "1.5rem", sm: "2rem" },
+                          fontWeight: 800,
+                          lineHeight: 1.2,
+                        },
+                      }}
+                    />
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ textTransform: "uppercase", letterSpacing: ".04em" }}
+                    >
+                      {sellerProfile.course || "Course not set"}
+                    </Typography>
+                  </Box>
+
+                  {reviewsError ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Rating unavailable
+                    </Typography>
+                  ) : averageRating === null ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No reviews yet
+                    </Typography>
+                  ) : (
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent={{ xs: "center", sm: "flex-start" }}
+                      spacing={0.75}
+                    >
+                      <Rating value={averageRating} precision={0.1} readOnly size="small" />
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {averageRating.toFixed(1)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        ({sellerReviews.length} {sellerReviews.length === 1 ? "review" : "reviews"})
+                      </Typography>
+                    </Stack>
+                  )}
+
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    variant="outlined"
+                    label="Description"
+                    placeholder="Tell buyers about your art and your shop."
+                    value={settings.shopDescription}
+                    onChange={(event) =>
+                      setSettings((current) => ({
+                        ...current,
+                        shopDescription: event.target.value,
+                      }))
+                    }
+                    sx={{
+                      "& .MuiInputBase-root": { lineHeight: 1.65 },
+                    }}
+                  />
+
+                  <Stack
+                    direction="row"
+                    spacing={3}
+                    justifyContent={{ xs: "center", sm: "flex-start" }}
+                  >
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                        {artworks.length}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Verified artworks
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                        {visiblePinnedCount}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Featured
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Button
+                    variant="contained"
+                    onClick={saveSettings}
+                    disabled={savingProfile}
+                    sx={{
+                      alignSelf: { xs: "stretch", sm: "flex-start" },
+                      mt: 0.5,
+                      textTransform: "none",
+                      fontWeight: 700,
+                      boxShadow: "none",
+                    }}
+                  >
+                    {savingProfile ? "Saving..." : "Save profile"}
+                  </Button>
+                </Stack>
+              </Paper>
+
+              <Stack spacing={2}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                    Artist details
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Member since
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
+                    {memberSince}
+                  </Typography>
+                  <Button
+                    size="small"
+                    onClick={() => navigate("/seller/settings")}
+                    sx={{ px: 0, textTransform: "none", fontWeight: 700 }}
+                  >
+                    Edit photo and account details
+                  </Button>
+                </Paper>
+
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    spacing={1}
+                    sx={{ mb: 1.25 }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Specialties
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={openSpecialtyDialog}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                    >
+                      Edit
+                    </Button>
+                  </Stack>
+                  {settings.specialties.length ? (
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {settings.specialties.map((specialty) => (
+                        <Chip key={specialty} label={specialty} size="small" />
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Your selected specialties will appear here.
+                    </Typography>
+                  )}
+                </Paper>
+              </Stack>
             </Box>
           </Stack>
         </Paper>
 
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 2, md: 3 },
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 3,
+        <Dialog
+          open={specialtyDialogOpen}
+          onClose={() => {
+            if (!savingSpecialties) setSpecialtyDialogOpen(false);
           }}
+          fullWidth
+          maxWidth="sm"
         >
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Achievements
-          </Typography>
-        </Paper>
-
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 2, md: 3 },
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 3,
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-            Specialties
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Choose up to 3 materials or art styles that best describe your work.
-          </Typography>
-
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {specialtyOptions.map((tag) => {
-                const isSelected = selectedSpecialties.includes(tag);
-
+          <DialogTitle>Edit specialties</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Select up to 3 listed specialties, or add your own.
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+              {specialtyOptions.map((specialty) => {
+                const isSelected = draftSpecialties.includes(specialty);
                 return (
                   <Chip
-                    key={tag}
-                    label={tag}
-                    size="small"
+                    key={specialty}
+                    label={specialty}
                     clickable
-                    onClick={() => handleSpecialtyToggle(tag)}
                     color={isSelected ? "primary" : "default"}
                     variant={isSelected ? "filled" : "outlined"}
                     disabled={
                       savingSpecialties ||
-                      (!isSelected && customSpecialtyLimitReached)
+                      (!isSelected && draftSpecialties.length >= 3)
                     }
-                    sx={{
-                      fontWeight: 700,
-                      borderRadius: 999,
-                      color: isSelected ? "#fff" : "inherit",
-                    }}
+                    onClick={() => toggleDraftSpecialty(specialty)}
                   />
                 );
               })}
             </Stack>
-
-            <Box
-              sx={{
-                display: "flex",
-                gap: 1,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <TextField
+                fullWidth
                 size="small"
-                value={settings.customSpecialty || ""}
-                onChange={(e) =>
-                  setSettings((current) => ({
-                    ...current,
-                    customSpecialty: e.target.value,
-                  }))
-                }
-                placeholder="Add custom specialty"
-                sx={{ flex: 1, minWidth: 220 }}
-                disabled={savingSpecialties}
+                label="Custom specialty"
+                value={customSpecialty}
+                onChange={(event) => setCustomSpecialty(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addDraftSpecialty();
+                  }
+                }}
+                disabled={savingSpecialties || draftSpecialties.length >= 3}
               />
-
               <Button
-                variant="contained"
-                size="small"
+                variant="outlined"
+                onClick={addDraftSpecialty}
                 disabled={
                   savingSpecialties ||
-                  !settings.customSpecialty?.trim() ||
-                  customSpecialtyLimitReached
+                  !customSpecialty.trim() ||
+                  draftSpecialties.length >= 3
                 }
-                onClick={handleAddCustomSpecialty}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 2,
-                  color: "#fff",
-                }}
               >
                 Add
               </Button>
-            </Box>
-
-            {selectedSpecialties.length > 0 && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {selectedSpecialties.map((tag) => (
+            </Stack>
+            {!!draftSpecialties.length && (
+              <Stack
+                direction="row"
+                spacing={1}
+                flexWrap="wrap"
+                useFlexGap
+                sx={{ mt: 2 }}
+              >
+                {draftSpecialties.map((specialty) => (
                   <Chip
-                    key={tag}
-                    label={tag}
-                    onDelete={() => handleSpecialtyToggle(tag)}
+                    key={specialty}
+                    label={specialty}
                     color="primary"
+                    onDelete={() => toggleDraftSpecialty(specialty)}
                     disabled={savingSpecialties}
-                    sx={{
-                      fontWeight: 700,
-                      borderRadius: 999,
-                      color: "#fff",
-                    }}
                   />
                 ))}
               </Stack>
             )}
-
-            <Typography variant="caption" color="text.secondary">
-              {customSpecialtyLimitReached
-                ? "You have reached the maximum of 3 specialties."
-                : `${3 - selectedSpecialties.length} specialty slots remaining.`}
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
+              {3 - draftSpecialties.length} specialty slots remaining.
             </Typography>
-          </Stack>
-        </Paper>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => setSpecialtyDialogOpen(false)}
+              disabled={savingSpecialties}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              disabled={savingSpecialties}
+              onClick={async () => {
+                const saved = await saveSpecialties(draftSpecialties);
+                if (saved) setSpecialtyDialogOpen(false);
+              }}
+            >
+              {savingSpecialties ? "Saving..." : "Save specialties"}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Paper
           elevation={0}

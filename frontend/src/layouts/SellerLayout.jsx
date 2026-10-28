@@ -285,7 +285,7 @@ function SellerLayoutContent() {
     },
     {
       segment: "vouchers",
-      title: "Voucher and Promotion",
+      title: "Vouchers",
       icon: <ConfirmationNumberOutlinedIcon />,
       children: [
         {
@@ -299,12 +299,6 @@ function SellerLayoutContent() {
           title: "Discount Code",
           icon: <ConfirmationNumberOutlinedIcon />,
           pattern: "/seller/vouchers/discount-code",
-        },
-        {
-          segment: "promotion",
-          title: "Promotion",
-          icon: <ConfirmationNumberOutlinedIcon />,
-          pattern: "/seller/vouchers/promotion",
         },
       ],
     },

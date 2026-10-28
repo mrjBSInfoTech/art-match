@@ -35,6 +35,7 @@ import {
 } from "./database/message.js";
 import { ensureEventsTable } from "./database/events.js";
 import { ensurePromotionSlidesTable } from "./database/promotionSlides.js";
+import { ensurePromotionHeaderRequestsTable } from "./database/promotionHeaderRequests.js";
 import { ensureStorefrontTable } from "./database/storefront.js";
 import { ensureVoucherTables } from "./database/vouchers.js";
 import { ensureOrderTables } from "./database/orders.js";
@@ -724,6 +725,7 @@ ensureAccountAccessTable()
   .then(() => ensureSupportChatTables())
   .then(() => ensureEventsTable())
   .then(() => ensurePromotionSlidesTable())
+  .then(() => ensurePromotionHeaderRequestsTable())
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureReturnTables())
   .then(() => ensurePayoutTables())

@@ -30,9 +30,29 @@ export const fetchSellerVouchers = async () => {
   }
 };
 
+export const checkSellerVoucherCode = async (code) => {
+  try {
+    const response = await api.get("/availability", {
+      params: { code },
+    });
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const createSellerVoucher = async (voucher) => {
   try {
     const response = await api.post("/", voucher);
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const deleteSellerVoucher = async (voucherId) => {
+  try {
+    const response = await api.delete(`/${voucherId}`);
     return response.data;
   } catch (error) {
     handleError(error);

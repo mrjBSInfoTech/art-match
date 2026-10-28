@@ -167,12 +167,30 @@ router.post(
             return processStudent(index + 1, expirationDate);
           }
 
+          if (!String(studentData.year_level || "").trim()) {
+            return res.status(400).json({
+              message: `Missing year level for expired student number ${studentNumber}`,
+            });
+          }
+          if (!String(studentData.course || "").trim()) {
+            return res.status(400).json({
+              message: `Missing course for expired student number ${studentNumber}`,
+            });
+          }
+
           db.query(
             `UPDATE student
-             SET account_status = 'active',
+             SET year_level = ?,
+                 course = ?,
+                 account_status = 'active',
                  expire_date = DATE_ADD(?, INTERVAL 1 DAY)
              WHERE student_id = ? AND expire_date <= CURRENT_TIMESTAMP`,
-            [expirationDate, existingStudent.student_id],
+            [
+              studentData.year_level.trim(),
+              studentData.course.trim(),
+              expirationDate,
+              existingStudent.student_id,
+            ],
             (reactivationError, updateResult) => {
               if (reactivationError) {
                 return res.status(500).json({ message: reactivationError.message });

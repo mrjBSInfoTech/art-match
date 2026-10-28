@@ -47,6 +47,24 @@ export const fetchSellerPromotionSlides = async () => {
   }
 };
 
+export const fetchSellerPromotionHeaderRequests = async () => {
+  try {
+    const response = await api.get("/header-requests");
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const createSellerPromotionHeaderRequest = async (header) => {
+  try {
+    const response = await api.post("/header-requests", header);
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const createSellerPromotionSlide = async (slide) => {
   try {
     const response = await api.post("/", toFormData(slide));
