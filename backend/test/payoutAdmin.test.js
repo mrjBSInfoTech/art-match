@@ -14,11 +14,11 @@ const response = () => ({
   json(body) { this.body = body; return this; },
 });
 
-function permissionFixture(role, error = null) {
+function permissionFixture(role, error = null, is_banned = 0) {
   const calls = [];
   const context = { db: { query(sql, params, callback) {
     calls.push({ sql, params: [...params] });
-    callback(error, role == null ? [] : [{ role }]);
+    callback(error, role == null ? [] : [{ role, is_banned }]);
   } } };
   vm.runInNewContext(source("../middleware/payoutAdminMiddleware.js") + "\nglobalThis.middleware = requirePayoutAdmin;", context);
   return { middleware: context.middleware, calls };
@@ -31,7 +31,8 @@ for (const role of ["admin", "super admin"]) {
     current.middleware({ user: { admin_id: 11, role: "moderator" } }, response(), () => { proceeded = true; });
     assert.equal(proceeded, true);
     assert.deepEqual(current.calls[0].params, [11]);
-    assert.match(current.calls[0].sql, /FROM admin_role WHERE admin_id = \?/);
+    assert.match(current.calls[0].sql, /FROM admin_role r/);
+    assert.match(current.calls[0].sql, /account_access/);
   });
 }
 
@@ -55,6 +56,13 @@ test("a permission database failure denies payout actions", () => {
   assert.doesNotMatch(res.body.message, /internal connection/);
 });
 
+test("a banned finance admin cannot use an old authenticated session for payouts", () => {
+  const current = permissionFixture("super admin", null, 1);
+  const res = response();
+  current.middleware({ user: { admin_id: 11 } }, res, () => assert.fail("A banned administrator must not proceed"));
+  assert.equal(res.statusCode, 403);
+});
+
 function routesFixture(path, overrides = {}) {
   const middleware = [];
   const routes = new Map();
@@ -66,7 +74,7 @@ function routesFixture(path, overrides = {}) {
   for (const method of ["get", "put", "post"]) {
     router[method] = (url, handler) => routes.set(`${method}:${url}`, handler);
   }
-  const payoutService = Object.fromEntries(["list", "send", "reconcile", "verifyRefund", "getAccount", "saveAccount", "capability"]
+  const payoutService = Object.fromEntries(["list", "request", "approve", "reject", "approvals", "release", "send", "reconcile", "verifyRefund", "getAccount", "saveAccount", "capability"]
     .map((method) => [method, async (...args) => { calls.push({ method, args }); return method === "list" ? { orders: [{ payoutId: 21 }] } : {}; }]));
   Object.assign(payoutService, overrides);
   const context = {
@@ -81,13 +89,13 @@ test("every admin payout route installs authentication and the narrow finance gu
   const current = routesFixture("../routes/admin/payouts.js");
   assert.equal(current.middleware[0], current.authenticateAdmin);
   assert.equal(current.middleware[1], current.requirePayoutAdmin);
-  assert.deepEqual([...current.routes.keys()], ["get:/", "get:/:id", "post:/:id/send", "post:/:id/reconcile", "post:/:id/refunds/verify"]);
+  assert.deepEqual([...current.routes.keys()], ["get:/", "get:/:id", "get:/:id/approvals", "post:/:id/request", "post:/:id/approve", "post:/:id/reject", "post:/:id/release", "post:/:id/send", "post:/:id/reconcile", "post:/:id/refunds/verify"]);
   const res = response();
   current.middleware[2]({}, res, () => {});
   assert.equal(res.headers["Cache-Control"], "no-store");
 });
 
-for (const [path, method] of [["/:id/send", "send"], ["/:id/reconcile", "reconcile"], ["/:id/refunds/verify", "verifyRefund"]]) {
+for (const [path, method] of [["/:id/request", "request"], ["/:id/approve", "approve"], ["/:id/reject", "reject"], ["/:id/release", "release"], ["/:id/send", "send"], ["/:id/reconcile", "reconcile"], ["/:id/refunds/verify", "verifyRefund"]]) {
   test(`admin ${method} uses authenticated actor and route payout identity`, async () => {
     const current = routesFixture("../routes/admin/payouts.js");
     const body = method === "verifyRefund" ? { providerRefundId: "ref_test_fixture", returnRequestId: 61 } : {};
@@ -117,7 +125,7 @@ test("admin route preserves safe business HTTP responses and sanitizes unexpecte
 test("missing payout detail returns 404", async () => {
   const current = routesFixture("../routes/admin/payouts.js", { list: async () => ({ orders: [] }) });
   const res = response();
-  await current.routes.get("get:/:id")({ params: { id: "999" } }, res);
+  await current.routes.get("get:/:id")({ user: { admin_id: 11 }, params: { id: "999" } }, res);
   assert.equal(res.statusCode, 404);
 });
 

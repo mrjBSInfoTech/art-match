@@ -17,6 +17,7 @@ import ProfileLayout from "../components/buyer/Profile/ProfileLayout";
 
 //Routes
 import AdminRoute from "../middleware/AdminRoute";
+import AdminPayoutRoute from "../middleware/AdminPayoutRoute";
 import SellerRoute from "../middleware/SellerRoute";
 import BuyerRoute from "../middleware/BuyerRoute";
 
@@ -201,7 +202,9 @@ export default function AppRoutes() {
                 <Route path="manage/access" element={<AdminAccountAccess />} />
                 <Route path="manage/admins" element={<AdminControl />} />
                 <Route path="sales" element={<AdminSales />} />
-                <Route path="payouts" element={<AdminPayout />} />
+                <Route element={<AdminPayoutRoute />}>
+                  <Route path="payouts" element={<AdminPayout />} />
+                </Route>
                 <Route path="event" element={<AdminEvent />} />
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="audit-logs" element={<AdminAuditLogs />} />

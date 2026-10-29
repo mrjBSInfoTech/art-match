@@ -241,6 +241,7 @@ export default function AdminForm({
             <TextField
               label="First Name"
               name="first_name"
+              autoComplete="given-name"
               value={formData.first_name}
               onChange={handleChange}
               disabled={loading}
@@ -249,6 +250,7 @@ export default function AdminForm({
             <TextField
               label="Last Name"
               name="last_name"
+              autoComplete="family-name"
               value={formData.last_name}
               onChange={handleChange}
               disabled={loading}
@@ -258,6 +260,7 @@ export default function AdminForm({
           <TextField
             label="Username"
             name="username"
+            autoComplete="username"
             value={formData.username}
             onChange={handleChange}
             disabled={loading || isEditMode}
@@ -267,6 +270,7 @@ export default function AdminForm({
             label="Email"
             name="email"
             type="email"
+            autoComplete="email"
             value={formData.email}
             onChange={handleChange}
             disabled={loading}

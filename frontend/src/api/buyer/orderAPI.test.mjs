@@ -17,7 +17,7 @@ test("order API uses trusted server payment routes and preserves cart until onli
   globalThis.localStorage = { getItem: (key) => key === "buyer_token" ? "test-buyer-token" : "test-session" };
   globalThis.window = { dispatchEvent: (event) => events.push(event.type) };
   try {
-    const { fetchBuyerOrders, fetchBuyerPayment, fetchPaymentMethods, placeBuyerOrder, retryBuyerPayment, cancelBuyerPayment, cancelBuyerOrder } = await import("./orderAPI.js");
+    const { fetchBuyerOrders, fetchBuyerPayment, fetchPaymentMethods, validateCheckoutVoucher, placeBuyerOrder, retryBuyerPayment, cancelBuyerPayment, cancelBuyerOrder } = await import("./orderAPI.js");
     await context.test("checkout sends only address and canonical method; Pending online checkout does not announce cart removal", async () => {
       await placeBuyerOrder(3, "paymongo");
       assert.equal(requests.at(-1).url, "/checkout");
@@ -77,6 +77,20 @@ test("order API uses trusted server payment routes and preserves cart until onli
       await assert.rejects(placeBuyerOrder(3, "paymongo"), (error) =>
         error.status === 409 && error.canResume === true && error.paymentReference === "AM-first");
       assert.deepEqual(events, ["cart-updated"]);
+    });
+    await context.test("voucher validation sends selected IDs and checkout sends the code without client discount amounts", async () => {
+      reject = false;
+      const controller = new AbortController();
+      await validateCheckoutVoucher("ART-SAVE", [21, 22], { signal: controller.signal });
+      assert.equal(requests.at(-1).url, "/vouchers/validate");
+      assert.deepEqual(JSON.parse(requests.at(-1).data), { voucher_code: "ART-SAVE", artwork_ids: [21, 22] });
+      assert.equal(requests.at(-1).signal, controller.signal);
+      await placeBuyerOrder(3, "paymongo", [21, 22], { voucherCode: "ART-SAVE", expectedTotalCentavos: 94000, discountAmount: 9999 });
+      assert.deepEqual(JSON.parse(requests.at(-1).data), {
+        address_id: 3, payment_method: "paymongo", artwork_ids: [21, 22], voucher_code: "ART-SAVE", expected_total_centavos: 94000,
+      });
+      reject = true;
+      await assert.rejects(validateCheckoutVoucher("ART-SAVE", [21]), /Payment is already paid/);
     });
   } finally {
     axios.defaults.adapter = originalAdapter;

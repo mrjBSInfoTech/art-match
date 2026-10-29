@@ -6,7 +6,7 @@ import { transformSync } from "@swc/core";
 import * as display from "./payoutDisplay.js";
 
 // Run real component effects and event handlers with controlled HTTP responses.
-const renderComponent = (file, api) => {
+const renderComponent = (file, api, props = {}) => {
   const hooks = [];
   const effects = [];
   let cursor = 0;
@@ -45,10 +45,10 @@ const renderComponent = (file, api) => {
   const result = transformSync(source, { jsc: { parser: { syntax: "ecmascript", jsx: true }, transform: { react: { runtime: "classic" } } }, module: { type: "commonjs" } });
   vm.runInContext(result.code, context);
   const Component = context.exports.default;
-  const render = () => { cursor = 0; dirty = false; tree = Component({}); for (const effect of effects.splice(0)) effect(); };
+  const render = () => { cursor = 0; dirty = false; tree = Component(props); for (const effect of effects.splice(0)) effect(); };
   const nodesOf = (node) => Array.isArray(node) ? node.flatMap(nodesOf) : node === null || node === undefined || node === false ? [] :
     typeof node === "object" ? [node, ...nodesOf(node.props?.children)] : [node];
-  const textOf = (node) => nodesOf(node).filter((item) => ["string", "number"].includes(typeof item)).join(" ");
+  const textOf = (node) => nodesOf(node).filter((item) => ["string", "number"].includes(typeof item)).join(" ").replace(/\s+/g, " ");
   render();
   return {
     async flush() { for (let i = 0; i < 6; i++) { await new Promise((resolve) => setImmediate(resolve)); if (dirty) render(); } },
@@ -61,9 +61,10 @@ const renderComponent = (file, api) => {
 const capability = { enabled: true, mode: "TEST", message: "TEST payout provider enabled" };
 const institution = { code: "canonical-test-code", name: "Test E-wallet", provider: "instapay", destinationType: "ewallet" };
 const account = { destinationType: "ewallet", institutionCode: institution.code, institutionName: institution.name, provider: institution.provider,
-  accountName: "Test Seller", maskedAccountNumber: "09******1234" };
+  accountName: "Test Seller", accountNumber: "09123451234", maskedAccountNumber: "09******1234" };
 const payout = { payoutId: 9, orderId: 12, orderNumber: "AM-000012", sellerId: 7, sellerName: "Test Seller", paymentStatus: "Paid",
-  gross: 1000, refundAmount: 0, payoutAmount: 1000, payoutStatus: "Eligible", destination: account };
+  gross: 1000, refundAmount: 0, payoutAmount: 1000, payoutStatus: "Eligible", destination: account,
+  approval: { status: "Not Requested", approvalCount: 0, requiredApprovals: 3, decisions: [] }, actions: { canRequest: true } };
 const accountApi = {
   fetchPayoutAccount: async () => ({ account, capability }),
   fetchPayoutInstitutions: async () => ({ institutions: [institution], capability }),
@@ -76,7 +77,7 @@ test("Seller destination uses provider institutions and clears the full account 
   assert.match(page.text(), /09\*{6}1234/);
   page.button("Update payout destination").props.onClick();
   await page.flush();
-  assert.equal(page.field("Account number").props.value, "");
+  assert.equal(page.field("Account number").props.value, "09123451234");
   page.field("Account number").props.onChange({ target: { value: "09123451234" } });
   await page.flush();
   await page.nodes().find((item) => item?.props?.component === "form").props.onSubmit({ preventDefault() {} });
@@ -86,7 +87,7 @@ test("Seller destination uses provider institutions and clears the full account 
   assert.equal(page.text().includes("09123451234"), false);
   page.button("Update payout destination").props.onClick();
   await page.flush();
-  assert.equal(page.field("Account number").props.value, "");
+  assert.equal(page.field("Account number").props.value, "09123451234");
 });
 
 test("Institution API failure preserves the saved masked destination and prevents fabricated institution entry", async () => {
@@ -97,49 +98,51 @@ test("Institution API failure preserves the saved masked destination and prevent
   assert.equal(page.button("Update payout destination").props.disabled, true);
 });
 
-test("Admin cannot send an Eligible payout when provider capability is blocked", async () => {
-  let sends = 0;
-  const page = renderComponent("../../../pages/admin/Payout.jsx", { fetchAdminPayouts: async () => ({ orders: [payout], totals: {}, providerCapability: { enabled: false, message: "Wallet enablement required" } }), sendSellerPayout: async () => { sends++; } });
+test("Admin release remains blocked by provider capability even after approvals", async () => {
+  let releases = 0;
+  const approved = { ...payout, approval: { ...payout.approval, status: "Approved", approvalCount: 3 }, actions: { canRelease: true } };
+  const page = renderComponent("../../../pages/admin/Payout.jsx", { fetchAdminPayouts: async () => ({ orders: [approved], totals: {}, providerCapability: { enabled: false, message: "Wallet enablement required" } }), releaseSellerPayout: async () => { releases++; } });
   await page.flush();
-  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(payout);
+  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(approved);
   await page.flush();
-  assert.equal(page.button("Send Payout").props.disabled, true);
-  await page.button("Send Payout").props.onClick();
-  assert.equal(sends, 0);
+  assert.equal(page.button("Release Payout").props.disabled, true);
+  await page.button("Release Payout").props.onClick();
+  assert.equal(releases, 0);
   assert.match(page.text(), /Wallet enablement required/);
 });
 
-test("Admin Send is guarded against double clicks, sends only payout ID and waits for provider state", async () => {
-  let resolveSend;
+test("Request is guarded against double clicks, sends only ID and never releases without independent approvals", async () => {
+  let resolveRequest;
   const calls = [];
   let current = payout;
   const page = renderComponent("../../../pages/admin/Payout.jsx", {
     fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: capability }),
-    sendSellerPayout: (...args) => { calls.push(args); return new Promise((resolve) => { resolveSend = resolve; }); },
+    requestSellerPayout: (...args) => { calls.push(args); return new Promise((resolve) => { resolveRequest = resolve; }); },
   });
   await page.flush();
   page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(payout);
   await page.flush();
-  const button = page.button("Send Payout");
+  const button = page.button("Request Payout");
   const first = button.props.onClick();
   await button.props.onClick();
   assert.equal(calls.length, 1);
   assert.deepEqual(calls, [[9]]);
-  current = { ...payout, payoutStatus: "Processing" };
-  resolveSend({ payout: current });
+  current = { ...payout, approval: { status: "Pending Approval", requestedByAdminId: 11, requestedByName: "Requester", approvalCount: 0, requiredApprovals: 3, decisions: [] }, actions: {} };
+  resolveRequest({ payout: current });
   await first;
   await page.flush();
-  assert.equal(page.button("Send Payout"), undefined);
-  assert.ok(page.button("Check provider status"));
-  const chips = page.nodes().filter((item) => item?.type === "Chip");
-  assert.equal(chips.at(-1).props.label, "Processing");
+  assert.equal(page.button("Request Payout"), undefined);
+  assert.equal(page.button("Release Payout"), undefined);
+  assert.equal(page.button("Approve"), undefined);
+  assert.match(page.text(), /0 \/ 3/);
+  assert.match(page.text(), /Requester \(ID 11\)/);
 });
 
 test("Provider reconciliation uses persisted Paid result rather than setting success locally", async () => {
-  let current = { ...payout, payoutStatus: "Processing" };
+  let current = { ...payout, payoutStatus: "Processing", actions: { canReconcile: true } };
   const page = renderComponent("../../../pages/admin/Payout.jsx", {
     fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: capability }),
-    reconcileSellerPayout: async (id) => { assert.equal(id, 9); current = { ...payout, payoutStatus: "Paid" }; return { payout: current }; },
+    reconcileSellerPayout: async (id) => { assert.equal(id, 9); current = { ...payout, payoutStatus: "Paid", actions: {} }; return { payout: current }; },
   });
   await page.flush();
   page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
@@ -173,4 +176,136 @@ test("Refund verification requires the completed return and submits provider evi
   await page.flush();
   assert.deepEqual(calls, [[9, "re_test_evidence", 4]]);
   assert.equal(page.field("PayMongo refund ID").props.value, "");
+});
+
+test("Each independent approval shows its server count, and the third approval still needs explicit release", async () => {
+  for (const previousCount of [0, 1, 2]) {
+    const calls = [];
+    let current = { ...payout, approval: { ...payout.approval, status: "Pending Approval", requestedByAdminId: 11, requestedByName: "Requester", approvalCount: previousCount }, actions: { canApprove: true, canReject: true } };
+    const page = renderComponent("../../../pages/admin/Payout.jsx", {
+      fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: capability }),
+      approveSellerPayout: async (...args) => {
+        calls.push(args);
+        current = { ...current, approval: { ...current.approval, approvalCount: previousCount + 1, status: previousCount === 2 ? "Approved" : "Pending Approval" }, actions: previousCount === 2 ? { canRelease: true } : {} };
+        return { payout: current };
+      },
+      releaseSellerPayout: () => { throw new Error("Approval must not automatically execute provider release"); },
+    });
+    await page.flush();
+    page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
+    await page.flush();
+    await page.button("Approve").props.onClick();
+    await page.flush();
+    assert.deepEqual(calls, [[9, ""]]);
+    assert.match(page.text(), new RegExp(`${previousCount + 1} / 3`));
+    assert.equal(page.button("Approve"), undefined, "already-voted actor loses the approval action");
+    assert.equal(Boolean(page.button("Release Payout")), previousCount === 2);
+    if (previousCount === 2) assert.match(page.text(), /Approved for Release/);
+  }
+});
+
+test("Server permissions prevent requester or read-only admins from voting or releasing", async () => {
+  const current = { ...payout, approval: { ...payout.approval, status: "Pending Approval", requestedByAdminId: 11, approvalCount: 2 }, actions: {} };
+  const page = renderComponent("../../../pages/admin/Payout.jsx", { fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: capability }) });
+  await page.flush();
+  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
+  await page.flush();
+  for (const action of ["Approve", "Reject", "Request Payout", "Release Payout"]) assert.equal(page.button(action), undefined);
+  assert.match(page.text(), /requester cannot approve/);
+});
+
+test("Reject requires a comment and sends no client approval count, identity, amount or provider", async () => {
+  const calls = [];
+  let current = { ...payout, approval: { ...payout.approval, status: "Pending Approval", requestedByAdminId: 11 }, actions: { canApprove: true, canReject: true } };
+  const page = renderComponent("../../../pages/admin/Payout.jsx", {
+    fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: capability }),
+    rejectSellerPayout: async (...args) => { calls.push(args); current = { ...current, approval: { ...current.approval, status: "Rejected" }, actions: { canRequest: true } }; return { payout: current }; },
+  });
+  await page.flush();
+  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
+  await page.flush();
+  assert.equal(page.button("Reject").props.disabled, true);
+  await page.button("Reject").props.onClick();
+  assert.equal(calls.length, 0);
+  page.field("Approval comment").props.onChange({ target: { value: "  Correct the payout destination.  " } });
+  await page.flush();
+  await page.button("Reject").props.onClick();
+  await page.flush();
+  assert.deepEqual(calls, [[9, "Correct the payout destination."]]);
+  assert.match(page.text(), /Approval rejected/);
+  assert.equal(page.button("Release Payout"), undefined);
+  assert.ok(page.button("Request Payout"), "new cycle can be requested only when authorized by the server");
+});
+
+test("Demo explicit release is double-click guarded and only displays Paid after persisted provider result", async () => {
+  let resolveRelease;
+  const calls = [];
+  let current = { ...payout, approval: { ...payout.approval, status: "Approved", approvalCount: 3 }, actions: { canRelease: true } };
+  const page = renderComponent("../../../pages/admin/Payout.jsx", {
+    fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: { enabled: true, provider: "demo", mode: "demo" } }),
+    releaseSellerPayout: (...args) => { calls.push(args); return new Promise((resolve) => { resolveRelease = resolve; }); },
+  });
+  await page.flush();
+  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
+  await page.flush();
+  const release = page.button("Release Payout");
+  const first = release.props.onClick();
+  await release.props.onClick();
+  assert.deepEqual(calls, [[9]]);
+  assert.equal(page.text().includes("Paid (Demo)"), false);
+  current = { ...current, payoutStatus: "Paid", payoutProvider: "demo", isDemo: true, providerReference: "DEMO-PAYOUT-test", actions: {} };
+  resolveRelease({ payout: current });
+  await first;
+  await page.flush();
+  assert.equal(page.nodes().find((item) => item?.type === "Chip" && item.props.label === "Paid (Demo)")?.props.label, "Paid (Demo)");
+  assert.match(page.text(), /No money moved/);
+  assert.match(page.text(), /DEMO-PAYOUT-test/);
+  assert.equal(page.button("Release Payout"), undefined);
+});
+
+test("Demo refund controls cannot call PayMongo and rejected backend actions remain errors", async () => {
+  let refundCalls = 0;
+  const current = { ...payout, approval: { ...payout.approval, status: "Pending Approval" }, actions: { canApprove: true } };
+  const page = renderComponent("../../../pages/admin/Payout.jsx", {
+    fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: { enabled: true, provider: "demo" } }),
+    approveSellerPayout: async () => { throw { response: { data: { message: "You cannot approve a payout request that you initiated." } } }; },
+    verifySellerPayoutRefund: () => { refundCalls++; },
+  });
+  await page.flush();
+  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
+  await page.flush();
+  page.field("PayMongo refund ID").props.onChange({ target: { value: "re_demo_fake" } });
+  await page.flush();
+  assert.equal(page.button("Verify existing refund").props.disabled, true);
+  await page.button("Verify existing refund").props.onClick();
+  assert.equal(refundCalls, 0);
+  await page.button("Approve").props.onClick();
+  await page.flush();
+  assert.match(page.text(), /cannot approve a payout request that you initiated/);
+  assert.equal(page.button("Release Payout"), undefined);
+});
+
+test("Seller ledger keeps historical demo labels after switching providers and separates demo totals", async () => {
+  const paidDemo = { ...payout, payoutStatus: "Paid", payoutProvider: "demo", providerReference: "DEMO-PAYOUT-history" };
+  const ledger = renderComponent("./PayoutTable.jsx", {}, { orders: [paidDemo] });
+  await ledger.flush();
+  assert.equal(ledger.nodes().find((item) => item?.type === "Chip" && item.props.label === "Paid (Demo)")?.props.label, "Paid (Demo)");
+  assert.match(ledger.text(), /No money moved/);
+  assert.match(ledger.text(), /DEMO-PAYOUT-history/);
+  const metrics = renderComponent("./PayoutMetrics.jsx", {}, { totals: { paid: 0, demoPaid: 1000 } });
+  await metrics.flush();
+  assert.match(metrics.text(), /Paid \(Demo\)/);
+  assert.match(metrics.text(), /excludes demo payouts/);
+  assert.match(metrics.text(), /Simulated payouts only/);
+});
+
+test("Seller ledger shows approval progression without offering admin actions", async () => {
+  for (const [status, count, label] of [["Pending Approval", 1, "Awaiting admin approval"], ["Pending Approval", 2, "Awaiting admin approval"], ["Approved", 3, "Approved for payout"]]) {
+    const ledger = renderComponent("./PayoutTable.jsx", {}, { orders: [{ ...payout, approval: { ...payout.approval, status, approvalCount: count } }] });
+    await ledger.flush();
+    assert.match(ledger.text(), new RegExp(label));
+    assert.match(ledger.text(), new RegExp(`${count} / 3 approvals`));
+    assert.equal(ledger.button("Approve"), undefined);
+    assert.equal(ledger.button("Release Payout"), undefined);
+  }
 });

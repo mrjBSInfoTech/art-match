@@ -32,9 +32,10 @@ import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 
 import { fetchCart } from "../../api/buyer/cartAPI";
 import { fetchAddresses } from "../../api/buyer/addressAPI";
-import { cancelBuyerPayment, fetchBuyerPayment, placeBuyerOrder, retryBuyerPayment } from "../../api/buyer/orderAPI";
+import { cancelBuyerPayment, fetchBuyerPayment, placeBuyerOrder, retryBuyerPayment, validateCheckoutVoucher } from "../../api/buyer/orderAPI";
 import { canResumePayment, isOrderPaid } from "../../utils/orderPayments.js";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import CheckoutVoucher from "../../components/buyer/Checkout/CheckoutVoucher";
 
 const currency = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(value || 0));
 
@@ -61,6 +62,11 @@ export default function Checkout() {
   const [paymentActionError, setPaymentActionError] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
   const [paymentRefresh, setPaymentRefresh] = useState(0);
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherQuote, setVoucherQuote] = useState(null);
+  const [voucherWarning, setVoucherWarning] = useState("");
+  const [voucherChecking, setVoucherChecking] = useState(false);
+  const voucherRequest = useRef(0);
   const submitting = useRef(false);
   const paymentAction = useRef(false);
   const cancelledReturns = useRef(new Set());
@@ -68,6 +74,48 @@ export default function Checkout() {
   const params = new URLSearchParams(search);
   const returnPayment = params.get("payment") || "";
   const paymentReference = params.get("reference") || existingCheckout;
+  const cartKey = JSON.stringify(cartItems.map((item) => [item.artwork_id, item.price, item.seller_id, item.is_sold_out]));
+  const appliedVoucher = voucherQuote?.cartKey === cartKey && voucherQuote.code === voucherCode.trim().toUpperCase()
+    ? voucherQuote.result : null;
+  const voucherMessage = voucherQuote && !appliedVoucher
+    ? "Your checkout items changed. Apply the voucher again to check its requirements." : voucherWarning;
+
+  useEffect(() => () => { voucherRequest.current += 1; }, []);
+
+  const changeVoucherCode = (value) => {
+    voucherRequest.current += 1;
+    setVoucherCode(value);
+    setVoucherQuote(null);
+    setVoucherWarning("");
+    setVoucherChecking(false);
+  };
+
+  const applyVoucher = async () => {
+    if (loading || voucherChecking || submitting.current) return;
+    const code = voucherCode.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,20}$/.test(code)) {
+      setVoucherWarning("Enter a valid voucher code using 3–20 letters, numbers, or hyphens.");
+      return;
+    }
+    if (!cartItems.length) {
+      setVoucherWarning("Select artworks in your cart before applying a voucher.");
+      return;
+    }
+    const request = ++voucherRequest.current;
+    setVoucherChecking(true);
+    setVoucherWarning("");
+    setVoucherQuote(null);
+    try {
+      const result = await validateCheckoutVoucher(code, cartItems.map((item) => Number(item.artwork_id)));
+      if (request !== voucherRequest.current) return;
+      setVoucherCode(result.voucher.code);
+      setVoucherQuote({ code: result.voucher.code, cartKey, result });
+    } catch (voucherError) {
+      if (request === voucherRequest.current) setVoucherWarning(voucherError.message || "Unable to apply this voucher.");
+    } finally {
+      if (request === voucherRequest.current) setVoucherChecking(false);
+    }
+  };
 
   useEffect(() => {
     if (!paymentReference) {
@@ -226,7 +274,7 @@ export default function Checkout() {
     email: localStorage.getItem("buyer_email") || "",
   };
 
-  const subtotal = cartItems.reduce(
+  const subtotal = appliedVoucher?.subtotal ?? cartItems.reduce(
     (sum, item) => sum + Number(item.price || 0),
     0,
   );
@@ -235,7 +283,7 @@ export default function Checkout() {
   );
   // Delivery is arranged by each seller through a third-party courier
   // (J&T, Lalamove, etc.), so no shipping fee is charged at checkout.
-  const total = subtotal;
+  const total = appliedVoucher?.total ?? subtotal;
 
   /*
    * One payment, several storefronts. The buyer is charged once, but each
@@ -269,7 +317,11 @@ export default function Checkout() {
     (!selectedArtworkIds.length || selectedArtworkIds.length !== cartItems.length);
 
   const handlePlaceOrder = async () => {
-    if (submitting.current) return;
+    if (submitting.current || voucherChecking) return;
+    if (voucherCode.trim() && !appliedVoucher) {
+      setVoucherWarning(voucherMessage || "Apply the voucher or remove its code before continuing to checkout.");
+      return;
+    }
     if (!cartItems.length || selectionIncomplete || hasSoldOutItems) {
       setError("Please return to your cart and select available artworks to checkout.");
       return;
@@ -289,6 +341,8 @@ export default function Checkout() {
         currentAddress.address_id,
         paymentMethod,
         selectedArtworkIds ?? cartItems.map((item) => Number(item.artwork_id)),
+        { voucherCode: appliedVoucher?.voucher.code,
+          expectedTotalCentavos: appliedVoucher ? Math.round(Number(appliedVoucher.total) * 100) : undefined },
       );
 
       /*
@@ -334,6 +388,11 @@ export default function Checkout() {
       throw new Error("Unsupported payment method.");
     } catch (orderError) {
       setError(orderError.message || "Unable to place your order");
+      if (orderError.code === "voucher_invalid") {
+        setVoucherQuote(null);
+        setVoucherWarning(orderError.message || "This voucher is no longer valid. Apply another voucher or remove the code.");
+        setError("");
+      }
       if (orderError.status === 409 && orderError.canResume) {
         setExistingCheckout(orderError.paymentReference);
         setError("");
@@ -676,6 +735,16 @@ export default function Checkout() {
                     address in your profile.
                   </Alert>
                 )}
+                <CheckoutVoucher
+                  code={voucherCode}
+                  onCodeChange={changeVoucherCode}
+                  onApply={applyVoucher}
+                  onRemove={() => changeVoucherCode("")}
+                  voucher={appliedVoucher}
+                  warning={voucherMessage}
+                  checking={voucherChecking}
+                  disabled={loading || hasSoldOutItems || selectionIncomplete}
+                />
               </Paper>
 
               {/* Payment Method Card */}
@@ -826,6 +895,7 @@ export default function Checkout() {
                   label="Subtotal"
                   value={`₱${subtotal.toLocaleString()}`}
                 />
+                {appliedVoucher && <SummaryRow label={`Voucher (${appliedVoucher.voucher.code})`} value={`−${currency(appliedVoucher.discount_amount)}`} />}
                 {multiStorefront && (
                   <Box
                     sx={{
@@ -874,7 +944,8 @@ export default function Checkout() {
                             </Typography>
                           </Stack>
                           <Typography variant="body2" fontWeight={700} sx={{ ml: 1 }}>
-                            ₱{group.subtotal.toLocaleString()}
+                            {currency(group.subtotal - (Number(appliedVoucher?.voucher.student_id) === Number(group.sellerId)
+                              ? Number(appliedVoucher.discount_amount) : 0))}
                           </Typography>
                         </Button>
                       ))}
@@ -929,6 +1000,7 @@ export default function Checkout() {
                   cartItems.length === 0 ||
                   !currentAddress ||
                   loading ||
+                  voucherChecking ||
                   hasSoldOutItems || selectionIncomplete
                 }
                 onClick={handlePlaceOrder}

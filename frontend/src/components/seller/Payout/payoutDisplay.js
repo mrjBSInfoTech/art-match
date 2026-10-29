@@ -26,4 +26,21 @@ export const payoutStatusMessage = {
 
 export const payoutValue = (payout) => payout?.payoutAmount ?? payout?.net ?? 0;
 export const payoutIdentifier = (payout) => payout?.payoutId ?? payout?.splitId;
-export const canSendPayout = (payout, capability) => payout?.payoutStatus === "Eligible" && capability?.enabled === true;
+export const isDemoPayout = (payout) => payout?.payoutProvider === "demo" || payout?.isDemo === true;
+export const isDemoCapability = (capability) => capability?.provider === "demo" || capability?.mode === "demo";
+export const payoutApprovalLabel = (payout) => {
+  const status = payout?.approval?.status;
+  if (status === "Pending Approval") return "Awaiting admin approval";
+  if (status === "Approved") return "Approved for Release";
+  if (status === "Rejected") return "Approval rejected";
+  if (status === "Invalidated") return "Approval requires a new request";
+  return "Not Requested";
+};
+export const payoutDisplayStatus = (payout) => {
+  if (payout?.payoutStatus === "Paid" && isDemoPayout(payout)) return "Paid (Demo)";
+  if (payout?.payoutStatus === "Processing" && isDemoPayout(payout)) return "Processing (Demo)";
+  return payout?.payoutStatus || "Held";
+};
+export const canPayoutAction = (payout, action) => payout?.actions?.[`can${action[0].toUpperCase()}${action.slice(1)}`] === true;
+export const canReleasePayout = (payout, capability) => canPayoutAction(payout, "release")
+  && payout?.payoutStatus === "Eligible" && capability?.enabled === true && Boolean(payout?.destination);

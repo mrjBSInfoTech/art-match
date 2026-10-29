@@ -13,12 +13,18 @@ const handle = callback => async (req, res) => {
     res.status(error.status || 500).json({ message: error.status ? error.message : "Unable to process this payout." });
   }
 };
-router.get("/", handle(() => payoutService.list()));
+router.get("/", handle(req => payoutService.list({ adminId: req.user.admin_id })));
 router.get("/:id", handle(async req => {
-  const payout = (await payoutService.list({ payoutId: req.params.id })).orders[0];
+  const payout = (await payoutService.list({ payoutId: req.params.id, adminId: req.user.admin_id })).orders[0];
   if (!payout) { const error = new Error("Payout not found."); error.status = 404; throw error; }
   return { payout };
 }));
+router.get("/:id/approvals", handle(req => payoutService.approvals(req.params.id, req.user.admin_id)));
+router.post("/:id/request", handle(req => payoutService.request(req.params.id, req.user.admin_id, req.body || {})));
+router.post("/:id/approve", handle(req => payoutService.approve(req.params.id, req.user.admin_id, req.body || {})));
+router.post("/:id/reject", handle(req => payoutService.reject(req.params.id, req.user.admin_id, req.body || {})));
+router.post("/:id/release", handle(req => payoutService.release(req.params.id, req.user.admin_id, req.body || {})));
+// Retain old clients without leaving a route around the approval gate.
 router.post("/:id/send", handle(req => payoutService.send(req.params.id, req.user.admin_id, req.body || {})));
 router.post("/:id/reconcile", handle(req => payoutService.reconcile(req.params.id, req.user.admin_id, req.body || {})));
 router.post("/:id/refunds/verify", handle(req => payoutService.verifyRefund(req.params.id, req.user.admin_id, req.body || {})));

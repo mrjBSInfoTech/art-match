@@ -13,7 +13,7 @@ function migration({ methods = ["paymongo", "cod"], statuses = expectedStatuses,
   missing = [], rows = [], defaultMethod = null } = {}) {
   const fields = ["payment_method", "payment_status", "payment_reference", "paymongo_checkout_session_id",
     "paymongo_checkout_url", "paymongo_payment_id", "paymongo_payment_method", "paid_at",
-    "parcel_photos", "tracking_url", "handling_instructions"];
+    "parcel_photos", "tracking_url", "handling_instructions", "original_subtotal", "discount_amount", "voucher_code"];
   const columns = fields.filter((Field) => !missing.includes(Field)).map((Field) => ({
     Field, Type: Field === "payment_method" ? enumType(methods)
       : Field === "payment_status" ? enumType(statuses) : "varchar(2048)",
@@ -73,6 +73,17 @@ test("checkout URL is nullable, added once, and included for fresh installs", as
   assert.match(additions[0], /VARCHAR\(2048\) NULL/);
   assert.match(schema.createSql, /paymongo_checkout_url VARCHAR\(2048\) NULL/);
   assert.match(schema.createSql, /handling_instructions JSON NULL/);
+});
+
+test("voucher order snapshots are added once without changing historic financial records", async () => {
+  const schema = migration({ missing: ["original_subtotal", "discount_amount", "voucher_code"] });
+  await schema.run();
+  await schema.run();
+  for (const field of ["original_subtotal", "discount_amount", "voucher_code"]) {
+    assert.equal(schema.statements.filter((sql) => sql.includes(`ADD COLUMN ${field} `)).length, 1);
+    assert.ok(schema.createSql.includes(field));
+  }
+  assert.ok(schema.statements.every((sql) => !/UPDATE marketplace_order|DELETE|DROP/i.test(sql)));
 });
 
 test("older status enums expand without deleting legacy status values or rewriting financial records", async () => {

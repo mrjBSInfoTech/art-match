@@ -5,6 +5,7 @@ import * as paymongo from "../utils/paymongo.js";
 import * as availability from "../utils/artworkAvailability.js";
 import * as paymentSplit from "../utils/paymentSplit.js";
 import * as paymongoReconciliation from "../utils/paymongoReconciliation.js";
+import * as checkoutVouchers from "../utils/checkoutVouchers.js";
 
 // Execute the real route handlers with isolated dependencies: no TCP, MySQL,
 // environment credentials, or PayMongo calls are used by these tests.
@@ -18,7 +19,7 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     .replace(/^import[\s\S]*?;\s*/gm, "")
     .replace(/export default router;?/, "");
   const context = {
-    ...paymongo, ...availability, ...paymentSplit, ...paymongoReconciliation, createHmac, timingSafeEqual, randomUUID,
+    ...paymongo, ...availability, ...paymentSplit, ...paymongoReconciliation, ...checkoutVouchers, createHmac, timingSafeEqual, randomUUID,
     Buffer, URL, URLSearchParams, Date, setTimeout, clearTimeout,
     express: { Router: () => router },
     authenticateBuyer: () => {},
@@ -105,6 +106,8 @@ export function databaseFixture(overrides = {}) {
       { artwork_id: 30, student_id: 5, title: "Added in another tab", price: "500.00", stock_available: null, status: "Available", is_verified: 1, is_sold: 0 },
     ],
     interactions: [],
+    vouchers: [],
+    voucherListings: [],
     ...overrides,
   };
   state.paymentSplits ??= state.orders.map(order => ({
@@ -128,7 +131,15 @@ export function databaseFixture(overrides = {}) {
       if (fail?.(sql, params)) throw new Error("Injected database failure");
       let rows;
       if (/^SELECT/i.test(sql)) {
-        if (/FROM add_cart/i.test(sql)) {
+        if (/FROM seller_voucher_artwork/i.test(sql)) {
+          rows = state.voucherListings.filter(row => Number(row.voucher_id) === Number(params[0]));
+        } else if (/FROM seller_voucher/i.test(sql)) {
+          rows = state.vouchers.filter(row => row.code.toUpperCase() === params[0]);
+        } else if (/FROM add_cart ac JOIN cart_item/i.test(sql)) {
+          const cartIds = state.carts.filter(cart => cart.customer_id === Number(params[0])).map(cart => cart.add_to_id);
+          rows = state.cartItems.filter(item => cartIds.includes(item.add_to_id) && params[1].includes(item.artwork_id))
+            .map(item => ({ ...state.artworks.find(art => art.artwork_id === item.artwork_id), sold_quantity: 0 }));
+        } else if (/FROM add_cart/i.test(sql)) {
           rows = state.carts.filter(cart => cart.customer_id === Number(params[0]));
         } else if (/FROM cart_item ci/i.test(sql)) {
           rows = state.cartItems.filter(item => item.add_to_id === Number(params[0]))
@@ -211,7 +222,7 @@ export function databaseFixture(overrides = {}) {
         return [{ insertId: order.order_id, affectedRows: 1 }];
       }
       if (/^INSERT INTO marketplace_order_item/i.test(sql)) {
-        state.orderItems.push({ order_id: params[0], artwork_id: params[1], title: params[2], unit_price: params[5], quantity: 1 });
+        state.orderItems.push({ order_id: params[0], artwork_id: params[1], title: params[2], unit_price: params[5], original_unit_price: params[6], quantity: 1 });
         return [{ insertId: state.orderItems.length, affectedRows: 1 }];
       }
       if (/^INSERT INTO seller_payment_split/i.test(sql)) {

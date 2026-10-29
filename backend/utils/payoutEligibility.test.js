@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadPayoutEligibility, payoutToCentavos, refreshSellerPayoutEligibility } from "./payoutEligibility.js";
+import { getPayoutHoldPolicy, loadPayoutEligibility, payoutToCentavos, refreshSellerPayoutEligibility } from "./payoutEligibility.js";
 
 function fixture(overrides = {}) {
   const state = {
@@ -56,6 +56,58 @@ const returned = (status, extra = {}) => ({
 const refund = (status, extra = {}) => ({
   refund_id: 71, order_id: 41, return_request_id: 61, provider_refund_id: "ref_test_one",
   provider_payment_id: "pay_test_original", amount: "200.00", status, ...extra,
+});
+
+test("immediate payout policy requires an explicit flag and TEST credentials", () => {
+  for (const env of [
+    {}, { PAYMONGO_SECRET_KEY: "sk_test_fixture" },
+    { PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" },
+    { PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" },
+    { PAYMONGO_SECRET_KEY: "sk_test_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "false" },
+  ]) assert.deepEqual(getPayoutHoldPolicy(env), { holdDays: 7, immediateTestPayouts: false });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_test_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" }),
+    { holdDays: 0, immediateTestPayouts: true });
+});
+
+test("the existing immediate flag also supports explicit demo mode, but never production or an unknown provider", () => {
+  assert.deepEqual(getPayoutHoldPolicy({ PAYOUT_PROVIDER: "demo", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true", NODE_ENV: "development" }),
+    { holdDays: 0, immediateTestPayouts: true });
+  for (const env of [
+    { PAYOUT_PROVIDER: "demo", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "false" },
+    { PAYOUT_PROVIDER: "demo", NODE_ENV: "production" },
+    { PAYOUT_PROVIDER: "paymongo", NODE_ENV: "production", PAYMONGO_SECRET_KEY: "sk_test_fixture" },
+    { PAYOUT_PROVIDER: "paymongo", NODE_ENV: "development", PAYMONGO_SECRET_KEY: "sk_live_fixture" },
+    { PAYOUT_PROVIDER: "unknown", PAYMONGO_SECRET_KEY: "sk_test_fixture" },
+  ]) assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true", ...env }),
+    { holdDays: 7, immediateTestPayouts: false });
+});
+
+test("immediate TEST eligibility uses database delivery time and retains payment, delivery and refund holds", async (t) => {
+  const previous = { key: process.env.PAYMONGO_SECRET_KEY, flag: process.env.PAYMONGO_TEST_PAYOUT_IMMEDIATE };
+  t.after(() => {
+    for (const [name, value] of [["PAYMONGO_SECRET_KEY", previous.key], ["PAYMONGO_TEST_PAYOUT_IMMEDIATE", previous.flag]]) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  });
+  process.env.PAYMONGO_SECRET_KEY = "sk_test_fixture";
+  process.env.PAYMONGO_TEST_PAYOUT_IMMEDIATE = "true";
+  const current = fixture({ order: { payout_eligible_at: "2026-10-01 15:00:00" } });
+  const [result] = await current.refresh();
+  assert.equal(result.canSend, true);
+  assert.equal(result.eligibleAt, current.state.order.delivered_at);
+  assert.match(current.calls.find(call => /^SELECT o\.\*/.test(call.sql)).sql,
+    /CURRENT_TIMESTAMP >= DATE_ADD\(o\.delivered_at, INTERVAL 0 DAY\)/);
+  for (const overrides of [
+    { order: { payment_status: "Pending" } }, { order: { status: "Shipped" } },
+    { order: { delivered_at: null } }, { order: { payout_hold_elapsed: 0 } },
+    { returnRows: [returned("Requested")] },
+    { returnRows: [returned("Completed")], refunds: [refund("Pending")] },
+  ]) assert.equal((await fixture(overrides).load()).nextStatus, "Held");
+
+  process.env.PAYMONGO_SECRET_KEY = "sk_live_fixture";
+  const live = fixture({ order: { payout_hold_elapsed: 0 } });
+  assert.equal((await live.load()).nextStatus, "Held");
+  assert.match(live.calls[0].sql, /INTERVAL 7 DAY/);
 });
 
 test("eligibility uses exact MySQL seven-day deadline and never an application clock", async () => {

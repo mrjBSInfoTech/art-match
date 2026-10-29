@@ -211,6 +211,9 @@ CREATE TABLE IF NOT EXISTS marketplace_order (
   shipping_region VARCHAR(100) NOT NULL,
   shipping_postal_code VARCHAR(20) NOT NULL,
   subtotal DECIMAL(12, 2) NOT NULL,
+  original_subtotal DECIMAL(12, 2) NULL,
+  discount_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  voucher_code VARCHAR(20) NULL,
   shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 150.00,
   total_amount DECIMAL(12, 2) NOT NULL,
   status ENUM('Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled') NOT NULL DEFAULT 'Pending',
@@ -232,6 +235,7 @@ CREATE TABLE IF NOT EXISTS marketplace_order_item (
   artist_name VARCHAR(201) NOT NULL,
   image VARCHAR(255) NULL,
   unit_price DECIMAL(12, 2) NOT NULL,
+  original_unit_price DECIMAL(12, 2) NULL,
   quantity INT NOT NULL DEFAULT 1,
   CONSTRAINT fk_marketplace_order_item_order
     FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE,

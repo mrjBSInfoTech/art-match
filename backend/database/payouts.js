@@ -11,6 +11,8 @@ const splitColumns = {
   refund_amount: "DECIMAL(12, 2) NOT NULL DEFAULT 0.00",
   payout_amount: "DECIMAL(12, 2) NULL DEFAULT NULL",
   hold_reason: "VARCHAR(500) NULL",
+  payout_provider: "ENUM('demo','paymongo') NULL",
+  approval_cycle_id: "INT NULL",
 };
 
 export const payoutAccountTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_account (
@@ -32,6 +34,8 @@ export const payoutAccountTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_a
 export const payoutAttemptTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_attempt (
   attempt_id INT AUTO_INCREMENT PRIMARY KEY,
   split_id INT NOT NULL,
+  payout_provider ENUM('demo','paymongo') NOT NULL DEFAULT 'paymongo',
+  payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test',
   provider_reference VARCHAR(100) NOT NULL,
   provider_transfer_id VARCHAR(100) NULL,
   status ENUM('Processing', 'Paid', 'Failed', 'Unknown') NOT NULL DEFAULT 'Processing',
@@ -56,6 +60,41 @@ export const payoutAttemptTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_a
   CONSTRAINT fk_seller_payout_attempt_split FOREIGN KEY (split_id)
     REFERENCES seller_payment_split(split_id) ON DELETE RESTRICT,
   CONSTRAINT chk_seller_payout_attempt_amount CHECK (amount_centavos > 0)
+) ENGINE=InnoDB`;
+
+// An approval belongs to one immutable request cycle, never to every future
+// attempt for an order. Rejection/corrections create a fresh cycle.
+export const payoutApprovalCycleTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_approval_cycle (
+  cycle_id INT AUTO_INCREMENT PRIMARY KEY,
+  split_id INT NOT NULL,
+  requested_by_admin_id INT NOT NULL,
+  approval_status ENUM('Pending Approval','Approved','Rejected','Invalidated') NOT NULL DEFAULT 'Pending Approval',
+  payout_provider ENUM('demo','paymongo') NOT NULL,
+  payout_mode ENUM('demo','test','live') NOT NULL,
+  amount_centavos BIGINT UNSIGNED NOT NULL,
+  snapshot_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  approved_at DATETIME NULL,
+  released_by_admin_id INT NULL,
+  released_at DATETIME NULL,
+  invalidation_reason VARCHAR(500) NULL,
+  INDEX idx_payout_cycle_split (split_id,cycle_id),
+  CONSTRAINT fk_payout_cycle_split FOREIGN KEY (split_id) REFERENCES seller_payment_split(split_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_payout_cycle_requester FOREIGN KEY (requested_by_admin_id) REFERENCES admin(admin_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_payout_cycle_releaser FOREIGN KEY (released_by_admin_id) REFERENCES admin(admin_id) ON DELETE RESTRICT,
+  CONSTRAINT chk_payout_cycle_amount CHECK (amount_centavos > 0)
+) ENGINE=InnoDB`;
+
+export const payoutApprovalTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_approval (
+  approval_id INT AUTO_INCREMENT PRIMARY KEY,
+  cycle_id INT NOT NULL,
+  admin_id INT NOT NULL,
+  decision ENUM('Approved','Rejected') NOT NULL,
+  comment VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_payout_cycle_admin (cycle_id,admin_id),
+  CONSTRAINT fk_payout_approval_cycle FOREIGN KEY (cycle_id) REFERENCES seller_payout_approval_cycle(cycle_id) ON DELETE RESTRICT,
+  CONSTRAINT fk_payout_approval_admin FOREIGN KEY (admin_id) REFERENCES admin(admin_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB`;
 
 // This is provider evidence, not an admin "mark refunded" switch. A provider
@@ -111,5 +150,19 @@ export async function ensurePayoutTables() {
   }
   await executor.query(payoutAccountTableSql);
   await executor.query(payoutAttemptTableSql);
+  const [attemptColumns] = await executor.query("SHOW COLUMNS FROM seller_payout_attempt");
+  if (!attemptColumns.some(column => column.Field === "payout_provider")) {
+    // All pre-existing attempts used the actual PayMongo adapter.
+    await executor.query("ALTER TABLE seller_payout_attempt ADD COLUMN payout_provider ENUM('demo','paymongo') NOT NULL DEFAULT 'paymongo'");
+  }
+  if (!attemptColumns.some(column => column.Field === "payout_mode")) {
+    await executor.query("ALTER TABLE seller_payout_attempt ADD COLUMN payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test'");
+  }
   await executor.query(orderRefundTableSql);
+  await executor.query(payoutApprovalCycleTableSql);
+  const [cycleColumns] = await executor.query("SHOW COLUMNS FROM seller_payout_approval_cycle");
+  if (!cycleColumns.some(column => column.Field === "payout_mode")) {
+    await executor.query("ALTER TABLE seller_payout_approval_cycle ADD COLUMN payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test'");
+  }
+  await executor.query(payoutApprovalTableSql);
 }

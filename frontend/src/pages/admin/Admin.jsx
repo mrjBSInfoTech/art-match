@@ -264,6 +264,8 @@ export default function Admin() {
         >
           <TextField
             variant="outlined"
+            name="admin-search"
+            autoComplete="off"
             placeholder="Search username, name, email, or role..."
             size="small"
             sx={{

@@ -22,6 +22,7 @@ import { buildPaymentSplit, validateSplits } from "../../utils/paymentSplit.js";
 import { attachOrderReturns } from "../../utils/returns.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
+import { CheckoutVoucherError, quoteCheckoutVoucher, normalizeCheckoutVoucherCode } from "../../utils/checkoutVouchers.js";
 
 const router = express.Router();
 
@@ -63,6 +64,9 @@ const groupOrderRows = (rows) => {
         paidAt: row.paid_at,
 
         subtotal: Number(row.subtotal),
+        originalSubtotal: Number(row.original_subtotal ?? row.subtotal),
+        discount: Number(row.discount_amount || 0),
+        voucherCode: row.voucher_code || null,
 
         shipping: Number(row.shipping_fee),
 
@@ -104,6 +108,7 @@ const groupOrderRows = (rows) => {
         qty: row.quantity,
 
         price: Number(row.unit_price),
+        originalPrice: Number(row.original_unit_price ?? row.unit_price),
 
         review: row.review_id
           ? {
@@ -143,6 +148,9 @@ const ordersSql = `
     o.paymongo_payment_method,
     o.paid_at,
     o.subtotal,
+    o.original_subtotal,
+    o.discount_amount,
+    o.voucher_code,
     o.shipping_fee,
     o.total_amount,
     o.buyer_name,
@@ -160,6 +168,7 @@ const ordersSql = `
     i.artist_name,
     i.image,
     i.unit_price,
+    i.original_unit_price,
     i.quantity,
 
     r.review_id,
@@ -306,13 +315,69 @@ router.get("/:id/parcel-photos/:index", authenticateBuyer, async (req, res) => {
   }
 });
 
+router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const body = req.body || {};
+  if (req.user.student_id || req.user.student_number || req.user.admin_id) {
+    return res.status(403).json({ message: "Buyer access is required" });
+  }
+  const requestedIds = body.artwork_ids;
+  if (!Array.isArray(requestedIds) || !requestedIds.length ||
+      requestedIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+    return res.status(400).json({ message: "Select at least one valid artwork to apply a voucher." });
+  }
+  const selectedIds = [...new Set(requestedIds)];
+  try {
+    normalizeCheckoutVoucherCode(body.voucher_code);
+    const items = await query(db.promise(),
+      `SELECT a.artwork_id, a.student_id, a.price, a.status, a.is_sold,
+        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+        ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
+        EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
+          AND LOWER(au.request_status) = 'verified') AS is_verified
+       FROM add_cart ac JOIN cart_item ci ON ci.add_to_id = ac.add_to_id
+       JOIN artwork a ON a.artwork_id = ci.artwork_id
+       WHERE ac.customer_id = ? AND ci.artwork_id IN (?) ORDER BY a.student_id, a.artwork_id`,
+      [req.user.customer_id, selectedIds],
+    );
+    if (items.length !== selectedIds.length) {
+      throw new CheckoutVoucherError("Some selected artworks are no longer in your cart. Please review your selection.");
+    }
+    if (items.some((item) => !Number(item.is_verified) || String(item.status).toLowerCase() !== "available" ||
+      getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1).isSoldOut)) {
+      throw new CheckoutVoucherError("Some selected artworks are unavailable. Please refresh your cart.");
+    }
+    const quote = await quoteCheckoutVoucher(db.promise(), items, body.voucher_code, { required: true });
+    return res.json(quote.summary);
+  } catch (error) {
+    if (!(error instanceof CheckoutVoucherError)) console.error("Buyer voucher validation error:", error.code || error.name);
+    return res.status(error instanceof CheckoutVoucherError ? error.status : 500).json({
+      message: error instanceof CheckoutVoucherError ? error.message : "Unable to validate the voucher. Please try again.",
+      ...(error instanceof CheckoutVoucherError ? { code: "voucher_invalid" } : {}),
+    });
+  }
+});
+
 router.post("/checkout", authenticateBuyer, async (req, res) => {
+  req.body ||= {};
   const recommendationSessionId = getRecommendationSessionIdFromRequest(req);
 
   const addressId = Number(req.body.address_id);
 
   const paymentMethod = String(req.body.payment_method || "").toLowerCase();
   const requestedArtworkIds = req.body.artwork_ids;
+  if (req.user.student_id || req.user.student_number || req.user.admin_id) {
+    return res.status(403).json({ message: "Buyer access is required" });
+  }
+  try {
+    normalizeCheckoutVoucherCode(req.body.voucher_code, { optional: true });
+    if (req.body.expected_total_centavos !== undefined &&
+        (!Number.isSafeInteger(req.body.expected_total_centavos) || req.body.expected_total_centavos <= 0)) {
+      throw new CheckoutVoucherError("Apply the voucher again to review a valid checkout total.");
+    }
+  } catch (error) {
+    return res.status(400).json({ message: error.message, code: "voucher_invalid" });
+  }
   if (requestedArtworkIds !== undefined && (!Array.isArray(requestedArtworkIds) ||
     !requestedArtworkIds.length || requestedArtworkIds.some((id) => !Number.isSafeInteger(id) || id <= 0))) {
     return res.status(400).json({ message: "Select at least one valid artwork to checkout" });
@@ -628,6 +693,14 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     // Validate even COD prices and prevent repeat attempts from creating another
     // payable session for the same buyer/artwork. Resume or expire the old group.
     items.forEach(item => pesosToCentavos(item.price));
+    // A preview is only informational. Re-read the current voucher and prices
+    // under this checkout transaction before creating any payable order.
+    const voucherQuote = await quoteCheckoutVoucher(connection, items, req.body.voucher_code, { lock: true });
+    if (req.body.expected_total_centavos !== undefined && req.body.expected_total_centavos !==
+        voucherQuote.items.reduce((sum, item) => sum + item.chargedCentavos, 0)) {
+      throw new CheckoutVoucherError("Your checkout total changed. Apply the voucher again to review the updated discount.", 409);
+    }
+    const pricedByArtwork = new Map(voucherQuote.items.map((item) => [Number(item.artwork_id), item]));
     const pendingGroups = await query(connection,
       `SELECT DISTINCT o.payment_reference FROM marketplace_order o
        JOIN marketplace_order_item oi ON oi.order_id = o.order_id
@@ -665,7 +738,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
      * Create one order per seller.
      */
     for (const [sellerId, sellerItems] of bySeller) {
-      const subtotal = sellerItems.reduce((sum, item) => sum + pesosToCentavos(item.price), 0) / 100;
+      const originalSubtotal = sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).originalCentavos, 0) / 100;
+      const subtotal = sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos, 0) / 100;
+      const discountAmount = (Math.round(originalSubtotal * 100) - Math.round(subtotal * 100)) / 100;
 
       const [result] = await connection.query(
         `INSERT INTO marketplace_order
@@ -688,6 +763,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             shipping_postal_code,
 
             subtotal,
+            original_subtotal,
+            discount_amount,
+            voucher_code,
             shipping_fee,
             total_amount
           )
@@ -695,7 +773,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             ?, ?, ?, ?,
             ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
-            ?, ?, ?
+            ?, ?, ?, ?, ?, ?
           )`,
 
         [
@@ -717,6 +795,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           address.postal_code,
 
           subtotal,
+          originalSubtotal,
+          discountAmount,
+          discountAmount > 0 ? voucherQuote.summary.voucher.code : null,
           SHIPPING_FEE,
           subtotal,
         ],
@@ -736,10 +817,11 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             artist_name,
             image,
             unit_price,
+            original_unit_price,
             quantity
           )
           VALUES (
-            ?, ?, ?, ?, ?, ?, 1
+            ?, ?, ?, ?, ?, ?, ?, 1
           )`,
 
           [
@@ -748,7 +830,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             item.title,
             item.artist_name,
             item.image,
-            item.price,
+            pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos / 100,
+            pricedByArtwork.get(Number(item.artwork_id)).originalCentavos / 100,
           ],
         );
 
@@ -784,6 +867,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         sellerId,
 
         subtotal,
+        originalSubtotal,
+        discount: discountAmount,
+        voucherCode: discountAmount > 0 ? voucherQuote.summary.voucher.code : null,
 
         total: subtotal + SHIPPING_FEE,
       });
@@ -848,7 +934,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       const lineItems = items.map((item) => ({
         name: String(item.title || "Artwork").slice(0, 255),
 
-        amount: pesosToCentavos(item.price),
+        amount: pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos,
 
         currency: "PHP",
 
@@ -941,6 +1027,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         checkout_url: checkoutSession.checkoutUrl,
 
         artwork_ids: items.map((item) => item.artwork_id),
+        voucher: voucherQuote.summary.voucher,
+        discount_amount: voucherQuote.summary.discount_amount,
+        total: voucherQuote.summary.total,
       });
     }
 
@@ -992,6 +1081,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       payment_status: "Pending",
 
       orders: createdOrders,
+      voucher: voucherQuote.summary.voucher,
+      discount_amount: voucherQuote.summary.discount_amount,
+      total: voucherQuote.summary.total,
     });
   } catch (error) {
     if (connection) {
@@ -1000,8 +1092,10 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
     console.error("Buyer checkout error:", error.code || error.name);
 
-    return res.status(error instanceof PayMongoError ? error.status : 500).json({
-      message: error instanceof PayMongoError ? error.message : "Unable to place your order",
+    const expectedError = error instanceof PayMongoError || error instanceof CheckoutVoucherError;
+    return res.status(expectedError ? error.status : 500).json({
+      message: expectedError ? error.message : "Unable to place your order",
+      ...(error instanceof CheckoutVoucherError ? { code: "voucher_invalid" } : {}),
     });
   } finally {
     connection?.release();

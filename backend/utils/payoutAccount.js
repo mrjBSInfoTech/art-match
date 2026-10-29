@@ -40,12 +40,14 @@ export const maskPayoutAccount = number => "*".repeat(Math.max(4, number.length 
 
 export function payoutAccountDto(account) {
   if (!account) return null;
+  const accountNumber = decryptPayoutAccount(account.account_number_ciphertext, account.student_id);
   return {
     destinationType: account.destination_type,
     institutionCode: account.institution_code,
     institutionName: account.institution_name,
     provider: account.institution_provider,
     accountName: account.account_name,
-    maskedAccountNumber: maskPayoutAccount(decryptPayoutAccount(account.account_number_ciphertext, account.student_id)),
+    accountNumber,
+    maskedAccountNumber: maskPayoutAccount(accountNumber),
   };
 }

@@ -32,6 +32,7 @@ import Nexus from "../assets/Nexus.png";
 import SidebarNavigationHeader from "./SidebarNavigationHeader";
 import { clearAuthData } from "../../utils/auth";
 import { recordLogout } from "../api/admin/adminAuthenticationAPI";
+import { canAccessAdminPayouts } from "../utils/adminPayoutAccess";
 import PasswordWarning from "../components/admin/Dashboard/PasswordWarning";
 //Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -89,6 +90,7 @@ function AdminLayoutContent() {
   const [image, setImage] = useState("");
   const [canAdd, setCanAdd] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [role, setRole] = useState(() => localStorage.getItem("admin_role") || "");
   const [openPasswordWarning, setOpenPasswordWarning] = useState(false);
 
   const navigate = useNavigate();
@@ -131,6 +133,7 @@ function AdminLayoutContent() {
       setImage(storedImage || "");
       setCanAdd(storedCanAdd === "1");
       setCanEdit(storedCanEdit === "1");
+      setRole(localStorage.getItem("admin_role") || "");
     };
 
     loadAdminProfile();
@@ -243,11 +246,11 @@ function AdminLayoutContent() {
       title: "Sales",
       icon: <TrendingUpIcon />,
     },
-    {
+    ...(canAccessAdminPayouts(role) ? [{
       segment: "payouts",
       title: "Seller Payouts",
       icon: <AccountBalanceWalletOutlinedIcon />,
-    },
+    }] : []),
     {
       segment: "event",
       title: "Event",

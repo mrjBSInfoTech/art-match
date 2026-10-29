@@ -4,6 +4,15 @@ const query = async (executor, sql, params = []) => (await executor.query(sql, p
 const protectedStatuses = new Set(["Processing", "Paid"]);
 const activeReturnStatuses = new Set(["Requested", "Approved", "Return Shipped", "Received"]);
 
+export function getPayoutHoldPolicy(env = process.env) {
+  const selectedProvider = String(env.PAYOUT_PROVIDER || "paymongo").trim().toLowerCase();
+  const production = String(env.NODE_ENV || "").trim().toLowerCase() === "production";
+  const immediateTestPayouts = !production && env.PAYMONGO_TEST_PAYOUT_IMMEDIATE === "true" &&
+    (selectedProvider === "demo" || (selectedProvider === "paymongo" &&
+      /^sk_test_\S+$/.test(String(env.PAYMONGO_SECRET_KEY || "").trim())));
+  return { holdDays: immediateTestPayouts ? 0 : 7, immediateTestPayouts };
+}
+
 export function payoutToCentavos(value, { allowZero = true } = {}) {
   if (!["string", "number"].includes(typeof value) || String(value).trim() === "") {
     throw new Error("Invalid payout accounting amount.");
@@ -41,9 +50,10 @@ const safeAdd = (left, right) => {
  */
 export async function loadPayoutEligibility(executor, orderId, { lock = false } = {}) {
   const id = positiveId(orderId);
+  const { holdDays } = getPayoutHoldPolicy();
   const [order] = await query(executor, `SELECT o.*, CURRENT_TIMESTAMP AS db_now,
-      DATE_ADD(o.delivered_at, INTERVAL 7 DAY) AS payout_eligible_at,
-      (o.delivered_at IS NOT NULL AND CURRENT_TIMESTAMP >= DATE_ADD(o.delivered_at, INTERVAL 7 DAY)) AS payout_hold_elapsed
+      DATE_ADD(o.delivered_at, INTERVAL ${holdDays} DAY) AS payout_eligible_at,
+      (o.delivered_at IS NOT NULL AND CURRENT_TIMESTAMP >= DATE_ADD(o.delivered_at, INTERVAL ${holdDays} DAY)) AS payout_hold_elapsed
     FROM marketplace_order o WHERE o.order_id = ?${lock ? " FOR UPDATE" : ""}`, [id]);
   if (!order) return null;
   const [split] = await query(executor, `SELECT * FROM seller_payment_split
@@ -174,7 +184,9 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
     }
     if (order.status !== "Delivered") return finish("Held", "Waiting for order delivery.");
     if (!order.delivered_at) return finish("Held", "The delivery timestamp is unavailable. Administrator review is required.");
-    if (!Number(order.payout_hold_elapsed)) return finish("Held", "Your earnings are held until the 7-day return period ends.");
+    if (!Number(order.payout_hold_elapsed)) return finish("Held", holdDays === 0
+      ? "Waiting for the recorded delivery time."
+      : "Your earnings are held until the 7-day return period ends.");
     return finish("Eligible");
   } catch {
     result.payoutAmountCentavos = 0;

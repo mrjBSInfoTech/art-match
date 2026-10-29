@@ -18,8 +18,12 @@ api.interceptors.response.use((response) => response, (error) => {
 });
 
 export const fetchAdminPayouts = async () => (await api.get("/")).data;
-// Amount, seller and destination are always loaded by the backend.
-export const sendSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/send`, {})).data;
+// Identity, amount, destination, approval count and provider are server-owned.
+export const requestSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/request`, {})).data;
+export const approveSellerPayout = async (payoutId, comment = "") => (await api.post(`/${encodeURIComponent(payoutId)}/approve`, comment.trim() ? { comment: comment.trim() } : {})).data;
+export const rejectSellerPayout = async (payoutId, comment) => (await api.post(`/${encodeURIComponent(payoutId)}/reject`, { comment: comment.trim() })).data;
+export const releaseSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/release`, {})).data;
+export const fetchSellerPayoutApprovals = async (payoutId) => (await api.get(`/${encodeURIComponent(payoutId)}/approvals`)).data;
 export const reconcileSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/reconcile`, {})).data;
 export const verifySellerPayoutRefund = async (payoutId, providerRefundId, returnRequestId) => (await api.post(
   `/${encodeURIComponent(payoutId)}/refunds/verify`,

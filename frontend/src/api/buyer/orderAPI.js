@@ -17,6 +17,7 @@ const handleError = (error) => {
   if (axios.isCancel(error)) throw error;
   const orderError = new Error(error.response?.data?.message || "Unable to process order");
   orderError.status = error.response?.status;
+  orderError.code = error.response?.data?.code;
   orderError.canResume = error.response?.data?.can_resume === true;
   orderError.paymentReference = error.response?.data?.payment_reference || "";
   throw orderError;
@@ -51,12 +52,26 @@ export const fetchPaymentMethods = async ({ signal } = {}) => {
   }
 };
 
-export const placeBuyerOrder = async (addressId, paymentMethod, artworkIds) => {
+export const validateCheckoutVoucher = async (voucherCode, artworkIds, { signal } = {}) => {
+  try {
+    const response = await api.post("/vouchers/validate", {
+      voucher_code: voucherCode,
+      artwork_ids: artworkIds,
+    }, { signal });
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const placeBuyerOrder = async (addressId, paymentMethod, artworkIds, { voucherCode, expectedTotalCentavos } = {}) => {
   try {
     const response = await api.post("/checkout", {
       address_id: addressId,
       payment_method: paymentMethod,
       ...(artworkIds !== undefined ? { artwork_ids: artworkIds } : {}),
+      ...(voucherCode ? { voucher_code: voucherCode } : {}),
+      ...(voucherCode && expectedTotalCentavos !== undefined ? { expected_total_centavos: expectedTotalCentavos } : {}),
     });
     if (paymentMethod === "cod") window.dispatchEvent(new Event("cart-updated"));
     return response.data;

@@ -1,5 +1,11 @@
 # Make seller payouts work
 
+For the capstone presentation while the TEST Wallet is unavailable, use the
+explicit **Demo Payout Provider + three independent admin approvals** described
+in [PAYOUT_DEMO_VERIFICATION.md](PAYOUT_DEMO_VERIFICATION.md). Demo never moves
+external money. The Wallet requirements below concern the actual PayMongo
+provider; switching providers keeps the same approval workflow.
+
 ## Current status
 
 Local automated tests passed. Real PayMongo payout verification is still blocked: the latest TEST `GET /v2/wallets` returned HTTP 200 with `{"data":[]}`. No TEST Wallet ID is available to configure.
@@ -37,6 +43,14 @@ Then configure these existing settings in `backend/.env`:
 Preserve the existing `PAYOUT_ACCOUNT_ENCRYPTION_KEY`; do not regenerate it after saving destinations. Restart the backend after configuration changes.
 
 ## 3. Verify genuine TEST transfers and notifications
+
+For immediate eligibility after delivery during testing, set
+`PAYMONGO_TEST_PAYOUT_IMMEDIATE=true` in `backend/.env` and restart the backend.
+This skips only the payout waiting period with `sk_test_` credentials. Confirmed
+payment, delivery, return/refund checks and provider Wallet setup are still
+required; payouts are sent by the administrator, never automatically. The buyer
+return window remains seven days. Set it back to `false` to restore the normal
+payout hold. LIVE credentials always enforce seven days regardless of this flag.
 
 Use PayMongo's official simulator destinations only:
 

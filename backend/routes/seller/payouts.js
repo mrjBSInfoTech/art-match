@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { payoutService } from "../../utils/payouts.js";
-import { listPayoutInstitutions } from "../../utils/paymongoPayouts.js";
+import { listPayoutInstitutions } from "../../utils/payoutProvider.js";
 
 const router = express.Router();
 router.use(authenticateSeller);

@@ -1,5 +1,5 @@
 import { Box, Button, Chip, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material";
-import { formatPayoutCurrency, formatPayoutDate, payoutIdentifier, payoutStatusColor, payoutStatusMessage, payoutValue } from "./payoutDisplay";
+import { formatPayoutCurrency, formatPayoutDate, isDemoPayout, payoutApprovalLabel, payoutDisplayStatus, payoutIdentifier, payoutStatusColor, payoutStatusMessage, payoutValue } from "./payoutDisplay";
 
 export default function PayoutTable({ orders = [], admin = false, onReview }) {
   return <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
@@ -25,7 +25,7 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
           <TableCell>
             <Typography variant="body2" fontWeight={700}>{payout.orderNumber}</Typography>
             <Typography variant="caption" color="text.secondary" display="block">Order: {payout.status}</Typography>
-            <Typography variant="caption" color="text.secondary" display="block">Return deadline: {formatPayoutDate(payout.eligibleAt)}</Typography>
+            <Typography variant="caption" color="text.secondary" display="block">Payout eligible from: {formatPayoutDate(payout.eligibleAt)}</Typography>
           </TableCell>
           {admin && <TableCell>{payout.sellerName || `Seller ${payout.sellerId}`}</TableCell>}
           <TableCell><Chip size="small" variant="outlined" label={payout.paymentStatus || "Paid"} color={payout.paymentStatus === "Paid" ? "success" : "default"} /></TableCell>
@@ -33,9 +33,13 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
           <TableCell align="right">{formatPayoutCurrency(payout.refundAmount)}</TableCell>
           <TableCell align="right" sx={{ fontWeight: 800 }}>{formatPayoutCurrency(payoutValue(payout))}</TableCell>
           <TableCell sx={{ maxWidth: 280 }}>
-            <Chip size="small" label={payout.payoutStatus} color={payoutStatusColor[payout.payoutStatus] || "default"} />
+            <Chip size="small" label={payoutDisplayStatus(payout)} sx={{color:"#fff"}} color={payoutStatusColor[payout.payoutStatus] || "default"} />
+            {payout.approval && !["Processing", "Paid", "Cancelled", "Reversed"].includes(payout.payoutStatus) && <Typography variant="caption" display="block" sx={{ mt: 0.75 }}>
+              {!admin && payout.approval.status === "Approved" ? "Approved for payout" : payoutApprovalLabel(payout)}{payout.approval.status !== "Not Requested" && ` · ${payout.approval.approvalCount || 0} / ${payout.approval.requiredApprovals || 3} approvals`}
+            </Typography>}
+            {isDemoPayout(payout) && <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.75 }}>Simulated payout. No money moved.{payout.providerReference ? ` ${payout.providerReference}` : ""}</Typography>}
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
-              {payout.failureReason || payout.holdReason || payoutStatusMessage[payout.payoutStatus]}
+              {payout.failureReason || payout.holdReason || (isDemoPayout(payout) && payout.payoutStatus === "Paid" ? "Demo payout completed." : payoutStatusMessage[payout.payoutStatus])}
             </Typography>
           </TableCell>
           {admin && <TableCell align="right"><Button size="small" variant="outlined" onClick={() => onReview(payout)}>Review</Button></TableCell>}

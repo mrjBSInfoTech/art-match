@@ -43,6 +43,9 @@ const orderTableSql = `
     shipping_postal_code VARCHAR(20) NOT NULL,
 
     subtotal DECIMAL(12, 2) NOT NULL,
+    original_subtotal DECIMAL(12, 2) NULL,
+    discount_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    voucher_code VARCHAR(20) NULL,
     -- No shipping fee: couriers are arranged outside ArtMatch.
     shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     total_amount DECIMAL(12, 2) NOT NULL,
@@ -147,6 +150,16 @@ const ensureOrderColumns = async () => {
   const names = new Set(
     existingColumns.map((column) => column.Field),
   );
+
+  // Nullable original prices preserve older orders without rewriting their
+  // historical totals. New discounted orders retain both list and paid prices.
+  for (const [name, definition] of [
+    ["original_subtotal", "DECIMAL(12, 2) NULL"],
+    ["discount_amount", "DECIMAL(12, 2) NOT NULL DEFAULT 0.00"],
+    ["voucher_code", "VARCHAR(20) NULL"],
+  ]) {
+    if (!names.has(name)) await query(`ALTER TABLE marketplace_order ADD COLUMN ${name} ${definition}`);
+  }
 
   if (!names.has("payment_status")) {
     await query(`
@@ -291,6 +304,7 @@ const orderItemTableSql = `
     artist_name VARCHAR(201) NOT NULL,
     image VARCHAR(255) NULL,
     unit_price DECIMAL(12, 2) NOT NULL,
+    original_unit_price DECIMAL(12, 2) NULL,
     quantity INT NOT NULL DEFAULT 1,
     CONSTRAINT fk_marketplace_order_item_order
       FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE,
@@ -326,5 +340,9 @@ export const ensureOrderTables = async () => {
   await ensureArtworkReviewSchema(query);
   await query(recommendationTableSql);
   await ensureOrderColumns();
+  const itemColumns = await query("SHOW COLUMNS FROM marketplace_order_item LIKE 'original_unit_price'");
+  if (!itemColumns.length) {
+    await query("ALTER TABLE marketplace_order_item ADD COLUMN original_unit_price DECIMAL(12, 2) NULL AFTER unit_price");
+  }
   await ensureDeliveryColumn();
 };

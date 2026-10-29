@@ -15,7 +15,7 @@ import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
 import PayoutAccount from "../../components/seller/Payout/PayoutAccount";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
-import { payoutErrorMessage } from "../../components/seller/Payout/payoutDisplay";
+import { isDemoCapability, payoutErrorMessage } from "../../components/seller/Payout/payoutDisplay";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -27,6 +27,8 @@ export default function SellerPayout() {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
   useEffect(() => {
     let active = true;
@@ -80,12 +82,14 @@ export default function SellerPayout() {
         </Button>
       </Stack>
       <Stack spacing={2.5} sx={{ mt: 3 }}>
-        <Alert severity="info">
-          Online earnings are held until delivery and the exact 7-day return
-          period ends. Unresolved returns or refunds keep earnings on hold. An
-          administrator reviews and sends eligible payouts.
-        </Alert>
-        <PayoutAccount onSaved={() => setSnackbarOpen(true)} />
+        <PayoutAccount
+          onSaved={() => {
+            setSnackbarMessage("Payout destination saved.");
+            setSnackbarSeverity("success");
+            setSnackbarOpen(true);
+            reload();
+          }}
+        />
         {error && <Alert severity="error">{error}</Alert>}
         {loading && (
           <Stack alignItems="center" sx={{ py: 3 }}>
@@ -95,12 +99,14 @@ export default function SellerPayout() {
         {data && (
           <>
             <PayoutMetrics totals={data.totals} />
+            {/*{isDemoCapability(data.providerCapability) && <Alert severity="info">Demo payout mode. Payouts marked Paid (Demo) are simulated; no money is sent to your bank or e-wallet.</Alert>}*/}
             {data.providerCapability?.enabled === false && (
               <Alert severity="warning">
                 {data.providerCapability.message}
               </Alert>
             )}
             {data.providerCapability?.enabled === true &&
+              !isDemoCapability(data.providerCapability) &&
               data.providerCapability?.mode === "test" && (
                 <Alert severity="info">
                   TEST payouts only. No real funds are transferred.
@@ -118,18 +124,20 @@ export default function SellerPayout() {
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={(_, reason) => {
-          if (reason !== "clickaway") setSnackbarOpen(false);
+          if (reason !== "clickaway") {
+            setSnackbarOpen(false);
+          }
         }}
         TransitionComponent={SlideTransition}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
-          severity="success"
+          severity={snackbarSeverity}
           variant="filled"
           sx={{ width: "100%" }}
         >
-          Payout destination saved.
+          {snackbarMessage}
         </Alert>
       </Snackbar>
     </Box>

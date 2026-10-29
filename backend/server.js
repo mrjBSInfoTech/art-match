@@ -105,6 +105,7 @@ import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 
 // Routes (Payments)
 import paymongoPaymentRoutes from "./routes/payments/paymongo.js";
+import { assertPayoutProviderConfiguration } from "./utils/payoutProvider.js";
 
 // Routes (Chat of both buyer and seller)
 import chatRoutes from "./routes/chat.js";
@@ -113,6 +114,7 @@ import chatRoutes from "./routes/chat.js";
 import { getFromB2 } from "./utils/b2Storage.js";
 
 dotenv.config();
+assertPayoutProviderConfiguration();
 
 // ES Module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
