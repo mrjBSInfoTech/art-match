@@ -13,7 +13,7 @@ test("MySQL: voucher preview and COD/online checkout retain exact discounted sna
   try {
     const definitions = {
       add_cart: "add_to_id INT PRIMARY KEY, customer_id INT, total_price DECIMAL(12,2)",
-      cart_item: "add_to_id INT, artwork_id INT",
+      cart_item: "add_to_id INT, artwork_id INT, quantity INT NOT NULL DEFAULT 1",
       artwork: "artwork_id INT PRIMARY KEY, student_id INT, title VARCHAR(255), price DECIMAL(12,2), image VARCHAR(255), artwork_details JSON, is_sold TINYINT DEFAULT 0, status VARCHAR(30)",
       artupload: "artwork_id INT, request_status VARCHAR(30)",
       student: "student_id INT PRIMARY KEY, first_name VARCHAR(100), last_name VARCHAR(100)",
@@ -34,7 +34,7 @@ test("MySQL: voucher preview and COD/online checkout retain exact discounted sna
       await connection.query(`CREATE TEMPORARY TABLE ${name} (${columns}) ENGINE=InnoDB`);
     }
     await connection.query("INSERT INTO add_cart VALUES (1,1,300),(2,2,100)");
-    await connection.query("INSERT INTO cart_item VALUES (1,20),(1,21),(2,20)");
+    await connection.query("INSERT INTO cart_item VALUES (1,20,1),(1,21,1),(2,20,1)");
     await connection.query("INSERT INTO student VALUES (5,'First','Seller'),(7,'Other','Seller')");
     await connection.query("INSERT INTO customer VALUES (1,'Test','Buyer','buyer@example.invalid')");
     await connection.query("INSERT INTO address VALUES (4,1,'Test Street','Test Barangay','Test City','Test Province','Test Region','1000')");
@@ -72,7 +72,7 @@ test("MySQL: voucher preview and COD/online checkout retain exact discounted sna
 
     // New isolated online attempt; every provider operation is a local stub.
     for (const name of ["seller_payment_split", "marketplace_order_item", "marketplace_order"]) await connection.query(`DELETE FROM ${name}`);
-    await connection.query("INSERT INTO cart_item VALUES (1,20),(1,21)");
+    await connection.query("INSERT INTO cart_item VALUES (1,20,1),(1,21,1)");
     request.body.payment_method = "paymongo";
     const online = await invoke(routes, "post", "/checkout", request);
     assert.equal(online.status, 201, online.body?.message);

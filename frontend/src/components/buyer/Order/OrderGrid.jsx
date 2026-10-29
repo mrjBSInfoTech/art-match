@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Alert, alpha, Box, Button, Chip, Grid, Paper, Stack, Typography, useTheme } from "@mui/material";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
+import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 import {
   getPaymentColor,
   getPaymentLabel,
@@ -60,6 +62,15 @@ export default function OrderGrid({
   onViewReturn,
 }) {
   const theme = useTheme();
+  const [copyStatus, setCopyStatus] = useState(null);
+  const copyTrackingNumber = async (order) => {
+    try {
+      await navigator.clipboard.writeText(order.trackingNumber);
+      setCopyStatus({ orderId: order.orderId, copied: true });
+    } catch {
+      setCopyStatus({ orderId: order.orderId, copied: false });
+    }
+  };
   const isDark = theme.palette.mode === "dark";
   const colors = isDark
     ? {
@@ -121,6 +132,7 @@ export default function OrderGrid({
         const returnChipColor = returnColor[returnStatus] || "default";
         const orderChipColor = statusColor[order.status] || "default";
         const trackingUrl = getSecureTrackingUrl(order.trackingUrl);
+        const courier = getShipmentCourier(order.courier);
         const placedDate = formatDate(order.date, {
           year: "numeric",
           month: "numeric",
@@ -260,6 +272,31 @@ export default function OrderGrid({
                   {order.status === "Delivered"
                     ? "Your order has been delivered. Please review the artwork if you’re happy with it."
                     : "Shipping update: your order is on the way and should arrive soon."}
+                  {courier && (
+                    <Typography variant="body2" sx={{ mt: 0.75 }}>
+                      Courier: {courier.label}
+                    </Typography>
+                  )}
+                  {order.trackingNumber && (
+                    <Stack direction="row" alignItems="center" flexWrap="wrap" gap={0.75}>
+                      <Typography variant="body2" sx={{ overflowWrap: "anywhere", userSelect: "text" }}>
+                        {courier?.trackingNumberLabel || "Tracking Number"}: {order.trackingNumber}
+                      </Typography>
+                      <Button
+                        size="small"
+                        onClick={() => copyTrackingNumber(order)}
+                        aria-label={`Copy tracking number for ${order.id || order.orderId}`}
+                        sx={{ color: "inherit", textTransform: "none", minWidth: 0 }}
+                      >
+                        {copyStatus?.orderId === order.orderId && copyStatus.copied ? "Copied" : "Copy"}
+                      </Button>
+                      {copyStatus?.orderId === order.orderId && (
+                        <Typography variant="caption" role="status">
+                          {copyStatus.copied ? "Tracking number copied." : "Select the tracking number to copy it manually."}
+                        </Typography>
+                      )}
+                    </Stack>
+                  )}
                 </Alert>
               )}
 

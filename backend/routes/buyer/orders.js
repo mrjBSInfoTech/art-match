@@ -54,6 +54,8 @@ const groupOrderRows = (rows) => {
         date: row.created_at,
         status: row.status,
         deliveredAt: row.delivered_at,
+        courier: row.courier || null,
+        trackingNumber: row.tracking_number || null,
         trackingUrl: row.tracking_url || null,
         customerId: row.customer_id,
         sellerId: row.seller_id,
@@ -139,6 +141,8 @@ const ordersSql = `
     o.created_at,
     o.status,
     o.delivered_at,
+    o.courier,
+    o.tracking_number,
     o.tracking_url,
     o.customer_id,
     o.payment_method,
@@ -330,7 +334,7 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
   try {
     normalizeCheckoutVoucherCode(body.voucher_code);
     const items = await query(db.promise(),
-      `SELECT a.artwork_id, a.student_id, a.price, a.status, a.is_sold,
+      `SELECT a.artwork_id, a.student_id, a.price, a.status, a.is_sold, ci.quantity,
         JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
         ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
         EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
@@ -343,8 +347,14 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
     if (items.length !== selectedIds.length) {
       throw new CheckoutVoucherError("Some selected artworks are no longer in your cart. Please review your selection.");
     }
-    if (items.some((item) => !Number(item.is_verified) || String(item.status).toLowerCase() !== "available" ||
-      getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1).isSoldOut)) {
+    if (items.some((item) => {
+      const quantity = Number(item.quantity || 1);
+      const availability = getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1);
+      return !Number(item.is_verified)
+        || String(item.status).toLowerCase() !== "available"
+        || availability.isSoldOut
+        || (availability.hasStockTracking && availability.remainingStock !== null && quantity > availability.remainingStock);
+    })) {
       throw new CheckoutVoucherError("Some selected artworks are unavailable. Please refresh your cart.");
     }
     const quote = await quoteCheckoutVoucher(db.promise(), items, body.voucher_code, { required: true });
@@ -456,6 +466,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
          a.title,
          a.price,
          a.image,
+         ci.quantity,
 
          JSON_UNQUOTE(
            JSON_EXTRACT(
@@ -554,17 +565,18 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     });
 
     const unavailableIds = items
-      .filter(
-        (item) =>
-          String(item.status || "").toLowerCase() !== "available" || !Number(item.is_verified) || getArtworkAvailability(
-            item.stock_available,
-
-            soldQuantities.get(String(item.artwork_id)) || 0,
-
-            Number(item.is_sold) === 1 ||
-              String(item.status || "").toLowerCase() === "sold",
-          ).isSoldOut,
-      )
+      .filter((item) => {
+        const quantity = Number(item.quantity || 1);
+        const availability = getArtworkAvailability(
+          item.stock_available,
+          soldQuantities.get(String(item.artwork_id)) || 0,
+          Number(item.is_sold) === 1 || String(item.status || "").toLowerCase() === "sold",
+        );
+        return String(item.status || "").toLowerCase() !== "available"
+          || !Number(item.is_verified)
+          || availability.isSoldOut
+          || (availability.hasStockTracking && availability.remainingStock !== null && quantity > availability.remainingStock);
+      })
       .map((item) => item.artwork_id);
 
     /*
@@ -590,7 +602,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
          SET total_price = (
            SELECT
              COALESCE(
-               SUM(a.price),
+               SUM(a.price * ci.quantity),
                0
              )
 
@@ -808,6 +820,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
        * marketplace_order_item.
        */
       for (const item of sellerItems) {
+        const itemQuantity = Number(item.quantity || 1);
+        const priced = pricedByArtwork.get(Number(item.artwork_id));
         await connection.query(
           `INSERT INTO marketplace_order_item
           (
@@ -821,7 +835,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             quantity
           )
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, 1
+            ?, ?, ?, ?, ?, ?, ?, ?
           )`,
 
           [
@@ -830,8 +844,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             item.title,
             item.artist_name,
             item.image,
-            pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos / 100,
-            pricedByArtwork.get(Number(item.artwork_id)).originalCentavos / 100,
+            priced.chargedCentavos / itemQuantity / 100,
+            priced.originalCentavos / itemQuantity / 100,
+            itemQuantity,
           ],
         );
 
@@ -931,15 +946,16 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
        * Convert each artwork into a
        * PayMongo line item.
        */
-      const lineItems = items.map((item) => ({
-        name: String(item.title || "Artwork").slice(0, 255),
-
-        amount: pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos,
-
-        currency: "PHP",
-
-        quantity: 1,
-      }));
+      const lineItems = items.map((item) => {
+        const quantity = Number(item.quantity || 1);
+        const priced = pricedByArtwork.get(Number(item.artwork_id));
+        return {
+          name: String(item.title || "Artwork").slice(0, 255),
+          amount: Math.round(priced.chargedCentavos / quantity),
+          currency: "PHP",
+          quantity,
+        };
+      });
 
       // No shipping line item: the courier is arranged outside ArtMatch.
 
@@ -1055,7 +1071,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
       `UPDATE add_cart ac
        SET total_price = (
-         SELECT COALESCE(SUM(a.price), 0)
+         SELECT COALESCE(SUM(a.price * ci.quantity), 0)
          FROM cart_item ci
          JOIN artwork a ON a.artwork_id = ci.artwork_id
          WHERE ci.add_to_id = ac.add_to_id

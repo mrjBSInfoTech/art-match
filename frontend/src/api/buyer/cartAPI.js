@@ -29,9 +29,24 @@ export const fetchCart = async ({ signal } = {}) => {
   }
 };
 
-export const addToCart = async (artworkId) => {
+export const addToCart = async (artworkId, quantity = 1) => {
   try {
-    const response = await api.post("/", { artwork_id: artworkId });
+    const response = await api.post("/", {
+      artwork_id: artworkId,
+      quantity: Number(quantity) > 0 ? Number(quantity) : 1,
+    });
+    window.dispatchEvent(new Event("cart-updated"));
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const updateCartItemQuantity = async (artworkId, quantity = 1) => {
+  try {
+    const response = await api.patch(`/${artworkId}/quantity`, {
+      quantity: Number(quantity) > 0 ? Number(quantity) : 1,
+    });
     window.dispatchEvent(new Event("cart-updated"));
     return response.data;
   } catch (error) {

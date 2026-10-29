@@ -30,6 +30,8 @@ import OrderCard from "../../components/seller/Order/OrderCard";
 import OrderInfo from "../../components/seller/Order/OrderInfo";
 import OrderParcelPhoto from "../../components/seller/Order/OrderParcelPhoto";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
+import { getShipmentCourier } from "../../utils/shipmentCouriers.js";
+import { getSecureTrackingUrl } from "../../utils/trackingUrl.js";
 
 const orderStatuses = [
   "All",
@@ -70,7 +72,7 @@ const fulfillmentHint = (order) => {
   const hints = {
     Pending: "Confirm this order to start preparing it.",
     Confirmed: "Mark as packed and upload 1–5 parcel photos.",
-    Packed: "Mark as shipped; add a tracking link if available.",
+    Packed: "Mark as shipped; choose a courier and add its tracking information.",
     Shipped: "Mark as delivered after the buyer receives the parcel.",
     Delivered: "Order completed.",
     Cancelled: "Order cancelled.",
@@ -91,6 +93,8 @@ export default function SellerOrder() {
   const [fulfillmentTarget, setFulfillmentTarget] = useState(null);
   const [parcelPhotos, setParcelPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [courier, setCourier] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
   const [handlingInstructions, setHandlingInstructions] = useState([]);
   const [savingFulfillment, setSavingFulfillment] = useState(false);
@@ -191,7 +195,9 @@ export default function SellerOrder() {
                 status: nextStatus,
                 paymentStatus: result.paymentStatus ?? order.paymentStatus,
                 paidAt: result.paidAt ?? order.paidAt,
-                trackingUrl: result.trackingUrl,
+                courier: result.courier ?? order.courier,
+                trackingNumber: result.trackingNumber === undefined ? order.trackingNumber : result.trackingNumber,
+                trackingUrl: result.trackingUrl ?? order.trackingUrl,
                 parcelPhotoCount: result.parcelPhotoCount,
                 handlingInstructions: result.handlingInstructions ?? order.handlingInstructions,
               }
@@ -205,7 +211,9 @@ export default function SellerOrder() {
               status: nextStatus,
               paymentStatus: result.paymentStatus ?? current.paymentStatus,
               paidAt: result.paidAt ?? current.paidAt,
-              trackingUrl: result.trackingUrl,
+              courier: result.courier ?? current.courier,
+              trackingNumber: result.trackingNumber === undefined ? current.trackingNumber : result.trackingNumber,
+              trackingUrl: result.trackingUrl ?? current.trackingUrl,
               parcelPhotoCount: result.parcelPhotoCount,
               handlingInstructions: result.handlingInstructions ?? current.handlingInstructions,
             }
@@ -233,12 +241,23 @@ export default function SellerOrder() {
       const order = orders.find((item) => item.orderId === orderId);
       setStatusError("");
       setParcelPhotos([]);
-      setTrackingUrl(nextStatus === "Shipped" ? order?.trackingUrl || "" : "");
+      const shipmentCourier = nextStatus === "Shipped" ? getShipmentCourier(order?.courier) : undefined;
+      setCourier(shipmentCourier?.value || "");
+      setTrackingNumber(nextStatus === "Shipped" ? order?.trackingNumber || "" : "");
+      setTrackingUrl(nextStatus === "Shipped" ? shipmentCourier?.trackingUrl || order?.trackingUrl || "" : "");
       setHandlingInstructions(order?.handlingInstructions || []);
       setFulfillmentTarget({ orderId, status: nextStatus, order });
       return;
     }
     await saveOrderStatus(orderId, nextStatus);
+  };
+
+  const changeCourier = (value) => {
+    if (value === courier) return;
+    setCourier(value);
+    setTrackingNumber("");
+    setTrackingUrl(getShipmentCourier(value)?.trackingUrl || "");
+    setStatusError("");
   };
 
   const submitFulfillmentUpdate = async () => {
@@ -252,11 +271,29 @@ export default function SellerOrder() {
       parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
       formData.append("handling_instructions", JSON.stringify(handlingInstructions));
     } else {
-      const submittedTrackingUrl = trackingUrl.trim();
-      if (!submittedTrackingUrl) {
-        setStatusError("Add a courier tracking link before marking this order as shipped.");
+      const shipmentCourier = getShipmentCourier(courier);
+      if (!shipmentCourier) {
+        setStatusError("Choose a courier before marking this order as shipped.");
         return;
       }
+      const submittedTrackingNumber = trackingNumber.trim();
+      const hasTrackingControl = [...trackingNumber].some((character) => {
+        const code = character.charCodeAt(0);
+        return code < 32 || (code >= 127 && code <= 159);
+      });
+      if (shipmentCourier.trackingNumberLabel && (
+        !submittedTrackingNumber || submittedTrackingNumber.length > 100 || hasTrackingControl
+      )) {
+        setStatusError(`Enter a valid ${shipmentCourier.trackingNumberLabel} (up to 100 characters, without control characters).`);
+        return;
+      }
+      const submittedTrackingUrl = getSecureTrackingUrl(shipmentCourier.trackingUrl || trackingUrl.trim());
+      if (!submittedTrackingUrl) {
+        setStatusError("Add a valid secure HTTPS tracking / share link before marking this order as shipped.");
+        return;
+      }
+      formData.append("courier", shipmentCourier.value);
+      formData.append("tracking_number", shipmentCourier.trackingNumberLabel ? submittedTrackingNumber : "");
       formData.append("tracking_url", submittedTrackingUrl);
     }
 
@@ -682,6 +719,10 @@ export default function SellerOrder() {
         setParcelPhotos={setParcelPhotos}
         photoPreviews={photoPreviews}
         handlingOptions={parcelHandlingOptions}
+        courier={courier}
+        onCourierChange={changeCourier}
+        trackingNumber={trackingNumber}
+        setTrackingNumber={setTrackingNumber}
         trackingUrl={trackingUrl}
         setTrackingUrl={setTrackingUrl}
         handlingInstructions={handlingInstructions}

@@ -116,6 +116,32 @@ test("checkout status is owner-scoped and unpaid attempts are available only thr
   assert.equal((await invoke(routes, "get", "/payments/:reference", { params: { reference: "not a reference" } })).status, 400);
 });
 
+test("buyer shipment metadata is owner-scoped and legacy tracking-only orders remain readable", async () => {
+  const base = databaseFixture().state.orders[0];
+  const shipments = [
+    { order_id: 11, courier: "lalamove", tracking_number: null, tracking_url: "https://share.lalamove.com/order?id=1" },
+    { order_id: 12, courier: "lbc", tracking_number: "LBC-123", tracking_url: "https://www.lbcexpress.com/track/" },
+    { order_id: 13, courier: "jnt", tracking_number: "JT-123", tracking_url: "https://www.jtexpress.ph/trajectoryQuery?flag=1" },
+    { order_id: 14, courier: "ninjavan", tracking_number: "NV-123", tracking_url: "https://www.ninjavan.co/en-ph/tracking/" },
+    { order_id: 15, tracking_url: "https://legacy.example/parcel/123" },
+  ];
+  const { routes, fixture } = setup({ orders: [
+    ...shipments.map((shipment) => ({ ...base, payment_status: "Paid", status: "Shipped", ...shipment })),
+    { ...base, order_id: 16, customer_id: 2, payment_status: "Paid", status: "Shipped", courier: "lbc", tracking_number: "PRIVATE-OTHER-BUYER", tracking_url: "https://www.lbcexpress.com/track/" },
+  ], orderItems: [] });
+  const response = await invoke(routes, "get", "/");
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body.map(({ orderId, courier, trackingNumber, trackingUrl }) => ({ orderId, courier, trackingNumber, trackingUrl })),
+    shipments.map((shipment) => ({ orderId: shipment.order_id, courier: shipment.courier || null, trackingNumber: shipment.tracking_number || null, trackingUrl: shipment.tracking_url })));
+  const sql = fixture.calls.find((call) => call.type === "query" && /FROM marketplace_order o/i.test(call.sql || "")).sql;
+  assert.match(sql, /o\.courier/);
+  assert.match(sql, /o\.tracking_number/);
+  assert.match(sql, /WHERE o\.customer_id = \?/);
+  const otherBuyer = await invoke(routes, "get", "/", { user: { customer_id: 2 } });
+  assert.equal(otherBuyer.body.length, 1);
+  assert.equal(otherBuyer.body[0].trackingNumber, "PRIVATE-OTHER-BUYER");
+});
+
 test("a confirmed webhook makes checkout purchases visible and reports Paid without trusting a return URL", async () => {
   const { fixture, routes } = setup({ orders: databaseFixture().state.orders, orderItems: databaseFixture().state.orderItems });
   const params = { reference: "AM-fixture-group" };

@@ -11,6 +11,7 @@ import {
   FormControlLabel,
   FormGroup,
   FormHelperText,
+  MenuItem,
   Slide,
   Stack,
   TextField,
@@ -19,6 +20,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import { SHIPMENT_COURIERS, getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -44,6 +46,10 @@ export default function OrderParcelPhoto({
   setParcelPhotos,
   photoPreviews,
   handlingOptions,
+  courier,
+  onCourierChange,
+  trackingNumber,
+  setTrackingNumber,
   trackingUrl,
   setTrackingUrl,
   handlingInstructions,
@@ -55,6 +61,7 @@ export default function OrderParcelPhoto({
   const theme = useTheme();
   const isPacked = fulfillmentTarget?.status === "Packed";
   const isShipped = fulfillmentTarget?.status === "Shipped";
+  const selectedCourier = getShipmentCourier(courier);
   const handlePhotoSelection = (event) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -224,20 +231,49 @@ export default function OrderParcelPhoto({
           ) : (
             <>
               <Typography variant="body2" color="text.secondary">
-                Paste the courier's tracking or share link. For Lalamove, open
-                the booked delivery and copy its Share link. The buyer will use
-                this link to track the delivery.
+                Choose the courier and add its tracking information. The buyer
+                will use these details to track the delivery.
               </Typography>
               <TextField
-                label="Courier tracking / share link"
-                placeholder="https://share.lalamove.com/..."
+                select
+                label="Courier"
                 required
-                value={trackingUrl}
-                onChange={(event) => setTrackingUrl(event.target.value)}
-                inputProps={{ maxLength: 2048 }}
-                helperText="A secure HTTPS tracking link is required before marking this order as shipped."
+                value={courier}
+                onChange={(event) => onCourierChange(event.target.value)}
+                disabled={saving}
                 fullWidth
-              />
+              >
+                {SHIPMENT_COURIERS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                ))}
+              </TextField>
+              {selectedCourier?.trackingNumberLabel && (
+                <TextField
+                  label={selectedCourier.trackingNumberLabel}
+                  required
+                  value={trackingNumber}
+                  onChange={(event) => setTrackingNumber(event.target.value)}
+                  inputProps={{ maxLength: 100 }}
+                  disabled={saving}
+                  fullWidth
+                />
+              )}
+              {selectedCourier && (
+                <TextField
+                  label={selectedCourier.trackingUrl ? "Tracking Link" : "Tracking / Share Link"}
+                  placeholder={selectedCourier.trackingUrl ? undefined : "https://share.lalamove.com/..."}
+                  required
+                  value={trackingUrl}
+                  onChange={(event) => setTrackingUrl(event.target.value)}
+                  inputProps={{ maxLength: 2048 }}
+                  InputProps={{ readOnly: Boolean(selectedCourier.trackingUrl) }}
+                  helperText={selectedCourier.trackingUrl
+                    ? "Official courier tracking page. The buyer can enter the tracking number / ID there."
+                    : "Open the booked Lalamove delivery, use Share, and paste the generated tracking/share link here."}
+                  disabled={saving}
+                  fullWidth
+                />
+              )}
             </>
           )}
         </Stack>
@@ -250,7 +286,8 @@ export default function OrderParcelPhoto({
           variant="contained"
           color="error"
           onClick={onSubmit}
-          disabled={saving || (isShipped && !trackingUrl.trim())}
+          disabled={saving || (isShipped && (!selectedCourier || !trackingUrl.trim()
+            || (Boolean(selectedCourier.trackingNumberLabel) && !trackingNumber.trim())))}
           sx={{ color: "#fff", textTransform: "none" }}
         >
           {saving ? "Saving..." : `Mark ${fulfillmentTarget?.status}`}

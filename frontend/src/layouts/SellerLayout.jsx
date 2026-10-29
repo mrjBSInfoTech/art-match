@@ -64,7 +64,6 @@ import {
 
 const SELLER_SIDEBAR_PREFERENCES = {
   orders: "seller_sidebar_orders_expanded",
-  vouchers: "seller_sidebar_vouchers_expanded",
   authenticity: "seller_sidebar_authenticity_expanded",
 };
 
@@ -100,9 +99,6 @@ function SellerLayoutContent() {
   const [open, setOpen] = React.useState(false);
   const [ordersExpanded, setOrdersExpanded] = useState(
     () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.orders) === "true",
-  );
-  const [vouchersExpanded, setVouchersExpanded] = useState(
-    () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.vouchers) === "true",
   );
   const [authenticityExpanded, setAuthenticityExpanded] = useState(
     () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.authenticity) === "true",
@@ -284,23 +280,10 @@ function SellerLayoutContent() {
       pattern: "/seller/customer-service",
     },
     {
-      segment: "vouchers",
+      segment: "voucher",
       title: "Vouchers",
       icon: <ConfirmationNumberOutlinedIcon />,
-      children: [
-        {
-          segment: "generation",
-          title: "Voucher Generation",
-          icon: <ConfirmationNumberOutlinedIcon />,
-          pattern: "/seller/vouchers/generation",
-        },
-        {
-          segment: "discount-code",
-          title: "Discount Code",
-          icon: <ConfirmationNumberOutlinedIcon />,
-          pattern: "/seller/vouchers/discount-code",
-        },
-      ],
+      pattern: "/seller/voucher",
     },
     {
       segment: "authenticity",
@@ -621,20 +604,6 @@ function SellerLayoutContent() {
                   toggleSidebarGroup(
                     SELLER_SIDEBAR_PREFERENCES.orders,
                     setOrdersExpanded,
-                  )
-                }
-              />
-            );
-          }
-          if (item.segment === "vouchers") {
-            return (
-              <DashboardSidebarPageItem
-                item={item}
-                expanded={vouchersExpanded}
-                onClick={() =>
-                  toggleSidebarGroup(
-                    SELLER_SIDEBAR_PREFERENCES.vouchers,
-                    setVouchersExpanded,
                   )
                 }
               />

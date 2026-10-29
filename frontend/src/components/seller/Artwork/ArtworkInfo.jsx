@@ -305,7 +305,7 @@ function ArtworkInfo({
                 </Typography>
               </Box>
               <Box>
-                <Typography sx={detailLabelSx}>Genre</Typography>
+                <Typography sx={detailLabelSx}>Style</Typography>
                 <Typography sx={detailValueSx}>
                   {artwork.genre || "Not provided"}
                 </Typography>
@@ -328,12 +328,6 @@ function ArtworkInfo({
                 <Typography sx={detailLabelSx}>Art Type</Typography>
                 <Typography sx={detailValueSx}>
                   {formatList(artwork.art_type) || "Not provided"}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography sx={detailLabelSx}>Product</Typography>
-                <Typography sx={detailValueSx}>
-                  {formatList(artwork.product) || "Not provided"}
                 </Typography>
               </Box>
 

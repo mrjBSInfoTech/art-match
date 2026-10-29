@@ -62,6 +62,8 @@ const orderTableSql = `
     delivered_at DATETIME NULL,
 
     parcel_photos JSON NULL,
+    courier VARCHAR(50) NULL,
+    tracking_number VARCHAR(100) NULL,
     tracking_url VARCHAR(2048) NULL,
     handling_instructions JSON NULL,
 
@@ -250,6 +252,16 @@ const ensureOrderColumns = async () => {
       ALTER TABLE marketplace_order
       ADD COLUMN tracking_url VARCHAR(2048) NULL
     `);
+  }
+
+  // Nullable additions preserve tracking-only orders and are safe to rerun.
+  for (const [name, definition] of [
+    ["courier", "VARCHAR(50) NULL"],
+    ["tracking_number", "VARCHAR(100) NULL"],
+  ]) {
+    if (!names.has(name)) {
+      await query(`ALTER TABLE marketplace_order ADD COLUMN ${name} ${definition}`);
+    }
   }
 
   if (!names.has("handling_instructions")) {

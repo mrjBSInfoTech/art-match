@@ -10,6 +10,7 @@ import {
 import { isB2Configured } from "../../utils/b2Storage.js";
 import {
   normalizeTrackingUrl,
+  normalizeShipmentTracking,
   validateParcelPhotoCount,
 } from "../../utils/parcelShipment.js";
 import { attachOrderReturns } from "../../utils/returns.js";
@@ -79,7 +80,7 @@ router.get("/", authenticateSeller, (req, res) => {
        o.shipping_street,
        o.shipping_barangay, o.shipping_city, o.shipping_province,
        o.shipping_region, o.shipping_postal_code, o.parcel_photos,
-       o.tracking_url, o.handling_instructions, i.order_item_id,
+       o.courier, o.tracking_number, o.tracking_url, o.handling_instructions, i.order_item_id,
        i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity,
        s.gross_amount, s.commission_amount, s.processing_fee_amount,
        s.net_amount, s.payout_status
@@ -125,7 +126,9 @@ router.get("/", authenticateSeller, (req, res) => {
                   net: Number(row.net_amount),
                   payoutStatus: row.payout_status,
                 },
-            trackingUrl: row.tracking_url,
+            courier: row.courier || null,
+            trackingNumber: row.tracking_number || null,
+            trackingUrl: row.tracking_url || null,
             handlingInstructions: Array.isArray(row.handling_instructions)
               ? row.handling_instructions
               : typeof row.handling_instructions === "string"
@@ -211,7 +214,7 @@ router.put(
       connection = await db.promise().getConnection();
       await connection.beginTransaction();
       const [orders] = await connection.query(
-        `        SELECT status, customer_id, total_amount, payment_status, parcel_photos, tracking_url, handling_instructions,
+        `        SELECT status, customer_id, total_amount, payment_status, parcel_photos, courier, tracking_number, tracking_url, handling_instructions,
                 payment_method, payment_status, paid_at
          FROM marketplace_order
          WHERE order_id = ? AND seller_id = ?
@@ -281,18 +284,27 @@ router.put(
         fail(409, "Add parcel photos before shipping this order");
       }
 
+      let shipmentTracking;
       let trackingUrl;
       try {
-        trackingUrl = normalizeTrackingUrl(req.body.tracking_url, {
-          required: requestedStatus === "Shipped",
-          httpsOnly: requestedStatus === "Shipped",
-          preserveInput: requestedStatus === "Shipped",
-        });
+        if (requestedStatus === "Shipped") {
+          shipmentTracking = normalizeShipmentTracking({
+            courier: req.body.courier,
+            trackingNumber: req.body.tracking_number,
+            trackingUrl: req.body.tracking_url,
+          });
+          trackingUrl = shipmentTracking.trackingUrl;
+        } else {
+          trackingUrl = normalizeTrackingUrl(req.body.tracking_url);
+        }
       } catch (error) {
         fail(400, error.message);
       }
       if (requestedStatus !== "Shipped" && trackingUrl) {
         fail(400, "A tracking link can only be added when marking the order Shipped");
+      }
+      if (requestedStatus !== "Shipped" && (req.body.courier || req.body.tracking_number)) {
+        fail(400, "Courier tracking information can only be added when marking the order Shipped");
       }
 
       let parcelPhotos = existingPhotos;
@@ -331,7 +343,8 @@ router.put(
              delivered_at = CASE
                WHEN ? = 'Delivered' THEN COALESCE(delivered_at, NOW())
                ELSE delivered_at
-             END
+             END,
+             courier = ?, tracking_number = ?
          WHERE order_id = ? AND seller_id = ? AND status = ?`,
         [
           requestedStatus,
@@ -341,6 +354,8 @@ router.put(
           requestedStatus,
           requestedStatus,
           requestedStatus,
+          shipmentTracking ? shipmentTracking.courier : order.courier ?? null,
+          shipmentTracking ? shipmentTracking.trackingNumber : order.tracking_number ?? null,
           orderId,
           sellerId,
           order.status,
@@ -367,6 +382,8 @@ router.put(
           order.payment_method === "cod" && requestedStatus === "Delivered"
             ? "Paid"
             : order.payment_status,
+        courier: shipmentTracking ? shipmentTracking.courier : order.courier ?? null,
+        trackingNumber: shipmentTracking ? shipmentTracking.trackingNumber : order.tracking_number ?? null,
         trackingUrl: requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
         parcelPhotoCount: parcelPhotos.length,
         handlingInstructions:

@@ -5,6 +5,7 @@ import vm from "node:vm";
 import { transformSync } from "@swc/core";
 import * as paymentHelpers from "./orderPayments.js";
 import * as trackingHelpers from "./trackingUrl.js";
+import * as shipmentHelpers from "./shipmentCouriers.js";
 
 // Exercise the actual JSX handlers/effects without adding a browser or test framework dependency.
 const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, cart = [], addresses = [] } = {}) => {
@@ -86,6 +87,7 @@ const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, 
       if (specifier === "react-router-dom") return router;
       if (specifier.endsWith("orderPayments.js")) return paymentHelpers;
       if (specifier.endsWith("trackingUrl.js")) return trackingHelpers;
+      if (specifier.endsWith("shipmentCouriers.js")) return shipmentHelpers;
       if (specifier.endsWith("/buyer/Order/OrderGrid")) {
         const module = loadJsxModule("../components/buyer/Order/OrderGrid.jsx");
         renderedComponents.add(module.default);

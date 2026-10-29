@@ -49,6 +49,7 @@ import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
 import { ensureArtistFollowTable } from "./database/artistFollows.js";
 import { ensureArtworkSchema } from "./database/artwork.js";
+import { ensureCartItemSchema } from "./database/cart.js";
 import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
 import { ensureFaqTable } from "./database/faq.js";
@@ -78,6 +79,7 @@ import { ensureArtworkDerivatives } from "./utils/artworkDerivativeBackfill.js";
 //import adminSalesRoutes from "./routes/admin/sales.js";
 // Routes (Seller)
 import sellerArtworkRoutes from "./routes/seller/artwork.js";
+import sellerInventoryRoutes from "./routes/seller/inventory.js";
 import sellerStorefrontRoutes from "./routes/seller/storefront.js";
 import sellerPromotionSlideRoutes from "./routes/seller/promotionSlides.js";
 import sellerVoucherRoutes from "./routes/seller/vouchers.js";
@@ -656,6 +658,7 @@ app.use("/api/about-content", aboutContentRoutes);
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
 app.use("/api/seller/audit-logs", sellerAuditLogsRoutes);
 app.use("/api/seller/artwork", sellerArtworkRoutes);
+app.use("/api/seller/inventory", sellerInventoryRoutes);
 app.use("/api/seller/storefront", sellerStorefrontRoutes);
 app.use("/api/seller/promotion-slides", sellerPromotionSlideRoutes);
 app.use("/api/seller/vouchers", sellerVoucherRoutes);
@@ -716,6 +719,7 @@ ensureAccountAccessTable()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
+  .then(() => ensureCartItemSchema())
   .then(() => ensureVoucherTables())
   .then(() => ensureStudentAccountSchema())
   .then(() => ensureArtistFollowTable())

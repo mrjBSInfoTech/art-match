@@ -5,6 +5,7 @@ import vm from "node:vm";
 import { transformSync } from "@swc/core";
 import * as paymentHelpers from "./orderPayments.js";
 import * as trackingHelpers from "./trackingUrl.js";
+import * as shipmentHelpers from "./shipmentCouriers.js";
 
 // Exercise the actual seller page's events and state without additional dependencies.
 function sellerPage({ orders = [], api = {} } = {}) {
@@ -84,6 +85,7 @@ function sellerPage({ orders = [], api = {} } = {}) {
       if (specifier === "react-router-dom") return { useNavigate: () => (...args) => redirects.push(args) };
       if (specifier.endsWith("orderPayments.js")) return paymentHelpers;
       if (specifier.endsWith("trackingUrl.js")) return trackingHelpers;
+      if (specifier.endsWith("shipmentCouriers.js")) return shipmentHelpers;
       if (/\/(OrderCard|OrderInfo|OrderParcelPhoto)(\.jsx)?$/.test(specifier) || /orderPresentation(\.js)?$/.test(specifier)) {
         const extension = /\.(jsx|js)$/.test(specifier) ? "" : /orderPresentation$/.test(specifier) ? ".js" : ".jsx";
         const exports = loadModule(new URL(`${specifier}${extension}`, url));
@@ -140,6 +142,7 @@ function sellerPage({ orders = [], api = {} } = {}) {
     component: (name, matches = () => true) => nodes().find((node) => node?.type === components[name] && matches(node)),
     printCalls: () => printCalls,
     button: (label) => nodes().find((node) => node?.type === "Button" && text(node) === label),
+    field: (label) => nodes().find((node) => node?.type === "TextField" && node.props.label === label),
     unmount: () => cleanups.forEach((cleanup) => cleanup?.()),
   };
 }
@@ -265,7 +268,12 @@ test("seller paid order follows Confirmed, parcel photos, tracking and delivery 
   const page = sellerPage({ orders: [{ ...paidOrder, status: "Confirmed" }], api: {
     updateSellerOrderStatus: async (...args) => {
       calls.push(args);
-      return { paymentStatus: "Paid", parcelPhotoCount: 1 };
+      return {
+        paymentStatus: "Paid", parcelPhotoCount: 1,
+        ...(args[1] === "Shipped" ? {
+          courier: args[2].get("courier"), trackingNumber: null, trackingUrl: args[2].get("tracking_url"),
+        } : {}),
+      };
     },
   } });
   await page.flush();
@@ -297,23 +305,187 @@ test("seller paid order follows Confirmed, parcel photos, tracking and delivery 
   assert.equal(page.status(paidOrder.id).props.value, "Packed");
   await page.status(paidOrder.id).props.onChange({ target: { value: "Shipped" } });
   await page.flush();
-  const trackingField = page.nodes().find((node) => node?.type === "TextField" && node.props.label === "Courier tracking / share link");
+  const courierField = page.field("Courier");
+  assert.equal(courierField.props.value, "");
+  assert.deepEqual(page.nodes(courierField).filter((node) => node?.type === "MenuItem").map((node) => node.props.value),
+    ["lalamove", "lbc", "jnt", "ninjavan"]);
+  courierField.props.onChange({ target: { value: "lalamove" } });
+  await page.flush();
+  const trackingField = page.field("Tracking / Share Link");
   assert.ok(trackingField.props.required);
-  assert.match(trackingField.props.helperText, /HTTPS tracking link is required/);
+  assert.match(trackingField.props.helperText, /Open the booked Lalamove delivery, use Share/);
+  assert.equal(page.nodes().some((node) => node?.type === "TextField" && node.props.label?.includes("Number")), false);
   const shippedButton = page.button("Mark Shipped");
   assert.equal(shippedButton.props.disabled, true);
-  trackingField.props.onChange({ target: { value: "https://carrier.example/123" } });
+  trackingField.props.onChange({ target: { value: "https://share.lalamove.com/order?id=abc%2F123" } });
   await page.flush();
   assert.equal(page.button("Mark Shipped").props.disabled, false);
   await page.button("Mark Shipped").props.onClick();
   await page.flush();
   assert.equal(calls[1][1], "Shipped");
-  assert.equal(calls[1][2].get("tracking_url"), "https://carrier.example/123");
+  assert.equal(calls[1][2].get("courier"), "lalamove");
+  assert.equal(calls[1][2].get("tracking_number"), "");
+  assert.equal(calls[1][2].get("tracking_url"), "https://share.lalamove.com/order?id=abc%2F123");
   await page.status(paidOrder.id).props.onChange({ target: { value: "Delivered" } });
   await page.flush();
   assert.equal(calls[2][1], "Delivered");
   assert.equal(page.status(paidOrder.id).props.value, "Delivered");
   assert.equal(page.status(paidOrder.id).props.disabled, true);
+  page.component("OrderCard").props.onViewDetails(page.component("OrderCard").props.order);
+  await page.flush();
+  const details = page.component("OrderInfo");
+  assert.match(page.text(details), /Lalamove/);
+  assert.equal(page.nodes(details).find((node) => node?.type === "Button" && node.props.href)?.props.href,
+    "https://share.lalamove.com/order?id=abc%2F123");
+  page.unmount();
+});
+
+for (const courier of shipmentHelpers.SHIPMENT_COURIERS.filter((item) => item.trackingNumberLabel)) {
+  test(`seller ${courier.label} shipping requires its tracking number and uses its official page`, async () => {
+    const calls = [];
+    const page = sellerPage({ orders: [{ ...paidOrder, status: "Packed" }], api: {
+      updateSellerOrderStatus: async (...args) => {
+        calls.push(args);
+        return {
+          paymentStatus: "Paid", courier: courier.value,
+          trackingNumber: args[2].get("tracking_number"), trackingUrl: courier.trackingUrl,
+        };
+      },
+    } });
+    await page.flush();
+    await page.status(paidOrder.id).props.onChange({ target: { value: "Shipped" } });
+    await page.flush();
+    page.field("Courier").props.onChange({ target: { value: courier.value } });
+    await page.flush();
+    assert.equal(page.field(courier.trackingNumberLabel).props.required, true);
+    assert.equal(page.field("Tracking Link").props.value, courier.trackingUrl);
+    assert.equal(page.field("Tracking Link").props.InputProps.readOnly, true);
+    assert.equal(page.button("Mark Shipped").props.disabled, true);
+    await page.button("Mark Shipped").props.onClick();
+    await page.flush();
+    assert.equal(calls.length, 0);
+    assert.match(page.text(), /Enter a valid/);
+    for (const invalid of ["a".repeat(101), "AB\n123", "AB\t123", "AB\u007f123", "AB\u0085123"]) {
+      page.field(courier.trackingNumberLabel).props.onChange({ target: { value: invalid } });
+      await page.flush();
+      await page.button("Mark Shipped").props.onClick();
+      await page.flush();
+      assert.equal(calls.length, 0);
+    }
+    page.field(courier.trackingNumberLabel).props.onChange({ target: { value: "  AB-123456  " } });
+    await page.flush();
+    assert.equal(page.button("Mark Shipped").props.disabled, false);
+    await page.button("Mark Shipped").props.onClick();
+    await page.flush();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][2].get("courier"), courier.value);
+    assert.equal(calls[0][2].get("tracking_number"), "AB-123456");
+    assert.equal(calls[0][2].get("tracking_url"), courier.trackingUrl);
+    assert.equal(page.status(paidOrder.id).props.value, "Shipped");
+    page.component("OrderCard").props.onViewDetails(page.component("OrderCard").props.order);
+    await page.flush();
+    assert.ok(page.text(page.component("OrderInfo")).includes(courier.label));
+    assert.match(page.text(page.component("OrderInfo")), /AB-123456/);
+    page.unmount();
+  });
+}
+
+test("seller courier switches clear stale tracking data and reopening restores saved values", async () => {
+  const order = {
+    ...paidOrder, status: "Packed", courier: "lbc", trackingNumber: "LBC-SAVED",
+    trackingUrl: "https://www.lbcexpress.com/track/",
+  };
+  const page = sellerPage({ orders: [order] });
+  await page.flush();
+  await page.status(order.id).props.onChange({ target: { value: "Shipped" } });
+  await page.flush();
+  assert.equal(page.field("Courier").props.value, "lbc");
+  assert.equal(page.field("LBC Tracking Number").props.value, "LBC-SAVED");
+  page.field("Courier").props.onChange({ target: { value: "lalamove" } });
+  await page.flush();
+  assert.equal(page.field("LBC Tracking Number"), undefined);
+  assert.equal(page.field("Tracking / Share Link").props.value, "");
+  page.field("Tracking / Share Link").props.onChange({ target: { value: "https://share.lalamove.com/old" } });
+  await page.flush();
+  page.field("Courier").props.onChange({ target: { value: "jnt" } });
+  await page.flush();
+  assert.equal(page.field("J&T Waybill / Tracking Number").props.value, "");
+  assert.equal(page.field("Tracking Link").props.value, shipmentHelpers.getShipmentCourier("jnt").trackingUrl);
+  page.button("Cancel").props.onClick();
+  await page.flush();
+  await page.status(order.id).props.onChange({ target: { value: "Shipped" } });
+  await page.flush();
+  assert.equal(page.field("Courier").props.value, "lbc");
+  assert.equal(page.field("LBC Tracking Number").props.value, "LBC-SAVED");
+  assert.equal(page.field("Tracking Link").props.value, order.trackingUrl);
+  page.unmount();
+});
+
+test("shipping with Lalamove clears a saved tracking number in cards and open details", async () => {
+  const order = { ...paidOrder, status: "Packed", courier: "lbc", trackingNumber: "LBC-SAVED" };
+  const calls = [];
+  const page = sellerPage({ orders: [order], api: {
+    updateSellerOrderStatus: async (...args) => {
+      calls.push(args);
+      return { courier: "lalamove", trackingNumber: null, trackingUrl: "https://share.lalamove.com/new" };
+    },
+  } });
+  await page.flush();
+  page.component("OrderCard").props.onViewDetails(order);
+  await page.flush();
+  await page.component("OrderInfo").props.onStatusChange(order.orderId, "Shipped");
+  await page.flush();
+  page.field("Courier").props.onChange({ target: { value: "lalamove" } });
+  await page.flush();
+  page.field("Tracking / Share Link").props.onChange({ target: { value: "https://share.lalamove.com/new" } });
+  await page.flush();
+  await page.button("Mark Shipped").props.onClick();
+  await page.flush();
+  assert.equal(calls[0][2].get("tracking_number"), "");
+  assert.equal(page.component("OrderCard").props.order.trackingNumber, null);
+  assert.equal(page.component("OrderInfo").props.order.trackingNumber, null);
+  assert.ok(!page.text(page.component("OrderInfo")).includes("LBC-SAVED"));
+  page.unmount();
+});
+
+test("seller blocks missing or unsupported couriers and unsafe Lalamove links before submission", async () => {
+  const calls = [];
+  const page = sellerPage({ orders: [{ ...paidOrder, status: "Packed" }], api: {
+    updateSellerOrderStatus: async (...args) => { calls.push(args); return {}; },
+  } });
+  await page.flush();
+  await page.status(paidOrder.id).props.onChange({ target: { value: "Shipped" } });
+  await page.flush();
+  for (const value of ["", "unsupported"]) {
+    if (value) page.field("Courier").props.onChange({ target: { value } });
+    await page.flush();
+    await page.button("Mark Shipped").props.onClick();
+    await page.flush();
+    assert.equal(calls.length, 0);
+    assert.match(page.text(), /Choose a courier/);
+  }
+  page.field("Courier").props.onChange({ target: { value: "lalamove" } });
+  await page.flush();
+  for (const value of ["", "http://share.lalamove.com/123", "javascript:alert(1)", "data:text/plain,test", "file:///parcel", "ftp://example.com", "malformed", "https://user:password@example.com/"]) {
+    page.field("Tracking / Share Link").props.onChange({ target: { value } });
+    await page.flush();
+    await page.button("Mark Shipped").props.onClick();
+    await page.flush();
+    assert.equal(calls.length, 0);
+    assert.match(page.text(), /valid secure HTTPS/);
+  }
+  page.unmount();
+});
+
+test("legacy seller shipment details still open tracking without courier or tracking number", async () => {
+  const order = { ...paidOrder, status: "Shipped", trackingUrl: "https://carrier.example/legacy" };
+  const page = sellerPage({ orders: [order] });
+  await page.flush();
+  page.component("OrderCard").props.onViewDetails(order);
+  await page.flush();
+  assert.equal(page.button("Open tracking").props.href, order.trackingUrl);
+  assert.equal(page.button("Open tracking").props.target, "_blank");
+  assert.equal(page.button("Open tracking").props.rel, "noopener noreferrer");
   page.unmount();
 });
 

@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Chip,
   Checkbox,
   IconButton,
@@ -26,12 +27,17 @@ const formatPrice = (value) =>
 
 export default function CartTable({
   items, onRemove, removing = false, selectedIds = [], onSelectionChange,
+  cartQuantities = {}, onQuantityChange,
 }) {
   const availableIds = items
     .filter((item) => Number(item.is_sold_out) !== 1)
     .map((item) => String(item.artwork_id));
   const selected = new Set(selectedIds.map(String));
   const selectedCount = availableIds.filter((id) => selected.has(id)).length;
+  const isProductItem = (item) => {
+    const value = String(item?.art_type || item?.product || "").trim().toLowerCase();
+    return ["product", "3d_object", "3d object", "sculpture", "physical_product", "physical product"].includes(value);
+  };
   return (
     <Paper
       variant="outlined"
@@ -90,12 +96,12 @@ export default function CartTable({
               <TableCell
                 align="right"
                 sx={{
-                  width: { xs: 90, sm: 135 },
+                  width: { xs: 110, sm: 165 },
                   color: "text.secondary",
                   fontWeight: 600,
                 }}
               >
-                Price
+                Quantity / Price
               </TableCell>
               <TableCell sx={{ width: { xs: 44, sm: 64 }, px: 0 }}>
                 <Box
@@ -195,7 +201,48 @@ export default function CartTable({
                       overflowWrap: "anywhere",
                     }}
                   >
-                    {formatPrice(item.price)}
+                    <Stack direction="column" alignItems="flex-end" spacing={0.75}>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={!isProductItem(item)}
+                          onClick={() => onQuantityChange?.(item.artwork_id, Math.max(1, Number(cartQuantities[item.artwork_id] || 1) - 1))}
+                          sx={{
+                            minWidth: 24,
+                            width: 24,
+                            height: 24,
+                            p: 0,
+                            borderRadius: 1,
+                            opacity: isProductItem(item) ? 1 : 0.55,
+                          }}
+                        >
+                          −
+                        </Button>
+                        <Typography variant="body2" fontWeight={700} sx={{ minWidth: 18, textAlign: "center" }}>
+                          {Number(cartQuantities[item.artwork_id] || 1)}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={!isProductItem(item)}
+                          onClick={() => onQuantityChange?.(item.artwork_id, Number(cartQuantities[item.artwork_id] || 1) + 1)}
+                          sx={{
+                            minWidth: 24,
+                            width: 24,
+                            height: 24,
+                            p: 0,
+                            borderRadius: 1,
+                            opacity: isProductItem(item) ? 1 : 0.55,
+                          }}
+                        >
+                          +
+                        </Button>
+                      </Stack>
+                      <Typography variant="body2" color="text.primary">
+                        {formatPrice(item.price * (Number(cartQuantities[item.artwork_id] || 1) || 1))}
+                      </Typography>
+                    </Stack>
                   </TableCell>
                   <TableCell align="center" sx={{ px: 0 }}>
                     <Tooltip title="Remove from cart">

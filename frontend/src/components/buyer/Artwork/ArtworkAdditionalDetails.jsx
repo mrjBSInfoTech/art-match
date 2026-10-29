@@ -1,4 +1,4 @@
-import { Chip, Stack, Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
 
 const missingValue = "Not provided";
@@ -95,17 +95,7 @@ export default function ArtworkAdditionalDetails({ artwork, category, RowCompone
         {isPhysical && (
           <ROW
             label={category === "fine_art" ? "Material composition" : "Materials and specifications"}
-            value={materials.length > 0 ? (
-                <Stack direction="row" justifyContent="flex-end" flexWrap="wrap" gap={0.8}>
-                  {materials.map((material) => (
-                    <Chip key={material} label={material} size="small" variant="outlined"
-                      sx={{ maxWidth: "100%", height: "auto", minHeight: 24,
-                        "& .MuiChip-label": { whiteSpace: "normal", overflowWrap: "anywhere", py: 0.25 } }} />
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2" color="text.secondary">{missingValue}</Typography>
-              )}
+            value={materials.length > 0 ? materials.join(", ") : missingValue}
           />
         )}
     </>

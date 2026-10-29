@@ -13,7 +13,7 @@ function migration({ methods = ["paymongo", "cod"], statuses = expectedStatuses,
   missing = [], rows = [], defaultMethod = null } = {}) {
   const fields = ["payment_method", "payment_status", "payment_reference", "paymongo_checkout_session_id",
     "paymongo_checkout_url", "paymongo_payment_id", "paymongo_payment_method", "paid_at",
-    "parcel_photos", "tracking_url", "handling_instructions", "original_subtotal", "discount_amount", "voucher_code"];
+    "parcel_photos", "courier", "tracking_number", "tracking_url", "handling_instructions", "original_subtotal", "discount_amount", "voucher_code"];
   const columns = fields.filter((Field) => !missing.includes(Field)).map((Field) => ({
     Field, Type: Field === "payment_method" ? enumType(methods)
       : Field === "payment_status" ? enumType(statuses) : "varchar(2048)",
@@ -62,6 +62,22 @@ test("current payment schema performs no repeated ALTER or data rewrite", async 
   await schema.run();
   await schema.run();
   assert.equal(schema.statements.filter((sql) => /ALTER|UPDATE|DELETE|DROP/i.test(sql)).length, 0);
+});
+
+test("courier columns are nullable additive migrations that preserve legacy links and rerun safely", async () => {
+  const legacy = { order_id: 1, status: "Shipped", tracking_url: "https://legacy.example/parcel/123" };
+  const schema = migration({ missing: ["courier", "tracking_number"], rows: [legacy] });
+  await schema.run();
+  await schema.run();
+  const mutations = schema.statements.filter((sql) => /ALTER|UPDATE|DELETE|DROP/i.test(sql));
+  assert.deepEqual(mutations, [
+    "ALTER TABLE marketplace_order ADD COLUMN courier VARCHAR(50) NULL",
+    "ALTER TABLE marketplace_order ADD COLUMN tracking_number VARCHAR(100) NULL",
+  ]);
+  assert.deepEqual(legacy, { order_id: 1, status: "Shipped", tracking_url: "https://legacy.example/parcel/123" });
+  assert.match(schema.createSql, /courier VARCHAR\(50\) NULL/);
+  assert.match(schema.createSql, /tracking_number VARCHAR\(100\) NULL/);
+  assert.match(schema.createSql, /tracking_url VARCHAR\(2048\) NULL/);
 });
 
 test("checkout URL is nullable, added once, and included for fresh installs", async () => {

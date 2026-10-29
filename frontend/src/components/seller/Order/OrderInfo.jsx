@@ -14,6 +14,7 @@ import {
 } from "../../../utils/orderPayments.js";
 import { formatCurrency, formatOrderDate, statusColorMap } from "./orderPresentation.js";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
+import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 
 const Transition = forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -34,6 +35,7 @@ export default function OrderInfo({
   const theme = useTheme();
   const items = order?.items || [];
   const trackingUrl = getSecureTrackingUrl(order?.trackingUrl);
+  const shipmentCourier = getShipmentCourier(order?.courier);
   const detailLabelSx = {
     display: "block", color: "text.secondary", fontSize: 11,
     lineHeight: 1.2, mb: 0.35,
@@ -124,6 +126,18 @@ export default function OrderInfo({
                 <Box sx={{ gridColumn: "1 / -1" }}>
                   <Typography sx={detailLabelSx}>Customer note</Typography>
                   <Typography sx={detailValueSx}>{order.note}</Typography>
+                </Box>
+              )}
+              {shipmentCourier && (
+                <Box sx={{ gridColumn: "1 / -1" }}>
+                  <Typography sx={detailLabelSx}>Courier</Typography>
+                  <Typography sx={detailValueSx}>{shipmentCourier.label}</Typography>
+                </Box>
+              )}
+              {order.trackingNumber && (
+                <Box sx={{ gridColumn: "1 / -1" }}>
+                  <Typography sx={detailLabelSx}>{shipmentCourier?.trackingNumberLabel || "Tracking number"}</Typography>
+                  <Typography sx={detailValueSx}>{order.trackingNumber}</Typography>
                 </Box>
               )}
               {trackingUrl && (

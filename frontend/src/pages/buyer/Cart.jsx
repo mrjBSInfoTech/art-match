@@ -16,7 +16,7 @@ import {
   Stack,
   Container,
 } from "@mui/material";
-import { fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
+import { fetchCart, removeFromCart, updateCartItemQuantity } from "../../api/buyer/cartAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 export default function Cart() {
@@ -25,6 +25,7 @@ export default function Cart() {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [selection, setSelection] = useState(null);
+  const [cartQuantities, setCartQuantities] = useState({});
   const navigate = useNavigate();
   const [selectedCart, setSelectedCart] = useState(null);
   const [confirmingOrder, setConfirmingOrder] = useState(false);
@@ -110,11 +111,30 @@ export default function Cart() {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    setCartQuantities((previous) => {
+      const next = {};
+      items.forEach((item) => {
+        const id = String(item.artwork_id);
+        const isProduct = String(item.art_type || item.product || "").trim().toLowerCase() === "product";
+        const currentValue = Number(previous[id] || 1);
+        next[id] = isProduct ? Math.max(1, Number.isFinite(currentValue) ? currentValue : 1) : 1;
+      });
+      return next;
+    });
+  }, [items]);
+
+  const getItemQuantity = (item) => {
+    const id = String(item.artwork_id);
+    const value = Number(cartQuantities[id] || 1);
+    return Number.isFinite(value) ? Math.max(1, value) : 1;
+  };
+
   const cartItems = items.map((item) => ({
     ...item,
     id: item.artwork_id,
-    qty: 1,
-    subtotal: Number(item.price || 0),
+    qty: getItemQuantity(item),
+    subtotal: Number(item.price || 0) * getItemQuantity(item),
   }));
 
   const selectedItems = cartItems.filter((item) => Number(item.is_sold_out) !== 1 &&
@@ -208,6 +228,20 @@ export default function Cart() {
                 selectedIds={selectedIds}
                 onSelectionChange={setSelection}
                 removing={deleting}
+                cartQuantities={cartQuantities}
+                onQuantityChange={async (artworkId, quantity) => {
+                  const nextQuantity = Math.max(1, Number(quantity) || 1);
+                  setCartQuantities((current) => ({
+                    ...current,
+                    [String(artworkId)]: nextQuantity,
+                  }));
+
+                  try {
+                    await updateCartItemQuantity(artworkId, nextQuantity);
+                  } catch (error) {
+                    setCartErrorMessage(error.message || "Unable to update quantity.");
+                  }
+                }}
                 onRemove={(item) => { setDeleteError(""); setSelectedCart(item); }}
               />
             </Grid>

@@ -55,7 +55,8 @@ export const priceCheckoutItems = (items, voucher = null, voucherArtworkIds = []
   const pricedItems = items.map((item) => ({
     ...item,
     artworkId: Number(item.artwork_id),
-    originalCentavos: cents(item.price),
+    quantity: Number(item.quantity || 1),
+    originalCentavos: cents(item.price) * Math.max(1, Number(item.quantity || 1)),
     discountCentavos: 0,
   }));
   if (new Set(pricedItems.map((item) => item.artworkId)).size !== pricedItems.length ||

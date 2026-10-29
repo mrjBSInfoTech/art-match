@@ -4,6 +4,7 @@ import {
   getPackedNotificationParcelPhotos,
   getShippedNotificationTrackingUrl,
   normalizeTrackingUrl,
+  normalizeShipmentTracking,
   validateParcelPhotoCount,
 } from "./parcelShipment.js";
 
@@ -59,6 +60,45 @@ test("rejects empty and unsafe courier links when secure tracking is required", 
 test("rejects invalid or unsafe tracking links", () => {
   assert.throws(() => normalizeTrackingUrl("not a URL"), /valid HTTP or HTTPS/);
   assert.throws(() => normalizeTrackingUrl("javascript:alert(1)"), /HTTP or HTTPS/);
+});
+
+test("Lalamove preserves the exact HTTPS share URL and clears stale tracking numbers", () => {
+  const link = "https://share.lalamove.com/order?id=abc%2F123";
+  assert.deepEqual(normalizeShipmentTracking({
+    courier: "lalamove", trackingNumber: "OLD-LBC-123", trackingUrl: ` ${link} `,
+  }), { courier: "lalamove", trackingNumber: null, trackingUrl: link });
+});
+
+test("number-based couriers trim alphanumeric IDs and use trusted official pages", () => {
+  for (const [courier, page] of [
+    ["lbc", "https://www.lbcexpress.com/track/"],
+    ["jnt", "https://www.jtexpress.ph/trajectoryQuery?flag=1"],
+    ["ninjavan", "https://www.ninjavan.co/en-ph/tracking/"],
+  ]) {
+    assert.deepEqual(normalizeShipmentTracking({
+      courier, trackingNumber: "  NVP-Abc123  ", trackingUrl: "https://untrusted.example/track",
+    }), { courier, trackingNumber: "NVP-Abc123", trackingUrl: page });
+    assert.doesNotThrow(() => normalizeShipmentTracking({
+      courier, trackingNumber: "A".repeat(100), trackingUrl: page,
+    }));
+    for (const trackingNumber of ["", "   ", "A".repeat(101), "NV\n123", "NV\u007f123", {}, 123, ["123"]]) {
+      assert.throws(() => normalizeShipmentTracking({ courier, trackingNumber, trackingUrl: page }));
+    }
+  }
+});
+
+test("shipment validation rejects unsupported couriers and unsafe submitted URLs", () => {
+  for (const courier of ["", "unsupportedCourier", "LBC Express", "toString", "__proto__", null, ["lbc"]]) {
+    assert.throws(() => normalizeShipmentTracking({ courier, trackingNumber: "ABC123", trackingUrl: "https://www.lbcexpress.com/track/" }));
+  }
+  for (const courier of ["lalamove", "lbc", "jnt", "ninjavan"]) {
+    for (const trackingUrl of ["", "hello", "javascript:alert(1)", "data:text/plain,test", "file:///test", "ftp://example.com", "http://share.lalamove.com/test", "https://user:password@share.lalamove.com/test", {}, ["https://share.lalamove.com/test"]]) {
+      assert.throws(() => normalizeShipmentTracking({ courier, trackingNumber: "ABC123", trackingUrl }));
+    }
+  }
+  for (const trackingUrl of ["https://lalamove.com.example.com/test", "https://example.com/lalamove.com", "https://evil-lalamove.com/test"]) {
+    assert.throws(() => normalizeShipmentTracking({ courier: "lalamove", trackingUrl }), /Lalamove/);
+  }
 });
 
 test("shows the tracking link only on the shipped notification", () => {

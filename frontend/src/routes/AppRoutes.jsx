@@ -47,14 +47,14 @@ import SellerSales from "../pages/seller/Sales";
 import SellerMessages from "../pages/seller/Messages";
 import SellerNotifications from "../pages/seller/Notifications";
 import SellerOrder from "../pages/seller/Order";
+import SellerInventory from "../pages/seller/Inventory";
 import SellerProfile from "../pages/seller/Profile";
 import SellerSettings from "../pages/seller/Settings";
 import SellerLogin from "../pages/seller/Login";
 import SellerRegister from "../pages/seller/Register";
 import SellerPlaceholder from "../pages/seller/SellerPlaceholder";
 import SellerPayout from "../pages/seller/Payout";
-import SellerVoucherGeneration from "../pages/seller/VoucherGeneration";
-import SellerDiscountCodes from "../pages/seller/DiscountCodes";
+import SellerVoucher from "../pages/seller/Voucher";
 import SellerCertificateOfAuthenticity from "../pages/seller/CertificateOfAuthenticity";
 import SellerMarketing from "../pages/seller/Marketing";
 import SellerAuditLogs from "../pages/seller/AuditLogs";
@@ -234,10 +234,7 @@ export default function AppRoutes() {
                 <Route path="sales" element={<SellerSales />} />
                 <Route path="orders" element={<Navigate to="manage" replace />} />
                 <Route path="orders/manage" element={<SellerOrder />} />
-                <Route
-                  path="orders/inventory"
-                  element={<SellerPlaceholder title="Store Inventory" />}
-                />
+                <Route path="orders/inventory" element={<SellerInventory />} />
                 <Route
                   path="marketing"
                   element={<SellerMarketing />}
@@ -255,13 +252,14 @@ export default function AppRoutes() {
                 <Route path="customer-service" element={<SellerMessages />} />
                 <Route path="messages" element={<SellerMessages />} />
                 <Route path="notifications" element={<SellerNotifications />} />
+                <Route path="voucher" element={<SellerVoucher />} />
                 <Route
                   path="vouchers/generation"
-                  element={<SellerVoucherGeneration />}
+                  element={<Navigate to="/seller/voucher" replace />}
                 />
                 <Route
                   path="vouchers/discount-code"
-                  element={<SellerDiscountCodes />}
+                  element={<Navigate to="/seller/voucher" replace />}
                 />
                 <Route
                   path="authenticity/certificate"

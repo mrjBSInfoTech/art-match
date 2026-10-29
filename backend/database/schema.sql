@@ -188,6 +188,7 @@ CREATE TABLE IF NOT EXISTS cart_item (
   cart_item_id INT AUTO_INCREMENT PRIMARY KEY,
   add_to_id INT NOT NULL,
   artwork_id INT NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
   date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_cart_item_cart
     FOREIGN KEY (add_to_id) REFERENCES add_cart (add_to_id) ON DELETE CASCADE,

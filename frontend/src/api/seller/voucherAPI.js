@@ -58,3 +58,12 @@ export const deleteSellerVoucher = async (voucherId) => {
     handleError(error);
   }
 };
+
+export const updateSellerVoucher = async (voucherId, voucher) => {
+  try {
+    const response = await api.put(`/${voucherId}`, voucher);
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};

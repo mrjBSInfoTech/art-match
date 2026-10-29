@@ -17,7 +17,7 @@ const updateCartTotal = (cartId, callback) => {
   db.query(
     `UPDATE add_cart ac
      SET total_price = (
-       SELECT COALESCE(SUM(a.price), 0)
+       SELECT COALESCE(SUM(a.price * ci.quantity), 0)
        FROM cart_item ci
        JOIN artwork a ON a.artwork_id = ci.artwork_id
        WHERE ci.add_to_id = ac.add_to_id
@@ -35,12 +35,15 @@ router.get("/", authenticateBuyer, (req, res) => {
       ci.cart_item_id,
       ci.add_to_id,
       ci.artwork_id,
+      ci.quantity,
       ci.date_created,
       a.student_id AS seller_id,
       a.title,
       a.price,
       a.image,
       a.genre,
+      a.art_type,
+      a.product,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
       ${getArtworkSoldQuantitySql()} AS sold_quantity,
       ${getArtworkSoldOutSql()} AS is_sold_out,
@@ -67,10 +70,17 @@ router.get("/", authenticateBuyer, (req, res) => {
 
 router.post("/", authenticateBuyer, (req, res) => {
   const artworkId = Number(req.body.artwork_id);
+  const requestedQuantity = Number(req.body.quantity ?? 1);
 
   if (!Number.isInteger(artworkId) || artworkId <= 0) {
     return res.status(400).json({
       message: "A valid artwork is required",
+    });
+  }
+
+  if (!Number.isInteger(requestedQuantity) || requestedQuantity <= 0) {
+    return res.status(400).json({
+      message: "A valid quantity is required",
     });
   }
 
@@ -124,7 +134,7 @@ router.post("/", authenticateBuyer, (req, res) => {
 
           const addItem = (cartId) => {
             db.query(
-              "SELECT cart_item_id FROM cart_item WHERE add_to_id = ? AND artwork_id = ? LIMIT 1",
+              "SELECT cart_item_id, quantity FROM cart_item WHERE add_to_id = ? AND artwork_id = ? LIMIT 1",
               [cartId, artworkId],
               (itemError, existingItems) => {
                 if (itemError) {
@@ -133,16 +143,32 @@ router.post("/", authenticateBuyer, (req, res) => {
                   });
                 }
 
-                if (existingItems.length) {
+                const availability = getArtworkAvailability(
+                  artworks[0].stock_available,
+                  artworks[0].sold_quantity,
+                  Number(artworks[0].is_sold) === 1 ||
+                    String(artworks[0].status || "").toLowerCase() === "sold",
+                );
+                const existingQuantity = existingItems.length ? Number(existingItems[0].quantity || 1) : 0;
+                const nextQuantity = existingQuantity + requestedQuantity;
+
+                if (availability.hasStockTracking && availability.remainingStock !== null && nextQuantity > availability.remainingStock) {
                   return res.status(409).json({
-                    message: "Artwork is already in your cart",
+                    message: `Only ${availability.remainingStock} ${availability.remainingStock === 1 ? "unit" : "units"} available for this artwork.`,
                   });
                 }
 
-                db.query(
-                  "INSERT INTO cart_item (add_to_id, artwork_id) VALUES (?, ?)",
-                  [cartId, artworkId],
-                  (insertError) => {
+                const upsert = () => {
+                  const payload = [cartId, artworkId, requestedQuantity];
+                  const queryText = existingItems.length
+                    ? "UPDATE cart_item SET quantity = quantity + ? WHERE cart_item_id = ?"
+                    : "INSERT INTO cart_item (add_to_id, artwork_id, quantity) VALUES (?, ?, ?)";
+
+                  const params = existingItems.length
+                    ? [requestedQuantity, existingItems[0].cart_item_id]
+                    : payload;
+
+                  db.query(queryText, params, (insertError) => {
                     if (insertError) {
                       return res.status(500).json({
                         message: "Database error",
@@ -169,12 +195,14 @@ router.post("/", authenticateBuyer, (req, res) => {
                         ),
                       );
 
-                      return res.status(201).json({
-                        message: "Artwork added to cart",
+                      return res.status(existingItems.length ? 200 : 201).json({
+                        message: existingItems.length ? "Cart quantity updated" : "Artwork added to cart",
                       });
                     });
-                  },
-                );
+                  });
+                };
+
+                upsert();
               },
             );
           };
@@ -194,6 +222,95 @@ router.post("/", authenticateBuyer, (req, res) => {
               }
 
               return addItem(result.insertId);
+            },
+          );
+        },
+      );
+    },
+  );
+});
+
+router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
+  const artworkId = Number(req.params.artworkId);
+  const requestedQuantity = Number(req.body.quantity ?? 1);
+
+  if (!Number.isInteger(artworkId) || artworkId <= 0) {
+    return res.status(400).json({ message: "A valid artwork is required" });
+  }
+
+  if (!Number.isInteger(requestedQuantity) || requestedQuantity <= 0) {
+    return res.status(400).json({ message: "A valid quantity is required" });
+  }
+
+  db.query(
+    `SELECT
+       a.artwork_id,
+       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+       ${getArtworkSoldQuantitySql()} AS sold_quantity,
+       a.is_sold,
+       a.status
+     FROM artwork a
+     WHERE a.artwork_id = ?`,
+    [artworkId],
+    (artworkError, artworks) => {
+      if (artworkError) {
+        return res.status(500).json({ message: "Database error" });
+      }
+
+      if (!artworks.length) {
+        return res.status(404).json({ message: "Artwork not found" });
+      }
+
+      const availability = getArtworkAvailability(
+        artworks[0].stock_available,
+        artworks[0].sold_quantity,
+        Number(artworks[0].is_sold) === 1 || String(artworks[0].status || "").toLowerCase() === "sold",
+      );
+
+      if (availability.isSoldOut) {
+        return res.status(409).json({ message: "This artwork is sold out" });
+      }
+
+      if (availability.hasStockTracking && availability.remainingStock !== null && requestedQuantity > availability.remainingStock) {
+        return res.status(409).json({
+          message: `Only ${availability.remainingStock} ${availability.remainingStock === 1 ? "unit" : "units"} available for this artwork.`,
+        });
+      }
+
+      db.query(
+        `SELECT ci.cart_item_id, ci.add_to_id, ci.quantity
+         FROM cart_item ci
+         JOIN add_cart ac ON ac.add_to_id = ci.add_to_id
+         WHERE ac.customer_id = ? AND ci.artwork_id = ?
+         LIMIT 1`,
+        [req.user.customer_id, artworkId],
+        (findError, items) => {
+          if (findError) {
+            return res.status(500).json({ message: "Database error" });
+          }
+
+          if (!items.length) {
+            return res.status(404).json({ message: "Cart item not found" });
+          }
+
+          db.query(
+            "UPDATE cart_item SET quantity = ? WHERE cart_item_id = ?",
+            [requestedQuantity, items[0].cart_item_id],
+            (updateError) => {
+              if (updateError) {
+                return res.status(500).json({ message: "Database error" });
+              }
+
+              updateCartTotal(items[0].add_to_id, (totalError) => {
+                if (totalError) {
+                  return res.status(500).json({ message: "Database error" });
+                }
+
+                return res.json({
+                  message: "Cart quantity updated",
+                  quantity: requestedQuantity,
+                });
+              });
             },
           );
         },

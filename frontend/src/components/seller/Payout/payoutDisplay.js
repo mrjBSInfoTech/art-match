@@ -37,8 +37,6 @@ export const payoutApprovalLabel = (payout) => {
   return "Not Requested";
 };
 export const payoutDisplayStatus = (payout) => {
-  if (payout?.payoutStatus === "Paid" && isDemoPayout(payout)) return "Paid (Demo)";
-  if (payout?.payoutStatus === "Processing" && isDemoPayout(payout)) return "Processing (Demo)";
   return payout?.payoutStatus || "Held";
 };
 export const canPayoutAction = (payout, action) => payout?.actions?.[`can${action[0].toUpperCase()}${action.slice(1)}`] === true;

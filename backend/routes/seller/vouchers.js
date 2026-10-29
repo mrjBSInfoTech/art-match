@@ -30,15 +30,16 @@ const normalizeVoucherCode = (value) => {
   return /^[A-Z0-9-]{3,20}$/.test(code) ? code : null;
 };
 
-const isVoucherCodeActive = async (connection, code) => {
+const isVoucherCodeActive = async (connection, code, excludedVoucherId = null) => {
   const matches = await query(
     connection,
     `SELECT voucher_id FROM seller_voucher
      WHERE UPPER(code) = ?
        AND starts_on <= CURRENT_DATE()
        AND expires_on >= CURRENT_DATE()
+       ${excludedVoucherId === null ? "" : "AND voucher_id <> ?"}
      LIMIT 1`,
-    [code],
+    excludedVoucherId === null ? [code] : [code, excludedVoucherId],
   );
   return matches.length > 0;
 };
@@ -130,8 +131,13 @@ router.delete("/:voucherId", authenticateSeller, async (req, res) => {
   }
 });
 
-router.post("/", authenticateSeller, async (req, res) => {
+const saveVoucher = async (req, res) => {
   const studentId = req.user?.student_id;
+  const isEditing = req.params?.voucherId !== undefined;
+  const targetVoucherId = Number(req.params?.voucherId);
+  if (isEditing && (!Number.isSafeInteger(targetVoucherId) || targetVoucherId <= 0)) {
+    return res.status(400).json({ message: "Invalid voucher ID." });
+  }
   const {
     discount_type: discountType,
     discount_value: rawDiscountValue,
@@ -147,7 +153,7 @@ router.post("/", authenticateSeller, async (req, res) => {
       ? null
       : normalizeVoucherCode(rawCode);
 
-  if (rawCode && !customCode) {
+  if ((rawCode && !customCode) || (isEditing && !customCode)) {
     return res.status(400).json({
       message: "Voucher codes must be 3–20 letters, numbers, or hyphens.",
     });
@@ -203,6 +209,19 @@ router.post("/", authenticateSeller, async (req, res) => {
   let connection;
   try {
     connection = await db.promise().getConnection();
+    if (isEditing) {
+      await connection.beginTransaction();
+      const ownedVoucher = await query(
+        connection,
+        `SELECT voucher_id FROM seller_voucher
+         WHERE voucher_id = ? AND student_id = ? FOR UPDATE`,
+        [targetVoucherId, studentId],
+      );
+      if (!ownedVoucher.length) {
+        await connection.rollback();
+        return res.status(404).json({ message: "Voucher not found." });
+      }
+    }
     if (artworkIds.length) {
       const owned = await query(
         connection,
@@ -211,6 +230,7 @@ router.post("/", authenticateSeller, async (req, res) => {
         [studentId, artworkIds],
       );
       if (owned.length !== artworkIds.length) {
+        if (isEditing) await connection.rollback();
         return res.status(400).json({
           message: "One or more selected listings do not belong to your shop.",
         });
@@ -234,8 +254,9 @@ router.post("/", authenticateSeller, async (req, res) => {
       }
 
       try {
-        if (await isVoucherCodeActive(connection, code)) {
+        if (await isVoucherCodeActive(connection, code, isEditing ? targetVoucherId : null)) {
           if (customCode) {
+            if (isEditing) await connection.rollback();
             return res.status(409).json({
               message: "This voucher code is currently active. Try another.",
             });
@@ -243,26 +264,40 @@ router.post("/", authenticateSeller, async (req, res) => {
           continue;
         }
 
-        await connection.beginTransaction();
+        if (!isEditing) await connection.beginTransaction();
         try {
-          const result = await query(
-            connection,
-            `INSERT INTO seller_voucher
-              (student_id, code, discount_type, discount_value, minimum_purchase,
-               starts_on, expires_on, applies_to_all)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              studentId,
-              code,
-              discountType,
-              discountValue,
-              minimumPurchase,
-              startsOn,
-              expiresOn,
-              appliesToAll,
-            ],
-          );
-          voucherId = result.insertId;
+          if (isEditing) {
+            voucherId = targetVoucherId;
+            await query(
+              connection,
+              `UPDATE seller_voucher
+               SET code = ?, discount_type = ?, discount_value = ?, minimum_purchase = ?,
+                   starts_on = ?, expires_on = ?, applies_to_all = ?
+               WHERE voucher_id = ? AND student_id = ?`,
+              [code, discountType, discountValue, minimumPurchase, startsOn, expiresOn,
+                appliesToAll, voucherId, studentId],
+            );
+            await query(connection, "DELETE FROM seller_voucher_artwork WHERE voucher_id = ?", [voucherId]);
+          } else {
+            const result = await query(
+              connection,
+              `INSERT INTO seller_voucher
+                (student_id, code, discount_type, discount_value, minimum_purchase,
+                 starts_on, expires_on, applies_to_all)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                studentId,
+                code,
+                discountType,
+                discountValue,
+                minimumPurchase,
+                startsOn,
+                expiresOn,
+                appliesToAll,
+              ],
+            );
+            voucherId = result.insertId;
+          }
           if (artworkIds.length) {
             await query(
               connection,
@@ -286,10 +321,10 @@ router.post("/", authenticateSeller, async (req, res) => {
       throw new Error("Unable to generate a unique voucher code.");
     }
     await logSellerAudit(req.user, {
-      action: "CREATE_VOUCHER",
-      information: `Voucher ${code} (${discountType}) was created, valid ${startsOn} through ${expiresOn}.`,
+      action: isEditing ? "UPDATE_VOUCHER" : "CREATE_VOUCHER",
+      information: `Voucher ${code} (${discountType}) was ${isEditing ? "updated" : "created"}, valid ${startsOn} through ${expiresOn}.`,
     });
-    res.status(201).json({
+    res.status(isEditing ? 200 : 201).json({
       voucher_id: voucherId,
       code,
       discount_type: discountType,
@@ -301,11 +336,15 @@ router.post("/", authenticateSeller, async (req, res) => {
       artwork: artworkIds,
     });
   } catch (error) {
-    console.error("Unable to create seller voucher:", error);
-    res.status(500).json({ message: "Unable to create voucher." });
+    if (connection) await connection.rollback().catch(() => {});
+    console.error("Unable to save seller voucher:", error);
+    res.status(500).json({ message: isEditing ? "Unable to update voucher." : "Unable to create voucher." });
   } finally {
     connection?.release();
   }
-});
+};
+
+router.post("/", authenticateSeller, saveVoucher);
+router.put("/:voucherId", authenticateSeller, saveVoucher);
 
 export default router;
