@@ -36,8 +36,6 @@ export default function PayoutForm({
   title = "Review seller payout",
   selected,
   actionError,
-  demo,
-  isDemoPayout,
   payoutDisplayStatus,
   payoutStatusColor,
   payoutValue,
@@ -167,16 +165,20 @@ export default function PayoutForm({
                 sx={{color:"#fff"}}
               />
             </Stack>
-            {/*
-            {(demo || isDemoPayout(selected)) && (
-              <Alert severity="info">
-                {isDemoPayout(selected)
-                  ? "Simulated payout. No money moved."
-                  : "Demo mode: any release is simulated. No money moves."}
-                {selected.providerReference ? ` Reference: ${selected.providerReference}` : ""}
-              </Alert>
+            {(selected.providerTransferId || selected.providerBatchId) && (
+              <Box>
+                {selected.providerBatchId && (
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    PayMongo Batch ID: {selected.providerBatchId}
+                  </Typography>
+                )}
+                {selected.providerTransferId && (
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    PayMongo Transfer ID: {selected.providerTransferId}
+                  </Typography>
+                )}
+              </Box>
             )}
-            */}
             <Box>
               <Typography variant="caption" color="text.secondary">Payout amount</Typography>
               <Typography variant="h5" fontWeight={800}>
@@ -229,7 +231,7 @@ export default function PayoutForm({
               </Typography>
               <Typography variant="body2">
                 Requester: {selected.approval?.requestedByAdminId
-                  ? `${selected.approval.requestedByName || "Admin"} `
+                  ? `${selected.approval.requestedByName || "Admin"} (ID ${selected.approval.requestedByAdminId})`
                   : "Not requested"}
               </Typography>
               {selected.approval?.invalidationReason && (
@@ -319,17 +321,11 @@ export default function PayoutForm({
                   Verify a refund already issued through the PayMongo Dashboard and allocate it to this seller order. For a shared checkout, confirm that it belongs to these returned items. The provider verifies the amount; this action does not send a refund.
                 </Typography>
 
-                {(demo || isDemoPayout(selected)) && (
-                  <Alert severity="info">
-                    PayMongo refund verification is unavailable in demo payout mode. No PayMongo API will be called.
-                  </Alert>
-                )}
-
                 <TextField
                   label="PayMongo refund ID"
                   value={refundId}
                   onChange={(event) => setRefundId(event.target.value)}
-                  disabled={busy || demo || isDemoPayout(selected)}
+                  disabled={busy}
                   size="small"
                   slotProps={{ htmlInput: { maxLength: 100 } }}
                 />
@@ -355,7 +351,7 @@ export default function PayoutForm({
                 <Button
                   variant="outlined"
                   onClick={onRefund}
-                  disabled={busy || loading || Boolean(error) || demo || isDemoPayout(selected) || !refundId.trim() || (completedReturns.length > 0 && !returnRequestId)}
+                  disabled={busy || loading || Boolean(error) || !refundId.trim() || (completedReturns.length > 0 && !returnRequestId)}
                 >
                   Verify existing refund
                 </Button>

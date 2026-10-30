@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -7,6 +7,8 @@ import {
   DialogActions,
   DialogContent,
   FormControlLabel,
+  FormHelperText,
+  IconButton,
   MenuItem,
   Stack,
   TextField,
@@ -14,6 +16,8 @@ import {
 } from "@mui/material";
 import MessageDialog from "./MessageDialog.jsx";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import { createReturnRequest } from "../../../api/buyer/returnAPI.js";
 
 const reasons = [
@@ -24,6 +28,10 @@ const reasons = [
   "Shipping damage",
   "Other",
 ];
+
+const MAX_PHOTOS = 5;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const photoTypes = ["image/jpeg", "image/png", "image/webp"];
 
 const formatDate = (value) =>
   value
@@ -44,6 +52,8 @@ export default function ReturnRequestDialog({ order, onClose, onSubmitted }) {
   const [details, setDetails] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [photos, setPhotos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
   const submitting = useRef(false);
   const trimmedDetails = details.trim();
   const valid = Boolean(
@@ -54,18 +64,58 @@ export default function ReturnRequestDialog({ order, onClose, onSubmitted }) {
       trimmedDetails.length <= 1000,
   );
 
+  useEffect(() => {
+    const previews = photos.map((file) => URL.createObjectURL(file));
+    setPhotoPreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [photos]);
+
+  const handlePhotoSelection = (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+    if (photos.length + files.length > MAX_PHOTOS) {
+      setError(`Choose no more than ${MAX_PHOTOS} photos in total.`);
+      return;
+    }
+    if (files.some((file) => !photoTypes.includes(file.type))) {
+      setError("Photos must be JPEG, PNG, or WebP images.");
+      return;
+    }
+    if (files.some((file) => file.size > MAX_PHOTO_BYTES)) {
+      setError("Each photo must be 5 MB or smaller.");
+      return;
+    }
+    setError("");
+    setPhotos((current) => [...current, ...files]);
+  };
+
+  const removePhoto = (index) =>
+    setPhotos((current) => current.filter((_, position) => position !== index));
+
   const submit = async () => {
     if (!valid || submitting.current) return;
     submitting.current = true;
     setSaving(true);
     setError("");
     try {
-      const result = await createReturnRequest({
+      const payload = {
         order_id: order.orderId,
         order_item_ids: selectedIds,
         reason,
         details: trimmedDetails,
-      });
+      };
+      let body = payload;
+      if (photos.length) {
+        // Multipart only when photos are attached; plain JSON otherwise.
+        body = new FormData();
+        body.append("order_id", String(payload.order_id));
+        body.append("order_item_ids", JSON.stringify(payload.order_item_ids));
+        body.append("reason", payload.reason);
+        body.append("details", payload.details);
+        photos.forEach((file) => body.append("evidence_photos", file));
+      }
+      const result = await createReturnRequest(body);
       onSubmitted(result);
     } catch (submitError) {
       setError(submitError.message || "Unable to submit your return request");
@@ -80,7 +130,7 @@ export default function ReturnRequestDialog({ order, onClose, onSubmitted }) {
       open={Boolean(order)}
       onClose={onClose}
       busy={saving}
-      title="Request a return"
+      title="Request a Return"
       titleId="return-request-title"
       icon={
         <AssignmentReturnOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
@@ -172,6 +222,81 @@ export default function ReturnRequestDialog({ order, onClose, onSubmitted }) {
             inputProps={{ maxLength: 1000 }}
             helperText={`${trimmedDetails.length}/1000 characters. Include at least 10 characters.`}
           />
+          <Box
+            sx={{
+              p: 1.5,
+              border: "1px dashed",
+              borderColor: "divider",
+              borderRadius: 2,
+              bgcolor: "action.hover",
+            }}
+          >
+            <Stack spacing={1.25}>
+              <Typography variant="body2" fontWeight={700}>
+                Photos of the issue (optional)
+              </Typography>
+              {photoPreviews.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, pt: 0.5 }}>
+                  {photoPreviews.map((preview, index) => (
+                    <Box key={preview} sx={{ position: "relative" }}>
+                      <Box
+                        component="img"
+                        src={preview}
+                        alt={`Return photo ${index + 1}`}
+                        sx={{
+                          width: 76,
+                          height: 76,
+                          objectFit: "cover",
+                          borderRadius: 1.5,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          display: "block",
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        aria-label={`Remove return photo ${index + 1}`}
+                        disabled={saving}
+                        onClick={() => removePhoto(index)}
+                        sx={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          width: 22,
+                          height: 22,
+                          bgcolor: "background.paper",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          "&:hover": { bgcolor: "background.paper" },
+                        }}
+                      >
+                        <CloseIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              <Button
+                component="label"
+                variant="outlined"
+                startIcon={<PhotoCameraOutlinedIcon />}
+                disabled={saving || photos.length >= MAX_PHOTOS}
+                sx={{ textTransform: "none", alignSelf: "flex-start" }}
+              >
+                {photos.length ? "Add more photos" : "Upload photos"}
+                <input
+                  hidden
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={handlePhotoSelection}
+                />
+              </Button>
+              <FormHelperText sx={{ mt: 0 }}>
+                {photos.length} of {MAX_PHOTOS} photos selected. JPEG, PNG, or WebP, up to 5 MB each.
+              </FormHelperText>
+            </Stack>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions>

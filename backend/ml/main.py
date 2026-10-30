@@ -888,6 +888,12 @@ def recommend_artworks(
 
     try:
 
+        if not req.artwork_ids:
+            return {
+                "recommendations": [],
+                "cold_start": True,
+            }
+
         recommendations = (
             recommend_from_artwork_ids(
                 artwork_ids=

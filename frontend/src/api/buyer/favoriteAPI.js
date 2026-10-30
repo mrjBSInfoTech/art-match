@@ -8,8 +8,13 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("buyer_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  config.headers["X-Recommendation-Session"] = getRecommendationSessionId();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    delete config.headers["X-Recommendation-Session"];
+  } else {
+    delete config.headers.Authorization;
+    config.headers["X-Recommendation-Session"] = getRecommendationSessionId();
+  }
   return config;
 });
 

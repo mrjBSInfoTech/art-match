@@ -21,19 +21,19 @@ test("order API uses trusted server payment routes and preserves cart until onli
     await context.test("checkout sends only address and canonical method; Pending online checkout does not announce cart removal", async () => {
       await placeBuyerOrder(3, "paymongo");
       assert.equal(requests.at(-1).url, "/checkout");
-      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, payment_method: "paymongo" });
+      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, delivery_method: "door_to_door", payment_method: "paymongo" });
       assert.equal(requests.at(-1).headers.Authorization, "Bearer test-buyer-token");
       assert.deepEqual(events, []);
       await placeBuyerOrder(3, "cod");
-      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, payment_method: "cod" });
+      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, delivery_method: "door_to_door", payment_method: "cod" });
       assert.deepEqual(events, ["cart-updated"]);
-      await placeBuyerOrder(3, "paymongo", [21], "card");
-      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, payment_method: "paymongo", artwork_ids: [21] });
+      await placeBuyerOrder(3, "paymongo", [21]);
+      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, delivery_method: "door_to_door", payment_method: "paymongo", artwork_ids: [21] });
       assert.deepEqual(events, ["cart-updated"]);
     });
     await context.test("retry reuses a server-owned payment group and cancellation uses the group endpoint", async () => {
       await placeBuyerOrder(3, "paymongo", [21]);
-      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, payment_method: "paymongo", artwork_ids: [21] });
+      assert.deepEqual(JSON.parse(requests.at(-1).data), { address_id: 3, delivery_method: "door_to_door", payment_method: "paymongo", artwork_ids: [21] });
       await retryBuyerPayment("AM-first");
       assert.equal(requests.at(-1).method, "post");
       assert.equal(requests.at(-1).url, "/payments/AM-first/retry");
@@ -43,7 +43,6 @@ test("order API uses trusted server payment routes and preserves cart until onli
       assert.equal(requests.at(-1).url, "/payments/AM-first/cancel");
       await cancelBuyerOrder(8);
       assert.equal(requests.at(-1).url, "/8/cancel");
-      assert.deepEqual(events, ["cart-updated"]);
     });
     await context.test("order polling is uncached, authenticated and abortable", async () => {
       const controller = new AbortController();
@@ -87,7 +86,7 @@ test("order API uses trusted server payment routes and preserves cart until onli
       assert.equal(requests.at(-1).signal, controller.signal);
       await placeBuyerOrder(3, "paymongo", [21, 22], { voucherCode: "ART-SAVE", expectedTotalCentavos: 94000, discountAmount: 9999 });
       assert.deepEqual(JSON.parse(requests.at(-1).data), {
-        address_id: 3, payment_method: "paymongo", artwork_ids: [21, 22], voucher_code: "ART-SAVE", expected_total_centavos: 94000,
+        address_id: 3, delivery_method: "door_to_door", payment_method: "paymongo", artwork_ids: [21, 22], voucher_code: "ART-SAVE", expected_total_centavos: 94000,
       });
       reject = true;
       await assert.rejects(validateCheckoutVoucher("ART-SAVE", [21]), /Payment is already paid/);

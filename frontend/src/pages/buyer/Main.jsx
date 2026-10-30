@@ -278,12 +278,14 @@ export default function Main() {
     loadRecommendations();
     window.addEventListener("recommendation-updated", refresh);
     window.addEventListener("cart-updated", refresh);
+    window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     return () => {
       clearTimeout(refreshTimer);
       recommendationRequest.current += 1;
       window.removeEventListener("recommendation-updated", refresh);
       window.removeEventListener("cart-updated", refresh);
+      window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
     };
   }, [loadRecommendations]);
@@ -925,7 +927,7 @@ export default function Main() {
                 letterSpacing: 1.5,
               }}
             >
-              PERSONALIZED
+              {isPersonalizedRecommendation ? "PERSONALIZED" : "DISCOVER"}
             </Typography>
             <Typography
               variant="body2"

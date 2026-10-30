@@ -61,7 +61,11 @@ import {
   fetchBuyerNotifications,
 } from "../api/buyer/messageAPI";
 import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
-import { recordRecommendationEvent } from "../api/buyer/recommendationAPI";
+import {
+  clearRecommendationClientState,
+  recordRecommendationEvent,
+} from "../api/buyer/recommendationAPI";
+import { clearAuthData } from "../../utils/auth";
 import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
 
 const DEFAULT_PROMOTION_HEADER = {
@@ -256,14 +260,8 @@ function BuyerLayoutContent({ children }) {
 
   const handleLogout = async () => {
     await recordLogout();
-    {
-      localStorage.removeItem("buyer_token");
-      localStorage.removeItem("buyer_username");
-      localStorage.removeItem("buyer_first_name");
-      localStorage.removeItem("buyer_last_name");
-      localStorage.removeItem("buyer_email");
-      localStorage.removeItem("buyer_phone_number");
-    }
+    clearAuthData("buyer");
+    clearRecommendationClientState();
     navigate("/buyer/login", { replace: true });
 
     // Clear browser history for extra security

@@ -549,3 +549,79 @@ test("checkout rejects unavailable or unapproved artworks despite valid prices a
     assert.deepEqual(fixture.state.cartItems, [{ add_to_id: 1, artwork_id: 21 }, { add_to_id: 2, artwork_id: 20 }]);
   }
 });
+
+test("pickup checkout succeeds without requiring a customer delivery address and saves pickup location", async () => {
+  const { fixture, checkout, routes } = setup();
+  fixture.state.artworks[0].seller_address = "CAFA Fine Arts Studio 2B";
+  const result = await checkout({
+    delivery_method: "pickup",
+    payment_method: "cod",
+    artwork_ids: [20],
+  });
+  assert.equal(result.status, 201);
+  assert.equal(fixture.state.orders.length, 1);
+  assert.equal(fixture.state.orders[0].delivery_method, "pickup");
+  assert.equal(Number(fixture.state.orders[0].shipping_fee), 0);
+  assert.equal(fixture.state.orders[0].shipping_street, "Pickup: CAFA Fine Arts Studio 2B");
+
+  const listResponse = await invoke(routes, "get", "/");
+  assert.equal(listResponse.status, 200);
+  assert.equal(listResponse.body.length, 1);
+  assert.equal(listResponse.body[0].deliveryMethod, "pickup");
+  assert.equal(listResponse.body[0].address, "Pickup: CAFA Fine Arts Studio 2B");
+});
+
+test("door_to_door checkout requires a valid shipping address and rejects unsupported delivery methods", async () => {
+  const { fixture, checkout, sessions } = setup();
+  const missingAddress = await checkout({
+    delivery_method: "door_to_door",
+    payment_method: "cod",
+  });
+  assert.equal(missingAddress.status, 400);
+  assert.equal(fixture.state.orders.length, 0);
+
+  const invalidDelivery = await checkout({
+    address_id: 4,
+    delivery_method: "drone_delivery",
+    payment_method: "paymongo",
+  });
+  assert.equal(invalidDelivery.status, 400);
+  assert.equal(fixture.state.orders.length, 0);
+  assert.equal(sessions.length, 0);
+});
+
+test("multi-quantity product checkout recalculates subtotal, total, and enforces stock limits", async () => {
+  const { fixture, checkout, sessions } = setup();
+  fixture.state.artworks[0].stock_available = 5;
+  fixture.state.artworks[0].price = "150.00";
+
+  // Exceeding stock (requesting 6 when 5 are available) rejects and updates cart
+  const overStock = await checkout({
+    address_id: 4,
+    delivery_method: "door_to_door",
+    payment_method: "paymongo",
+    artwork_ids: [20],
+    quantities: { 20: 6 },
+  });
+  assert.equal(overStock.status, 409);
+  assert.equal(sessions.length, 0);
+  assert.equal(fixture.state.orders.length, 0);
+
+  // Valid multi-quantity (3 units x 150.00 = 450.00)
+  const valid = setup();
+  valid.fixture.state.artworks[0].stock_available = 5;
+  valid.fixture.state.artworks[0].price = "150.00";
+  const okResult = await valid.checkout({
+    address_id: 4,
+    delivery_method: "door_to_door",
+    payment_method: "cod",
+    artwork_ids: [20],
+    quantities: { 20: 3 },
+  });
+  assert.equal(okResult.status, 201);
+  assert.equal(valid.fixture.state.orders.length, 1);
+  assert.equal(Number(valid.fixture.state.orders[0].subtotal), 450);
+  assert.equal(Number(valid.fixture.state.orders[0].total_amount), 450);
+  assert.equal(valid.fixture.state.orderItems[0].quantity, 3);
+  assert.equal(Number(valid.fixture.state.orderItems[0].unit_price), 150);
+});

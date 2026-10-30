@@ -15,6 +15,7 @@ import {
 } from "../../utils/parcelShipment.js";
 import { attachOrderReturns } from "../../utils/returns.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
+import { processDueCertificateDeliveries } from "../../utils/certificates.js";
 
 const router = express.Router();
 const parcelPhotoTypes = new Map([
@@ -74,17 +75,19 @@ router.get("/", authenticateSeller, (req, res) => {
     `SELECT
        o.order_id, CONCAT('AM-', LPAD(o.order_id, 6, '0')) AS order_number,
        o.created_at, o.status, o.delivered_at, o.customer_id, o.seller_id,
-       o.payment_method, o.payment_status,
+       CONCAT(st.first_name, ' ', st.last_name) AS seller_name,
+       o.delivery_method, o.payment_method, o.payment_status,
        o.paymongo_payment_method, o.paid_at, o.subtotal, o.shipping_fee,
        o.total_amount, o.buyer_name, o.buyer_email, c.phone_number AS buyer_phone,
        o.shipping_street,
        o.shipping_barangay, o.shipping_city, o.shipping_province,
-       o.shipping_region, o.shipping_postal_code, o.parcel_photos,
+       o.shipping_region, o.shipping_postal_code, o.parcel_photos, o.received_photos,
        o.courier, o.tracking_number, o.tracking_url, o.handling_instructions, i.order_item_id,
        i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity,
        s.gross_amount, s.commission_amount, s.processing_fee_amount,
        s.net_amount, s.payout_status
      FROM marketplace_order o
+     LEFT JOIN student st ON st.student_id = o.seller_id
      LEFT JOIN marketplace_order_item i ON i.order_id = o.order_id
      LEFT JOIN customer c ON c.customer_id = o.customer_id
      LEFT JOIN seller_payment_split s ON s.order_id = o.order_id
@@ -109,6 +112,8 @@ router.get("/", authenticateSeller, (req, res) => {
             deliveredAt: row.delivered_at,
             customerId: row.customer_id,
             sellerId: row.seller_id,
+            sellerName: row.seller_name || null,
+            deliveryMethod: row.delivery_method || "door_to_door",
             payment: row.payment_method,
             paymentStatus: row.payment_status,
             paymentChannel: row.paymongo_payment_method,
@@ -138,6 +143,11 @@ router.get("/", authenticateSeller, (req, res) => {
               ? row.parcel_photos.length
               : typeof row.parcel_photos === "string"
                 ? JSON.parse(row.parcel_photos).length
+                : 0,
+            receivedPhotoCount: Array.isArray(row.received_photos)
+              ? row.received_photos.length
+              : typeof row.received_photos === "string"
+                ? JSON.parse(row.received_photos).length
                 : 0,
             customer: row.buyer_name,
             email: row.buyer_email,
@@ -214,7 +224,7 @@ router.put(
       connection = await db.promise().getConnection();
       await connection.beginTransaction();
       const [orders] = await connection.query(
-        `        SELECT status, customer_id, total_amount, payment_status, parcel_photos, courier, tracking_number, tracking_url, handling_instructions,
+        `        SELECT status, customer_id, total_amount, payment_status, parcel_photos, received_photos, courier, tracking_number, tracking_url, handling_instructions,
                 payment_method, payment_status, paid_at
          FROM marketplace_order
          WHERE order_id = ? AND seller_id = ?
@@ -245,8 +255,11 @@ router.put(
         } catch (error) {
           fail(400, error.message);
         }
-      }
-      if (requestedStatus !== "Packed" && files.length) {
+      } else if (requestedStatus === "Delivered") {
+        if (files.length > 5) {
+          fail(400, "Upload no more than 5 parcel photos");
+        }
+      } else if (files.length) {
         fail(400, "Parcel photos can only be uploaded when marking the order Packed");
       }
 
@@ -307,7 +320,14 @@ router.put(
         fail(400, "Courier tracking information can only be added when marking the order Shipped");
       }
 
+      const existingReceivedPhotos = Array.isArray(order.received_photos)
+        ? order.received_photos
+        : order.received_photos
+          ? JSON.parse(order.received_photos)
+          : [];
+
       let parcelPhotos = existingPhotos;
+      let receivedPhotos = existingReceivedPhotos;
       if (requestedStatus === "Packed") {
         parcelPhotos = [];
         for (const file of files) {
@@ -326,11 +346,29 @@ router.put(
             throw uploadError;
           }
         }
+      } else if (requestedStatus === "Delivered" && files.length > 0) {
+        receivedPhotos = [];
+        for (const file of files) {
+          const extension = parcelPhotoTypes.get(file.mimetype);
+          try {
+            const photo = await saveParcelPhoto({
+              orderId,
+              buffer: file.buffer,
+              contentType: file.mimetype,
+              extension,
+            });
+            uploadedPhotos.push(photo);
+            receivedPhotos.push(photo);
+          } catch (uploadError) {
+            if (isB2Configured()) uploadError.statusCode = 502;
+            throw uploadError;
+          }
+        }
       }
 
       const [result] = await connection.query(
         `UPDATE marketplace_order
-         SET status = ?, parcel_photos = ?, tracking_url = ?,
+         SET status = ?, parcel_photos = ?, received_photos = ?, tracking_url = ?,
              handling_instructions = COALESCE(?, handling_instructions),
              payment_status = CASE
                WHEN payment_method = 'cod' AND ? = 'Delivered' THEN 'Paid'
@@ -349,6 +387,7 @@ router.put(
         [
           requestedStatus,
           JSON.stringify(parcelPhotos),
+          JSON.stringify(receivedPhotos),
           requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
           requestedStatus === "Packed" ? JSON.stringify(handlingInstructions) : null,
           requestedStatus,
@@ -365,7 +404,19 @@ router.put(
         fail(409, "Order status changed; refresh and try again");
       }
 
+      const [updatedRows] = await connection.query(
+        `SELECT delivered_at, DATE_ADD(delivered_at, INTERVAL 7 DAY) AS return_deadline
+         FROM marketplace_order WHERE order_id = ? LIMIT 1`,
+        [orderId],
+      );
+      const updatedOrder = updatedRows[0] || {};
+
       await connection.commit();
+      if (requestedStatus === "Delivered") {
+        await processDueCertificateDeliveries().catch((certificateError) =>
+          console.error("Unable to deliver certificate on order delivery:", certificateError.message),
+        );
+      }
       await createOrderStatusNotification(orderId, order.customer_id, requestedStatus, Boolean(trackingUrl));
       const resultingPaymentStatus =
         order.payment_method === "cod" && requestedStatus === "Delivered"
@@ -378,6 +429,8 @@ router.put(
       return res.json({
         message: "Order status updated",
         status: requestedStatus,
+        deliveredAt: updatedOrder.delivered_at ?? null,
+        returnDeadline: updatedOrder.return_deadline ?? null,
         paymentStatus:
           order.payment_method === "cod" && requestedStatus === "Delivered"
             ? "Paid"
@@ -386,6 +439,7 @@ router.put(
         trackingNumber: shipmentTracking ? shipmentTracking.trackingNumber : order.tracking_number ?? null,
         trackingUrl: requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
         parcelPhotoCount: parcelPhotos.length,
+        receivedPhotoCount: receivedPhotos.length,
         handlingInstructions:
           requestedStatus === "Packed"
             ? handlingInstructions

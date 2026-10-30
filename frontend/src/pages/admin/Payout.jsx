@@ -1,10 +1,9 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   MenuItem,
   Paper,
@@ -32,8 +31,6 @@ import {
   canReleasePayout,
   formatPayoutCurrency,
   formatPayoutDate,
-  isDemoCapability,
-  isDemoPayout,
   payoutApprovalLabel,
   payoutDisplayStatus,
   payoutErrorMessage,
@@ -75,6 +72,28 @@ export default function AdminPayout() {
   const [approvalComment, setApprovalComment] = useState("");
   const actionInFlight = useRef(false);
 
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
+    }
+  };
+
   useEffect(() => {
     let active = true;
     fetchAdminPayouts()
@@ -115,7 +134,6 @@ export default function AdminPayout() {
     }
   };
   const capability = data?.providerCapability || data?.capability;
-  const demo = isDemoCapability(capability);
   const completedReturns = (selected?.returnRequests || []).filter(
     (item) => item.status === "Completed",
   );
@@ -139,9 +157,7 @@ export default function AdminPayout() {
     if (action === "reject" && !approvalComment.trim()) return;
     if (
       action === "refund" &&
-      (demo ||
-        isDemoPayout(selected) ||
-        !refundId.trim() ||
+      (!refundId.trim() ||
         ["Processing", "Paid"].includes(selected.payoutStatus) ||
         (completedReturns.length > 0 && !returnRequestId))
     )
@@ -171,16 +187,13 @@ export default function AdminPayout() {
           "Payout requested. Three other admins must approve before release.",
         approve: "Approval recorded. Release remains a separate action.",
         reject: "Payout request rejected. No payout was released.",
-        release: demo
-          ? "Demo payout released. Check the simulated status; no money moved."
-          : "Payout released to the provider. Paid status requires provider confirmation.",
+        release:
+          "Payout released to the provider. Paid status requires provider confirmation.",
         reconcile: "Payout status checked with the configured provider.",
         refund:
           "Refund evidence checked with PayMongo. The backend recalculated the payout.",
       };
-      setSnackbarMessage(messages[action]);
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar(messages[action], "success");
       setApprovalComment("");
       if (action === "refund") {
         setRefundId("");
@@ -194,7 +207,6 @@ export default function AdminPayout() {
           "Unable to process this payout request.",
         ),
       );
-      // A timeout can follow provider acceptance. Reload persisted state before another action.
       reload();
     } finally {
       actionInFlight.current = false;
@@ -255,14 +267,14 @@ export default function AdminPayout() {
               variant="outlined"
             >
               <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: { xs: "column", lg: "row" },
-                          justifyContent: "space-between",
-                          alignItems: { xs: "stretch", lg: "center" },
-                          gap: 1.25,
-                        }}
-                      >
+                sx={{
+                  display: "flex",
+                  flexDirection: { xs: "column", lg: "row" },
+                  justifyContent: "space-between",
+                  alignItems: { xs: "stretch", lg: "center" },
+                  gap: 1.25,
+                }}
+              >
                 <TextField
                   label="Search order or seller"
                   value={search}
@@ -322,8 +334,6 @@ export default function AdminPayout() {
         title="Review seller payout"
         selected={selected}
         actionError={actionError}
-        demo={demo}
-        isDemoPayout={isDemoPayout}
         payoutDisplayStatus={payoutDisplayStatus}
         payoutStatusColor={payoutStatusColor}
         payoutValue={payoutValue}
@@ -351,20 +361,22 @@ export default function AdminPayout() {
       />
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={(_, reason) => {
-          if (reason !== "clickaway") {
-            setSnackbarOpen(false);
-          }
-        }}
+        severity={snackbarSeverity}
+        variant="filled"
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
+          onClose={closeSnackbar}
           severity={snackbarSeverity}
-          variant="filled"
-          onClose={() => setSnackbarOpen(false)}
-          sx={{ width: "100%" }}
+          sx={{
+            width: "100%",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            "& .MuiAlert-icon": { color: "#fff" },
+          }}
         >
           {snackbarMessage}
         </Alert>

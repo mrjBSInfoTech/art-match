@@ -8,6 +8,7 @@ import {
   Divider,
   Alert,
   CircularProgress,
+  IconButton,
   Paper,
   Radio,
   RadioGroup,
@@ -23,36 +24,107 @@ import {
 } from "@mui/material";
 // Icons
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import PaymentOutlinedIcon from "@mui/icons-material/PaymentOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import AddLocationAltOutlinedIcon from "@mui/icons-material/AddLocationAltOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 
-import { fetchCart } from "../../api/buyer/cartAPI";
-import { fetchAddresses } from "../../api/buyer/addressAPI";
-import { cancelBuyerPayment, fetchBuyerPayment, placeBuyerOrder, retryBuyerPayment, validateCheckoutVoucher } from "../../api/buyer/orderAPI";
+import { fetchCart, updateCartItemQuantity } from "../../api/buyer/cartAPI";
+import { addAddress, fetchAddresses, updateAddress } from "../../api/buyer/addressAPI";
+import { cancelBuyerPayment, fetchBuyerPayment, fetchPaymentMethods, placeBuyerOrder, retryBuyerPayment, validateCheckoutVoucher } from "../../api/buyer/orderAPI";
 import { canResumePayment, isOrderPaid } from "../../utils/orderPayments.js";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import CheckoutVoucher from "../../components/buyer/Checkout/CheckoutVoucher";
+import AddressForm from "../../components/buyer/Address/AddressForm";
 
 const currency = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(value || 0));
 
+const isProductItem = (item) => {
+  const artType = String(item?.art_type || "").trim().toLowerCase();
+  const product = String(item?.product || "").trim().toLowerCase();
+  const productValues = ["product", "3d_object", "3d object", "sculpture", "physical_product", "physical product"];
+  return productValues.includes(artType) || productValues.includes(product);
+};
+
+const getRemainingStock = (item) => {
+  const rawStock = item?.stock_available;
+  if (rawStock === null || rawStock === undefined || String(rawStock).trim() === "") {
+    return null;
+  }
+  const totalStock = Number(rawStock);
+  if (!Number.isFinite(totalStock) || totalStock < 0) return null;
+  const sold = Math.max(0, Number(item?.sold_quantity || 0));
+  return Math.max(0, Math.floor(totalStock - sold));
+};
+
+const paymentChannelLabel = (channel) => {
+  const labels = {
+    gcash: "GCash",
+    paymaya: "Maya",
+    card: "Credit/Debit Card",
+    qrph: "QR Ph",
+  };
+  return labels[String(channel || "").toLowerCase()] || String(channel || "").toUpperCase();
+};
+
 export default function Checkout() {
   const navigate = useNavigate();
-  const { search } = useLocation();
+  const { search, state: locationState } = useLocation();
   const selectedArtworkIds = useMemo(() => {
     const params = new URLSearchParams(search);
     if (!params.has("artwork_ids")) return null;
     const ids = params.get("artwork_ids").split(",").map(Number);
     return ids.length && ids.every((id) => Number.isSafeInteger(id) && id > 0) ? [...new Set(ids)] : [];
   }, [search]);
+  const requestedQuantities = useMemo(() => {
+    const map = {};
+    if (locationState?.quantities && typeof locationState.quantities === "object") {
+      Object.entries(locationState.quantities).forEach(([id, qty]) => {
+        const parsedQty = Number(qty);
+        if (Number.isSafeInteger(parsedQty) && parsedQty > 0) {
+          map[String(id)] = parsedQty;
+        }
+      });
+    }
+    const params = new URLSearchParams(search);
+    const rawQuantities = params.get("quantities");
+    if (rawQuantities) {
+      rawQuantities.split(",").forEach((entry) => {
+        const [rawId, rawQty] = String(entry).split(":");
+        const id = Number(rawId);
+        const qty = Number(rawQty);
+        if (Number.isSafeInteger(id) && id > 0 && Number.isSafeInteger(qty) && qty > 0) {
+          map[String(id)] = qty;
+        }
+      });
+    }
+    return map;
+  }, [search, locationState]);
+  const [editableQuantities, setEditableQuantities] = useState({});
+  const getItemQuantity = (item) => {
+    if (!isProductItem(item)) return 1;
+    const id = String(item?.artwork_id ?? "");
+    const override = editableQuantities[id] ?? requestedQuantities[id];
+    const value = Number(override ?? item?.quantity ?? 1);
+    return Number.isSafeInteger(value) && value > 0 ? value : 1;
+  };
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [currentAddress, setCurrentAddress] = useState(null);
   const [addresses, setAddresses] = useState([]);
+  const [addressFormOpen, setAddressFormOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+  const [deliveryMethod, setDeliveryMethod] = useState("door_to_door");
   const [paymentMethod, setPaymentMethod] = useState("paymongo");
+  const [enabledPaymentChannels, setEnabledPaymentChannels] = useState(["gcash", "paymaya", "card", "qrph"]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
   const [existingCheckout, setExistingCheckout] = useState("");
@@ -74,7 +146,7 @@ export default function Checkout() {
   const params = new URLSearchParams(search);
   const returnPayment = params.get("payment") || "";
   const paymentReference = params.get("reference") || existingCheckout;
-  const cartKey = JSON.stringify(cartItems.map((item) => [item.artwork_id, item.price, item.seller_id, item.is_sold_out]));
+  const cartKey = JSON.stringify(cartItems.map((item) => [item.artwork_id, item.price, item.seller_id, item.is_sold_out, getItemQuantity(item)]));
   const appliedVoucher = voucherQuote?.cartKey === cartKey && voucherQuote.code === voucherCode.trim().toUpperCase()
     ? voucherQuote.result : null;
   const voucherMessage = voucherQuote && !appliedVoucher
@@ -89,6 +161,11 @@ export default function Checkout() {
     setVoucherWarning("");
     setVoucherChecking(false);
   };
+
+  const hasCustomQuantities =
+    Object.keys(requestedQuantities).length > 0 ||
+    Object.keys(editableQuantities).length > 0 ||
+    cartItems.some((item) => getItemQuantity(item) > 1);
 
   const applyVoucher = async () => {
     if (loading || voucherChecking || submitting.current) return;
@@ -106,7 +183,13 @@ export default function Checkout() {
     setVoucherWarning("");
     setVoucherQuote(null);
     try {
-      const result = await validateCheckoutVoucher(code, cartItems.map((item) => Number(item.artwork_id)));
+      const quantities = Object.fromEntries(
+        cartItems.map((item) => [Number(item.artwork_id), getItemQuantity(item)]),
+      );
+      const artworkIdList = cartItems.map((item) => Number(item.artwork_id));
+      const result = hasCustomQuantities
+        ? await validateCheckoutVoucher(code, artworkIdList, { quantities })
+        : await validateCheckoutVoucher(code, artworkIdList);
       if (request !== voucherRequest.current) return;
       setVoucherCode(result.voucher.code);
       setVoucherQuote({ code: result.voucher.code, cartKey, result });
@@ -154,6 +237,24 @@ export default function Checkout() {
             if (!active || request.signal.aborted) return;
           } catch (cancelError) {
             if (active && !request.signal.aborted) setPaymentActionError(cancelError.message || "Unable to cancel checkout. Please try again.");
+          } finally {
+            paymentAction.current = false;
+          }
+        } else if (returnPayment === "success" && String(result.payment_status).toLowerCase() !== "paid" && !paymentAction.current) {
+          try {
+            paymentAction.current = true;
+            const retryResult = await retryBuyerPayment(paymentReference);
+            if (!active || request.signal.aborted) return;
+            if (retryResult?.orders?.length || String(retryResult?.payment_status).toLowerCase() === "paid") {
+              result = {
+                ...result,
+                ...retryResult,
+                orders: retryResult.orders?.length ? retryResult.orders : result.orders,
+                payment_status: retryResult.payment_status || result.payment_status,
+              };
+            }
+          } catch (retryError) {
+            console.warn("Direct PayMongo reconciliation check:", retryError?.message);
           } finally {
             paymentAction.current = false;
           }
@@ -221,13 +322,23 @@ export default function Checkout() {
       const request = ++latestRequest;
       try {
         setPageLoading(true);
-        const [cart, addresses] = await Promise.all([
+        const [cart, addresses, paymentConfig] = await Promise.all([
           fetchCart(),
           fetchAddresses(),
+          typeof fetchPaymentMethods === "function"
+            ? Promise.resolve(fetchPaymentMethods()).catch(() => null)
+            : Promise.resolve(null),
         ]);
         if (!active || request !== latestRequest) return;
+        if (Array.isArray(paymentConfig?.payment_method_types) && paymentConfig.payment_method_types.length) {
+          setEnabledPaymentChannels(paymentConfig.payment_method_types);
+        }
         const availableCart = Array.isArray(cart) ? cart : [];
-        const checkoutItems = selectedArtworkIds === null ? availableCart : availableCart.filter((item) => selectedArtworkIds.includes(Number(item.artwork_id)));
+        const checkoutItems = (selectedArtworkIds === null ? availableCart : availableCart.filter((item) => selectedArtworkIds.includes(Number(item.artwork_id))))
+          .map((item) => ({
+            ...item,
+            quantity: requestedQuantities[String(item.artwork_id)] ?? Math.max(1, Number(item.quantity || 1)),
+          }));
         setCartItems(checkoutItems);
         if (selectedArtworkIds !== null && (!selectedArtworkIds.length || checkoutItems.length !== selectedArtworkIds.length)) {
           setError("Some selected artworks are no longer in your cart. Return to the cart and select your artworks again.");
@@ -268,22 +379,142 @@ export default function Checkout() {
     };
   }, [selectedArtworkIds, paymentReference]);
 
+  const handleOpenAddAddress = () => {
+    setEditingAddress(null);
+    setAddressFormOpen(true);
+  };
+
+  const handleOpenEditAddress = (addressToEdit = currentAddress) => {
+    if (!addressToEdit) return;
+    setEditingAddress(addressToEdit);
+    setAddressFormOpen(true);
+  };
+
+  const handleAddressFormSubmit = async (formData) => {
+    try {
+      setError("");
+      let savedAddressId = editingAddress?.address_id;
+      if (editingAddress?.address_id) {
+        await updateAddress(editingAddress.address_id, formData);
+      } else {
+        const created = await addAddress(formData);
+        savedAddressId = created?.address_id;
+      }
+      const updatedList = await fetchAddresses();
+      const addressList = Array.isArray(updatedList) ? updatedList : [];
+      setAddresses(addressList);
+      const nextCurrent =
+        (savedAddressId && addressList.find((addr) => String(addr.address_id) === String(savedAddressId))) ||
+        addressList.find((addr) => Boolean(addr.is_current)) ||
+        addressList[0] ||
+        null;
+      setCurrentAddress(nextCurrent);
+      setAddressFormOpen(false);
+      setEditingAddress(null);
+    } catch (addrError) {
+      setError(addrError.message || "Unable to save delivery address.");
+    }
+  };
+
+  const handleCheckoutQuantityChange = async (item, rawNextQuantity) => {
+    if (!isProductItem(item) || loading || submitting.current) return;
+    const remaining = getRemainingStock(item);
+    const maxAllowed = remaining !== null ? Math.max(1, remaining) : 999;
+    const nextQuantity = Math.min(maxAllowed, Math.max(1, Number(rawNextQuantity) || 1));
+    const artworkIdKey = String(item.artwork_id);
+
+    setEditableQuantities((prev) => ({
+      ...prev,
+      [artworkIdKey]: nextQuantity,
+    }));
+    setCartItems((prev) =>
+      prev.map((entry) =>
+        String(entry.artwork_id) === artworkIdKey
+          ? { ...entry, quantity: nextQuantity }
+          : entry,
+      ),
+    );
+
+    try {
+      await updateCartItemQuantity(item.artwork_id, nextQuantity);
+    } catch {
+      // Checkout payload also submits quantities directly to the server.
+    }
+
+    if (voucherQuote?.code) {
+      const code = voucherQuote.code;
+      const request = ++voucherRequest.current;
+      setVoucherChecking(true);
+      try {
+        const nextQuantities = Object.fromEntries(
+          cartItems.map((entry) => [
+            Number(entry.artwork_id),
+            String(entry.artwork_id) === artworkIdKey ? nextQuantity : getItemQuantity(entry),
+          ]),
+        );
+        const nextCartKey = JSON.stringify(
+          cartItems.map((entry) => [
+            entry.artwork_id,
+            entry.price,
+            entry.seller_id,
+            entry.is_sold_out,
+            String(entry.artwork_id) === artworkIdKey ? nextQuantity : getItemQuantity(entry),
+          ]),
+        );
+        const result = await validateCheckoutVoucher(
+          code,
+          cartItems.map((entry) => Number(entry.artwork_id)),
+          { quantities: nextQuantities },
+        );
+        if (request === voucherRequest.current) {
+          setVoucherQuote({ code: result.voucher.code, cartKey: nextCartKey, result });
+          setVoucherWarning("");
+        }
+      } catch (voucherError) {
+        if (request === voucherRequest.current) {
+          setVoucherQuote(null);
+          setVoucherWarning(voucherError.message || "Voucher requirements changed for the updated quantity.");
+        }
+      } finally {
+        if (request === voucherRequest.current) setVoucherChecking(false);
+      }
+    }
+  };
+
+  const handleContactSeller = (sellerId) => {
+    if (!sellerId || sellerId === "unknown") {
+      navigate("/buyer/messages");
+      return;
+    }
+    navigate(`/buyer/messages?seller=${encodeURIComponent(sellerId)}`);
+  };
+
   const profile = {
     firstName: localStorage.getItem("buyer_first_name") || "Customer",
     lastName: localStorage.getItem("buyer_last_name") || "",
     email: localStorage.getItem("buyer_email") || "",
   };
 
-  const subtotal = appliedVoucher?.subtotal ?? cartItems.reduce(
-    (sum, item) => sum + Number(item.price || 0),
+  const originalSubtotal = cartItems.reduce(
+    (sum, item) => sum + Number(item.price || 0) * getItemQuantity(item),
     0,
   );
+  const totalUnits = cartItems.reduce(
+    (sum, item) => sum + getItemQuantity(item),
+    0,
+  );
+  const subtotal = appliedVoucher?.subtotal ?? originalSubtotal;
+  const discountAmount = Number(appliedVoucher?.discount_amount || 0);
+  const shippingFee = 0;
   const hasSoldOutItems = cartItems.some(
     (item) => Number(item.is_sold_out) === 1,
   );
-  // Delivery is arranged by each seller through a third-party courier
-  // (J&T, Lalamove, etc.), so no shipping fee is charged at checkout.
-  const total = appliedVoucher?.total ?? subtotal;
+  const hasInsufficientStock = cartItems.some((item) => {
+    const remaining = getRemainingStock(item);
+    return remaining !== null && getItemQuantity(item) > remaining;
+  });
+  // Total Amount = Product Subtotal + Shipping Fee - Valid Discount
+  const total = Math.max(0, (appliedVoucher?.total ?? (originalSubtotal - discountAmount)) + shippingFee);
 
   /*
    * One payment, several storefronts. The buyer is charged once, but each
@@ -303,18 +534,28 @@ export default function Checkout() {
           item.artist_name ||
           item.artist ||
           "Independent artist",
+        artistName:
+          item.artist_name ||
+          item.artist ||
+          item.shop_name ||
+          "Seller",
+        pickupLocation:
+          item.seller_address ||
+          "Central Academy of Fine Arts (CAFA) Campus Studio",
         items: [],
         subtotal: 0,
       };
       group.items.push(item);
-      group.subtotal += Number(item.price || 0);
+      group.subtotal += Number(item.price || 0) * getItemQuantity(item);
       groups.set(key, group);
     });
     return [...groups.values()];
-  }, [cartItems]);
+  }, [cartItems, requestedQuantities, editableQuantities]);
   const multiStorefront = storefrontGroups.length > 1;
   const selectionIncomplete = selectedArtworkIds !== null &&
     (!selectedArtworkIds.length || selectedArtworkIds.length !== cartItems.length);
+
+  const isDoorToDoor = deliveryMethod === "door_to_door";
 
   const handlePlaceOrder = async () => {
     if (submitting.current || voucherChecking) return;
@@ -326,8 +567,16 @@ export default function Checkout() {
       setError("Please return to your cart and select available artworks to checkout.");
       return;
     }
-    if (!currentAddress?.address_id) {
-      setError("Please select a delivery address.");
+    if (hasInsufficientStock) {
+      setError("Selected quantity exceeds available stock for one or more items.");
+      return;
+    }
+    if (!["door_to_door", "pickup"].includes(deliveryMethod)) {
+      setError("Please select a valid delivery option.");
+      return;
+    }
+    if (isDoorToDoor && !currentAddress?.address_id) {
+      setError("Please select or add a delivery address for Door-to-Door orders.");
       return;
     }
 
@@ -337,12 +586,20 @@ export default function Checkout() {
       setExistingCheckout("");
       setLoading(true);
 
+      const quantities = Object.fromEntries(
+        cartItems.map((item) => [Number(item.artwork_id), getItemQuantity(item)]),
+      );
+      const orderOptions = {
+        voucherCode: appliedVoucher?.voucher.code,
+        expectedTotalCentavos: appliedVoucher ? Math.round(Number(appliedVoucher.total) * 100) : undefined,
+        ...(hasCustomQuantities ? { quantities } : {}),
+        ...(deliveryMethod !== "door_to_door" ? { deliveryMethod } : {}),
+      };
       const result = await placeBuyerOrder(
-        currentAddress.address_id,
+        isDoorToDoor ? currentAddress.address_id : (currentAddress?.address_id || null),
         paymentMethod,
         selectedArtworkIds ?? cartItems.map((item) => Number(item.artwork_id)),
-        { voucherCode: appliedVoucher?.voucher.code,
-          expectedTotalCentavos: appliedVoucher ? Math.round(Number(appliedVoucher.total) * 100) : undefined },
+        orderOptions,
       );
 
       /*
@@ -353,6 +610,7 @@ export default function Checkout() {
           state: {
             orders: result.orders,
             paymentMethod,
+            deliveryMethod,
           },
         });
 
@@ -469,72 +727,97 @@ export default function Checkout() {
         </Alert>
       )}
       {paymentReference && (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: { xs: 2.5, sm: 3.5 },
-            borderRadius: 2.5,
-            maxWidth: 850,
-            mx: "auto",
-          }}
-        >
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="h5" fontWeight={700}>
-                {paymentPaid ? "Payment received" : paymentNeedsReview ? "Payment needs review" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {paymentPaid ? "Opening your order confirmation…" : paymentNeedsReview ? "PayMongo confirmed this payment, but ArtMatch could not confirm the order. Please contact support about your payment." : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
-                  ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
-                  : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection."}
-              </Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}
-              >
-                Checkout: {paymentReference}
-              </Typography>
-            </Box>
-            {paymentChecking && <Stack direction="row" alignItems="center" spacing={1.5}><CircularProgress size={20} /><Typography role="status">Verifying your payment…</Typography></Stack>}
-            {paymentError && <Alert severity="error">{paymentError}</Alert>}
-            {paymentActionError && <Alert severity="error">{paymentActionError}</Alert>}
-            {paymentMessage && <Alert severity="info">{paymentMessage}</Alert>}
-            {!paymentChecking && !paymentError && !paymentPaid && !paymentClosed && <Alert severity={String(payment?.payment_status).toLowerCase() === "failed" ? "warning" : "info"}>
-              {String(payment?.payment_status).toLowerCase() === "failed" ? "Payment was unsuccessful. Continue payment to try again, or cancel this checkout." : "Payment has not been confirmed yet. No purchase has been placed."}
-            </Alert>}
-            {paymentOrders.length > 0 && (
-              <Stack spacing={2} divider={<Divider />}>
-                {paymentOrders.map((order) => (
-                  <Box key={order.orderId}>
-                    {order.items?.map((item) => (
-                      <Stack key={item.id || item.artworkId} direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
-                        <WatermarkedArtworkImage image={item.image} alt={item.title || "Artwork"} sx={{ width: 64, height: 64, borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{item.title}</Typography>
-                          <Typography variant="body2" color="text.secondary">{item.artist} · Qty {item.qty || 1}</Typography>
-                        </Box>
-                        <Typography fontWeight={700}>{currency(Number(item.price) * Number(item.qty || 1))}</Typography>
-                      </Stack>
-                    ))}
-                  </Box>
-                ))}
-                <SummaryRow label="Total" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
-              </Stack>
-            )}
-            <Stack
-              direction="row"
-              flexWrap="wrap"
-              justifyContent="flex-end"
-              gap={1}
-            >
-              {paymentCanResume && <Button variant="contained" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("resume")}>Continue payment</Button>}
-              {paymentCanResume && <Button color="error" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("cancel")}>Cancel checkout</Button>}
-              {(paymentRefunded || paymentNeedsReview) && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
-              <Button variant="contained" color="error" fullWidth  disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
+        returnPayment === "success" && !paymentError && !paymentClosed ? (
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 3, sm: 5 },
+              borderRadius: 3,
+              maxWidth: 550,
+              mx: "auto",
+              textAlign: "center",
+            }}
+          >
+            <Stack spacing={2.5} alignItems="center">
+              <CircularProgress size={44} color="success" />
+              <Box>
+                <Typography variant="h5" fontWeight={800}>
+                  Confirming your payment…
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Your online payment is being verified. Taking you to your order confirmation…
+                </Typography>
+              </Box>
             </Stack>
-          </Stack>
-        </Paper>
+          </Paper>
+        ) : (
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2.5, sm: 3.5 },
+              borderRadius: 2.5,
+              maxWidth: 850,
+              mx: "auto",
+            }}
+          >
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5" fontWeight={700}>
+                  {paymentPaid ? "Payment received" : paymentNeedsReview ? "Payment needs review" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {paymentPaid ? "Opening your order confirmation…" : paymentNeedsReview ? "PayMongo confirmed this payment, but ArtMatch could not confirm the order. Please contact support about your payment." : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
+                    ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
+                    : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection."}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}
+                >
+                  Checkout: {paymentReference}
+                </Typography>
+              </Box>
+              {paymentChecking && <Stack direction="row" alignItems="center" spacing={1.5}><CircularProgress size={20} /><Typography role="status">Verifying your payment…</Typography></Stack>}
+              {paymentError && <Alert severity="error">{paymentError}</Alert>}
+              {paymentActionError && <Alert severity="error">{paymentActionError}</Alert>}
+              {paymentMessage && <Alert severity="info">{paymentMessage}</Alert>}
+              {!paymentChecking && !paymentError && !paymentPaid && !paymentClosed && <Alert severity={String(payment?.payment_status).toLowerCase() === "failed" ? "warning" : "info"}>
+                {String(payment?.payment_status).toLowerCase() === "failed" ? "Payment was unsuccessful. Continue payment to try again, or cancel this checkout." : "Payment has not been confirmed yet. No purchase has been placed."}
+              </Alert>}
+              {paymentOrders.length > 0 && (
+                <Stack spacing={2} divider={<Divider />}>
+                  {paymentOrders.map((order) => (
+                    <Box key={order.orderId}>
+                      {order.items?.map((item) => (
+                        <Stack key={item.id || item.artworkId} direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
+                          <WatermarkedArtworkImage image={item.image} alt={item.title || "Artwork"} sx={{ width: 64, height: 64, borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{item.title}</Typography>
+                            <Typography variant="body2" color="text.secondary">{item.artist} · Qty {item.qty || 1}</Typography>
+                          </Box>
+                          <Typography fontWeight={700}>{currency(Number(item.price) * Number(item.qty || 1))}</Typography>
+                        </Stack>
+                      ))}
+                    </Box>
+                  ))}
+                  <SummaryRow label="Total" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
+                </Stack>
+              )}
+              <Stack
+                direction="row"
+                flexWrap="wrap"
+                justifyContent="flex-end"
+                gap={1}
+              >
+                {paymentCanResume && <Button variant="contained" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("resume")}>Continue payment</Button>}
+                {paymentCanResume && <Button color="error" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("cancel")}>Cancel checkout</Button>}
+                {(paymentRefunded || paymentNeedsReview) && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
+                <Button variant="contained" color="error" fullWidth  disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        )
       )}
       {!paymentReference && !pageLoading && hasSoldOutItems && (
         <Alert
@@ -626,115 +909,260 @@ export default function Checkout() {
                   </Typography>
                 </Box>
 
-                {/* Delivery Address */}
+                {/* Delivery Options: Door-to-Door vs Pickup */}
                 <Typography
                   variant="caption"
                   color="text.secondary"
                   fontWeight={700}
-                  sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+                  sx={{ textTransform: "uppercase", letterSpacing: 0.5, display: "block", mb: 1 }}
                 >
-                  Delivery Address
+                  Delivery Option
                 </Typography>
 
-                {addresses.length > 1 && (
-                  <FormControl fullWidth size="small" sx={{ mt: 1.5, mb: 1 }}>
-                    <InputLabel id="checkout-address-label">Select delivery address</InputLabel>
-                    <Select
-                      labelId="checkout-address-label"
-                      label="Select delivery address"
-                      value={currentAddress?.address_id || ""}
-                      disabled={loading}
-                      onChange={(event) => setCurrentAddress(addresses.find((address) => String(address.address_id) === String(event.target.value)) || null)}
-                    >
-                      {addresses.map((address) => (
-                        <MenuItem key={address.address_id} value={address.address_id}>
-                          {[address.street_name, address.barangay, address.city, address.province].filter(Boolean).join(", ")}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
+                <Stack spacing={1.5} sx={{ mb: 3 }} role="radiogroup" aria-label="Delivery method">
+                  <DeliveryOptionCard
+                    value="door_to_door"
+                    title="Door-to-Door Delivery"
+                    subtitle="Seller ships the order to your delivery address via courier"
+                    icon={<LocalShippingOutlinedIcon color="error" />}
+                    selectedValue={deliveryMethod}
+                    onSelect={setDeliveryMethod}
+                    disabled={loading}
+                  />
+                  <DeliveryOptionCard
+                    value="pickup"
+                    title="Pickup"
+                    subtitle="Collect the order from the seller's designated pickup location (No shipping fee)"
+                    icon={<StorefrontOutlinedIcon color="error" />}
+                    selectedValue={deliveryMethod}
+                    onSelect={setDeliveryMethod}
+                    disabled={loading}
+                  />
+                </Stack>
 
-                {currentAddress ? (
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: 2.5,
-                      mt: 1,
-                      borderRadius: 2.5,
-                      borderColor: "error.main",
-                      bgcolor: "action.selected",
-                    }}
-                  >
+                {isDoorToDoor ? (
+                  <>
+                    {/* Delivery Address */}
                     <Stack
                       direction="row"
-                      spacing={1.5}
-                      alignItems="flex-start"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      flexWrap="wrap"
+                      gap={1}
                     >
-                      <LocationOnOutlinedIcon
-                        color="error"
-                        sx={{ mt: 0.3 }}
-                      />
-                      <Box sx={{ flexGrow: 1 }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={700}
+                        sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+                      >
+                        Delivery Address
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        {currentAddress && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="inherit"
+                            startIcon={<EditOutlinedIcon fontSize="small" />}
+                            disabled={loading}
+                            onClick={() => handleOpenEditAddress(currentAddress)}
+                            sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.75rem" }}
+                          >
+                            Edit Address
+                          </Button>
+                        )}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          startIcon={<AddLocationAltOutlinedIcon fontSize="small" />}
+                          disabled={loading}
+                          onClick={handleOpenAddAddress}
+                          sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.75rem", fontWeight: 600 }}
+                        >
+                          Add New Address
+                        </Button>
+                      </Stack>
+                    </Stack>
+
+                    {addresses.length > 1 && (
+                      <FormControl fullWidth size="small" sx={{ mt: 1.5, mb: 1 }}>
+                        <InputLabel id="checkout-address-label">Select delivery address</InputLabel>
+                        <Select
+                          labelId="checkout-address-label"
+                          label="Select delivery address"
+                          value={currentAddress?.address_id || ""}
+                          disabled={loading}
+                          onChange={(event) => setCurrentAddress(addresses.find((address) => String(address.address_id) === String(event.target.value)) || null)}
+                        >
+                          {addresses.map((address) => (
+                            <MenuItem key={address.address_id} value={address.address_id}>
+                              {[address.street_name, address.barangay, address.city, address.province].filter(Boolean).join(", ")}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+
+                    {currentAddress ? (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2.5,
+                          mt: 1,
+                          borderRadius: 2.5,
+                          borderColor: "error.main",
+                          bgcolor: "action.selected",
+                        }}
+                      >
                         <Stack
                           direction="row"
-                          alignItems="center"
-                          spacing={1}
-                          sx={{ mb: 0.5 }}
+                          spacing={1.5}
+                          alignItems="flex-start"
                         >
-                          <Typography variant="subtitle2" fontWeight={700}>
-                            Shipping Destination
-                          </Typography>
-                          {currentAddress.is_current && (
-                            <Chip
-                              icon={
-                                <CheckCircleIcon
-                                  sx={{ fontSize: "12px !important" }}
+                          <LocationOnOutlinedIcon
+                            color="error"
+                            sx={{ mt: 0.3 }}
+                          />
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              spacing={1}
+                              sx={{ mb: 0.5 }}
+                            >
+                              <Typography variant="subtitle2" fontWeight={700}>
+                                Shipping Destination
+                              </Typography>
+                              {currentAddress.is_current && (
+                                <Chip
+                                  icon={
+                                    <CheckCircleIcon
+                                      sx={{ fontSize: "12px !important" }}
+                                    />
+                                  }
+                                  label="Default"
+                                  size="small"
+                                  color="error"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: "0.65rem",
+                                    fontWeight: 700,
+                                    color: "#fff",
+                                  }}
                                 />
-                              }
-                              label="Default"
-                              size="small"
-                              color="error"
-                              sx={{
-                                height: 20,
-                                fontSize: "0.65rem",
-                                fontWeight: 700,
-                                color: "#fff",
-                              }}
-                            />
-                          )}
+                              )}
+                            </Stack>
+                            <Typography
+                              variant="body2"
+                              color="text.primary"
+                              sx={{ lineHeight: 1.5 }}
+                            >
+                              {[
+                                currentAddress.street_name,
+                                currentAddress.barangay,
+                                currentAddress.city,
+                                currentAddress.province,
+                                currentAddress.region,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: "block", mt: 0.5, fontWeight: 600 }}
+                            >
+                              ZIP Code: {currentAddress.postal_code || "N/A"}
+                            </Typography>
+                          </Box>
                         </Stack>
-                        <Typography
-                          variant="body2"
-                          color="text.primary"
-                          sx={{ lineHeight: 1.5 }}
-                        >
-                          {[
-                            currentAddress.street_name,
-                            currentAddress.barangay,
-                            currentAddress.city,
-                            currentAddress.province,
-                            currentAddress.region,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", mt: 0.5, fontWeight: 600 }}
-                        >
-                          ZIP Code: {currentAddress.postal_code || "N/A"}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Paper>
+                      </Paper>
+                    ) : (
+                      <Alert
+                        severity="warning"
+                        sx={{ mt: 1, borderRadius: 2 }}
+                        action={
+                          <Button color="inherit" size="small" onClick={handleOpenAddAddress}>
+                            Add Address
+                          </Button>
+                        }
+                      >
+                        No delivery address found. Please add a delivery address to place a Door-to-Door order, or switch to Pickup.
+                      </Alert>
+                    )}
+                  </>
                 ) : (
-                  <Alert severity="warning" sx={{ mt: 1, borderRadius: 2 }}>
-                    No address selected. Please configure a default delivery
-                    address in your profile.
-                  </Alert>
+                  <>
+                    {/* Seller Pickup Location(s) */}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      fontWeight={700}
+                      sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+                    >
+                      Seller Pickup Location{storefrontGroups.length > 1 ? "s" : ""}
+                    </Typography>
+                    <Stack spacing={1.5} sx={{ mt: 1 }}>
+                      {storefrontGroups.map((group) => (
+                        <Paper
+                          key={group.sellerId}
+                          variant="outlined"
+                          sx={{
+                            p: 2.5,
+                            borderRadius: 2.5,
+                            borderColor: "error.main",
+                            bgcolor: "action.selected",
+                          }}
+                        >
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={1.5}
+                            justifyContent="space-between"
+                            alignItems={{ sm: "flex-start" }}
+                          >
+                            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                              <StorefrontOutlinedIcon color="error" sx={{ mt: 0.3 }} />
+                              <Box>
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                                  <Typography variant="subtitle2" fontWeight={700}>
+                                    {group.shopName}
+                                  </Typography>
+                                  <Chip
+                                    label="Free Pickup"
+                                    size="small"
+                                    color="success"
+                                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                                  />
+                                </Stack>
+                                <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
+                                  {group.pickupLocation}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                                  Coordinate your pickup schedule directly with {group.artistName}.
+                                </Typography>
+                              </Box>
+                            </Stack>
+                            {group.sellerId && group.sellerId !== "unknown" && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                startIcon={<ChatBubbleOutlineRoundedIcon fontSize="small" />}
+                                onClick={() => handleContactSeller(group.sellerId)}
+                                sx={{ textTransform: "none", borderRadius: 2, flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
+                              >
+                                Contact Seller
+                              </Button>
+                            )}
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </>
                 )}
+
                 <CheckoutVoucher
                   code={voucherCode}
                   onCodeChange={changeVoucherCode}
@@ -789,7 +1217,11 @@ export default function Checkout() {
                   <PaymentOptionCard
                     value="paymongo"
                     title="Secure Online Payment"
-                    subtitle="Choose your e-wallet, card, or QR payment on PayMongo"
+                    subtitle={
+                      enabledPaymentChannels.length
+                        ? `Pay via PayMongo Hosted Checkout (${enabledPaymentChannels.map(paymentChannelLabel).join(", ")})`
+                        : "Choose your e-wallet, card, or QR payment on PayMongo"
+                    }
                     icon={<AccountBalanceWalletOutlinedIcon color="error" />}
                     selectedValue={paymentMethod}
                     disabled={loading}
@@ -797,8 +1229,12 @@ export default function Checkout() {
 
                   <PaymentOptionCard
                     value="cod"
-                    title="Cash on Delivery"
-                    subtitle="Pay in cash upon artwork delivery"
+                    title={isDoorToDoor ? "Cash on Delivery" : "Cash on Pickup / Delivery"}
+                    subtitle={
+                      isDoorToDoor
+                        ? "Pay in cash upon artwork delivery"
+                        : "Pay in cash when collecting your order from the seller"
+                    }
                     icon={<LocalAtmOutlinedIcon color="error" />}
                     selectedValue={paymentMethod}
                     disabled={loading}
@@ -814,7 +1250,9 @@ export default function Checkout() {
 
                 {paymentMethod === "cod" && (
                   <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                    Pay the delivery amount in cash when your artwork arrives.
+                    {isDoorToDoor
+                      ? "Pay the order amount in cash when your artwork arrives."
+                      : "Pay the order amount in cash when picking up your order from the seller."}
                   </Alert>
                 )}
               </Paper>
@@ -848,131 +1286,216 @@ export default function Checkout() {
               </Stack>
 
               <Stack
-                spacing={2}
-                sx={{ my: 2, maxHeight: 320, overflowY: "auto", pr: 0.5 }}
+                spacing={2.25}
+                sx={{ my: 2, maxHeight: 380, overflowY: "auto", pr: 0.5 }}
               >
-                {cartItems.map((item) => (
-                  <Stack
-                    key={item.cart_item_id || item.artwork_id}
-                    direction="row"
-                    spacing={2}
-                    alignItems="center"
-                  >
-                    <WatermarkedArtworkImage
-                      image={item.image}
-                      alt={item.title || "Artwork"}
+                {cartItems.map((item) => {
+                  const qty = getItemQuantity(item);
+                  const unitPrice = Number(item.price || 0);
+                  const lineTotal = unitPrice * qty;
+                  const isProduct = isProductItem(item);
+                  const remainingStock = getRemainingStock(item);
+                  const typeLabel = isProduct ? "Product" : (item.art_type || "Original Artwork");
+                  const variationParts = [
+                    isProduct && item.product && String(item.product).toLowerCase() !== "product" ? item.product : null,
+                    item.art_size ? `Size: ${item.art_size}` : null,
+                    !isProduct && item.genre ? item.genre : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <Box
+                      key={item.cart_item_id || item.artwork_id}
                       sx={{
-                        width: 56,
-                        height: 56,
+                        p: 1.5,
                         borderRadius: 2.5,
-                        flexShrink: 0,
-                        objectFit: "cover",
                         border: "1px solid",
                         borderColor: "divider",
+                        bgcolor: "background.default",
                       }}
-                    />
+                    >
+                      <Stack direction="row" spacing={1.75} alignItems="flex-start">
+                        <WatermarkedArtworkImage
+                          image={item.image}
+                          alt={item.title || "Artwork"}
+                          sx={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: 2,
+                            flexShrink: 0,
+                            objectFit: "cover",
+                            border: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        />
 
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="subtitle2" fontWeight={700} noWrap>
-                        {item.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Original Artwork
-                      </Typography>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle2" fontWeight={700} noWrap>
+                            {item.title}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                            Seller: {item.artist || item.shop_name || "Independent artist"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                            Type: {typeLabel}
+                            {variationParts.length > 0 ? ` · ${variationParts.join(" · ")}` : ""}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                            Unit Price: ₱{unitPrice.toLocaleString()} × Qty: {qty}
+                          </Typography>
+
+                          {isProduct && (
+                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
+                              <IconButton
+                                size="small"
+                                aria-label={`Decrease quantity for ${item.title}`}
+                                disabled={loading || qty <= 1}
+                                onClick={() => handleCheckoutQuantityChange(item, qty - 1)}
+                                sx={{ border: "1px solid", borderColor: "divider", width: 24, height: 24 }}
+                              >
+                                <RemoveRoundedIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                              <Typography variant="caption" fontWeight={700} sx={{ minWidth: 20, textAlign: "center" }}>
+                                {qty}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                aria-label={`Increase quantity for ${item.title}`}
+                                disabled={loading || (remainingStock !== null && qty >= remainingStock)}
+                                onClick={() => handleCheckoutQuantityChange(item, qty + 1)}
+                                sx={{ border: "1px solid", borderColor: "divider", width: 24, height: 24 }}
+                              >
+                                <AddRoundedIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                              {remainingStock !== null && (
+                                <Typography variant="caption" color="text.secondary">
+                                  ({remainingStock} available)
+                                </Typography>
+                              )}
+                            </Stack>
+                          )}
+                        </Box>
+
+                        <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                          <Typography variant="subtitle2" fontWeight={700}>
+                            ₱{lineTotal.toLocaleString()}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Subtotal
+                          </Typography>
+                        </Box>
+                      </Stack>
                     </Box>
-
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      ₱{Number(item.price || 0).toLocaleString()}
-                    </Typography>
-                  </Stack>
-                ))}
+                  );
+                })}
               </Stack>
 
-              <Divider sx={{ my: 2.5 }} />
+              {/* Seller Contact Section */}
+              {storefrontGroups.length > 0 && (
+                <Box
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2.5,
+                    p: 1.5,
+                    mb: 2,
+                    bgcolor: "action.hover",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 700, letterSpacing: 0.4, display: "block", mb: 1 }}
+                  >
+                    {multiStorefront ? `SELLERS (${storefrontGroups.length} STOREFRONTS)` : "SELLER"}
+                  </Typography>
+                  <Stack spacing={1}>
+                    {storefrontGroups.map((group) => (
+                      <Stack
+                        key={group.sellerId}
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        spacing={1}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={700} noWrap>
+                            {group.shopName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {group.items.length} {group.items.length === 1 ? "item" : "items"} ·{" "}
+                            {currency(
+                              group.subtotal -
+                                (Number(appliedVoucher?.voucher.student_id) === Number(group.sellerId)
+                                  ? Number(appliedVoucher.discount_amount)
+                                  : 0),
+                            )}
+                          </Typography>
+                        </Box>
+                        {group.sellerId && group.sellerId !== "unknown" && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            startIcon={<ChatBubbleOutlineRoundedIcon fontSize="small" />}
+                            onClick={() => handleContactSeller(group.sellerId)}
+                            sx={{ textTransform: "none", borderRadius: 2, fontSize: "0.75rem", flexShrink: 0 }}
+                          >
+                            Contact Seller
+                          </Button>
+                        )}
+                      </Stack>
+                    ))}
+                  </Stack>
+                  {multiStorefront && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 1 }}
+                    >
+                      You pay once for all items. Each storefront fulfills and ships its order separately.
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
+              <Divider sx={{ my: 2 }} />
 
               <Stack spacing={1.5}>
                 <SummaryRow
-                  label="Subtotal"
-                  value={`₱${subtotal.toLocaleString()}`}
+                  label={`Product Subtotal (${totalUnits} ${totalUnits === 1 ? "unit" : "units"})`}
+                  value={`₱${originalSubtotal.toLocaleString()}`}
                 />
-                {appliedVoucher && <SummaryRow label={`Voucher (${appliedVoucher.voucher.code})`} value={`−${currency(appliedVoucher.discount_amount)}`} />}
-                {multiStorefront && (
-                  <Box
-                    sx={{
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 2.5,
-                      p: 1.75,
-                      bgcolor: "action.hover",
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ fontWeight: 700, letterSpacing: 0.4 }}
-                    >
-                      SPLIT ACROSS {storefrontGroups.length} STOREFRONTS
-                    </Typography>
-                    <Stack spacing={1.25} sx={{ mt: 1.25 }}>
-                      {storefrontGroups.map((group) => (
-                        <Button
-                          key={group.sellerId}
-                          variant="text"
-                          disabled
-                          disableElevation
-                          sx={{
-                            p: 0,
-                            justifyContent: "space-between",
-                            textTransform: "none",
-                            color: "text.primary",
-                            width: "100%",
-                            "&.Mui-disabled": { color: "text.primary" },
-                          }}
-                        >
-                          <Stack alignItems="flex-start" sx={{ minWidth: 0 }}>
-                            <Typography
-                              variant="body2"
-                              fontWeight={700}
-                              noWrap
-                              sx={{ maxWidth: 190 }}
-                            >
-                              {group.shopName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {group.items.length}{" "}
-                              {group.items.length === 1 ? "artwork" : "artworks"}
-                            </Typography>
-                          </Stack>
-                          <Typography variant="body2" fontWeight={700} sx={{ ml: 1 }}>
-                            {currency(group.subtotal - (Number(appliedVoucher?.voucher.student_id) === Number(group.sellerId)
-                              ? Number(appliedVoucher.discount_amount) : 0))}
-                          </Typography>
-                        </Button>
-                      ))}
-                    </Stack>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "block", mt: 1.25 }}
-                    >
-                      You pay once for all artworks. Each storefront ships
-                      separately through a third-party courier (J&T, Lalamove,
-                      etc.) and is paid separately.
-                    </Typography>
-                  </Box>
-                )}
                 <SummaryRow
-                  label="Shipping"
-                  value="Paid to courier"
+                  label="Delivery Option"
+                  value={isDoorToDoor ? "Door-to-Door" : "Pickup"}
                 />
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: -1, mb: 1 }}
-                >
-                  Not included in the total. You arrange and pay the courier
-                  directly with the seller.
-                </Typography>
+                <SummaryRow
+                  label="Shipping Fee"
+                  value={isDoorToDoor ? "₱0 (Paid to courier)" : "₱0 (Free Pickup)"}
+                />
+                {isDoorToDoor ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: -1, mb: 0.5 }}
+                  >
+                    Courier shipping is arranged directly with the seller via third-party courier (J&T, Lalamove, etc.).
+                  </Typography>
+                ) : (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: -1, mb: 0.5 }}
+                  >
+                    No shipping fee for Pickup orders. Coordinate pickup schedule with the seller.
+                  </Typography>
+                )}
+                {appliedVoucher && (
+                  <SummaryRow
+                    label={`Voucher (${appliedVoucher.voucher.code})`}
+                    value={`−${currency(appliedVoucher.discount_amount)}`}
+                  />
+                )}
                 <Divider sx={{ my: 1 }} />
                 <SummaryRow
                   label="Total Amount"
@@ -998,10 +1521,12 @@ export default function Checkout() {
                 }}
                 disabled={
                   cartItems.length === 0 ||
-                  !currentAddress ||
+                  (isDoorToDoor && !currentAddress) ||
                   loading ||
                   voucherChecking ||
-                  hasSoldOutItems || selectionIncomplete
+                  hasSoldOutItems ||
+                  hasInsufficientStock ||
+                  selectionIncomplete
                 }
                 onClick={handlePlaceOrder}
               >
@@ -1015,7 +1540,63 @@ export default function Checkout() {
           </Grid>
         </Grid>
       )}
+
+      <AddressForm
+        open={addressFormOpen}
+        handleClose={() => {
+          setAddressFormOpen(false);
+          setEditingAddress(null);
+        }}
+        onSubmit={handleAddressFormSubmit}
+        selectedAddress={editingAddress}
+      />
     </Container>
+  );
+}
+
+function DeliveryOptionCard({ value, title, subtitle, icon, selectedValue, onSelect, disabled = false }) {
+  const isSelected = selectedValue === value;
+  return (
+    <Paper
+      variant="outlined"
+      onClick={() => {
+        if (!disabled && onSelect) onSelect(value);
+      }}
+      sx={{
+        p: 2,
+        borderRadius: 2.5,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.65 : 1,
+        borderColor: isSelected ? "error.main" : "divider",
+        borderWidth: isSelected ? 2 : 1,
+        bgcolor: isSelected ? "action.selected" : "background.paper",
+        transition: "all 0.2s ease-in-out",
+        "&:hover": {
+          borderColor: disabled ? "divider" : "error.main",
+        },
+      }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Radio
+          size="small"
+          color="error"
+          checked={isSelected}
+          disabled={disabled}
+          onChange={() => {
+            if (!disabled && onSelect) onSelect(value);
+          }}
+        />
+        <Box sx={{ display: "flex" }}>{icon}</Box>
+        <Box>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+            {title}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {subtitle}
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
   );
 }
 

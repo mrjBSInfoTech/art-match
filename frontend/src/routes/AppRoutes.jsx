@@ -235,6 +235,7 @@ export default function AppRoutes() {
                 <Route path="orders" element={<Navigate to="manage" replace />} />
                 <Route path="orders/manage" element={<SellerOrder />} />
                 <Route path="orders/inventory" element={<SellerInventory />} />
+                <Route path="inventory" element={<SellerInventory />} />
                 <Route
                   path="marketing"
                   element={<SellerMarketing />}

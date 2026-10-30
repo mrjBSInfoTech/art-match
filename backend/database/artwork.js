@@ -31,6 +31,7 @@ export const ensureArtworkSchema = async () => {
     await ensureColumns("artwork", [
       ["art_type", "VARCHAR(50) NULL"],
       ["product", "VARCHAR(50) NULL"],
+      ["stock_quantity", "INT NULL DEFAULT 0"],
       ["care_instructions", "TEXT NULL"],
       ["artwork_details", "JSON NULL"],
     ]);

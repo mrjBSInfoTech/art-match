@@ -201,6 +201,9 @@ def recommend_from_artwork_ids(
     actual artwork_id values.
     """
 
+    if not artwork_ids:
+        return []
+
     raw_history = (
         _clean_artwork_ids(
             artwork_ids
@@ -210,6 +213,9 @@ def recommend_from_artwork_ids(
     # --------------------------------------------------
     # Convert real artwork IDs to trained SASRec IDs.
     # --------------------------------------------------
+
+    if not raw_history:
+        return []
 
     mapped_history = [
         RAW_TO_SASREC[

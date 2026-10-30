@@ -26,6 +26,7 @@ import {
 } from "@mui/material";
 import { clearAuthData } from "../../../../utils/auth";
 import { recordLogout } from "../../../api/buyer/buyerAuthenticationAPI";
+import { clearRecommendationClientState } from "../../../api/buyer/recommendationAPI";
 import ProfileLogout from "./ProfileLogout";
 // Icons
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -168,6 +169,7 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
     setDrawerOpen(false);
     await recordLogout();
     clearAuthData("buyer");
+    clearRecommendationClientState();
     navigate("/buyer/login", { replace: true });
   };
 

@@ -34,6 +34,7 @@ const router = express.Router();
 const SHIPPING_FEE = 0;
 
 const paymentMethods = new Set(["paymongo", "cod"]);
+const deliveryMethods = new Set(["door_to_door", "pickup"]);
 
 const query = async (executor, sql, params = []) => {
   const [rows] = await executor.query(sql, params);
@@ -59,6 +60,10 @@ const groupOrderRows = (rows) => {
         trackingUrl: row.tracking_url || null,
         customerId: row.customer_id,
         sellerId: row.seller_id,
+        sellerName: row.seller_name || row.artist_name || null,
+        sellerAddress: row.seller_address || null,
+        sellerEmail: row.seller_email || null,
+        deliveryMethod: row.delivery_method || "door_to_door",
         payment: row.payment_method,
         paymentStatus: row.payment_status,
         paymentReference: row.payment_reference,
@@ -145,6 +150,7 @@ const ordersSql = `
     o.tracking_number,
     o.tracking_url,
     o.customer_id,
+    o.delivery_method,
     o.payment_method,
     o.payment_status,
     o.payment_reference,
@@ -165,6 +171,9 @@ const ordersSql = `
     o.shipping_region,
     o.shipping_postal_code,
     o.seller_id,
+    CONCAT(st.first_name, ' ', st.last_name) AS seller_name,
+    NULLIF(TRIM(st.address), '') AS seller_address,
+    st.email AS seller_email,
 
     i.order_item_id,
     i.artwork_id,
@@ -181,6 +190,9 @@ const ordersSql = `
     r.created_at AS review_created_at
 
   FROM marketplace_order o
+
+  LEFT JOIN student st
+    ON st.student_id = o.seller_id
 
   LEFT JOIN marketplace_order_item i
     ON i.order_id = o.order_id
@@ -347,6 +359,21 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
     if (items.length !== selectedIds.length) {
       throw new CheckoutVoucherError("Some selected artworks are no longer in your cart. Please review your selection.");
     }
+    const requestedQuantities = body.quantities && typeof body.quantities === "object" && !Array.isArray(body.quantities)
+      ? body.quantities
+      : null;
+    if (requestedQuantities) {
+      for (const item of items) {
+        const rawQty = requestedQuantities[item.artwork_id] ?? requestedQuantities[String(item.artwork_id)];
+        if (rawQty !== undefined) {
+          const parsedQty = Number(rawQty);
+          if (!Number.isSafeInteger(parsedQty) || parsedQty <= 0) {
+            throw new CheckoutVoucherError("Select a valid quantity for each checkout item.");
+          }
+          item.quantity = parsedQty;
+        }
+      }
+    }
     if (items.some((item) => {
       const quantity = Number(item.quantity || 1);
       const availability = getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1);
@@ -372,8 +399,12 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
   req.body ||= {};
   const recommendationSessionId = getRecommendationSessionIdFromRequest(req);
 
+  const hasAddressId = req.body.address_id !== undefined && req.body.address_id !== null && req.body.address_id !== "";
   const addressId = Number(req.body.address_id);
 
+  const rawDeliveryMethod = req.body.delivery_method === undefined
+    ? "door_to_door"
+    : String(req.body.delivery_method || "").trim().toLowerCase();
   const paymentMethod = String(req.body.payment_method || "").toLowerCase();
   const requestedArtworkIds = req.body.artwork_ids;
   if (req.user.student_id || req.user.student_number || req.user.admin_id) {
@@ -394,7 +425,20 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
   }
   const selectedArtworkIds = requestedArtworkIds === undefined ? null : [...new Set(requestedArtworkIds)];
 
-  if (!Number.isInteger(addressId) || addressId <= 0) {
+  if (!deliveryMethods.has(rawDeliveryMethod)) {
+    return res.status(400).json({
+      message: "Choose a valid delivery method",
+    });
+  }
+  const deliveryMethod = rawDeliveryMethod;
+  const isPickup = deliveryMethod === "pickup";
+
+  if (!isPickup && (!Number.isInteger(addressId) || addressId <= 0)) {
+    return res.status(400).json({
+      message: "A valid shipping address is required",
+    });
+  }
+  if (isPickup && hasAddressId && (!Number.isInteger(addressId) || addressId <= 0)) {
     return res.status(400).json({
       message: "A valid shipping address is required",
     });
@@ -484,7 +528,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
            s.first_name,
            ' ',
            s.last_name
-         ) AS artist_name
+         ) AS artist_name,
+         NULLIF(TRIM(s.address), '') AS seller_address
 
        FROM cart_item ci
 
@@ -520,6 +565,23 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       return res.status(400).json({
         message: "Your cart is empty",
       });
+    }
+
+    const requestedQuantities = req.body.quantities && typeof req.body.quantities === "object" && !Array.isArray(req.body.quantities)
+      ? req.body.quantities
+      : null;
+    if (requestedQuantities) {
+      for (const item of items) {
+        const rawQty = requestedQuantities[item.artwork_id] ?? requestedQuantities[String(item.artwork_id)];
+        if (rawQty !== undefined) {
+          const parsedQty = Number(rawQty);
+          if (!Number.isSafeInteger(parsedQty) || parsedQty <= 0) {
+            await connection.rollback();
+            return res.status(400).json({ message: "A valid quantity is required for each checkout item" });
+          }
+          item.quantity = parsedQty;
+        }
+      }
     }
 
     /*
@@ -637,34 +699,51 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
      * It must belong to the current
      * logged-in buyer.
      */
-    const addresses = await query(
-      connection,
+    let address = null;
+    if (!isPickup || (hasAddressId && Number.isInteger(addressId) && addressId > 0)) {
+      const addresses = await query(
+        connection,
 
-      `SELECT
-         street_name,
-         barangay,
-         city,
-         province,
-         region,
-         postal_code
+        `SELECT
+           street_name,
+           barangay,
+           city,
+           province,
+           region,
+           postal_code
 
-       FROM address
+         FROM address
 
-       WHERE
-         address_id = ?
-         AND customer_id = ?
+         WHERE
+           address_id = ?
+           AND customer_id = ?
 
-       FOR UPDATE`,
+         FOR UPDATE`,
 
-      [addressId, req.user.customer_id],
-    );
+        [addressId, req.user.customer_id],
+      );
 
-    if (!addresses.length) {
-      await connection.rollback();
+      if (!addresses.length && !isPickup) {
+        await connection.rollback();
 
-      return res.status(400).json({
-        message: "The selected shipping address is not available",
-      });
+        return res.status(400).json({
+          message: "The selected shipping address is not available",
+        });
+      }
+
+      if (addresses.length) {
+        address = addresses[0];
+      }
+    }
+
+    if (!isPickup) {
+      const requiredFields = ["street_name", "barangay", "city", "region", "postal_code"];
+      if (!address || requiredFields.some((field) => !String(address[field] || "").trim())) {
+        await connection.rollback();
+        return res.status(400).json({
+          message: "A complete shipping address is required for Door-to-Door delivery",
+        });
+      }
     }
 
     /*
@@ -693,8 +772,6 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         message: "Buyer account not found",
       });
     }
-
-    const address = addresses[0];
 
     const buyer = buyers[0];
 
@@ -753,6 +830,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       const originalSubtotal = sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).originalCentavos, 0) / 100;
       const subtotal = sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos, 0) / 100;
       const discountAmount = (Math.round(originalSubtotal * 100) - Math.round(subtotal * 100)) / 100;
+      const sellerPickupLocation =
+        sellerItems[0]?.seller_address ||
+        "Central Academy of Fine Arts (CAFA) Campus Studio";
 
       const [result] = await connection.query(
         `INSERT INTO marketplace_order
@@ -763,6 +843,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             buyer_name,
             buyer_email,
 
+            delivery_method,
             payment_method,
             payment_status,
             payment_reference,
@@ -783,7 +864,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           )
           VALUES (
             ?, ?, ?, ?,
-            ?, ?, ?,
+            ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?
           )`,
@@ -795,16 +876,17 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           buyerName,
           buyer.email,
 
+          deliveryMethod,
           paymentMethod,
           "Pending",
           paymentReference,
 
-          address.street_name,
-          address.barangay,
-          address.city,
-          address.province,
-          address.region,
-          address.postal_code,
+          isPickup ? `Pickup: ${sellerPickupLocation}` : address.street_name,
+          isPickup ? "" : address.barangay,
+          isPickup ? "" : address.city,
+          isPickup ? "" : address.province,
+          isPickup ? "" : address.region,
+          isPickup ? "" : address.postal_code,
 
           subtotal,
           originalSubtotal,
@@ -880,6 +962,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         id: `AM-${String(result.insertId).padStart(6, "0")}`,
 
         sellerId,
+        deliveryMethod,
 
         subtotal,
         originalSubtotal,
@@ -1233,8 +1316,12 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
       recordInteraction: recordRecommendationInteraction,
       sourcePage: "paymongo_buyer_reconciliation",
     });
+    const updatedRows = await query(connection, `${ordersSql}
+      WHERE o.customer_id = ? AND o.payment_reference = ? AND o.payment_method = 'paymongo'
+      ORDER BY o.order_id, i.order_item_id`, [req.user.customer_id, req.params.reference]);
     return {
       ...result,
+      orders: groupOrderRows(updatedRows),
       payment_reference: req.params.reference,
       message: result.requires_refund_review
         ? "Payment was recorded, but the order needs support review."

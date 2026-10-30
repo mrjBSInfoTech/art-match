@@ -357,7 +357,14 @@ const registerPublicKey = (accountType, accountId, value, res) => {
 };
 
 const fetchPublicKey = (accountType, accountId, res) => {
-  getChatPublicKey(accountType, accountId, (error, rows) => {
+  const id = Number(accountId);
+  // Reject missing/invalid IDs (e.g. "/keys/undefined") before reaching MySQL,
+  // where NaN would otherwise be interpreted as a column name.
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    res.status(400).json({ message: "A valid account ID is required to load the chat public key" });
+    return;
+  }
+  getChatPublicKey(accountType, id, (error, rows) => {
     if (error) {
       console.error("Chat public key fetch failed:", error);
       res.status(500).json({ message: "Unable to load chat public key" });

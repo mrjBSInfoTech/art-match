@@ -6,9 +6,7 @@ export default function PayoutMetrics({ totals = {} }) {
     ["Held", totals.held, "Delivery, return or refund hold"],
     ["Eligible", totals.eligible, "Ready for administrator review"],
     ["Processing", totals.processing, "Awaiting provider confirmation"],
-    // Hide the provider-confirmed payout card while keeping the configuration reusable for future re-enablement.
-    // ["Paid to seller", totals.paid, "Provider-confirmed transfers"],
-    ...(totals.demoPaid !== undefined ? [["Paid", totals.demoPaid, "Provider-confirmed transfers."]] : []),// This is a demo not the actual account
+    ["Paid to seller", totals.paid, "Provider-confirmed transfers"],
   ];
   return <Grid container spacing={2}>
     {metrics.map(([label, value, hint]) => <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={label}>

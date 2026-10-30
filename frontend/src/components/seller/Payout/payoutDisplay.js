@@ -26,8 +26,8 @@ export const payoutStatusMessage = {
 
 export const payoutValue = (payout) => payout?.payoutAmount ?? payout?.net ?? 0;
 export const payoutIdentifier = (payout) => payout?.payoutId ?? payout?.splitId;
-export const isDemoPayout = (payout) => payout?.payoutProvider === "demo" || payout?.isDemo === true;
-export const isDemoCapability = (capability) => capability?.provider === "demo" || capability?.mode === "demo";
+export const isDemoPayout = () => false;
+export const isDemoCapability = () => false;
 export const payoutApprovalLabel = (payout) => {
   const status = payout?.approval?.status;
   if (status === "Pending Approval") return "Awaiting admin approval";
@@ -36,9 +36,7 @@ export const payoutApprovalLabel = (payout) => {
   if (status === "Invalidated") return "Approval requires a new request";
   return "Not Requested";
 };
-export const payoutDisplayStatus = (payout) => {
-  return payout?.payoutStatus || "Held";
-};
+export const payoutDisplayStatus = (payout) => payout?.payoutStatus || "Held";
 export const canPayoutAction = (payout, action) => payout?.actions?.[`can${action[0].toUpperCase()}${action.slice(1)}`] === true;
 export const canReleasePayout = (payout, capability) => canPayoutAction(payout, "release")
   && payout?.payoutStatus === "Eligible" && capability?.enabled === true && Boolean(payout?.destination);

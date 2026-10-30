@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 import {
   Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, FormHelperText, MenuItem, Select, Slide, Stack, Typography,
+  Divider, FormControl, FormHelperText, MenuItem, Select, Slide, Stack, Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
@@ -12,13 +12,61 @@ import {
   canFulfillOrder, getPaymentColor, getPaymentLabel,
   getPaymentMethodLabel, needsPaymentSupport,
 } from "../../../utils/orderPayments.js";
-import { formatCurrency, formatOrderDate, statusColorMap } from "./orderPresentation.js";
+import { formatCurrency, statusColorMap } from "./orderPresentation.js";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 
 const Transition = forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
+
+const formatReceiptDateTime = (value) => {
+  if (!value) return "Pending";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Pending";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+};
+
+const formatReceiptDate = (value) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
+const formatReceiptAmount = (value) =>
+  new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+
+const getReturnDeadlineDisplay = (returnDeadline, deliveredAt) => {
+  if (returnDeadline) {
+    const formatted = formatReceiptDate(returnDeadline);
+    if (formatted !== "N/A") return formatted;
+  }
+  if (deliveredAt) {
+    const base = new Date(deliveredAt);
+    if (!Number.isNaN(base.getTime())) {
+      const deadline = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return formatReceiptDate(deadline);
+    }
+  }
+  return "Pending delivery";
+};
 
 export default function OrderInfo({
   open,
@@ -36,6 +84,13 @@ export default function OrderInfo({
   const items = order?.items || [];
   const trackingUrl = getSecureTrackingUrl(order?.trackingUrl);
   const shipmentCourier = getShipmentCourier(order?.courier);
+  const receiptPhotos = Array.isArray(order?.receivedPhotos)
+    ? order.receivedPhotos
+    : Array.isArray(order?.deliveryPhotos)
+      ? order.deliveryPhotos
+      : Array.isArray(order?.receiptPhotos)
+        ? order.receiptPhotos
+        : [];
   const detailLabelSx = {
     display: "block", color: "text.secondary", fontSize: 11,
     lineHeight: 1.2, mb: 0.35,
@@ -44,6 +99,35 @@ export default function OrderInfo({
     color: "text.primary", fontSize: 12, fontWeight: 600,
     lineHeight: 1.35, overflowWrap: "anywhere", whiteSpace: "pre-wrap",
   };
+
+  const itemTitles = items.length
+    ? items.map((item) => item.title || "Untitled artwork").join(", ")
+    : "N/A";
+  const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const courierDisplay = shipmentCourier?.label || order?.courier || "N/A";
+  const receivedByDisplay =
+    order?.receivedBy ||
+    (order?.deliveredAt || order?.status === "Delivered"
+      ? order?.customer || "Not provided"
+      : "Pending");
+
+  const receiptRows = order
+    ? [
+        { label: "Receipt No.:", value: order.id || order.orderNumber || "N/A" },
+        { label: "Date Received:", value: formatReceiptDateTime(order.deliveredAt || order.receivedAt) },
+        { label: "Buyer:", value: order.customer || "Not provided" },
+        { label: "Order Date:", value: formatReceiptDate(order.date) },
+        { label: "Item:", value: itemTitles },
+        { label: "Qty:", value: String(totalQty) },
+        { label: "Amount:", value: formatReceiptAmount(order.total), highlight: true },
+        { label: "Payment:", value: getPaymentMethodLabel(order), isPayment: true },
+        { label: "Courier:", value: courierDisplay },
+        { label: "Tracking No.:", value: order.trackingNumber || "N/A" },
+        { label: "Received by:", value: receivedByDisplay },
+        { label: "Delivery Address:", value: order.address || "Not provided" },
+        { label: "Return deadline:", value: getReturnDeadlineDisplay(order.returnDeadline, order.deliveredAt) },
+      ]
+    : [];
 
   return (
     <Dialog
@@ -92,70 +176,114 @@ export default function OrderInfo({
             </Box>
 
             <Box sx={{
-              display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-              gap: 1.5, mt: 1.75, p: 1.5, border: "1px solid",
+              mt: 1.75, p: 2, border: "1px solid",
               borderColor: "divider", borderRadius: 2, bgcolor: "background.default",
             }}>
-              <Box>
-                <Typography sx={detailLabelSx}>Order number</Typography>
-                <Typography sx={detailValueSx}>{order.id}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={detailLabelSx}>Customer</Typography>
-                <Typography sx={detailValueSx}>{order.customer || "Not provided"}</Typography>
-              </Box>
-              <Box sx={{ gridColumn: "1 / -1" }}>
-                <Typography sx={detailLabelSx}>Order date</Typography>
-                <Typography sx={detailValueSx}>{formatOrderDate(order.date)}</Typography>
-              </Box>
-              <Box>
-                <Typography sx={detailLabelSx}>Payment method</Typography>
-                <Typography sx={detailValueSx}>{getPaymentMethodLabel(order)}</Typography>
-                <Chip label={getPaymentLabel(order)} color={getPaymentColor(order)} size="small"
-                  variant="outlined" sx={{ mt: 0.75, height: 22, fontSize: 10 }} />
-              </Box>
-              <Box>
-                <Typography sx={detailLabelSx}>Order total</Typography>
-                <Typography sx={{ ...detailValueSx, color: "error.main" }}>{formatCurrency(order.total)}</Typography>
-              </Box>
-              <Box sx={{ gridColumn: "1 / -1" }}>
-                <Typography sx={detailLabelSx}>Shipping address</Typography>
-                <Typography sx={detailValueSx}>{order.address || "Not provided"}</Typography>
-              </Box>
-              {order.note && (
-                <Box sx={{ gridColumn: "1 / -1" }}>
-                  <Typography sx={detailLabelSx}>Customer note</Typography>
-                  <Typography sx={detailValueSx}>{order.note}</Typography>
-                </Box>
-              )}
-              {shipmentCourier && (
-                <Box sx={{ gridColumn: "1 / -1" }}>
-                  <Typography sx={detailLabelSx}>Courier</Typography>
-                  <Typography sx={detailValueSx}>{shipmentCourier.label}</Typography>
-                </Box>
-              )}
-              {order.trackingNumber && (
-                <Box sx={{ gridColumn: "1 / -1" }}>
-                  <Typography sx={detailLabelSx}>{shipmentCourier?.trackingNumberLabel || "Tracking number"}</Typography>
-                  <Typography sx={detailValueSx}>{order.trackingNumber}</Typography>
-                </Box>
-              )}
-              {trackingUrl && (
-                <Box sx={{ gridColumn: "1 / -1" }}>
-                  <Typography sx={detailLabelSx}>Courier tracking</Typography>
-                  <Button
-                    component="a"
-                    href={trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    size="small"
-                    sx={{ px: 0, textTransform: "none" }}
+              <Stack spacing={0.85}>
+                {receiptRows.map((row) => (
+                  <Box
+                    key={row.label}
+                    sx={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      justifyContent: "space-between",
+                      gap: 1.5,
+                    }}
                   >
-                    Open tracking
-                  </Button>
-                </Box>
+                    <Typography
+                      component="span"
+                      sx={{
+                        color: "text.secondary",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {row.label}
+                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", justifyContent: "flex-end", textAlign: "right" }}>
+                      <Typography
+                        component="span"
+                        sx={{
+                          ...detailValueSx,
+                          color: row.highlight ? "error.main" : "text.primary",
+                          fontWeight: row.highlight ? 700 : 600,
+                        }}
+                      >
+                        {row.value}
+                      </Typography>
+                      {row.isPayment && (
+                        <Chip
+                          label={getPaymentLabel(order)}
+                          color={getPaymentColor(order)}
+                          size="small"
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: 10 }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+              </Stack>
+
+              {order.note && (
+                <>
+                  <Divider sx={{ my: 1.25 }} />
+                  <Box>
+                    <Typography sx={detailLabelSx}>Customer note</Typography>
+                    <Typography sx={detailValueSx}>{order.note}</Typography>
+                  </Box>
+                </>
+              )}
+
+              {trackingUrl && (
+                <>
+                  <Divider sx={{ my: 1.25 }} />
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Typography sx={{ color: "text.secondary", fontSize: 12, fontWeight: 600 }}>
+                      Courier tracking
+                    </Typography>
+                    <Button
+                      component="a"
+                      href={trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="small"
+                      sx={{ px: 0, minWidth: 0, fontSize: 12, textTransform: "none" }}
+                    >
+                      Open tracking
+                    </Button>
+                  </Box>
+                </>
               )}
             </Box>
+
+            {receiptPhotos.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontSize: 12, fontWeight: 700 }}>
+                  Delivery / receipt proof
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(72px, 1fr))", gap: 1 }}>
+                  {receiptPhotos.map((photo, index) => (
+                    <Box
+                      key={photo?.url || photo || `${order.id}-receipt-${index}`}
+                      component="img"
+                      src={photo?.url || photo}
+                      alt={`Receipt proof ${index + 1}`}
+                      sx={{
+                        width: "100%",
+                        height: 80,
+                        objectFit: "cover",
+                        borderRadius: 1.5,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        bgcolor: "background.default",
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
 
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontSize: 12, fontWeight: 700 }}>
               Purchased artworks
@@ -208,9 +336,9 @@ export default function OrderInfo({
 
       <DialogActions sx={{ justifyContent: "flex-end", flexWrap: "wrap", gap: 1,
         px: 2.5, py: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
-        <Button variant="outlined" startIcon={<PrintOutlinedIcon />} disabled={!order || !canFulfillOrder(order)}
-          onClick={onPrint} sx={{ fontSize: 11, fontWeight: 700 }}>
-          Print parcel label
+        <Button variant="contained" startIcon={<PrintOutlinedIcon />} disabled={!order || !canFulfillOrder(order)}
+          onClick={onPrint} sx={{ fontSize: 11, fontWeight: 700, color:"#fff" }}>
+          Print Parcel Label
         </Button>
         <Button onClick={handleClose} sx={{ bgcolor: "action.hover", color: "text.primary",
           fontSize: 11, fontWeight: 600, "&:hover": { bgcolor: "action.selected" } }}>

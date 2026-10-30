@@ -52,11 +52,12 @@ export const fetchPaymentMethods = async ({ signal } = {}) => {
   }
 };
 
-export const validateCheckoutVoucher = async (voucherCode, artworkIds, { signal } = {}) => {
+export const validateCheckoutVoucher = async (voucherCode, artworkIds, { signal, quantities } = {}) => {
   try {
     const response = await api.post("/vouchers/validate", {
       voucher_code: voucherCode,
       artwork_ids: artworkIds,
+      ...(quantities && typeof quantities === "object" ? { quantities } : {}),
     }, { signal });
     return response.data;
   } catch (error) {
@@ -64,14 +65,16 @@ export const validateCheckoutVoucher = async (voucherCode, artworkIds, { signal 
   }
 };
 
-export const placeBuyerOrder = async (addressId, paymentMethod, artworkIds, { voucherCode, expectedTotalCentavos } = {}) => {
+export const placeBuyerOrder = async (addressId, paymentMethod, artworkIds, { voucherCode, expectedTotalCentavos, quantities, deliveryMethod } = {}) => {
   try {
     const response = await api.post("/checkout", {
-      address_id: addressId,
+      ...(addressId !== undefined && addressId !== null ? { address_id: addressId } : {}),
+      delivery_method: deliveryMethod || "door_to_door",
       payment_method: paymentMethod,
       ...(artworkIds !== undefined ? { artwork_ids: artworkIds } : {}),
       ...(voucherCode ? { voucher_code: voucherCode } : {}),
       ...(voucherCode && expectedTotalCentavos !== undefined ? { expected_total_centavos: expectedTotalCentavos } : {}),
+      ...(quantities && typeof quantities === "object" ? { quantities } : {}),
     });
     if (paymentMethod === "cod") window.dispatchEvent(new Event("cart-updated"));
     return response.data;

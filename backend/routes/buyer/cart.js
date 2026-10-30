@@ -44,10 +44,12 @@ router.get("/", authenticateBuyer, (req, res) => {
       a.genre,
       a.art_type,
       a.product,
+      a.art_size,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
       ${getArtworkSoldQuantitySql()} AS sold_quantity,
       ${getArtworkSoldOutSql()} AS is_sold_out,
       CONCAT(s.first_name, ' ', s.last_name) AS artist,
+      NULLIF(TRIM(s.address), '') AS seller_address,
       NULLIF(TRIM(st.shop_name), '') AS shop_name
     FROM add_cart ac
     JOIN cart_item ci ON ci.add_to_id = ac.add_to_id

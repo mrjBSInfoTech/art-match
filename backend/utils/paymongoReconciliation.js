@@ -147,7 +147,7 @@ export async function reconcilePaidCheckout(
   }
   await connection.query(
     `UPDATE add_cart ac SET total_price = (
-       SELECT COALESCE(SUM(a.price), 0) FROM cart_item ci
+       SELECT COALESCE(SUM(a.price * ci.quantity), 0) FROM cart_item ci
        JOIN artwork a ON a.artwork_id = ci.artwork_id WHERE ci.add_to_id = ac.add_to_id
      ) WHERE ac.customer_id = ?`,
     [customerId],

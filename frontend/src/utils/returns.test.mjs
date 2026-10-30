@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
@@ -43,13 +43,32 @@ function returnComponent(name, initialProps, api = {}) {
     if (modules.has(filename)) return modules.get(filename);
     const context = vm.createContext({
       React: react, Date, Intl, URL, console,
+      window: {
+        location: { origin: "http://localhost:5173" },
+        setInterval: () => 0,
+        clearInterval: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      },
+      navigator: { clipboard: { writeText: async () => {} } },
       require(specifier) {
         if (specifier === "react") return react;
-        if (specifier === "@mui/material") return new Proxy({}, { get: (_, component) => component });
+        if (specifier === "@mui/material" || specifier === "@mui/material/styles") {
+          return new Proxy({
+            useTheme: () => ({ palette: { mode: "light" } }),
+          }, {
+            get: (target, prop) => {
+              if (prop in target) return target[prop];
+              return prop;
+            },
+          });
+        }
         if (specifier.includes("/api/")) return api;
-        if (specifier.startsWith("./")) {
-          const componentPath = specifier.endsWith(".jsx") ? specifier : `${specifier}.jsx`;
-          return loadComponent(resolve(dirname(filename), componentPath));
+        if (specifier.startsWith("./") || specifier.includes("OrderTrack") || specifier.includes("shipmentCouriers") || specifier.includes("trackingUrl")) {
+          const base = resolve(dirname(filename), specifier);
+          if (existsSync(base)) return loadComponent(base);
+          if (existsSync(`${base}.jsx`)) return loadComponent(`${base}.jsx`);
+          if (existsSync(`${base}.js`)) return loadComponent(`${base}.js`);
         }
         return { __esModule: true, default: specifier };
       },

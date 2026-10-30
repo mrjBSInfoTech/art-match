@@ -1,4 +1,5 @@
 import db from "./db.js";
+import { orderRefundTableSql } from "./payouts.js";
 
 // Core order/chat tables are existing application prerequisites. Returns are
 // additive and never replace fulfillment, payment, messages, or inventory.
@@ -19,6 +20,8 @@ export const returnRequestTableSql = `
     return_shipped_at DATETIME NULL,
     received_at DATETIME NULL,
     completed_at DATETIME NULL,
+    return_courier VARCHAR(50) NULL,
+    return_tracking_number VARCHAR(100) NULL,
     return_tracking_url VARCHAR(2048) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -54,6 +57,19 @@ export const returnItemTableSql = `
 `;
 
 export async function ensureReturnTables() {
-  await db.promise().query(returnRequestTableSql);
-  await db.promise().query(returnItemTableSql);
+  const executor = db.promise();
+  await executor.query(returnRequestTableSql);
+  await executor.query(returnItemTableSql);
+  await executor.query(orderRefundTableSql);
+  const [columns] = await executor.query("SHOW COLUMNS FROM marketplace_return_request");
+  const existing = new Set(columns.map((column) => column.Field));
+  for (const [name, definition] of [
+    ["return_courier", "VARCHAR(50) NULL"],
+    ["return_tracking_number", "VARCHAR(100) NULL"],
+    ["evidence_photos", "JSON NULL"],
+  ]) {
+    if (!existing.has(name)) {
+      await executor.query(`ALTER TABLE marketplace_return_request ADD COLUMN ${name} ${definition}`);
+    }
+  }
 }

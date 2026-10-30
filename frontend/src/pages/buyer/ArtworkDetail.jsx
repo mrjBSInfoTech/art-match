@@ -73,6 +73,7 @@ export default function ArtworkDetail() {
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [, setRecentHistory] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -84,6 +85,10 @@ export default function ArtworkDetail() {
     const timeoutId = setTimeout(() => setCartMessage(""), 1000);
     return () => clearTimeout(timeoutId);
   }, [cartMessage]);
+
+  useEffect(() => {
+    setSelectedQuantity(1);
+  }, [id]);
 
   // Fetch artwork detail and also the list for related items
   useEffect(() => {
@@ -247,14 +252,24 @@ export default function ArtworkDetail() {
       : artwork.image
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
+  const isProduct = String(artwork?.art_type || "").trim().toLowerCase() === "product";
+  const stockAvailable = artwork?.stock_available != null && artwork.stock_available !== ""
+    ? Number(artwork.stock_available)
+    : null;
+  const soldQuantity = Number(artwork?.sold_quantity || 0);
+  const remainingStock = stockAvailable !== null
+    ? Math.max(0, stockAvailable - soldQuantity)
+    : (isSoldOut ? 0 : null);
+  const maxAvailableQuantity = remainingStock !== null ? remainingStock : 9999;
+  const isOutOfStock = isSoldOut || (isProduct && remainingStock !== null && remainingStock <= 0);
   const detailCategory = getArtworkDetailCategory(artwork.art_type, artwork.product);
 
   const similarArtworks = getSimilarArtworks(artwork, artworks);
 
-  const handleAddToCart = async (artworkId) => {
+  const handleAddToCart = async (artworkId, quantity = 1) => {
     try {
       setAddingToCart(true);
-      const result = await addToCart(artworkId);
+      const result = await addToCart(artworkId, quantity);
       setCartMessage("Added to cart");
       showSnackbar(result?.message || "Artwork added to cart", "success");
       return result;
@@ -353,10 +368,10 @@ export default function ArtworkDetail() {
                 sx={{ fontWeight: "bold", borderRadius: 2, px: 1 }}
               />
               <Chip
-                label={isSoldOut ? "Sold out" : "Available"}
+                label={isOutOfStock ? "Sold out" : "Available"}
                 size="small"
-                color={isSoldOut ? "default" : "success"}
-                sx={{ fontWeight: "bold", color: isSoldOut ? undefined : "#fff" }}
+                color={isOutOfStock ? "default" : "success"}
+                sx={{ fontWeight: "bold", color: isOutOfStock ? undefined : "#fff" }}
               />
             </Stack>
             <Typography
@@ -401,16 +416,103 @@ export default function ArtworkDetail() {
                   <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} RowComponent={Row} />
                 )}
               </Stack>
+              {isProduct && !isOutOfStock && (
+                <Box sx={{ mt: 2.5, mb: 1, p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Quantity
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={addingToCart || selectedQuantity <= 1}
+                        onClick={() => setSelectedQuantity((q) => Math.max(1, q - 1))}
+                        sx={{
+                          minWidth: 32,
+                          width: 32,
+                          height: 32,
+                          p: 0,
+                          borderRadius: 1,
+                          fontWeight: 700,
+                          fontSize: 16,
+                        }}
+                      >
+                        −
+                      </Button>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          minWidth: 32,
+                          textAlign: "center",
+                          fontWeight: 700,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {selectedQuantity}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={addingToCart || selectedQuantity >= maxAvailableQuantity}
+                        onClick={() => setSelectedQuantity((q) => Math.min(maxAvailableQuantity, q + 1))}
+                        sx={{
+                          minWidth: 32,
+                          width: 32,
+                          height: 32,
+                          p: 0,
+                          borderRadius: 1,
+                          fontWeight: 700,
+                          fontSize: 16,
+                        }}
+                      >
+                        +
+                      </Button>
+                    </Stack>
+                  </Stack>
+                  {remainingStock !== null && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        textAlign: "right",
+                        mt: 0.75,
+                        fontWeight: 600,
+                        color: remainingStock <= 5 ? "warning.main" : "text.secondary",
+                      }}
+                    >
+                      {remainingStock <= 5
+                        ? `Only ${remainingStock} left in stock`
+                        : `Available stock: ${remainingStock} units`}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              {isProduct && isOutOfStock && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    mt: 2,
+                    mb: 1,
+                    color: "error.main",
+                    fontWeight: 600,
+                    textAlign: "center",
+                  }}
+                >
+                  Out of Stock
+                </Typography>
+              )}
               <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                 <Button
                   variant="contained"
                   color="primary"
                   fullWidth
-                  disabled={addingToCart || isSoldOut}
+                  disabled={addingToCart || isOutOfStock}
                   onClick={() =>
-                    handleAddToCart(artwork.artwork_id || artwork.id).catch(
-                      () => {},
-                    )
+                    handleAddToCart(
+                      artwork.artwork_id || artwork.id,
+                      isProduct ? selectedQuantity : 1,
+                    ).catch(() => {})
                   }
                   sx={{
                     padding: 1,
@@ -421,7 +523,7 @@ export default function ArtworkDetail() {
                     color: "white",
                   }}
                 >
-                  {isSoldOut
+                  {isOutOfStock
                     ? "Sold out"
                     : addingToCart
                       ? "Adding..."

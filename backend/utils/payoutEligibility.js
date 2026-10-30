@@ -4,12 +4,25 @@ const query = async (executor, sql, params = []) => (await executor.query(sql, p
 const protectedStatuses = new Set(["Processing", "Paid"]);
 const activeReturnStatuses = new Set(["Requested", "Approved", "Return Shipped", "Received"]);
 
+const parseBoolean = value => {
+  if (value === undefined || value === null) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(normalized);
+};
+
 export function getPayoutHoldPolicy(env = process.env) {
   const selectedProvider = String(env.PAYOUT_PROVIDER || "paymongo").trim().toLowerCase();
   const production = String(env.NODE_ENV || "").trim().toLowerCase() === "production";
-  const immediateTestPayouts = !production && env.PAYMONGO_TEST_PAYOUT_IMMEDIATE === "true" &&
-    (selectedProvider === "demo" || (selectedProvider === "paymongo" &&
-      /^sk_test_\S+$/.test(String(env.PAYMONGO_SECRET_KEY || "").trim())));
+  const rawFlag = env.PAYMONGO_TEST_PAYOUT_IMMEDIATE;
+  const hasExplicitFlag = rawFlag !== undefined && rawFlag !== null && String(rawFlag).trim() !== "";
+  const explicitImmediate = hasExplicitFlag && parseBoolean(rawFlag);
+  const explicitDisable = hasExplicitFlag && !parseBoolean(rawFlag);
+  const hasTestKey = /^sk_test_\S+$/.test(String(env.PAYMONGO_SECRET_KEY || "").trim());
+  const hasLiveKey = /^sk_live_/.test(String(env.PAYMONGO_SECRET_KEY || "").trim());
+  const isDemoProvider = selectedProvider === "demo";
+  const isTestPayoutProvider = selectedProvider === "paymongo" && hasTestKey && !hasLiveKey;
+  const immediateTestPayouts = !production && !explicitDisable && !hasLiveKey &&
+    (isDemoProvider || isTestPayoutProvider || (explicitImmediate && (isDemoProvider || isTestPayoutProvider)));
   return { holdDays: immediateTestPayouts ? 0 : 7, immediateTestPayouts };
 }
 

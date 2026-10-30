@@ -6,9 +6,80 @@ const api = axios.create({
   timeout: 10000,
 });
 
+const getBuyerIdFromToken = (token) => {
+  if (!token) return null;
+  try {
+    const parts = String(token).split(".");
+    if (parts.length < 2) return null;
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = JSON.parse(
+      decodeURIComponent(
+        globalThis
+          .atob(payload)
+          .split("")
+          .map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`)
+          .join(""),
+      ),
+    );
+    const id = Number(decoded.customer_id ?? decoded.id);
+    return Number.isInteger(id) && id > 0 ? String(id) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const getActiveBuyerIdentity = () => {
+  const token = localStorage.getItem("buyer_token");
+  if (!token) return null;
+  return (
+    getBuyerIdFromToken(token) ||
+    localStorage.getItem("buyer_customer_id") ||
+    null
+  );
+};
+
+const getSessionStorageKey = () => {
+  const buyerId = getActiveBuyerIdentity();
+  return buyerId
+    ? `recommendation_session_id_user_${buyerId}`
+    : "recommendation_session_id";
+};
+
+export const clearRecommendationClientState = () => {
+  try {
+    localStorage.removeItem("recommendation_session_id");
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("recommendation_session_id")) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith("recommendation_view_")) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    }
+  } catch {
+    // Ignore sessionStorage access errors
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("recommendation-updated"));
+  }
+};
+
 export const fetchRecentlyViewedArtworks = async (excludeArtworkId, limit = 4) => {
   const response = await api.get("/recently-viewed", {
     params: { exclude_artwork_id: excludeArtworkId, limit },
+    headers: { "Cache-Control": "no-cache" },
   });
   return Array.isArray(response.data.artworks) ? response.data.artworks : [];
 };
@@ -16,6 +87,7 @@ export const fetchRecentlyViewedArtworks = async (excludeArtworkId, limit = 4) =
 export const fetchSellerProfileRecommendations = async (sellerId, topK = 8, signal) => {
   const response = await api.get(`/seller/${encodeURIComponent(sellerId)}`, {
     params: { top_k: topK },
+    headers: { "Cache-Control": "no-cache" },
     signal,
   });
   return {
@@ -38,6 +110,9 @@ export const fetchRecommendations = async (
       params: {
         top_k: topK,
       },
+      headers: {
+        "Cache-Control": "no-cache",
+      },
       signal,
     });
 
@@ -58,9 +133,8 @@ export const fetchRecommendations = async (
 };
 
 export const getRecommendationSessionId = () => {
-  let sessionId = localStorage.getItem(
-    "recommendation_session_id",
-  );
+  const storageKey = getSessionStorageKey();
+  let sessionId = localStorage.getItem(storageKey);
 
   if (!sessionId) {
     sessionId =
@@ -70,7 +144,7 @@ export const getRecommendationSessionId = () => {
         .slice(2)}`;
 
     localStorage.setItem(
-      "recommendation_session_id",
+      storageKey,
       sessionId,
     );
   }
@@ -85,10 +159,12 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization =
       `Bearer ${token}`;
+    delete config.headers["X-Recommendation-Session"];
+  } else {
+    delete config.headers.Authorization;
+    config.headers["X-Recommendation-Session"] =
+      getRecommendationSessionId();
   }
-
-  config.headers["X-Recommendation-Session"] =
-    getRecommendationSessionId();
 
   return config;
 });
@@ -97,12 +173,14 @@ export const recordRecommendationEvent = async (
   event,
 ) => {
   try {
+    const isLoggedIn = Boolean(localStorage.getItem("buyer_token"));
     const response = await api.post(
       "/interactions",
       {
         ...event,
-        session_id:
-          getRecommendationSessionId(),
+        session_id: isLoggedIn
+          ? null
+          : getRecommendationSessionId(),
       },
     );
 

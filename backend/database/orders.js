@@ -34,6 +34,11 @@ const orderTableSql = `
 
     paid_at DATETIME NULL,
 
+    delivery_method ENUM(
+      'door_to_door',
+      'pickup'
+    ) NOT NULL DEFAULT 'door_to_door',
+
     address_id INT NULL,
     shipping_street VARCHAR(255) NOT NULL,
     shipping_barangay VARCHAR(100) NOT NULL,
@@ -62,6 +67,7 @@ const orderTableSql = `
     delivered_at DATETIME NULL,
 
     parcel_photos JSON NULL,
+    received_photos JSON NULL,
     courier VARCHAR(50) NULL,
     tracking_number VARCHAR(100) NULL,
     tracking_url VARCHAR(2048) NULL,
@@ -159,6 +165,7 @@ const ensureOrderColumns = async () => {
     ["original_subtotal", "DECIMAL(12, 2) NULL"],
     ["discount_amount", "DECIMAL(12, 2) NOT NULL DEFAULT 0.00"],
     ["voucher_code", "VARCHAR(20) NULL"],
+    ["delivery_method", "ENUM('door_to_door', 'pickup') NOT NULL DEFAULT 'door_to_door'"],
   ]) {
     if (!names.has(name)) await query(`ALTER TABLE marketplace_order ADD COLUMN ${name} ${definition}`);
   }
@@ -244,6 +251,13 @@ const ensureOrderColumns = async () => {
     await query(`
       ALTER TABLE marketplace_order
       ADD COLUMN parcel_photos JSON NULL
+    `);
+  }
+
+  if (!names.has("received_photos")) {
+    await query(`
+      ALTER TABLE marketplace_order
+      ADD COLUMN received_photos JSON NULL
     `);
   }
 

@@ -57,7 +57,39 @@ const BUYER_AUTH_KEYS = [
   "buyer_last_name",
   "buyer_email",
   "buyer_phone_number",
+  "buyer_profile_image",
+  "recommendation_session_id",
 ];
+
+const clearBuyerRecommendationStorage = () => {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("recommendation_session_id")) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith("recommendation_view_")) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    }
+  } catch {
+    // Ignore sessionStorage access errors
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("recommendation-updated"));
+  }
+};
 
 const TOKEN_KEYS = {
   admin: "admin_token",
@@ -82,6 +114,7 @@ export function clearAuthData(section = null) {
     }
   } else if (section === "buyer") {
     BUYER_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    clearBuyerRecommendationStorage();
     // If the active track matches, clear the section marker too
     if (localStorage.getItem("auth_section") === "buyer") {
       localStorage.removeItem("auth_section");
@@ -93,6 +126,7 @@ export function clearAuthData(section = null) {
     SELLER_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     SELLER_SIDEBAR_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
     BUYER_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
+    clearBuyerRecommendationStorage();
     COMMON_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     localStorage.removeItem("token"); // Clean up legacy key remnants
   }

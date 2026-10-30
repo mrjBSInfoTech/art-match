@@ -32,7 +32,10 @@ export const recordRecommendationInteraction = async ({
       ? Number(artworkId)
       : null;
 
-  const normalizedSessionId = cleanText(sessionId, 100);
+  // Authenticated interactions belong strictly to customer_id, never to a shared guest session_id.
+  const normalizedSessionId = normalizedCustomerId
+    ? null
+    : cleanText(sessionId, 100);
   const normalizedEventType = cleanText(eventType, 32);
 
   if (!normalizedCustomerId && !normalizedSessionId) {

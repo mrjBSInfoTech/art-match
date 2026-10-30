@@ -13,7 +13,7 @@ const renderComponent = (file, api, props = {}) => {
   let dirty = false;
   let tree;
   const react = {
-    createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
+    createElement: (type, props, ...children) => typeof type === "function" ? type({ ...props, children }) : ({ type, props: { ...props, children } }),
     forwardRef: (component) => component,
     useState(initial) {
       const index = cursor++;
@@ -35,6 +35,14 @@ const renderComponent = (file, api, props = {}) => {
     require(specifier) {
       if (specifier === "react") return react;
       if (specifier === "@mui/material") return new Proxy({}, { get: (_, key) => key });
+      if (specifier === "@mui/material/styles") return { useTheme: () => ({ palette: { background: {}, text: {} } }) };
+      if (specifier.includes("PayoutForm")) {
+        const formSource = readFileSync(new URL("../../admin/Payout/PayoutForm.jsx", import.meta.url), "utf8");
+        const formResult = transformSync(formSource, { jsc: { parser: { syntax: "ecmascript", jsx: true }, transform: { react: { runtime: "classic" } } }, module: { type: "commonjs" } });
+        const formCtx = vm.createContext({ React: react, exports: {}, require: context.require });
+        vm.runInContext(formResult.code, formCtx);
+        return formCtx.exports;
+      }
       if (specifier === "react-helmet-async") return { Helmet: "Helmet" };
       if (specifier.includes("payoutDisplay")) return display;
       if (specifier.includes("/api/")) return api;
@@ -237,12 +245,12 @@ test("Reject requires a comment and sends no client approval count, identity, am
   assert.ok(page.button("Request Payout"), "new cycle can be requested only when authorized by the server");
 });
 
-test("Demo explicit release is double-click guarded and only displays Paid after persisted provider result", async () => {
+test("Explicit release is double-click guarded and only displays Paid after persisted provider result", async () => {
   let resolveRelease;
   const calls = [];
   let current = { ...payout, approval: { ...payout.approval, status: "Approved", approvalCount: 3 }, actions: { canRelease: true } };
   const page = renderComponent("../../../pages/admin/Payout.jsx", {
-    fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: { enabled: true, provider: "demo", mode: "demo" } }),
+    fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: capability }),
     releaseSellerPayout: (...args) => { calls.push(args); return new Promise((resolve) => { resolveRelease = resolve; }); },
   });
   await page.flush();
@@ -252,51 +260,27 @@ test("Demo explicit release is double-click guarded and only displays Paid after
   const first = release.props.onClick();
   await release.props.onClick();
   assert.deepEqual(calls, [[9]]);
-  assert.equal(page.text().includes("Paid (Demo)"), false);
-  current = { ...current, payoutStatus: "Paid", payoutProvider: "demo", isDemo: true, providerReference: "DEMO-PAYOUT-test", actions: {} };
+  current = { ...current, payoutStatus: "Paid", payoutProvider: "paymongo", providerTransferId: "tr_test_123", actions: {} };
   resolveRelease({ payout: current });
   await first;
   await page.flush();
-  assert.equal(page.nodes().find((item) => item?.type === "Chip" && item.props.label === "Paid (Demo)")?.props.label, "Paid (Demo)");
-  assert.match(page.text(), /No money moved/);
-  assert.match(page.text(), /DEMO-PAYOUT-test/);
+  assert.equal(page.nodes().find((item) => item?.type === "Chip" && item.props.label === "Paid")?.props.label, "Paid");
+  assert.match(page.text(), /tr_test_123/);
   assert.equal(page.button("Release Payout"), undefined);
 });
 
-test("Demo refund controls cannot call PayMongo and rejected backend actions remain errors", async () => {
-  let refundCalls = 0;
-  const current = { ...payout, approval: { ...payout.approval, status: "Pending Approval" }, actions: { canApprove: true } };
-  const page = renderComponent("../../../pages/admin/Payout.jsx", {
-    fetchAdminPayouts: async () => ({ orders: [current], totals: {}, providerCapability: { enabled: true, provider: "demo" } }),
-    approveSellerPayout: async () => { throw { response: { data: { message: "You cannot approve a payout request that you initiated." } } }; },
-    verifySellerPayoutRefund: () => { refundCalls++; },
-  });
-  await page.flush();
-  page.nodes().find((item) => item?.type === "PayoutTable").props.onReview(current);
-  await page.flush();
-  page.field("PayMongo refund ID").props.onChange({ target: { value: "re_demo_fake" } });
-  await page.flush();
-  assert.equal(page.button("Verify existing refund").props.disabled, true);
-  await page.button("Verify existing refund").props.onClick();
-  assert.equal(refundCalls, 0);
-  await page.button("Approve").props.onClick();
-  await page.flush();
-  assert.match(page.text(), /cannot approve a payout request that you initiated/);
-  assert.equal(page.button("Release Payout"), undefined);
-});
-
-test("Seller ledger keeps historical demo labels after switching providers and separates demo totals", async () => {
-  const paidDemo = { ...payout, payoutStatus: "Paid", payoutProvider: "demo", providerReference: "DEMO-PAYOUT-history" };
-  const ledger = renderComponent("./PayoutTable.jsx", {}, { orders: [paidDemo] });
+test("Seller ledger and metrics display only actual payout statuses without demo labels", async () => {
+  const paidRow = { ...payout, payoutStatus: "Paid", payoutProvider: "paymongo", providerTransferId: "tr_test_history" };
+  const ledger = renderComponent("./PayoutTable.jsx", {}, { orders: [paidRow] });
   await ledger.flush();
-  assert.equal(ledger.nodes().find((item) => item?.type === "Chip" && item.props.label === "Paid (Demo)")?.props.label, "Paid (Demo)");
-  assert.match(ledger.text(), /No money moved/);
-  assert.match(ledger.text(), /DEMO-PAYOUT-history/);
-  const metrics = renderComponent("./PayoutMetrics.jsx", {}, { totals: { paid: 0, demoPaid: 1000 } });
+  assert.equal(ledger.nodes().find((item) => item?.type === "Chip" && item.props.label === "Paid")?.props.label, "Paid");
+  assert.equal(ledger.text().includes("Paid (Demo)"), false);
+  assert.equal(ledger.text().includes("No money moved"), false);
+  assert.match(ledger.text(), /Your payout has been completed\./);
+  const metrics = renderComponent("./PayoutMetrics.jsx", {}, { totals: { paid: 1000 } });
   await metrics.flush();
-  assert.match(metrics.text(), /Paid \(Demo\)/);
-  assert.match(metrics.text(), /excludes demo payouts/);
-  assert.match(metrics.text(), /Simulated payouts only/);
+  assert.equal(metrics.text().includes("Paid (Demo)"), false);
+  assert.equal(metrics.text().includes("excludes demo payouts"), false);
 });
 
 test("Seller ledger shows approval progression without offering admin actions", async () => {

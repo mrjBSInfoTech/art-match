@@ -11,16 +11,13 @@ import {
   FormControlLabel,
   FormGroup,
   FormHelperText,
-  MenuItem,
   Slide,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import { SHIPMENT_COURIERS, getShipmentCourier } from "../../../utils/shipmentCouriers.js";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -42,26 +39,18 @@ export default function OrderParcelPhoto({
   fulfillmentTarget,
   statusError,
   setStatusError,
-  parcelPhotos,
+  parcelPhotos = [],
   setParcelPhotos,
-  photoPreviews,
-  handlingOptions,
-  courier,
-  onCourierChange,
-  trackingNumber,
-  setTrackingNumber,
-  trackingUrl,
-  setTrackingUrl,
-  handlingInstructions,
+  photoPreviews = [],
+  handlingOptions = [],
+  handlingInstructions = [],
   setHandlingInstructions,
   saving,
   onClose,
   onSubmit,
 }) {
   const theme = useTheme();
-  const isPacked = fulfillmentTarget?.status === "Packed";
-  const isShipped = fulfillmentTarget?.status === "Shipped";
-  const selectedCourier = getShipmentCourier(courier);
+
   const handlePhotoSelection = (event) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -111,10 +100,10 @@ export default function OrderParcelPhoto({
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <LocalShippingOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
-        {isPacked ? "Add Parcel Photos" : "Add Tracking Link"}
+        <PhotoCameraOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
+        Add Parcel Photos
         <Button
-          aria-label="Close fulfillment dialog"
+          aria-label="Close parcel photos dialog"
           onClick={onClose}
           disabled={saving}
           sx={{
@@ -133,149 +122,97 @@ export default function OrderParcelPhoto({
         <Stack spacing={2.5}>
           {statusError && <Alert severity="error">{statusError}</Alert>}
 
-          {isPacked ? (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                Upload 1 to 5 clear photos of the packed parcel. The buyer will
-                be able to inspect them in Notifications.
-              </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Upload 1 to 5 clear photos of the packed parcel. The buyer will be able to
+            inspect them in Notifications and Delivery Tracking.
+          </Typography>
 
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  Parcel handling warnings (optional)
-                </Typography>
-                <FormGroup>
-                  {handlingOptions.map((option) => (
-                    <FormControlLabel
-                      key={option.value}
-                      control={
-                        <Checkbox
-                          checked={handlingInstructions.includes(option.value)}
-                          onChange={(event) =>
-                            setHandlingInstructions((current) =>
-                              event.target.checked
-                                ? [...current, option.value]
-                                : current.filter((value) => value !== option.value),
-                            )
-                          }
-                          disabled={saving}
-                        />
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Parcel handling warnings (optional)
+            </Typography>
+            <FormGroup>
+              {handlingOptions.map((option) => (
+                <FormControlLabel
+                  key={option.value}
+                  control={
+                    <Checkbox
+                      checked={handlingInstructions.includes(option.value)}
+                      onChange={(event) =>
+                        setHandlingInstructions((current) =>
+                          event.target.checked
+                            ? [...current, option.value]
+                            : current.filter((value) => value !== option.value),
+                        )
                       }
-                      label={option.label}
+                      disabled={saving}
+                    />
+                  }
+                  label={option.label}
+                />
+              ))}
+            </FormGroup>
+            <FormHelperText>
+              Selected warnings are saved with the packed order and appear on its printable
+              parcel label.
+            </FormHelperText>
+          </Box>
+
+          <Box
+            sx={{
+              p: 2,
+              border: "1px dashed",
+              borderColor: theme.palette.divider,
+              borderRadius: 2,
+              backgroundColor: theme.palette.action.hover,
+            }}
+          >
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2" fontWeight={700}>
+                Parcel photos
+              </Typography>
+              {photoPreviews.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {photoPreviews.map((preview, index) => (
+                    <Box
+                      key={preview}
+                      component="img"
+                      src={preview}
+                      alt={`Parcel photo ${index + 1}`}
+                      sx={{
+                        width: 88,
+                        height: 88,
+                        objectFit: "cover",
+                        borderRadius: 1.5,
+                        border: "1px solid",
+                        borderColor: theme.palette.divider,
+                      }}
                     />
                   ))}
-                </FormGroup>
-                <FormHelperText>
-                  Selected warnings are saved with the packed order and appear
-                  on its printable parcel label.
-                </FormHelperText>
-              </Box>
-
-              <Box
-                sx={{
-                  p: 2,
-                  border: "1px dashed",
-                  borderColor: theme.palette.divider,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.action.hover,
-                }}
-              >
-                <Stack spacing={1.5}>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Parcel photos
-                  </Typography>
-                  {photoPreviews.length > 0 && (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                      {photoPreviews.map((preview, index) => (
-                        <Box
-                          key={preview}
-                          component="img"
-                          src={preview}
-                          alt={`Parcel photo ${index + 1}`}
-                          sx={{
-                            width: 88,
-                            height: 88,
-                            objectFit: "cover",
-                            borderRadius: 1.5,
-                            border: "1px solid",
-                            borderColor: theme.palette.divider,
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  )}
-                  <Button
-                    component="label"
-                    variant="outlined"
-                    disabled={saving || parcelPhotos.length >= 5}
-                    fullWidth
-                    sx={{ textTransform: "none", alignSelf: "flex-start" }}
-                  >
-                    {parcelPhotos.length ? "Add more parcel photos" : "Choose parcel photos"}
-                    <input
-                      hidden
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      multiple
-                      onChange={handlePhotoSelection}
-                    />
-                  </Button>
-                  <FormHelperText sx={{ mt: 0 }}>
-                    {parcelPhotos.length} of 5 photos selected. You can select
-                    several at once or add more (JPEG, PNG, or WebP; maximum 5
-                    MB each).
-                  </FormHelperText>
-                </Stack>
-              </Box>
-            </>
-          ) : (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                Choose the courier and add its tracking information. The buyer
-                will use these details to track the delivery.
-              </Typography>
-              <TextField
-                select
-                label="Courier"
-                required
-                value={courier}
-                onChange={(event) => onCourierChange(event.target.value)}
-                disabled={saving}
+                </Box>
+              )}
+              <Button
+                component="label"
+                variant="outlined"
+                disabled={saving || parcelPhotos.length >= 5}
                 fullWidth
+                sx={{ textTransform: "none", alignSelf: "flex-start" }}
               >
-                {SHIPMENT_COURIERS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                ))}
-              </TextField>
-              {selectedCourier?.trackingNumberLabel && (
-                <TextField
-                  label={selectedCourier.trackingNumberLabel}
-                  required
-                  value={trackingNumber}
-                  onChange={(event) => setTrackingNumber(event.target.value)}
-                  inputProps={{ maxLength: 100 }}
-                  disabled={saving}
-                  fullWidth
+                {parcelPhotos.length ? "Add more parcel photos" : "Choose parcel photos"}
+                <input
+                  hidden
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={handlePhotoSelection}
                 />
-              )}
-              {selectedCourier && (
-                <TextField
-                  label={selectedCourier.trackingUrl ? "Tracking Link" : "Tracking / Share Link"}
-                  placeholder={selectedCourier.trackingUrl ? undefined : "https://share.lalamove.com/..."}
-                  required
-                  value={trackingUrl}
-                  onChange={(event) => setTrackingUrl(event.target.value)}
-                  inputProps={{ maxLength: 2048 }}
-                  InputProps={{ readOnly: Boolean(selectedCourier.trackingUrl) }}
-                  helperText={selectedCourier.trackingUrl
-                    ? "Official courier tracking page. The buyer can enter the tracking number / ID there."
-                    : "Open the booked Lalamove delivery, use Share, and paste the generated tracking/share link here."}
-                  disabled={saving}
-                  fullWidth
-                />
-              )}
-            </>
-          )}
+              </Button>
+              <FormHelperText sx={{ mt: 0 }}>
+                {parcelPhotos.length} of 5 photos selected. You can select several at once or
+                add more (JPEG, PNG, or WebP; maximum 5 MB each).
+              </FormHelperText>
+            </Stack>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -286,11 +223,10 @@ export default function OrderParcelPhoto({
           variant="contained"
           color="error"
           onClick={onSubmit}
-          disabled={saving || (isShipped && (!selectedCourier || !trackingUrl.trim()
-            || (Boolean(selectedCourier.trackingNumberLabel) && !trackingNumber.trim())))}
+          disabled={saving}
           sx={{ color: "#fff", textTransform: "none" }}
         >
-          {saving ? "Saving..." : `Mark ${fulfillmentTarget?.status}`}
+          {saving ? "Saving..." : `Mark ${fulfillmentTarget?.status || "Packed"}`}
         </Button>
       </DialogActions>
     </Dialog>

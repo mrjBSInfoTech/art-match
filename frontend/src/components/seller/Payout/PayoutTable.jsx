@@ -37,6 +37,7 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
             {payout.approval && !["Processing", "Paid", "Cancelled", "Reversed"].includes(payout.payoutStatus) && <Typography variant="caption" display="block" sx={{ mt: 0.75 }}>
               {!admin && payout.approval.status === "Approved" ? "Approved for payout" : payoutApprovalLabel(payout)}{payout.approval.status !== "Not Requested" && ` · ${payout.approval.approvalCount || 0} / ${payout.approval.requiredApprovals || 3} approvals`}
             </Typography>}
+            {payout.providerTransferId && <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.75 }}>Transfer ID: {payout.providerTransferId}{payout.providerBatchId ? ` · Batch: ${payout.providerBatchId}` : ""}</Typography>}
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
               {payout.failureReason || payout.holdReason || payoutStatusMessage[payout.payoutStatus]}
             </Typography>

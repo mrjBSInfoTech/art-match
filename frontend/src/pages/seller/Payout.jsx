@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -15,7 +15,7 @@ import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
 import PayoutAccount from "../../components/seller/Payout/PayoutAccount";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
-import { isDemoCapability, payoutErrorMessage } from "../../components/seller/Payout/payoutDisplay";
+import { payoutErrorMessage } from "../../components/seller/Payout/payoutDisplay";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -99,14 +99,12 @@ export default function SellerPayout() {
         {data && (
           <>
             <PayoutMetrics totals={data.totals} />
-            {/*{isDemoCapability(data.providerCapability) && <Alert severity="info">Demo payout mode. Payouts marked Paid (Demo) are simulated; no money is sent to your bank or e-wallet.</Alert>}*/}
             {data.providerCapability?.enabled === false && (
               <Alert severity="warning">
                 {data.providerCapability.message}
               </Alert>
             )}
             {data.providerCapability?.enabled === true &&
-              !isDemoCapability(data.providerCapability) &&
               data.providerCapability?.mode === "test" && (
                 <Alert severity="info">
                   TEST payouts only. No real funds are transferred.

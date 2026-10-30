@@ -93,6 +93,7 @@ export async function publishCertificate(sellerId, artworkId, certificateId, svg
   if (result.affectedRows !== 1) {
     fail(409, "A certificate has already been published for this artwork.");
   }
+  void processDueCertificateDeliveries().catch(() => {});
   return { artworkId: id, certificateId, published: true, ...identity, svg };
 }
 
@@ -113,11 +114,19 @@ export async function getSellerCertificate(sellerId, artworkId) {
 export async function getPublicCertificate(token) {
   if (!/^[a-f0-9]{64}$/.test(String(token))) fail(404, "Certificate unavailable.");
   const [rows] = await db.promise().query(`SELECT c.certificate_id, c.certificate_svg,
-      o.status, o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY) AS access_ready,
+      o.status, o.delivered_at <= CURRENT_TIMESTAMP AS access_ready,
       o.paid_at IS NOT NULL AS paid,
-      EXISTS (SELECT 1 FROM marketplace_return_item ri JOIN marketplace_return_request r
-        ON r.return_request_id = ri.return_request_id
-        WHERE ri.order_item_id = oi.order_item_id AND r.status = 'Completed') AS return_completed
+      (
+        EXISTS (
+          SELECT 1 FROM marketplace_return_item ri
+          JOIN marketplace_return_request r ON r.return_request_id = ri.return_request_id
+          WHERE ri.order_item_id = oi.order_item_id AND r.status IN ('Completed', 'Received')
+        )
+        OR EXISTS (
+          SELECT 1 FROM marketplace_certificate_access ca
+          WHERE ca.order_item_id = oi.order_item_id AND ca.ownership_status = 'revoked'
+        )
+      ) AS return_completed
     FROM marketplace_certificate_identity i
     JOIN marketplace_certificate c ON c.artwork_id = i.artwork_id
     JOIN marketplace_order_item oi ON oi.artwork_id = c.artwork_id
@@ -125,9 +134,11 @@ export async function getPublicCertificate(token) {
     WHERE i.public_token = ? ORDER BY o.created_at DESC, o.order_id DESC LIMIT 1`, [token]);
   const row = rows[0];
   if (!row) fail(404, "Certificate unavailable.");
-  if (Number(row.return_completed)) fail(410, "Certificate unavailable because the associated return is completed.");
+  if (Number(row.return_completed)) {
+    fail(410, "Access to this Certificate of Authenticity has been revoked because this product was returned.");
+  }
   if (row.status !== "Delivered" || !Number(row.access_ready) || !Number(row.paid)) {
-    fail(409, "Certificate unavailable until 24 hours after paid delivery.");
+    fail(409, "Certificate unavailable until paid delivery.");
   }
   return { certificateId: row.certificate_id, status: "Active",
     svg: await certificateWithQr(row.certificate_svg, certificateUrl(token)) };
@@ -162,7 +173,7 @@ async function deliverOrderItem(orderItemId) {
        JOIN marketplace_order o ON o.order_id = oi.order_id
        WHERE oi.order_item_id = ? AND o.status = 'Delivered'
          AND o.delivered_at IS NOT NULL
-         AND o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
+         AND o.delivered_at <= CURRENT_TIMESTAMP
          AND o.paid_at IS NOT NULL
        FOR UPDATE`,
       [orderItemId],
@@ -234,6 +245,17 @@ async function deliverOrderItem(orderItemId) {
        VALUES (?, ?, ?, ?)`,
       [item.order_item_id, item.order_id, conversationId, message.insertId],
     );
+    try {
+      await connection.query(
+        `INSERT INTO marketplace_certificate_access
+         (artwork_id, order_id, order_item_id, customer_id, seller_id, ownership_status)
+         VALUES (?, ?, ?, ?, ?, 'active')
+         ON DUPLICATE KEY UPDATE ownership_status = 'active', revoked_at = NULL, revocation_reason = NULL`,
+        [item.artwork_id, item.order_id, item.order_item_id, item.customer_id, item.seller_id],
+      );
+    } catch {
+      // Allow delivery to proceed even if optional access tracking table is pending migration
+    }
     await connection.commit();
     publishedEvent = {
       sellerId: item.seller_id,
@@ -266,13 +288,13 @@ export async function processDueCertificateDeliveries() {
      LEFT JOIN marketplace_certificate_delivery d ON d.order_item_id = oi.order_item_id
      WHERE d.order_item_id IS NULL AND o.status = 'Delivered'
        AND o.delivered_at IS NOT NULL
-       AND o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
+       AND o.delivered_at <= CURRENT_TIMESTAMP
        AND o.paid_at IS NOT NULL
        AND NOT EXISTS (
          SELECT 1
          FROM marketplace_return_item ri
          JOIN marketplace_return_request r ON r.return_request_id = ri.return_request_id
-         WHERE ri.order_item_id = oi.order_item_id AND r.status = 'Completed'
+         WHERE ri.order_item_id = oi.order_item_id AND r.status IN ('Completed', 'Received')
        )
      ORDER BY o.delivered_at, oi.order_item_id
      LIMIT 100`,
@@ -284,7 +306,7 @@ export async function processDueCertificateDeliveries() {
   return delivered;
 }
 
-export function startCertificateDeliveryScheduler({ intervalMs = 60_000, logger = console } = {}) {
+export function startCertificateDeliveryScheduler({ intervalMs = 5_000, logger = console } = {}) {
   let running = false;
   const run = async () => {
     if (running) return;
@@ -308,14 +330,9 @@ export async function getBuyerCertificate(customerId, orderItemId) {
   const itemId = positiveId(orderItemId, "order item");
   const [rows] = await db.promise().query(
     `SELECT c.certificate_svg,
-       o.delivered_at <= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 DAY) AS access_ready,
-       GREATEST(1, CEIL(TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP,
-         DATE_ADD(o.delivered_at, INTERVAL 1 DAY)) / 60)) AS minutes_remaining,
-       EXISTS (
-         SELECT 1 FROM marketplace_return_item ri
-         JOIN marketplace_return_request r ON r.return_request_id = ri.return_request_id
-         WHERE ri.order_item_id = oi.order_item_id AND r.status = 'Completed'
-       ) AS return_completed
+       o.delivered_at <= CURRENT_TIMESTAMP AS access_ready,
+       GREATEST(1, CEIL(TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, o.delivered_at) / 60)) AS minutes_remaining,
+       (EXISTS (SELECT 1 FROM marketplace_return_item ri JOIN marketplace_return_request r ON r.return_request_id = ri.return_request_id WHERE ri.order_item_id = oi.order_item_id AND r.status IN ('Completed', 'Received')) OR EXISTS (SELECT 1 FROM marketplace_certificate_access ca WHERE ca.order_item_id = oi.order_item_id AND ca.ownership_status = 'revoked')) AS return_completed
      FROM marketplace_order_item oi
      JOIN marketplace_order o ON o.order_id = oi.order_id
      JOIN marketplace_certificate c
@@ -328,10 +345,53 @@ export async function getBuyerCertificate(customerId, orderItemId) {
   );
   if (!rows.length) fail(404, "Certificate access is unavailable for this order.");
   if (Number(rows[0].return_completed)) {
-    fail(410, "Certificate access is unavailable because this return is completed.");
+    fail(410, "Access to this Certificate of Authenticity has been revoked because this product was returned.");
   }
   if (!Number(rows[0].access_ready)) {
-    fail(409, `Your certificate becomes available 24 hours after delivery. Please try again in ${Number(rows[0].minutes_remaining)} minute(s).`);
+    fail(409, `Your certificate becomes available upon delivery. Please try again in ${Number(rows[0].minutes_remaining)} minute(s).`);
   }
   return rows[0].certificate_svg;
+}
+
+
+export async function revokeCertificateAccessForReturn(executor, returnRequestId) {
+  const conn = executor || db.promise();
+  const id = positiveId(returnRequestId, "return request");
+
+  try {
+    await conn.query(
+      `INSERT INTO marketplace_certificate_access
+         (artwork_id, order_id, order_item_id, customer_id, seller_id, ownership_status, revoked_at, revocation_reason, return_request_id)
+       SELECT oi.artwork_id, oi.order_id, oi.order_item_id, o.customer_id, o.seller_id,
+              'revoked', CURRENT_TIMESTAMP, 'Product returned', r.return_request_id
+       FROM marketplace_return_item ri
+       JOIN marketplace_return_request r ON r.return_request_id = ri.return_request_id
+       JOIN marketplace_order_item oi ON oi.order_item_id = ri.order_item_id
+       JOIN marketplace_order o ON o.order_id = oi.order_id
+       WHERE r.return_request_id = ?
+       ON DUPLICATE KEY UPDATE
+         ownership_status = 'revoked',
+         revoked_at = CURRENT_TIMESTAMP,
+         revocation_reason = 'Product returned',
+         return_request_id = VALUES(return_request_id)`,
+      [id],
+    );
+  } catch (error) {
+    console.warn("Unable to update certificate access record:", error.message);
+  }
+
+  try {
+    await conn.query(
+      `UPDATE marketplace_certificate_delivery cd
+       JOIN marketplace_return_item ri ON ri.order_item_id = cd.order_item_id
+       SET cd.access_status = 'revoked',
+           cd.revoked_at = CURRENT_TIMESTAMP,
+           cd.revocation_reason = 'Product returned',
+           cd.return_request_id = ?
+       WHERE ri.return_request_id = ?`,
+      [id, id],
+    );
+  } catch (error) {
+    console.warn("Unable to update certificate delivery record:", error.message);
+  }
 }

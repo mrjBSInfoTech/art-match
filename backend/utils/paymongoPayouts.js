@@ -7,7 +7,7 @@ const RAILS = ["instapay", "pesonet"];
 const BIC = /^[A-Z0-9]{8}(?:[A-Z0-9]{3})?$/;
 const REFERENCE = /^[A-Za-z0-9-]{1,100}$/;
 const ACCOUNT_NUMBER = /^\d{6,34}$/;
-const ACCOUNT_NAME = /^[\p{L}\p{M}\p{N} .,'’&()\-]{2,180}$/u;
+const ACCOUNT_NAME = /^[\p{L}\p{M}\p{N} .,'’&()\/\-]{2,180}$/u;
 const TRANSFER_STATUSES = new Set(["pending", "succeeded", "failed"]);
 const REFUND_STATUSES = new Set(["pending", "processing", "succeeded", "failed"]);
 
@@ -145,16 +145,17 @@ const normalizeTransfer = (resource, { ambiguous = false } = {}) => {
       typeof transfer.livemode !== "boolean" || !Number.isSafeInteger(transfer.amount) || transfer.amount <= 0 ||
       transfer.currency !== "PHP" || !REFERENCE.test(transfer.reference_number || "") || !RAILS.includes(transfer.provider) ||
       !ACCOUNT_NUMBER.test(transfer.destination_account?.number || "") || !ACCOUNT_NAME.test(transfer.destination_account?.name || "") ||
-      !BIC.test(transfer.destination_account?.bic || "") || (transfer.fee !== undefined && !validInteger(transfer.fee))) {
+      !BIC.test(transfer.destination_account?.bic || "") || (transfer.fee !== undefined && transfer.fee !== null && !validInteger(transfer.fee))) {
     fail("PayMongo returned an invalid transfer. Reconciliation is required.", { ambiguous, code: "invalid_transfer" });
   }
+  const rawFailureCode = transfer.provider_error_code || transfer.failure_code || transfer.error_code || "";
   return {
     id: transfer.id, batchId: transfer.batch_transfer_id || null, status: transfer.status,
     amountCentavos: transfer.amount, currency: transfer.currency, livemode: transfer.livemode,
     reference: transfer.reference_number, providerReference: transfer.provider_reference_number || null,
     provider: transfer.provider, feeCentavos: transfer.fee ?? null,
     destination: { accountNumber: transfer.destination_account.number, accountName: transfer.destination_account.name, institutionCode: transfer.destination_account.bic },
-    failureCode: /^[A-Za-z0-9_]{1,80}$/.test(transfer.provider_error_code || "") ? transfer.provider_error_code : null,
+    failureCode: /^[A-Za-z0-9_-]{1,80}$/.test(rawFailureCode) ? rawFailureCode : null,
   };
 };
 const validCallback = value => {
@@ -235,6 +236,39 @@ export const retrievePayoutRefund = async id => {
   const payload = await request(`/v1/refunds/${encodeURIComponent(id)}`);
   const result = normalizeRefund(payload.data);
   if (result.id !== id || result.livemode !== (requireKey().mode === "live")) fail("The PayMongo refund does not match this environment.", { code: "refund_mismatch" });
+  return result;
+};
+export const createPayMongoRefund = async ({ paymentId, amountCentavos, reason = "requested_by_customer", notes = "", idempotencyKey } = {}) => {
+  if (!/^pay_[A-Za-z0-9_-]+$/.test(paymentId || "")) fail("A valid buyer payment identifier is required.", { status: 400, code: "invalid_payment_id" });
+  if (!Number.isSafeInteger(amountCentavos) || amountCentavos <= 0) fail("A valid refund amount in centavos is required.", { status: 400, code: "invalid_refund_amount" });
+  const allowedReasons = new Set(["duplicate", "fraudulent", "requested_by_customer", "others"]);
+  const refundReason = allowedReasons.has(reason) ? reason : "requested_by_customer";
+  const payload = await request("/v1/refunds", {
+    method: "POST",
+    body: {
+      data: {
+        attributes: {
+          amount: amountCentavos,
+          payment_id: paymentId,
+          reason: refundReason,
+          ...(notes ? { notes: String(notes).slice(0, 255) } : {}),
+        },
+      },
+    },
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+  let result = normalizeRefund(payload.data);
+  if (result.paymentId !== paymentId || result.amountCentavos !== amountCentavos || result.livemode !== (requireKey().mode === "live")) {
+    fail("The PayMongo refund response did not match the requested payment or amount.", { code: "refund_mismatch" });
+  }
+  if (result.status === "pending" || result.status === "processing") {
+    try {
+      const refreshed = await retrievePayoutRefund(result.id);
+      if (refreshed?.id === result.id) result = refreshed;
+    } catch {
+      // Keep the initial verified refund state if immediate re-read is unavailable.
+    }
+  }
   return result;
 };
 export const inspectPaymentRefunds = async paymentId => {

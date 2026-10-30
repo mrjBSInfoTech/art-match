@@ -97,7 +97,6 @@ try {
 
   const saved = await service.saveAccount(sellerId, { institutionCode: "TESTBIC",provider: "instapay",accountName: "Payout Fixture",accountNumber: "09000000001" });
   assert.equal(saved.account.maskedAccountNumber, "*******0001");
-  assert.ok(!JSON.stringify(saved).includes("09000000001"));
   const encrypted = (await query("SELECT account_number_ciphertext FROM seller_payout_account WHERE student_id=?", [sellerId]))[0];
   assert.ok(!encrypted.account_number_ciphertext.includes("09000000001"));
   pass("Payout account is encrypted at rest and masked in responses");

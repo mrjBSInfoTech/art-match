@@ -3,6 +3,7 @@ import db from "./db.js";
 // Reuse the immutable, per-order payment split rather than introducing a
 // second balance which could disagree with checkout accounting.
 const splitColumns = {
+  provider_batch_id: "VARCHAR(100) NULL",
   provider_transfer_id: "VARCHAR(100) NULL",
   provider_reference: "VARCHAR(100) NULL",
   failure_reason: "VARCHAR(500) NULL",
@@ -37,6 +38,7 @@ export const payoutAttemptTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_a
   payout_provider ENUM('demo','paymongo') NOT NULL DEFAULT 'paymongo',
   payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test',
   provider_reference VARCHAR(100) NOT NULL,
+  provider_batch_id VARCHAR(100) NULL,
   provider_transfer_id VARCHAR(100) NULL,
   status ENUM('Processing', 'Paid', 'Failed', 'Unknown') NOT NULL DEFAULT 'Processing',
   amount_centavos BIGINT UNSIGNED NOT NULL,
@@ -158,6 +160,9 @@ export async function ensurePayoutTables() {
   if (!attemptColumns.some(column => column.Field === "payout_mode")) {
     await executor.query("ALTER TABLE seller_payout_attempt ADD COLUMN payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test'");
   }
+  if (!attemptColumns.some(column => column.Field === "provider_batch_id")) {
+    await executor.query("ALTER TABLE seller_payout_attempt ADD COLUMN provider_batch_id VARCHAR(100) NULL");
+  }
   await executor.query(orderRefundTableSql);
   await executor.query(payoutApprovalCycleTableSql);
   const [cycleColumns] = await executor.query("SHOW COLUMNS FROM seller_payout_approval_cycle");
@@ -165,4 +170,9 @@ export async function ensurePayoutTables() {
     await executor.query("ALTER TABLE seller_payout_approval_cycle ADD COLUMN payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test'");
   }
   await executor.query(payoutApprovalTableSql);
+  await executor.query("UPDATE seller_payment_split SET approval_cycle_id = NULL WHERE payout_provider = 'demo' OR approval_cycle_id IN (SELECT cycle_id FROM (SELECT cycle_id FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo') t)");
+  await executor.query("DELETE FROM seller_payout_approval WHERE cycle_id IN (SELECT cycle_id FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo')");
+  await executor.query("DELETE FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo'");
+  await executor.query("DELETE FROM seller_payout_attempt WHERE payout_provider = 'demo' OR payout_mode = 'demo' OR provider_reference LIKE 'DEMO-%'");
+  await executor.query("DELETE FROM seller_payment_split WHERE payout_provider = 'demo' OR payout_reference LIKE 'DEMO-%' OR provider_reference LIKE 'DEMO-%'");
 }

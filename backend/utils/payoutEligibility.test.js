@@ -58,13 +58,14 @@ const refund = (status, extra = {}) => ({
   provider_payment_id: "pay_test_original", amount: "200.00", status, ...extra,
 });
 
-test("immediate payout policy requires an explicit flag and TEST credentials", () => {
-  for (const env of [
-    {}, { PAYMONGO_SECRET_KEY: "sk_test_fixture" },
-    { PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" },
-    { PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" },
-    { PAYMONGO_SECRET_KEY: "sk_test_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "false" },
-  ]) assert.deepEqual(getPayoutHoldPolicy(env), { holdDays: 7, immediateTestPayouts: false });
+test("non-production demo/test payouts default to immediate while explicit false still holds", () => {
+  assert.deepEqual(getPayoutHoldPolicy({}), { holdDays: 7, immediateTestPayouts: false });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_test_fixture" }),
+    { holdDays: 0, immediateTestPayouts: true });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_test_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "false" }),
+    { holdDays: 7, immediateTestPayouts: false });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" }),
+    { holdDays: 7, immediateTestPayouts: false });
   assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_test_fixture", PAYMONGO_TEST_PAYOUT_IMMEDIATE: "true" }),
     { holdDays: 0, immediateTestPayouts: true });
 });

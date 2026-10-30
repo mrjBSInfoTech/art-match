@@ -34,3 +34,6 @@ export const rejectReturnRequest = (id, payload) =>
 
 export const receiveReturnRequest = (id) =>
   request(() => api.put(`/${encodeURIComponent(id)}/receive`));
+
+export const processReturnRefund = (id) =>
+  request(() => api.post(`/${encodeURIComponent(id)}/refund`));

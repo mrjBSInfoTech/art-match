@@ -33,16 +33,45 @@ export default function Cart() {
   const [deleteError, setDeleteError] = useState("");
   const deletingRef = useRef(false);
 
+  const isProductItem = (item) => {
+    const artType = String(item?.art_type || "").trim().toLowerCase();
+    const product = String(item?.product || "").trim().toLowerCase();
+    const productValues = ["product", "3d_object", "3d object", "sculpture", "physical_product", "physical product"];
+    return productValues.includes(artType) || productValues.includes(product);
+  };
+
   const closeDelete = () => {
     if (deletingRef.current) return;
     setSelectedCart(null);
     setDeleteError("");
   };
   const closeOrderConfirmation = () => setConfirmingOrder(false);
-  const continueToCheckout = (artworkIds) => {
+  const continueToCheckout = async (artworkIds) => {
     if (!artworkIds.length) return;
     setConfirmingOrder(false);
-    navigate(`/buyer/checkout?artwork_ids=${artworkIds.join(",")}`);
+    const quantitiesMap = {};
+    const quantityParamParts = [];
+    await Promise.all(
+      artworkIds.map(async (id) => {
+        const matchedItem = items.find((item) => String(item.artwork_id) === String(id));
+        const qty = matchedItem && isProductItem(matchedItem)
+          ? Math.max(1, Number(cartQuantities[String(id)] ?? matchedItem.quantity ?? 1) || 1)
+          : 1;
+        quantitiesMap[String(id)] = qty;
+        quantityParamParts.push(`${id}:${qty}`);
+        if (matchedItem && isProductItem(matchedItem) && Number(matchedItem.quantity || 1) !== qty) {
+          try {
+            await updateCartItemQuantity(id, qty);
+          } catch {
+            // Quantity is also forwarded to Checkout so order creation stays accurate.
+          }
+        }
+      }),
+    );
+    navigate(
+      `/buyer/checkout?artwork_ids=${artworkIds.join(",")}&quantities=${encodeURIComponent(quantityParamParts.join(","))}`,
+      { state: { quantities: quantitiesMap } },
+    );
   };
 
   useEffect(() => {
@@ -116,17 +145,19 @@ export default function Cart() {
       const next = {};
       items.forEach((item) => {
         const id = String(item.artwork_id);
-        const isProduct = String(item.art_type || item.product || "").trim().toLowerCase() === "product";
-        const currentValue = Number(previous[id] || 1);
-        next[id] = isProduct ? Math.max(1, Number.isFinite(currentValue) ? currentValue : 1) : 1;
+        const isProduct = isProductItem(item);
+        const dbQuantity = Math.max(1, Number(item.quantity) || 1);
+        const currentValue = previous[id] !== undefined ? Number(previous[id]) : dbQuantity;
+        next[id] = isProduct ? Math.max(1, Number.isFinite(currentValue) ? currentValue : dbQuantity) : 1;
       });
       return next;
     });
   }, [items]);
 
   const getItemQuantity = (item) => {
+    if (!isProductItem(item)) return 1;
     const id = String(item.artwork_id);
-    const value = Number(cartQuantities[id] || 1);
+    const value = Number(cartQuantities[id] ?? item.quantity ?? 1);
     return Number.isFinite(value) ? Math.max(1, value) : 1;
   };
 
@@ -235,6 +266,13 @@ export default function Cart() {
                     ...current,
                     [String(artworkId)]: nextQuantity,
                   }));
+                  setItems((current) =>
+                    current.map((item) =>
+                      String(item.artwork_id) === String(artworkId)
+                        ? { ...item, quantity: nextQuantity }
+                        : item,
+                    ),
+                  );
 
                   try {
                     await updateCartItemQuantity(artworkId, nextQuantity);
@@ -261,11 +299,13 @@ export default function Cart() {
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   Order summary
                 </Typography>
-                <Typography variant="body2" color="text.secondary">{selectedItems.length} of {cartItems.length} artworks selected</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {selectedItems.length} of {cartItems.length} artworks selected ({selectedItems.reduce((sum, item) => sum + item.qty, 0)} {selectedItems.reduce((sum, item) => sum + item.qty, 0) === 1 ? "unit" : "units"})
+                </Typography>
                 <Stack spacing={1.5} sx={{ mt: 2 }}>
-                  <Row label="Subtotal" value={`₱${subtotal}`} />
+                  <Row label="Subtotal" value={`₱${subtotal.toLocaleString()}`} />
                   <Divider />
-                  <Row label="Total" value={`₱${total}`} bold />
+                  <Row label="Total" value={`₱${total.toLocaleString()}`} bold />
                 </Stack>
                 <Button
                   variant="contained"

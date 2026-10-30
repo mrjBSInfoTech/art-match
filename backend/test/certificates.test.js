@@ -36,7 +36,7 @@ function loadService({ queryHandler, connectionFactory } = {}) {
     console: { error() {} },
   };
   vm.runInNewContext(
-    `${source}\nglobalThis.service = { publishCertificate, getSellerCertificate, processDueCertificateDeliveries, getBuyerCertificate, getPublicCertificate, certificateWithQr, certificateUrl, reserveCertificateIdentity, getSellerOrderCertificateIdentity };`,
+    `${source}\nglobalThis.service = { publishCertificate, getSellerCertificate, processDueCertificateDeliveries, getBuyerCertificate, getPublicCertificate, certificateWithQr, certificateUrl, reserveCertificateIdentity, getSellerOrderCertificateIdentity, revokeCertificateAccessForReturn };`,
     context,
   );
   return { service: context.service, calls, events };
@@ -74,22 +74,22 @@ test("seller publication requires an approved owned artwork and stores one immut
   assert.deepEqual(JSON.parse(JSON.stringify(insert.params.slice(0, 3))), [21, 3, "RN-2026-ABCD"]);
 });
 
-test("buyer certificate access is order-owned, delayed until delivery plus one day, and blocked after a completed return", async () => {
+test("buyer certificate access is order-owned, available upon delivery, and blocked after a completed return", async () => {
   let completed = 0;
   const current = loadService({
     queryHandler: async (sql) => {
       assert.match(sql, /o\.customer_id = \?/);
       assert.match(sql, /o\.status = 'Delivered'/);
-      assert.match(sql, /DATE_SUB\(CURRENT_TIMESTAMP, INTERVAL 1 DAY\)/);
+      assert.match(sql, /o\.delivered_at <= CURRENT_TIMESTAMP/);
       assert.match(sql, /o\.paid_at IS NOT NULL/);
-      assert.match(sql, /r\.status = 'Completed'/);
+      assert.match(sql, /r\.status IN \('Completed', 'Received'\)/);
       return [[{ certificate_svg: "<svg></svg>", return_completed: completed, access_ready: 1 }]];
     },
   });
   assert.equal(await current.service.getBuyerCertificate(7, 51), "<svg></svg>");
   completed = 1;
   await assert.rejects(current.service.getBuyerCertificate(7, 51),
-    (error) => error.status === 410 && /return is completed/.test(error.message));
+    (error) => error.status === 410 && /revoked because this product was returned/i.test(error.message));
 });
 
 function deliveryConnection(calls, { alreadySent = false, completedReturn = false } = {}) {
@@ -101,7 +101,7 @@ function deliveryConnection(calls, { alreadySent = false, completedReturn = fals
     async query(sql, params = []) {
       calls.push({ sql, params });
       if (/^SELECT oi\.order_item_id/.test(sql)) {
-        assert.match(sql, /DATE_SUB\(CURRENT_TIMESTAMP, INTERVAL 1 DAY\)/);
+        assert.match(sql, /o\.delivered_at <= CURRENT_TIMESTAMP/);
         return [[{ order_item_id: 51, order_id: 41, artwork_id: 21, title: "Portrait",
           customer_id: 7, seller_id: 3 }]];
       }
@@ -126,7 +126,7 @@ test("due delivery adds a chat certificate link once and publishes a live messag
       if (/SELECT a\.artwork_id/.test(sql)) return [[{ artwork_id: 21 }]];
       if (/INSERT IGNORE INTO marketplace_certificate_identity/.test(sql)) return [{ affectedRows: 1 }];
       if (/SELECT public_token/.test(sql)) return [[{ public_token: "a".repeat(64) }]];
-      assert.match(sql, /delivered_at <= DATE_SUB\(CURRENT_TIMESTAMP, INTERVAL 1 DAY\)/);
+      assert.match(sql, /delivered_at <= CURRENT_TIMESTAMP/);
       return [[{ order_item_id: 51 }]];
     },
     connectionFactory: (calls) => deliveryConnection(calls),
@@ -151,7 +151,7 @@ test("an owned certificate sent early explains the remaining wait without exposi
     },
   });
   await assert.rejects(current.service.getBuyerCertificate(7, 51),
-    (error) => error.status === 409 && /24 hours after delivery/.test(error.message) && /87 minute/.test(error.message));
+    (error) => error.status === 409 && /upon delivery/.test(error.message) && /87 minute/.test(error.message));
 });
 
 test("unavailable or another buyer's certificate remains inaccessible", async () => {
@@ -241,4 +241,27 @@ test("the real seller preview/download SVG retains the design, certificate ID an
     const result = await sharp(Buffer.from(svg)).extract({ left: 990, top: 597, width: 146, height: 151 }).resize(584, 604).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     assert.equal(jsQR(new Uint8ClampedArray(result.data), result.info.width, result.info.height)?.data, url);
   }
+});
+
+test("revokeCertificateAccessForReturn updates access and delivery records for returned items", async () => {
+  const current = loadService({
+    queryHandler: async (sql, params) => {
+      if (/INSERT INTO marketplace_certificate_access/.test(sql)) {
+        assert.match(sql, /ownership_status/);
+        assert.match(sql, /'revoked'/);
+        assert.match(sql, /r\.return_request_id = \?/);
+        assert.equal(params[0], 88);
+        return [{ affectedRows: 1 }];
+      }
+      if (/UPDATE marketplace_certificate_delivery/.test(sql)) {
+        assert.match(sql, /cd\.access_status = 'revoked'/);
+        assert.equal(params[0], 88);
+        assert.equal(params[1], 88);
+        return [{ affectedRows: 1 }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+  await current.service.revokeCertificateAccessForReturn(null, 88);
+  assert.equal(current.calls.length, 2);
 });

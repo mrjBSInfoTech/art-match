@@ -1,4 +1,10 @@
-import { createElement, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useTheme } from "@mui/material/styles";
@@ -25,6 +31,7 @@ import SwapVertIcon from "@mui/icons-material/SwapVert";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AddIcon from "@mui/icons-material/Add";
 import InventoryCard from "../../components/seller/Inventory/InventoryCard";
 import {
@@ -73,22 +80,36 @@ export default function Inventory() {
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const filtered = products.filter((product) => {
-      const matchesSearch = !query || [product.title, product.product]
-        .some((value) => String(value || "").toLowerCase().includes(query));
-      const matchesStatus = stockFilter === "all"
-        || getStockStatus(product.stock_quantity) === stockFilter;
+      const matchesSearch =
+        !query ||
+        [product.title, product.product].some((value) =>
+          String(value || "")
+            .toLowerCase()
+            .includes(query),
+        );
+      const matchesStatus =
+        stockFilter === "all" ||
+        getStockStatus(product.stock_quantity) === stockFilter;
       return matchesSearch && matchesStatus;
     });
 
     return [...filtered].sort((left, right) => {
       if (sortOption === "stock-low") {
-        return toStockQuantity(left.stock_quantity) - toStockQuantity(right.stock_quantity);
+        return (
+          toStockQuantity(left.stock_quantity) -
+          toStockQuantity(right.stock_quantity)
+        );
       }
       if (sortOption === "stock-high") {
-        return toStockQuantity(right.stock_quantity) - toStockQuantity(left.stock_quantity);
+        return (
+          toStockQuantity(right.stock_quantity) -
+          toStockQuantity(left.stock_quantity)
+        );
       }
       if (sortOption === "za") {
-        return String(right.title || "").localeCompare(String(left.title || ""));
+        return String(right.title || "").localeCompare(
+          String(left.title || ""),
+        );
       }
       return String(left.title || "").localeCompare(String(right.title || ""));
     });
@@ -97,6 +118,9 @@ export default function Inventory() {
   // Matches the dashboard's direct count pattern: data is loaded once, then
   // the displayed totals are derived from that current list.
   const productCount = products.length;
+  const inStockCount = products.filter(
+    (product) => getStockStatus(product.stock_quantity) === "in-stock",
+  ).length;
   const lowStockCount = products.filter(
     (product) => getStockStatus(product.stock_quantity) === "low-stock",
   ).length;
@@ -112,9 +136,11 @@ export default function Inventory() {
     setSavingProductId(artworkId);
     try {
       const savedProduct = await updateInventoryStock(artworkId, stockQuantity);
-      setProducts((current) => current.map((product) =>
-        product.artwork_id === artworkId ? savedProduct : product,
-      ));
+      setProducts((current) =>
+        current.map((product) =>
+          product.artwork_id === artworkId ? savedProduct : product,
+        ),
+      );
       showSnackbar("Stock updated successfully.");
     } finally {
       setSavingProductId(null);
@@ -131,9 +157,17 @@ export default function Inventory() {
       accent: "primary.main",
     },
     {
+      label: "IN STOCK",
+      value: loading ? "..." : inStockCount,
+      caption: "More than 5 units",
+      icon: CheckCircleRoundedIcon,
+      tint: "rgba(34, 197, 94, 0.18)",
+      accent: "success.main",
+    },
+    {
       label: "LOW STOCK",
       value: loading ? "..." : lowStockCount,
-      caption: "Number of low stocks",
+      caption: "5 units or fewer",
       icon: SellRoundedIcon,
       tint: "rgba(154, 197, 34, 0.18)",
       accent: "warning.main",
@@ -141,7 +175,7 @@ export default function Inventory() {
     {
       label: "OUT OF STOCK",
       value: loading ? "..." : outOfStockCount,
-      caption: "Number of out of stocks",
+      caption: "0 units available",
       icon: CreditScoreIcon,
       tint: "rgba(246, 59, 84, 0.18)",
       accent: "error.main",
@@ -212,7 +246,11 @@ export default function Inventory() {
         </Button>
       </Box>
 
-      {errorMessage && <Alert severity="error" sx={{ mt: 2 }}>{errorMessage}</Alert>}
+      {errorMessage && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {errorMessage}
+        </Alert>
+      )}
 
       <Box
         sx={{
@@ -221,103 +259,93 @@ export default function Inventory() {
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
+            md: "repeat(4, 1fr)",
           },
           gap: 2,
           mb: 2.5,
         }}
       >
-        {summaryCards.map(({ label, value, caption, icon: SummaryIcon, tint, accent }) => (
-          <Card
-            key={label}
-            variant="outlined"
-            sx={{
-              borderRadius: 4,
-              background: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
-                  : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-              border: "1px solid",
-              borderColor: "divider",
-              boxShadow: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "0 20px 38px rgba(2, 6, 23, 0.28)"
-                  : "0 18px 36px rgba(15, 23, 42, 0.08)",
-              overflow: "hidden",
-              transition: "transform 180ms ease, box-shadow 180ms ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-              },
-            }}
-          >
-            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                <Box>
-                  <Typography
-                    sx={{
-                      color: "text.secondary",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: 1.2,
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 1,
-                      color: "text.primary",
-                      fontSize: 30,
-                      fontWeight: 800,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {value}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 1,
-                      color: "text.secondary",
-                      fontSize: 12,
-                    }}
-                  >
-                    {caption}
-                  </Typography>
-                </Box>
+        {summaryCards.map(
+          ({ label, value, caption, icon: SummaryIcon, tint, accent }) => (
+            <Card
+              key={label}
+              variant="outlined"
+              sx={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2.5,
+                boxShadow: "none",
+              }}
+            >
+              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
                 <Box
                   sx={{
-                    width: 56,
-                    height: 56,
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: 3,
-                    background: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
-                        : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
-                    color: accent,
-                    border: (theme) =>
-                      `1px solid ${
-                        theme.palette.mode === "dark"
-                          ? "rgba(255,255,255,0.08)"
-                          : "rgba(15,23,42,0.06)"
-                      }`,
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 2,
                   }}
                 >
-                  {createElement(SummaryIcon)}
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      {label}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        color: "text.primary",
+                        fontSize: 30,
+                        fontWeight: 800,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {value}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        color: "text.secondary",
+                        fontSize: 12,
+                      }}
+                    >
+                      {caption}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      display: "grid",
+                      placeItems: "center",
+                      borderRadius: 3,
+                      background: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
+                          : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
+                      color: accent,
+                      border: (theme) =>
+                        `1px solid ${
+                          theme.palette.mode === "dark"
+                            ? "rgba(255,255,255,0.08)"
+                            : "rgba(15,23,42,0.06)"
+                        }`,
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+                    }}
+                  >
+                    {createElement(SummaryIcon)}
+                  </Box>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ),
+        )}
       </Box>
 
       <Paper
@@ -436,7 +464,6 @@ export default function Inventory() {
       </Paper>
 
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-
         {loading ? (
           <Box sx={{ width: "80%", margin: "0 auto" }}>
             <LinearProgress color="primary" />
@@ -444,7 +471,9 @@ export default function Inventory() {
         ) : products.length === 0 ? (
           <Typography align="center">No product listings found.</Typography>
         ) : filteredProducts.length === 0 ? (
-          <Typography align="center">No products match the current filters.</Typography>
+          <Typography align="center">
+            No products match the current filters.
+          </Typography>
         ) : (
           <Box
             sx={{
@@ -483,7 +512,9 @@ export default function Inventory() {
       >
         <Alert
           severity={snackbar.severity}
-          onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
+          onClose={() =>
+            setSnackbar((current) => ({ ...current, open: false }))
+          }
           sx={{ width: "100%" }}
         >
           {snackbar.message}

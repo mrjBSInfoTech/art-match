@@ -119,6 +119,14 @@ export const changeBuyerPassword = async (currentPassword, newPassword) => {
 // LOGOUT
 export const logout = () => {
   localStorage.removeItem("buyer_token");
+  localStorage.removeItem("buyer_customer_id");
+  localStorage.removeItem("buyer_username");
+  localStorage.removeItem("buyer_first_name");
+  localStorage.removeItem("buyer_last_name");
+  localStorage.removeItem("buyer_email");
+  localStorage.removeItem("buyer_phone_number");
+  localStorage.removeItem("buyer_profile_image");
+  localStorage.removeItem("recommendation_session_id");
   localStorage.removeItem("customer_id");
   localStorage.removeItem("username");
   localStorage.removeItem("first_name");

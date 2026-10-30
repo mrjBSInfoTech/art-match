@@ -29,6 +29,8 @@ import { canFulfillOrder, isPayMongoOrder, isPlacedOrder, isSellerSale, needsPay
 import OrderCard from "../../components/seller/Order/OrderCard";
 import OrderInfo from "../../components/seller/Order/OrderInfo";
 import OrderParcelPhoto from "../../components/seller/Order/OrderParcelPhoto";
+import OrderTrack from "../../components/seller/Order/OrderTrack";
+import OrderReceipt from "../../components/seller/Order/OrderReceipt";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
 import { getShipmentCourier } from "../../utils/shipmentCouriers.js";
 import { getSecureTrackingUrl } from "../../utils/trackingUrl.js";
@@ -193,6 +195,8 @@ export default function SellerOrder() {
             ? {
                 ...order,
                 status: nextStatus,
+                deliveredAt: result.deliveredAt ?? order.deliveredAt ?? (nextStatus === "Delivered" ? new Date().toISOString() : null),
+                returnDeadline: result.returnDeadline ?? order.returnDeadline,
                 paymentStatus: result.paymentStatus ?? order.paymentStatus,
                 paidAt: result.paidAt ?? order.paidAt,
                 courier: result.courier ?? order.courier,
@@ -209,6 +213,8 @@ export default function SellerOrder() {
           ? {
               ...current,
               status: nextStatus,
+              deliveredAt: result.deliveredAt ?? current.deliveredAt ?? (nextStatus === "Delivered" ? new Date().toISOString() : null),
+              returnDeadline: result.returnDeadline ?? current.returnDeadline,
               paymentStatus: result.paymentStatus ?? current.paymentStatus,
               paidAt: result.paidAt ?? current.paidAt,
               courier: result.courier ?? current.courier,
@@ -336,28 +342,28 @@ export default function SellerOrder() {
           </Box>
 
           <Stack direction="row" spacing={1} sx={{ width: { xs: "100%", md: "auto" } }}>
-          <Button
-            variant="outlined"
-            startIcon={<RefreshOutlinedIcon />}
-            disabled={loading || savingOrderId !== null || savingFulfillment}
-            onClick={loadOrders}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            sx={{
-              width: { xs: "100%", sm: 150 },
-              height: { xs: 35, sm: 45 },
-              minWidth: { xs: 45, sm: 50 },
-              fontSize: { xs: 12, sm: 16 },
-              padding: 0,
-            }}
-            onClick={() => { setSelectedStatus("All"); setSearchTerm(""); }}
-          >
-            Reset filters
-          </Button>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshOutlinedIcon />}
+              disabled={loading || savingOrderId !== null || savingFulfillment}
+              onClick={loadOrders}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              sx={{
+                width: { xs: "100%", sm: 150 },
+                height: { xs: 35, sm: 45 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+              }}
+              onClick={() => { setSelectedStatus("All"); setSearchTerm(""); }}
+            >
+              Reset filters
+            </Button>
           </Stack>
         </Box>
 
@@ -528,7 +534,7 @@ export default function SellerOrder() {
                 flexWrap: "wrap",
               }}
             >
-                <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 } }}>
+              <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 } }}>
                 <Select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
@@ -605,113 +611,13 @@ export default function SellerOrder() {
         onPrint={() => window.print()}
       />
 
-      {selectedOrder && (
-        <>
-          <style>{`
-            @media screen {
-              .seller-parcel-label {
-                display: none !important;
-              }
-            }
-            @media print {
-              @page {
-                size: 4in 6in;
-                margin: 0.2in;
-              }
-              body * {
-                visibility: hidden !important;
-              }
-              .seller-parcel-label,
-              .seller-parcel-label * {
-                visibility: visible !important;
-              }
-              .seller-parcel-label {
-                display: block !important;
-                position: fixed !important;
-                inset: 0 auto auto 0 !important;
-                box-sizing: border-box !important;
-                width: 3.6in !important;
-                min-height: 5.6in !important;
-                padding: 0.12in !important;
-                background: #fff !important;
-                color: #111 !important;
-                font: 12px/1.4 Arial, sans-serif !important;
-                z-index: 999999 !important;
-              }
-              .seller-parcel-label * {
-                color: #111 !important;
-              }
-            }
-          `}</style>
-          <Box component="section" className="seller-parcel-label" aria-label="Printable parcel label">
-            <Box sx={{ borderBottom: "2px solid #111", pb: 1, mb: 1.5 }}>
-              <Typography component="p" sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>
-                ARTMATCH · PARCEL LABEL
-              </Typography>
-              <Typography component="p" sx={{ mt: 0.5, fontSize: 21, fontWeight: 800 }}>
-                {selectedOrder.id}
-              </Typography>
-            </Box>
-            <Typography component="p" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8 }}>
-              SHIP TO
-            </Typography>
-            <Typography component="p" sx={{ mt: 0.3, fontSize: 17, fontWeight: 800, overflowWrap: "anywhere" }}>
-              {selectedOrder.customer}
-            </Typography>
-            <Typography component="p" sx={{ mt: 0.5, fontSize: 13, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-              {selectedOrder.address}
-            </Typography>
-            {selectedOrder.phone && (
-              <Typography component="p" sx={{ mt: 0.5, fontSize: 13, fontWeight: 700 }}>
-                Phone: {selectedOrder.phone}
-              </Typography>
-            )}
-            <Box sx={{ borderTop: "1px solid #777", mt: 1.5, pt: 1 }}>
-              <Typography component="p" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8 }}>
-                FROM
-              </Typography>
-              <Typography component="p" sx={{ fontSize: 13, fontWeight: 700 }}>
-                {selectedOrder.items[0]?.artist || "ArtMatch Seller"}
-              </Typography>
-            </Box>
-            <Box sx={{ borderTop: "1px solid #777", mt: 1.5, pt: 1 }}>
-              <Typography component="p" sx={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8 }}>
-                PARCEL CONTENTS
-              </Typography>
-              {selectedOrder.items.map((item) => (
-                <Typography key={`${selectedOrder.id}-${item.id}`} component="p" sx={{ mt: 0.4, fontSize: 12 }}>
-                  {item.title} · Qty {item.qty}
-                </Typography>
-              ))}
-            </Box>
-            {selectedOrder.handlingInstructions?.length > 0 && (
-              <Box sx={{ border: "2px solid #111", mt: 1.5, p: 1 }}>
-                <Typography component="p" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.8 }}>
-                  HANDLE WITH CARE
-                </Typography>
-                {selectedOrder.handlingInstructions.map((instruction) => (
-                  <Typography key={instruction} component="p" sx={{ mt: 0.3, fontSize: 12, fontWeight: 700 }}>
-                    • {parcelHandlingOptions.find((option) => option.value === instruction)?.label || instruction}
-                  </Typography>
-                ))}
-              </Box>
-            )}
-            <Box sx={{ border: "2px solid #111", mt: 1.5, p: 1, textAlign: "center" }}>
-              <Typography component="p" sx={{ fontSize: 10, fontWeight: 700 }}>
-                {String(selectedOrder.payment).toLowerCase() === "cod" ? "CASH ON DELIVERY" : "ONLINE PAYMENT"}
-              </Typography>
-              {String(selectedOrder.payment).toLowerCase() === "cod" && (
-                <Typography component="p" sx={{ mt: 0.3, fontSize: 18, fontWeight: 800 }}>
-                  COLLECT {formatCurrency(selectedOrder.total)}
-                </Typography>
-              )}
-            </Box>
-          </Box>
-        </>
-      )}
+      <OrderReceipt
+        selectedOrder={selectedOrder}
+        parcelHandlingOptions={parcelHandlingOptions}
+      />
 
       <OrderParcelPhoto
-        open={Boolean(fulfillmentTarget)}
+        open={Boolean(fulfillmentTarget && fulfillmentTarget.status === "Packed")}
         fulfillmentTarget={fulfillmentTarget}
         statusError={statusError}
         setStatusError={setStatusError}
@@ -719,14 +625,24 @@ export default function SellerOrder() {
         setParcelPhotos={setParcelPhotos}
         photoPreviews={photoPreviews}
         handlingOptions={parcelHandlingOptions}
+        handlingInstructions={handlingInstructions}
+        setHandlingInstructions={setHandlingInstructions}
+        saving={savingFulfillment}
+        onClose={() => setFulfillmentTarget(null)}
+        onSubmit={submitFulfillmentUpdate}
+      />
+
+      <OrderTrack
+        open={Boolean(fulfillmentTarget && fulfillmentTarget.status === "Shipped")}
+        fulfillmentTarget={fulfillmentTarget}
+        statusError={statusError}
+        setStatusError={setStatusError}
         courier={courier}
         onCourierChange={changeCourier}
         trackingNumber={trackingNumber}
         setTrackingNumber={setTrackingNumber}
         trackingUrl={trackingUrl}
         setTrackingUrl={setTrackingUrl}
-        handlingInstructions={handlingInstructions}
-        setHandlingInstructions={setHandlingInstructions}
         saving={savingFulfillment}
         onClose={() => setFulfillmentTarget(null)}
         onSubmit={submitFulfillmentUpdate}

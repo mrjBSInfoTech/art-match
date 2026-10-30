@@ -279,7 +279,7 @@ export default function CertificateOfAuthenticity() {
         svg,
       });
       setPublishedCertificate({ ...published, publishedAt: new Date().toISOString() });
-      setPublishMessage("Published. The certificate QR code will be sent in the buyer's messages one day after delivery.");
+      setPublishMessage("Published. The certificate QR code will be sent in the buyer's messages immediately upon delivery.");
     } catch (publishError) {
       setError(publishError.message || "Unable to publish this certificate.");
     } finally {
@@ -494,7 +494,7 @@ export default function CertificateOfAuthenticity() {
                     </Button>
                     {publishedCertificate && (
                       <Alert severity="info">
-                        This certificate is published. Its QR code will be sent one day after delivery and becomes unavailable when the order return is completed.
+                        This certificate is published. Its QR code is sent in the buyer's messages as soon as the order is delivered and becomes unavailable when the order return is completed.
                       </Alert>
                     )}
                     {publishMessage && <Alert severity="success">{publishMessage}</Alert>}

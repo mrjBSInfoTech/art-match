@@ -9,8 +9,10 @@ import {
   approveReturnRequest, rejectReturnRequest, receiveReturnRequest,
 } from "../../../api/seller/returnAPI.js";
 import ReturnActionDialog from "./ReturnActionDialog.jsx";
+import OrderTrack from "../Order/OrderTrack.jsx";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import ArtworkImage from "../../common/ArtworkImage";
+import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 
 const statuses = {
   Requested: { label: "Awaiting seller", color: "warning" },
@@ -37,12 +39,13 @@ const safeWebUrl = (value) => {
   }
 };
 
-
-
 export default function ReturnRequestCard({ request, role, highlighted = false, onUpdated }) {
   const [action, setAction] = useState("");
   const [response, setResponse] = useState("");
-  const [trackingUrl, setTrackingUrl] = useState("");
+  const [courier, setCourier] = useState(request.return_courier || "");
+  const [trackingNumber, setTrackingNumber] = useState(request.return_tracking_number || "");
+  const [trackingUrl, setTrackingUrl] = useState(request.return_tracking_url || "");
+  const [viewTrackingOpen, setViewTrackingOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const inFlightRef = useRef(false);
   const [error, setError] = useState("");
@@ -53,11 +56,14 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
   const validResponse = action !== "reject" || response.trim().length > 0;
   const validTracking = !trackingUrl.trim() || Boolean(safeWebUrl(trackingUrl.trim()));
   const tracking = safeWebUrl(request.return_tracking_url);
+  const assignedCourier = getShipmentCourier(request.return_courier);
 
   const openAction = (nextAction) => {
     setError("");
     setResponse("");
-    setTrackingUrl("");
+    setCourier(request.return_courier || "");
+    setTrackingNumber(request.return_tracking_number || "");
+    setTrackingUrl(request.return_tracking_url || "");
     setAction(nextAction);
   };
 
@@ -71,9 +77,13 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
       if (action === "approve") await approveReturnRequest(id, { seller_response: response.trim() });
       if (action === "reject") await rejectReturnRequest(id, { seller_response: response.trim() });
       if (action === "cancel") await cancelReturnRequest(id);
-      if (action === "ship") await shipReturnRequest(id, {
-        ...(trackingUrl.trim() ? { return_tracking_url: trackingUrl.trim() } : {}),
-      });
+      if (action === "ship") {
+        await shipReturnRequest(id, {
+          ...(courier ? { courier } : {}),
+          ...(trackingNumber.trim() ? { tracking_number: trackingNumber.trim() } : {}),
+          ...(trackingUrl.trim() ? { return_tracking_url: trackingUrl.trim() } : {}),
+        });
+      }
       if (action === "receive") await receiveReturnRequest(id);
       setAction("");
       await onUpdated?.();
@@ -150,10 +160,39 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
             <Typography key={label} variant="caption" color="text.secondary">{label}: {dateLabel(value)}</Typography>
           ))}
         </Stack>
-        {tracking && (
-          <Link href={tracking} target="_blank" rel="noopener noreferrer" variant="body2">
-            Track return shipment
-          </Link>
+        {(request.return_courier || request.return_tracking_number || tracking) && (
+          <Box sx={{ p: 1.25, borderRadius: 1.5, bgcolor: "action.hover", border: "1px solid", borderColor: "divider" }}>
+            <Stack spacing={0.5}>
+              <Typography variant="caption" fontWeight={700} color="text.secondary">
+                RETURN SHIPMENT DETAILS
+              </Typography>
+              {request.return_courier && (
+                <Typography variant="body2">
+                  <strong>Courier:</strong> {assignedCourier?.label || request.return_courier}
+                </Typography>
+              )}
+              {request.return_tracking_number && (
+                <Typography variant="body2">
+                  <strong>Tracking No.:</strong> {request.return_tracking_number}
+                </Typography>
+              )}
+              {tracking && (
+                <Link
+                  href={tracking}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setViewTrackingOpen(true);
+                  }}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="body2"
+                  sx={{ cursor: "pointer", fontWeight: 600, display: "inline-block", mt: 0.25 }}
+                >
+                  Track return shipment
+                </Link>
+              )}
+            </Stack>
+          </Box>
         )}
         {request.status === "Completed" && (
           <Typography variant="body2" color="text.secondary">
@@ -186,10 +225,62 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
           )}
         </Stack>
       </Stack>
-      <ReturnActionDialog requestId={request.return_request_id} action={action} response={response} trackingUrl={trackingUrl}
-        busy={busy} error={error} validResponse={validResponse} validTracking={validTracking}
-        onResponseChange={setResponse} onTrackingChange={setTrackingUrl}
-        onClose={() => !busy && setAction("")} onSubmit={submit} />
+
+      {/* When action === 'ship', open OrderTrack so buyer can pick any courier and tracking link */}
+      {action === "ship" ? (
+        <OrderTrack
+          open={true}
+          fulfillmentTarget={{
+            status: "Return Shipped",
+            order: {
+              orderId: request.order_id,
+              id: request.order_number,
+              courier: courier || request.return_courier,
+              trackingNumber: trackingNumber || request.return_tracking_number,
+              trackingUrl: trackingUrl || request.return_tracking_url,
+            },
+          }}
+          statusError={error}
+          setStatusError={setError}
+          courier={courier}
+          onCourierChange={setCourier}
+          trackingNumber={trackingNumber}
+          setTrackingNumber={setTrackingNumber}
+          trackingUrl={trackingUrl}
+          setTrackingUrl={setTrackingUrl}
+          saving={busy}
+          onClose={() => !busy && setAction("")}
+          onSubmit={submit}
+        />
+      ) : (
+        <ReturnActionDialog
+          requestId={request.return_request_id}
+          action={action}
+          response={response}
+          trackingUrl={trackingUrl}
+          busy={busy}
+          error={error}
+          validResponse={validResponse}
+          validTracking={validTracking}
+          onResponseChange={setResponse}
+          onTrackingChange={setTrackingUrl}
+          onClose={() => !busy && setAction("")}
+          onSubmit={submit}
+        />
+      )}
+
+      {/* Dialog to view and track return delivery */}
+      <OrderTrack
+        open={viewTrackingOpen}
+        order={{
+          orderId: request.order_id,
+          id: request.order_number,
+          courier: request.return_courier,
+          trackingNumber: request.return_tracking_number,
+          trackingUrl: request.return_tracking_url,
+        }}
+        onClose={() => setViewTrackingOpen(false)}
+      />
     </Paper>
   );
 }

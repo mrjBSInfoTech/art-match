@@ -26,6 +26,9 @@ export default function OrderFinish() {
   const { state } = useLocation();
   const orders = Array.isArray(state?.orders) ? state.orders : [];
   const onlinePayment = state?.paymentMethod === "paymongo";
+  const deliveryMethod = state?.deliveryMethod || orders[0]?.deliveryMethod || "door_to_door";
+  const isPickup = deliveryMethod === "pickup";
+  const firstSellerId = orders[0]?.sellerId || orders[0]?.items?.[0]?.sellerId || null;
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
@@ -50,8 +53,12 @@ export default function OrderFinish() {
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
               {onlinePayment
-                ? "Your payment is confirmed and your order is now with the seller."
-                : "Your order is now with the seller. Pay the courier in cash when your artwork arrives."}
+                ? isPickup
+                  ? "Your payment is confirmed and your pickup order is now with the seller."
+                  : "Your payment is confirmed and your order is now with the seller."
+                : isPickup
+                  ? "Your pickup order is now with the seller. Coordinate your pickup schedule and pay in cash upon collection."
+                  : "Your order is now with the seller. Pay the courier in cash when your artwork arrives."}
             </Typography>
           </Box>
 
@@ -150,6 +157,17 @@ export default function OrderFinish() {
             >
               Continue browsing
             </Button>
+            {firstSellerId && (
+              <Button
+                fullWidth
+                variant="outlined"
+                color="inherit"
+                onClick={() => navigate(`/buyer/messages?seller=${encodeURIComponent(firstSellerId)}`)}
+                sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
+              >
+                Contact Seller
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>

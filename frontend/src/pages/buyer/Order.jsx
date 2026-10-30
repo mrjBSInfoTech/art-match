@@ -1,28 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
   Paper,
-  Rating,
   Stack,
-  TextField,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import { cancelBuyerOrder, fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import { submitBuyerReview } from "../../api/buyer/reviewsAPI";
 import OrderGrid from "../../components/buyer/Order/OrderGrid";
+import OrderTrack from "../../components/buyer/Order/OrderTrack";
+import OrderReviewDialog from "../../components/buyer/Order/OrderReviewDialog";
 import ReturnRequestDialog from "../../components/buyer/Message/ReturnRequestDialog.jsx";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import {
+  STATUS_TABS,
+  filterOrdersByStatusTab,
+  getTabCounts,
+} from "../../utils/orderStatusTabs.js";
 import {
   getPaymentReference,
   getPaymentReturnNotice,
@@ -31,6 +33,7 @@ import {
 
 export default function Orders() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,6 +41,7 @@ export default function Orders() {
   const [actionMessage, setActionMessage] = useState("");
   const [actionPending, setActionPending] = useState("");
   const paymentAction = useRef(false);
+  const [trackTarget, setTrackTarget] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
   const [rating, setRating] = useState(0);
@@ -59,6 +63,35 @@ export default function Orders() {
 
   const loadOrders = () => setRefresh((value) => value + 1);
 
+  const initialTab = useMemo(() => {
+    const param = searchParams.get("status");
+    return STATUS_TABS.find((t) => t.toLowerCase() === (param || "").toLowerCase()) || "All";
+  }, [searchParams]);
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const param = searchParams.get("status");
+    const matched = STATUS_TABS.find((t) => t.toLowerCase() === (param || "").toLowerCase()) || "All";
+    setActiveTab(matched);
+  }, [searchParams]);
+
+  const handleTabChange = (_event, nextTab) => {
+    setActiveTab(nextTab);
+    const updated = new URLSearchParams(searchParams);
+    if (nextTab === "All") {
+      updated.delete("status");
+    } else {
+      updated.set("status", nextTab);
+    }
+    setSearchParams(updated, { replace: true });
+  };
+
+  const tabCounts = useMemo(() => getTabCounts(orders), [orders]);
+  const filteredOrders = useMemo(
+    () => filterOrdersByStatusTab(orders, activeTab),
+    [orders, activeTab]
+  );
+
   useEffect(() => {
     let active = true;
     let controller;
@@ -75,8 +108,6 @@ export default function Orders() {
         const params = new URLSearchParams(search);
         const reference = params.get("reference");
         if (["success", "cancelled"].includes(params.get("payment")) && reference) {
-          // Sessions created before the checkout return page was introduced can still return here.
-          // Authenticate and verify their status in Checkout before exposing a purchase.
           navigate(`/buyer/checkout${search}`, { replace: true });
           return;
         }
@@ -194,10 +225,87 @@ export default function Orders() {
             Follow each seller's progress from confirmation to delivery.
           </Typography>
         </Box>
+
+        <Paper
+          elevation={0}
+          sx={{
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            backgroundColor: "transparent",
+          }}
+        >
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            textColor="inherit"
+            aria-label="Order status filter tabs"
+            sx={{
+              minHeight: 48,
+              "& .MuiTabs-indicator": {
+                backgroundColor: "error.main",
+                height: 3,
+                borderRadius: "3px 3px 0 0",
+              },
+              "& .MuiTab-root": {
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: { xs: 13, sm: 14 },
+                minWidth: { xs: "auto", sm: 90 },
+                px: { xs: 1.5, sm: 2 },
+                py: 1,
+                color: "text.secondary",
+                "&.Mui-selected": {
+                  color: "error.main",
+                  fontWeight: 800,
+                },
+                "&:hover": {
+                  color: "text.primary",
+                },
+              },
+            }}
+          >
+            {STATUS_TABS.map((tab) => {
+              const count = tabCounts[tab] ?? 0;
+              const isSelected = activeTab === tab;
+              return (
+                <Tab
+                  key={tab}
+                  value={tab}
+                  label={
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <span>{tab}</span>
+                      {count > 0 && (
+                        <Chip
+                          label={count}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            minWidth: 20,
+                            fontSize: "0.72rem",
+                            fontWeight: 700,
+                            px: 0.5,
+                            backgroundColor: isSelected ? "error.main" : "action.selected",
+                            color: isSelected ? "#fff" : "text.secondary",
+                            "& .MuiChip-label": { px: 0.6 },
+                          }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                />
+              );
+            })}
+          </Tabs>
+        </Paper>
+
         {error && <Alert severity="error" action={<Button color="inherit" onClick={loadOrders}>Retry</Button>}>{error}</Alert>}
         {paymentNotice && <Alert severity={paymentNotice.severity} action={<Button color="inherit" onClick={loadOrders}>Refresh</Button>}>{paymentNotice.message}</Alert>}
         {actionError && <Alert severity="error" onClose={() => setActionError("")}>{actionError}</Alert>}
         {actionMessage && <Alert severity="info" onClose={() => setActionMessage("")}>{actionMessage}</Alert>}
+
         {loading ? (
           <Box sx={{ display: "grid", placeItems: "center", minHeight: 240 }}><CircularProgress /></Box>
         ) : orders.length === 0 && !error ? (
@@ -205,57 +313,66 @@ export default function Orders() {
             <Typography variant="h6" fontWeight={700}>No orders yet</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>Paid purchases and cash-on-delivery orders will show up here.</Typography>
           </Paper>
+        ) : filteredOrders.length === 0 ? (
+          <Paper variant="outlined" sx={{ p: 5, textAlign: "center", borderRadius: 2 }}>
+            <Typography variant="h6" fontWeight={700}>
+              No {activeTab.toLowerCase()} orders
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+              You don't have any orders with status "{activeTab}" at the moment.
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => handleTabChange(null, "All")}
+              sx={{ mt: 2, textTransform: "none", fontWeight: 700 }}
+            >
+              View all orders
+            </Button>
+          </Paper>
         ) : (
           <OrderGrid
-            orders={orders}
+            orders={filteredOrders}
             actionPending={actionPending}
             onCancel={handleCancel}
             onReview={openReview}
             onRequestReturn={setReturnTarget}
+            onTrackOrder={setTrackTarget}
             onViewReturn={(request) => navigate(`/buyer/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`)}
           />
         )}
       </Stack>
 
-      {returnTarget && <ReturnRequestDialog key={returnTarget.orderId} order={returnTarget}
-        onClose={() => setReturnTarget(null)}
-        onSubmitted={(request) => {
-          setReturnTarget(null);
-          navigate(`/buyer/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`);
-        }} />}
+      <OrderTrack
+        open={Boolean(trackTarget)}
+        order={trackTarget}
+        onClose={() => setTrackTarget(null)}
+      />
 
-      <Dialog open={Boolean(reviewTarget)} onClose={() => setReviewTarget(null)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
-        {reviewTarget && <>
-          <DialogTitle>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="overline" color="error.main" fontWeight={800}>{reviewTarget.order.id}</Typography>
-                <Typography variant="h5" fontWeight={800}>{reviewSubmitted ? "Review received" : "Review your artwork"}</Typography>
-              </Box>
-              <IconButton aria-label="Close review" onClick={() => setReviewTarget(null)}><CloseIcon /></IconButton>
-            </Stack>
-          </DialogTitle>
-          <DialogContent>
-            {reviewSubmitted ? <Alert severity="success">Thanks. Your rating and feedback are saved and will appear on the seller profile.</Alert> : (
-              <Stack spacing={2}>
-                {reviewError && <Alert severity="error">{reviewError}</Alert>}
-                <Typography fontWeight={700}>{reviewTarget.item.title} · {reviewTarget.item.artist}</Typography>
-                <Box sx={{ textAlign: "center" }}>
-                  <Rating value={rating} onChange={(_, value) => setRating(value || 0)} size="large" />
-                  <Typography variant="body2" color="text.secondary">{rating ? `${rating} out of 5` : "Select a star rating"}</Typography>
-                </Box>
-                <TextField label="Share your experience (optional)" multiline minRows={4} value={reviewText} onChange={(event) => setReviewText(event.target.value)} inputProps={{ maxLength: 600 }} helperText={`${reviewText.length}/600 characters`} />
-              </Stack>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ p: 2.5 }}>
-            {reviewSubmitted ? <Button variant="contained" onClick={() => setReviewTarget(null)}>Done</Button> : <>
-              <Button onClick={() => setReviewTarget(null)}>Cancel</Button>
-              <Button variant="contained" disabled={!rating || reviewText.length > 600 || reviewSaving} onClick={submitReview}>{reviewSaving ? "Submitting..." : "Submit review"}</Button>
-            </>}
-          </DialogActions>
-        </>}
-      </Dialog>
+      {returnTarget && (
+        <ReturnRequestDialog
+          key={returnTarget.orderId}
+          order={returnTarget}
+          onClose={() => setReturnTarget(null)}
+          onSubmitted={(request) => {
+            setReturnTarget(null);
+            navigate(`/buyer/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`);
+          }}
+        />
+      )}
+
+      <OrderReviewDialog
+        open={Boolean(reviewTarget)}
+        reviewTarget={reviewTarget}
+        rating={rating}
+        setRating={setRating}
+        reviewText={reviewText}
+        setReviewText={setReviewText}
+        reviewSubmitted={reviewSubmitted}
+        reviewSaving={reviewSaving}
+        reviewError={reviewError}
+        onClose={() => setReviewTarget(null)}
+        onSubmit={submitReview}
+      />
     </Box>
   );
 }

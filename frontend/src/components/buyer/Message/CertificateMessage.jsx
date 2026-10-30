@@ -39,11 +39,13 @@ export default function CertificateMessage({ message, buyer = true }) {
   const [url, setUrl] = useState("");
   const [certificateId, setCertificateId] = useState("");
   const [failed, setFailed] = useState(false);
+  const [revokedMessage, setRevokedMessage] = useState("");
 
   useEffect(() => {
     let active = true;
     setQr("");
     setFailed(false);
+    setRevokedMessage("");
     setUrl("");
     setCertificateId("");
 
@@ -72,7 +74,17 @@ export default function CertificateMessage({ message, buyer = true }) {
 
     load().catch((error) => {
       console.error("Certificate QR unavailable:", error?.name || error?.message || error);
-      if (active) setFailed(true);
+      if (active) {
+        setFailed(true);
+        const msg = error?.response?.data?.message || error?.message || "";
+        if (error?.response?.status === 410 || /revoked/i.test(msg) || /returned/i.test(msg)) {
+          setRevokedMessage(
+            typeof msg === "string" && msg.includes("revoked")
+              ? msg
+              : "Access to this Certificate of Authenticity has been revoked because this product was returned."
+          );
+        }
+      }
     });
 
     return () => {
@@ -88,7 +100,7 @@ export default function CertificateMessage({ message, buyer = true }) {
           Certificate ID: {certificateId}
         </Typography>
       )}
-      {qr && (
+      {qr && !revokedMessage && (
         <Link
           href={url}
           target="_blank"
@@ -111,11 +123,30 @@ export default function CertificateMessage({ message, buyer = true }) {
           />
         </Link>
       )}
-      <Typography variant="caption" textAlign="center">
-        {failed
-          ? "Certificate QR is temporarily unavailable."
-          : "Scan to view and verify the Certificate of Authenticity."}
-      </Typography>
+      {revokedMessage ? (
+        <Typography
+          variant="body2"
+          sx={{
+            color: "error.main",
+            fontWeight: 600,
+            textAlign: "center",
+            maxWidth: 280,
+            p: 1.25,
+            borderRadius: 1.5,
+            bgcolor: "action.hover",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          {revokedMessage}
+        </Typography>
+      ) : (
+        <Typography variant="caption" textAlign="center">
+          {failed
+            ? "Certificate QR is temporarily unavailable."
+            : "Scan to view and verify the Certificate of Authenticity."}
+        </Typography>
+      )}
     </Stack>
   );
 }

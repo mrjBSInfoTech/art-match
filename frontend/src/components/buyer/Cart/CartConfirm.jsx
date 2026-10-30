@@ -8,9 +8,11 @@ import {
   Slide,
   Typography,
   Alert,
+  Divider,
   List,
   ListItem,
   ListItemText,
+  Stack,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 // Icons
@@ -40,9 +42,18 @@ const formatPrice = (value) =>
     minimumFractionDigits: 2,
   }).format(Number(value || 0));
 
-function CartConfirm({ open, handleClose, onSubmit, selectedItems = [],}) {
+function CartConfirm({ open, handleClose, onSubmit, selectedItems = [], total = 0 }) {
   const theme = useTheme();
   const closeDialog = () => handleClose();
+  const computedTotal = selectedItems.reduce(
+    (sum, item) => sum + Number(item.subtotal ?? Number(item.price || 0) * Math.max(1, Number(item.qty ?? item.quantity ?? 1))),
+    0,
+  );
+  const displayTotal = Number(total) > 0 ? Number(total) : computedTotal;
+  const totalQuantity = selectedItems.reduce(
+    (sum, item) => sum + Math.max(1, Number(item.qty ?? item.quantity ?? 1)),
+    0,
+  );
   const handleConfirm = () => {
     if (selectedItems.length) {
       onSubmit(selectedItems.map((item) => String(item.artwork_id)));
@@ -100,9 +111,52 @@ function CartConfirm({ open, handleClose, onSubmit, selectedItems = [],}) {
           </Button>
         </DialogTitle>
         <DialogContent dividers>
-          <Typography id="cart-confirm-description">
-            Please review the artworks you selected before continuing to checkout.
+          <Typography id="cart-confirm-description" variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Please review the artworks and quantities you selected before continuing to checkout.
           </Typography>
+          <List disablePadding sx={{ maxHeight: 240, overflowY: "auto" }}>
+            {selectedItems.map((item) => {
+              const qty = Math.max(1, Number(item.qty ?? item.quantity ?? 1));
+              const unitPrice = Number(item.price || 0);
+              const lineTotal = Number(item.subtotal ?? unitPrice * qty);
+              return (
+                <ListItem
+                  key={item.artwork_id || item.id}
+                  disableGutters
+                  sx={{ py: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}
+                >
+                  <ListItemText
+                    primary={item.title || "Untitled Artwork"}
+                    secondary={`Qty: ${qty} × ${formatPrice(unitPrice)}`}
+                    primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}
+                    secondaryTypographyProps={{ variant: "caption" }}
+                  />
+                  <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: "nowrap", mt: 0.5 }}>
+                    {formatPrice(lineTotal)}
+                  </Typography>
+                </ListItem>
+              );
+            })}
+          </List>
+          <Divider sx={{ my: 1.5 }} />
+          <Stack spacing={0.75}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="caption" color="text.secondary">
+                Selected items ({totalQuantity} {totalQuantity === 1 ? "unit" : "units"})
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {formatPrice(displayTotal)}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                Total calculation
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "error.main" }}>
+                {formatPrice(displayTotal)}
+              </Typography>
+            </Stack>
+          </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={closeDialog} sx={{ color: "text.secondary" }}>

@@ -129,7 +129,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     if (sellerId !== undefined) id(sellerId);
     const eligibility = await refreshSellerPayoutEligibility(pool, { sellerId });
     const eligibilityByOrder = new Map(eligibility.map(value => [Number(value.order.order_id), value]));
-    const filters = ["o.payment_method = 'paymongo'", "o.payment_status IN ('Paid','Refunded')"];
+    const filters = ["o.payment_method = 'paymongo'", "o.payment_status IN ('Paid','Refunded')", "COALESCE(s.payout_provider, '') <> 'demo'"];
     const params = [];
     if (sellerId !== undefined) { filters.push("s.seller_id = ?"); params.push(sellerId); }
     if (payoutId !== undefined) { filters.push("s.split_id = ?"); params.push(id(payoutId)); }
@@ -162,8 +162,9 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       gross: Number(row.gross_amount), commission: Number(row.commission_amount), processingFee: Number(row.processing_fee_amount),
       net: Number(row.net_amount), refundAmount: Number(row.refund_amount || 0), payoutAmount: Number(row.payout_amount || 0),
       payoutStatus: row.payout_status, payoutReference: row.payout_reference,
+      providerBatchId: row.provider_batch_id || null,
       providerTransferId: row.provider_transfer_id, holdReason: row.hold_reason, failureReason: row.failure_reason,
-      payoutProvider: row.payout_provider || null, isDemo: row.payout_provider === "demo",
+      payoutProvider: row.payout_provider || null, isDemo: false,
       providerReference: row.provider_reference || row.payout_reference,
       approval, actions: payoutApprovalActions({ approval, payoutStatus: row.payout_status, eligible: Boolean(current?.canSend),
         hasDestination: Boolean(row.account_student_id), adminId, financeAuthorized, providerEnabled: available.enabled }),
@@ -175,11 +176,10 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       })),
       destination: row.account_student_id ? payoutAccountDto({ ...row, student_id: row.account_student_id }) : null,
     }; }));
-    const totals = { held: 0, eligible: 0, processing: 0, paid: 0, demoPaid: 0, failed: 0, cancelled: 0, reversed: 0, pending: 0 };
+    const totals = { held: 0, eligible: 0, processing: 0, paid: 0, failed: 0, cancelled: 0, reversed: 0, pending: 0 };
     for (const payout of orders) {
       const bucket = payout.payoutStatus.toLowerCase();
-      if (payout.isDemo && bucket === "paid") totals.demoPaid += payout.payoutAmount;
-      else if (bucket in totals) totals[bucket] += payout.payoutAmount;
+      if (bucket in totals) totals[bucket] += payout.payoutAmount;
     }
     for (const key of Object.keys(totals)) totals[key] = Number(totals[key].toFixed(2));
     totals.pending = Number((totals.held + totals.eligible + totals.processing + totals.failed).toFixed(2));
@@ -329,14 +329,17 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     // An old failed attempt cannot overwrite a newer attempt or its successful result.
     const latest = (await rows(connection, "SELECT MAX(attempt_id) AS attempt_id FROM seller_payout_attempt WHERE split_id=?", [split.split_id]))[0];
     if (Number(latest.attempt_id) !== Number(attemptId)) return split;
-    await rows(connection, `UPDATE seller_payout_attempt SET provider_transfer_id=?,status=?,failure_reason=?,
+    const failureMessage = status === "Failed"
+      ? (transfer.failureCode ? `The provider confirmed that the transfer failed (${transfer.failureCode}).` : "The provider confirmed that the transfer failed.")
+      : null;
+    await rows(connection, `UPDATE seller_payout_attempt SET provider_batch_id=COALESCE(?,provider_batch_id),provider_transfer_id=?,status=?,failure_reason=?,
       paid_at=IF(?='Paid',COALESCE(paid_at,CURRENT_TIMESTAMP),paid_at),failed_at=IF(?='Failed',COALESCE(failed_at,CURRENT_TIMESTAMP),failed_at)
-      WHERE attempt_id=?`, [transfer.id, status, status === "Failed" ? "The provider confirmed that the transfer failed." : null, status, status, attemptId]);
-    await rows(connection, `UPDATE seller_payment_split SET payout_status=?,provider_transfer_id=?,provider_reference=?,payout_provider=?,
+      WHERE attempt_id=?`, [transfer.batchId || null, transfer.id, status, failureMessage, status, status, attemptId]);
+    await rows(connection, `UPDATE seller_payment_split SET payout_status=?,provider_batch_id=COALESCE(?,provider_batch_id),provider_transfer_id=?,provider_reference=?,payout_provider=?,
       payout_reference=?,failure_reason=?,paid_at=IF(?='Paid',COALESCE(paid_at,CURRENT_TIMESTAMP),paid_at),
       failed_at=IF(?='Failed',COALESCE(failed_at,CURRENT_TIMESTAMP),failed_at) WHERE split_id=?`,
-    [status, transfer.id, transfer.providerReference || attempt.provider_reference, providerName, attempt.provider_reference,
-      status === "Failed" ? "The provider confirmed that the transfer failed." : null, status, status, split.split_id]);
+    [status, transfer.batchId || null, transfer.id, transfer.providerReference || attempt.provider_reference, providerName, attempt.provider_reference,
+      failureMessage, status, status, split.split_id]);
     if (split.payout_status !== status) await rows(connection, `INSERT INTO account_notifications (role,account_id,notification_type,message,order_id)
       VALUES ('seller',?,'payout',?,?)`, [split.seller_id, providerName === "demo"
         ? `Demo payout for order AM-${String(split.order_id).padStart(6, "0")} is ${status.toLowerCase()}. Simulation only; no money moved.`
@@ -385,7 +388,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         account.destination_type,account.institution_code,account.institution_name,account.institution_provider,
         account.account_name,account.account_number_ciphertext,adminId]);
       await rows(connection, `UPDATE seller_payment_split SET payout_status='Processing',payout_amount=?,refund_amount=?,
-        requested_at=CURRENT_TIMESTAMP,payout_reference=?,payout_provider=?,provider_transfer_id=NULL,provider_reference=NULL,failure_reason=NULL WHERE split_id=?`,
+        requested_at=CURRENT_TIMESTAMP,payout_reference=?,payout_provider=?,provider_batch_id=NULL,provider_transfer_id=NULL,provider_reference=NULL,failure_reason=NULL WHERE split_id=?`,
       [eligibility.payoutAmountCentavos / 100, eligibility.refundAmountCentavos / 100, reference, providerName, payoutId]);
       await rows(connection, "UPDATE seller_payout_approval_cycle SET released_by_admin_id=?,released_at=CURRENT_TIMESTAMP WHERE cycle_id=? AND released_at IS NULL", [adminId,cycle.cycle_id]);
       return { attemptId: result.insertId, split, providerName, amountCentavos: eligibility.payoutAmountCentavos, reference,

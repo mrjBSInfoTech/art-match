@@ -35,8 +35,10 @@ export default function CartTable({
   const selected = new Set(selectedIds.map(String));
   const selectedCount = availableIds.filter((id) => selected.has(id)).length;
   const isProductItem = (item) => {
-    const value = String(item?.art_type || item?.product || "").trim().toLowerCase();
-    return ["product", "3d_object", "3d object", "sculpture", "physical_product", "physical product"].includes(value);
+    const artType = String(item?.art_type || "").trim().toLowerCase();
+    const product = String(item?.product || "").trim().toLowerCase();
+    const productValues = ["product", "3d_object", "3d object", "sculpture", "physical_product", "physical product"];
+    return productValues.includes(artType) || productValues.includes(product);
   };
   return (
     <Paper

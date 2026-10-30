@@ -75,7 +75,9 @@ function renderCheckout(apiOverrides = {}) {
     async flush() { for (let i = 0; i < 5; i++) { await new Promise(resolve => setImmediate(resolve)); if (dirty) render(); } },
     voucher: () => nodesOf(tree).find(node => node?.type === "CheckoutVoucher"),
     button: label => nodesOf(tree).find(node => node?.type === "Button" && textOf(node) === label),
+    iconButton: label => nodesOf(tree).find(node => node?.type === "IconButton" && node?.props?.["aria-label"] === label),
     summary: label => nodesOf(tree).find(node => node?.props?.label === label),
+    selectDelivery: value => nodesOf(tree).find(node => node?.props?.value === value && typeof node?.props?.onSelect === "function").props.onSelect(value),
     selectCOD: () => nodesOf(tree).find(node => node?.type === "RadioGroup").props.onChange({ target: { value: "cod" } }),
     reloadCart: () => windowListeners.get("pageshow")({ persisted: true }),
     unmount: () => { for (const cleanup of cleanups) cleanup?.(); },
@@ -172,5 +174,62 @@ test("checkout revalidation failure removes the old discount and shows the updat
   assert.equal(page.voucher().props.voucher, null);
   assert.match(page.voucher().props.warning, /at least ₱1,200/);
   assert.match(page.summary("Total Amount").props.value, /1,000/);
+  page.unmount();
+});
+
+test("switching between Door-to-Door and Pickup updates delivery summary and allows Pickup without a saved address", async () => {
+  const page = renderCheckout({ fetchAddresses: async () => [] });
+  await page.flush();
+  assert.equal(page.summary("Delivery Option").props.value, "Door-to-Door");
+  assert.equal(page.button("Continue to Secure Payment").props.disabled, true);
+
+  page.selectDelivery("pickup");
+  await page.flush();
+  assert.equal(page.summary("Delivery Option").props.value, "Pickup");
+  assert.match(page.summary("Shipping Fee").props.value, /Free Pickup/);
+  assert.equal(page.button("Continue to Secure Payment").props.disabled, false);
+
+  page.selectCOD();
+  await page.flush();
+  await page.button("Place COD Order").props.onClick();
+  assert.deepEqual(JSON.parse(JSON.stringify(page.placed)), [[null, "cod", [21, 22], { deliveryMethod: "pickup" }]]);
+  page.unmount();
+});
+
+test("changing product quantity dynamically updates subtotal and total and guards against duplicate Place Order clicks", async () => {
+  let resolveOrder;
+  const page = renderCheckout({
+    fetchCart: async () => [
+      { artwork_id: 25, seller_id: 7, price: 150, title: "Acrylic Keychain", art_type: "product", product: "product", stock_available: 5, sold_quantity: 1, quantity: 1 },
+    ],
+    updateCartItemQuantity: async () => ({ quantity: 3 }),
+    placeBuyerOrder: (...args) => new Promise(resolve => { resolveOrder = () => resolve({ orders: [] }); page.placed.push(args); }),
+  });
+  await page.flush();
+  assert.match(page.summary("Total Amount").props.value, /150/);
+
+  await page.iconButton("Increase quantity for Acrylic Keychain").props.onClick();
+  await page.flush();
+  await page.iconButton("Increase quantity for Acrylic Keychain").props.onClick();
+  await page.flush();
+  assert.match(page.summary("Product Subtotal (3 units)").props.value, /450/);
+  assert.match(page.summary("Total Amount").props.value, /450/);
+
+  page.selectCOD();
+  await page.flush();
+  const firstClick = page.button("Place COD Order").props.onClick();
+  const secondClick = page.button("Place COD Order").props.onClick();
+  assert.equal(page.placed.length, 1, "duplicate click must not submit a second order");
+  resolveOrder();
+  await firstClick;
+  await secondClick;
+  page.unmount();
+});
+
+test("Contact Seller button opens the existing buyer-seller messaging route for that seller", async () => {
+  const page = renderCheckout();
+  await page.flush();
+  page.button("Contact Seller").props.onClick();
+  assert.deepEqual(page.navigations, [["/buyer/messages?seller=7"]]);
   page.unmount();
 });

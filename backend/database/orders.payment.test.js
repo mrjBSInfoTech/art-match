@@ -12,7 +12,7 @@ const enumType = (values) => `enum(${values.map((value) => `'${value}'`).join(",
 function migration({ methods = ["paymongo", "cod"], statuses = expectedStatuses,
   missing = [], rows = [], defaultMethod = null } = {}) {
   const fields = ["payment_method", "payment_status", "payment_reference", "paymongo_checkout_session_id",
-    "paymongo_checkout_url", "paymongo_payment_id", "paymongo_payment_method", "paid_at",
+    "paymongo_checkout_url", "paymongo_payment_id", "paymongo_payment_method", "paid_at", "delivery_method",
     "parcel_photos", "courier", "tracking_number", "tracking_url", "handling_instructions", "original_subtotal", "discount_amount", "voucher_code"];
   const columns = fields.filter((Field) => !missing.includes(Field)).map((Field) => ({
     Field, Type: Field === "payment_method" ? enumType(methods)

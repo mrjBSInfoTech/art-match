@@ -1,8 +1,30 @@
 import { useState } from "react";
-import { Alert, alpha, Box, Button, Chip, Grid, Paper, Stack, Typography, useTheme } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import {
+  Alert,
+  alpha,
+  Box,
+  Button,
+  Chip,
+  Grid,
+  Paper,
+  Stack,
+  Step,
+  StepLabel,
+  Stepper,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
+import {
+  DELIVERY_LIFECYCLE_STEPS,
+  getDeliveryProgressStepIndex,
+  isRefundedOrder,
+} from "../../../utils/orderStatusTabs.js";
 import {
   getPaymentColor,
   getPaymentLabel,
@@ -60,8 +82,10 @@ export default function OrderGrid({
   onReview,
   onRequestReturn,
   onViewReturn,
+  onTrackOrder,
 }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [copyStatus, setCopyStatus] = useState(null);
   const copyTrackingNumber = async (order) => {
     try {
@@ -138,6 +162,8 @@ export default function OrderGrid({
           month: "numeric",
           day: "numeric",
         });
+        const sellerName = order.sellerName || items.find((i) => i.artist)?.artist || "";
+        const deliveryStepIndex = getDeliveryProgressStepIndex(order.status);
 
         return (
           <Grid size={{ xs: 12 }} key={order.orderId}>
@@ -159,24 +185,44 @@ export default function OrderGrid({
                 gap={2}
               >
                 <Box sx={{ minWidth: 0 }}>
-                  {order.id && (
-                    <Typography
-                      variant="h6"
-                      sx={{ color: colors.text, fontWeight: 900, letterSpacing: 0.2 }}
-                    >
-                      {order.id}
-                    </Typography>
-                  )}
+                  <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+                    {order.id && (
+                      <Typography
+                        variant="h6"
+                        sx={{ color: colors.text, fontWeight: 900, letterSpacing: 0.2 }}
+                      >
+                        {order.id}
+                      </Typography>
+                    )}
+                    {sellerName && (
+                      <Chip
+                        size="small"
+                        icon={<StorefrontOutlinedIcon sx={{ fontSize: "16px !important" }} />}
+                        label={`Seller: ${sellerName}`}
+                        variant="outlined"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: 12,
+                          height: 24,
+                          borderColor: colors.divider,
+                          color: colors.text,
+                        }}
+                      />
+                    )}
+                  </Stack>
                   <Typography variant="body2" sx={{ color: colors.secondary, mt: 0.25 }}>
                     {placedDate ? `Placed ${placedDate} · ` : ""}
                     {getPaymentMethodLabel(order)}
+                    {" · "}
+                    {order.deliveryMethod === "pickup" ? "Store / Campus Pickup" : "Door-to-Door"}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{ display: "block", mt: 0.75, color: colors.muted }}
                   >
-                    Artworks only. Delivery is arranged with a third-party courier
-                    and paid directly to the seller.
+                    {order.deliveryMethod === "pickup"
+                      ? "Pickup order. Coordinate collection schedule directly with the seller."
+                      : "Artworks only. Delivery is arranged with a third-party courier and paid directly to the seller."}
                   </Typography>
                   {reference && (
                     <Typography
@@ -244,10 +290,73 @@ export default function OrderGrid({
                 </Alert>
               )}
 
+              {deliveryStepIndex >= 0 && order.status !== "Cancelled" && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 1.5,
+                    borderRadius: 2,
+                    backgroundColor: colors.inset,
+                    border: `1px solid ${colors.divider}`,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: colors.muted, fontWeight: 700, display: "block", mb: 1, textTransform: "uppercase", letterSpacing: 0.5 }}
+                  >
+                    Delivery Progress
+                  </Typography>
+                  <Stepper
+                    activeStep={deliveryStepIndex}
+                    alternativeLabel
+                    sx={{
+                      "& .MuiStepLabel-label": {
+                        fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                        fontWeight: 600,
+                        color: colors.muted,
+                        mt: 0.5,
+                        "&.Mui-active": {
+                          color: "error.main",
+                          fontWeight: 800,
+                        },
+                        "&.Mui-completed": {
+                          color: colors.text,
+                          fontWeight: 700,
+                        },
+                      },
+                      "& .MuiStepIcon-root": {
+                        fontSize: { xs: "1.2rem", sm: "1.35rem" },
+                        color: colors.divider,
+                        "&.Mui-active": {
+                          color: "error.main",
+                        },
+                        "&.Mui-completed": {
+                          color: "success.main",
+                        },
+                      },
+                    }}
+                  >
+                    {DELIVERY_LIFECYCLE_STEPS.map((label) => (
+                      <Step key={label}>
+                        <StepLabel>{label}</StepLabel>
+                      </Step>
+                    ))}
+                  </Stepper>
+                </Box>
+              )}
+
               {(order.status === "Shipped" || order.status === "Delivered") && (
                 <Alert
                   severity={order.status === "Delivered" ? "success" : "info"}
-                  action={trackingUrl ? (
+                  action={onTrackOrder ? (
+                    <Button
+                      size="small"
+                      onClick={() => onTrackOrder(order)}
+                      sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap", fontWeight: 700 }}
+                    >
+                      {order.status === "Delivered" ? "View delivery tracking" : "Track delivery"}
+                    </Button>
+                  ) : trackingUrl ? (
                     <Button
                       component="a"
                       href={trackingUrl}
@@ -330,6 +439,115 @@ export default function OrderGrid({
                     </Typography>
                   )}
                 </Stack>
+              )}
+
+              {(order.activeReturn || isRefundedOrder(order)) && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    backgroundColor: isDark ? "rgba(143, 52, 59, 0.12)" : "#fff8f8",
+                    borderColor: isDark ? "rgba(239, 68, 68, 0.35)" : "#fecaca",
+                  }}
+                >
+                  <Stack spacing={1}>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      flexWrap="wrap"
+                      gap={1}
+                    >
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <AssignmentReturnOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ color: colors.text }}>
+                          Refund & Return Details
+                        </Typography>
+                      </Stack>
+                      {order.activeReturn?.status ? (
+                        <Chip
+                          label={`Status: ${order.activeReturn.status}`}
+                          size="small"
+                          color={
+                            order.activeReturn.status === "Completed" || order.activeReturn.status === "Approved"
+                              ? "success"
+                              : order.activeReturn.status === "Rejected"
+                              ? "error"
+                              : "warning"
+                          }
+                          sx={{ fontWeight: 700 }}
+                        />
+                      ) : String(order.paymentStatus).toLowerCase() === "refunded" ? (
+                        <Chip label="Payment Refunded" size="small" color="success" sx={{ fontWeight: 700 }} />
+                      ) : null}
+                    </Stack>
+
+                    {order.activeReturn?.reason && (
+                      <Typography variant="body2" sx={{ color: colors.secondary }}>
+                        <strong>Reason:</strong> {order.activeReturn.reason}
+                      </Typography>
+                    )}
+
+                    {order.activeReturn?.details && (
+                      <Typography variant="body2" sx={{ color: colors.muted }}>
+                        <strong>Details:</strong> {order.activeReturn.details}
+                      </Typography>
+                    )}
+
+                    {order.activeReturn?.seller_response && (
+                      <Box
+                        sx={{
+                          p: 1.25,
+                          borderRadius: 1.5,
+                          backgroundColor: colors.inset,
+                          borderLeft: "3px solid",
+                          borderColor: "primary.main",
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: colors.subtle, display: "block", fontWeight: 700 }}>
+                          Seller response:
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: colors.text }}>
+                          {order.activeReturn.seller_response}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {order.activeReturn?.requested_at && (
+                      <Typography variant="caption" sx={{ color: colors.subtle }}>
+                        Requested on {formatDate(order.activeReturn.requested_at)}
+                        {order.activeReturn.completed_at ? ` · Completed on ${formatDate(order.activeReturn.completed_at)}` : ""}
+                      </Typography>
+                    )}
+
+                    {String(order.paymentStatus).toLowerCase() === "refunded" && (
+                      <Alert severity="success" sx={{ py: 0.5, px: 1.5, "& .MuiAlert-message": { fontSize: 13 } }}>
+                        Refund completed. The payment has been refunded to your account.
+                      </Alert>
+                    )}
+
+                    {order.activeReturn && (
+                      <Box sx={{ pt: 0.5 }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onViewReturn(order.activeReturn)}
+                          sx={{
+                            color: colors.text,
+                            borderColor: colors.buttonBorder,
+                            textTransform: "none",
+                            fontSize: 12,
+                            "&:hover": { borderColor: colors.text, backgroundColor: colors.hover },
+                          }}
+                        >
+                          View return in Messages
+                        </Button>
+                      </Box>
+                    )}
+                  </Stack>
+                </Paper>
               )}
 
               <Stack
@@ -418,7 +636,7 @@ export default function OrderGrid({
                 {order.address && (
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="overline" sx={{ color: colors.subtle, lineHeight: 1.4 }}>
-                      Ship to
+                      {order.deliveryMethod === "pickup" ? "Pickup Location" : "Ship to"}
                     </Typography>
                     <Typography variant="body2" sx={{ color: colors.secondary, overflowWrap: "anywhere" }}>
                       {order.address}
@@ -432,6 +650,36 @@ export default function OrderGrid({
                   gap={1}
                   sx={{ flexShrink: 0 }}
                 >
+                  {onTrackOrder && order.status !== "Cancelled" && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => onTrackOrder(order)}
+                      sx={{
+                        color: colors.text,
+                        borderColor: colors.buttonBorder,
+                        textTransform: "none",
+                        "&:hover": { borderColor: colors.text, backgroundColor: colors.hover },
+                      }}
+                    >
+                      Track Order
+                    </Button>
+                  )}
+                  {(order.sellerId || items[0]?.sellerId) && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => navigate(`/buyer/messages?seller=${encodeURIComponent(order.sellerId || items[0]?.sellerId)}`)}
+                      sx={{
+                        color: colors.text,
+                        borderColor: colors.buttonBorder,
+                        textTransform: "none",
+                        "&:hover": { borderColor: colors.text, backgroundColor: colors.hover },
+                      }}
+                    >
+                      Contact Seller
+                    </Button>
+                  )}
                   {order.activeReturn && (
                     <Button
                       size="small"

@@ -27,7 +27,7 @@ const optionalCustomerId = (req) => {
       process.env.JWT_SECRET || "your_secret_key",
     );
 
-    const customerId = Number(decoded.id);
+    const customerId = Number(decoded.customer_id ?? decoded.id);
 
     return Number.isInteger(customerId) && customerId > 0 ? customerId : null;
   } catch {
@@ -51,29 +51,20 @@ const getLiveArtworkHistory = async ({ customerId, sessionId }) => {
   let whereSql;
   let params;
 
-  if (customerId && sessionId) {
-    whereSql = `
-      (
-        customer_id = ?
-        OR (
-          customer_id IS NULL
-          AND session_id = ?
-        )
-      )
-    `;
-
-    params = [customerId, sessionId];
-  } else if (customerId) {
+  // Strictly isolate authenticated customer history from any shared browser guest session.
+  if (customerId) {
     whereSql = "customer_id = ?";
 
     params = [customerId];
-  } else {
+  } else if (sessionId) {
     whereSql = `
       customer_id IS NULL
       AND session_id = ?
     `;
 
     params = [sessionId];
+  } else {
+    return [];
   }
 
   const [rows] = await db.promise().query(
@@ -338,22 +329,7 @@ const buildRecommendationIdentityCondition = (
 ) => {
   const prefix = alias ? `${alias}.` : "";
 
-  if (customerId && sessionId) {
-    return {
-      sql: `
-        (
-          ${prefix}customer_id = ?
-          OR (
-            ${prefix}customer_id IS NULL
-            AND ${prefix}session_id = ?
-          )
-        )
-      `,
-
-      params: [customerId, sessionId],
-    };
-  }
-
+  // Strictly scope authenticated users by customer_id only, never merging shared browser session_id.
   if (customerId) {
     return {
       sql: `${prefix}customer_id = ?`,
@@ -1249,13 +1225,17 @@ router.get("/seller/:sellerId", async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.set("Vary", "Authorization, X-Recommendation-Session");
+
   const customerId =
     optionalCustomerId(req);
 
-  const sessionId =
-    getRecommendationSessionId(
-      req,
-    );
+  const sessionId = customerId
+    ? null
+    : getRecommendationSessionId(
+        req,
+      );
 
   if (
     !customerId &&
@@ -1417,13 +1397,23 @@ router.get("/", async (req, res) => {
     );
 
     // --------------------------------
-    // SASREC
+    // COLD-START CHECK & SASREC
     // --------------------------------
+
+    const isColdStart =
+      artworkIds.length === 0 &&
+      preferenceEvents.length === 0 &&
+      recentActivity.length === 0 &&
+      artistAffinity.size === 0 &&
+      specialtyPreferences.size === 0;
 
     let sasrecResults = [];
 
+    // Explicitly bypass SASRec inference when the current user's interaction history is empty.
     if (
-      artworkIds.length && specialtyCandidates.artworkIds.length
+      !isColdStart &&
+      artworkIds.length > 0 &&
+      specialtyCandidates.artworkIds.length > 0
     ) {
       try {
         // Ask SASRec for more than
@@ -1559,11 +1549,13 @@ router.get("/", async (req, res) => {
 
     return res.json({
       mode,
+      cold_start: isColdStart,
 
       history_length:
         artworkIds.length,
 
       signals: {
+        cold_start: isColdStart,
         recent_activity_events: recentActivity.length,
         eligible_candidates: rankingArtworkIds.length,
         previously_seen_candidates: rankingArtworkIds.length - unseenArtworkIds.filter((id) => !purchasedArtworkIds.has(id)).length,
@@ -1606,12 +1598,13 @@ router.post("/interactions", async (req, res) => {
     .trim()
     .toLowerCase();
 
-  const sessionId =
-    String(req.body.session_id || "")
-      .trim()
-      .slice(0, 100) || null;
-
   const customerId = optionalCustomerId(req);
+
+  const sessionId = customerId
+    ? null
+    : String(req.body.session_id || "")
+        .trim()
+        .slice(0, 100) || null;
 
   if (!CLIENT_EVENTS.has(eventType)) {
     return res.status(400).json({
