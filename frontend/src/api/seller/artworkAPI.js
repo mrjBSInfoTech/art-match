@@ -1,6 +1,10 @@
 import axios from "axios";
 import { getArtworkDetailDefaults, getArtworkDetailsErrors, getArtworkDetailsPayload } from "../../utils/artworkDetails.js";
 import { getArtworkScanErrors, getArtworkScanPayload } from "../../utils/artworkScanAttributes.js";
+import {
+  getProductOptionsErrors,
+  getProductOptionsPayload,
+} from "../../utils/productOptions.js";
 
 const api = axios.create({
   baseURL: "http://localhost:5000/api/seller",
@@ -65,11 +69,43 @@ function optionalArtworkDetails(artworkData) {
   };
   const error = Object.values(getArtworkDetailsErrors(data))[0];
   if (error) throw new Error(error);
-  return getArtworkDetailsPayload(data);
+  const isProductArtwork = String(artworkData.art_type || "").trim().toLowerCase() === "product";
+  const priceMode = details.product_price_mode
+    || artworkData.product_price_mode
+    || "shared";
+  if (isProductArtwork) {
+    const optionErrors = getProductOptionsErrors(
+      Array.isArray(details.product_options) ? details.product_options : artworkData.product_options || [],
+      priceMode,
+    );
+    if (Object.keys(optionErrors).length) {
+      throw new Error(
+        Object.values(optionErrors).find((value) => typeof value === "string")
+        || "Check the product details.",
+      );
+    }
+  }
+  return {
+    ...getArtworkDetailsPayload(data),
+    ...(isProductArtwork ? {
+      product_price_mode: priceMode,
+      product_options: getProductOptionsPayload(
+        Array.isArray(details.product_options) ? details.product_options : artworkData.product_options || [],
+        priceMode,
+      ),
+    } : {}),
+  };
 }
 
 function appendArtworkAttributes(formData, artworkData, details) {
   if (details !== null) formData.append("artwork_details", JSON.stringify(details));
+  if (details?.product_options) {
+    (artworkData.product_options || []).forEach((option) => {
+      if (!option.imageFile) return;
+      formData.append("product_option_images", option.imageFile);
+      formData.append("product_option_image_ids", option.id);
+    });
+  }
   const scan = getArtworkScanPayload(artworkData);
   if (Object.hasOwn(scan, "mediums_used")) formData.append("mediums_used", scan.mediums_used);
   if (Object.hasOwn(scan, "feature_scanned")) formData.append("feature_scanned", JSON.stringify(scan.feature_scanned));
@@ -113,7 +149,7 @@ export const addArtwork = async (artworkData) => {
     if (!artworkData.description || !artworkData.description.trim()) {
       throw new Error("Description is required");
     }
-    if (!artworkData.price || isNaN(artworkData.price)) {
+    if (!Number.isFinite(Number(artworkData.price)) || Number(artworkData.price) <= 0) {
       throw new Error("Valid price is required");
     }
     if (!artworkData.file) {
@@ -163,7 +199,7 @@ export const updateArtwork = async (id, artworkData) => {
     if (!artworkData.description || !artworkData.description.trim()) {
       throw new Error("Description is required");
     }
-    if (!artworkData.price || isNaN(artworkData.price)) {
+    if (!Number.isFinite(Number(artworkData.price)) || Number(artworkData.price) <= 0) {
       throw new Error("Valid price is required");
     }
     if (!artworkData.art_type || !artworkData.art_type.trim()) {

@@ -84,6 +84,7 @@ router.get("/", authenticateSeller, (req, res) => {
        o.shipping_region, o.shipping_postal_code, o.parcel_photos, o.received_photos,
        o.courier, o.tracking_number, o.tracking_url, o.handling_instructions, i.order_item_id,
        i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity,
+       i.selected_products, i.line_total, i.original_line_total, i.order_note,
        s.gross_amount, s.commission_amount, s.processing_fee_amount,
        s.net_amount, s.payout_status
      FROM marketplace_order o
@@ -173,6 +174,13 @@ router.get("/", authenticateSeller, (req, res) => {
             image: row.image,
             qty: row.quantity,
             price: Number(row.unit_price),
+            lineTotal: Number(row.line_total ?? (Number(row.unit_price) * Number(row.quantity))),
+            originalLineTotal: Number(row.original_line_total ??
+              (Number(row.unit_price) * Number(row.quantity))),
+            selectedProducts: typeof row.selected_products === "string"
+              ? JSON.parse(row.selected_products)
+              : row.selected_products || null,
+            orderNote: row.order_note || null,
           });
         }
       });

@@ -40,7 +40,16 @@ import {
 } from "../../../utils/artworkScanAttributes";
 import ArtworkScanFields from "./ArtworkScanFields";
 import ArtworkDetailsFields from "./ArtworkDetailsFields";
+import ProductOptionsFields from "./ProductOptionsFields";
 import ArtworkImage from "../../common/ArtworkImage";
+import {
+  createEmptyProductOption,
+  getProductOptionsErrors,
+  getProductOptionsFromArtwork,
+  getProductOptionsPayload,
+  getProductOptionsStartingPrice,
+  getProductOptionsTotalQuantity,
+} from "../../../utils/productOptions";
 
 const createEmptyArtworkForm = () => ({
   title: "",
@@ -56,6 +65,8 @@ const createEmptyArtworkForm = () => ({
   date_created: "",
   ...getArtworkDetailDefaults(),
   ...getArtworkScanDefaults(),
+  product_price_mode: "shared",
+  product_options: [],
 });
 
 const DropZone = styled(Box, {
@@ -106,6 +117,10 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
   const needsProductChoice = !typeOptions || Boolean(typeOptions.productOptions);
   const showDetails = hasArtType && (!needsProductChoice || Boolean(formData.product));
   const detailCategory = getArtworkDetailCategory(formData.art_type, typeOptions?.product || formData.product);
+  const isProductArtwork = formData.art_type === "product";
+  const isManualProductPricing = isProductArtwork && formData.product_price_mode === "manual";
+  const productStockTotal = getProductOptionsTotalQuantity(formData.product_options);
+  const productStartingPrice = getProductOptionsStartingPrice(formData.product_options);
   const productOptions = typeOptions?.productOptions || [
     { value: "painting", label: "Painting" },
     { value: "image", label: "Image / Photograph" },
@@ -121,6 +136,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
   const [featureError, setFeatureError] = useState("");
   const [materialInput, setMaterialInput] = useState("");
   const [detailErrors, setDetailErrors] = useState({});
+  const [productOptionErrors, setProductOptionErrors] = useState({});
 
   const uploadReminder = formData.art_type === "digital"
     ? "Upload the complete digital artwork without app controls or borders. Its medium will be set to Digital automatically."
@@ -141,6 +157,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         ...createEmptyArtworkForm(),
         ...initialDraft,
         ...getArtworkDetailsFromArtwork(initialDraft),
+        ...(initialDraft.art_type === "product"
+          ? { product_options: getProductOptionsFromArtwork(initialDraft) }
+          : {}),
         ...(selectedArtwork ? getArtworkScanFromArtwork(initialDraft) : getArtworkScanDefaults()),
       });
       setImagePreview(initialDraft.image || null);
@@ -159,6 +178,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         file: null,
         date_created: selectedArtwork.date_created || "",
         ...getArtworkDetailsFromArtwork(selectedArtwork),
+        ...(selectedArtwork.art_type === "product"
+          ? { product_options: getProductOptionsFromArtwork(selectedArtwork) }
+          : {}),
         ...getArtworkScanFromArtwork(selectedArtwork),
       });
       setImagePreview(selectedArtwork.image || null);
@@ -173,20 +195,36 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     setFeatureError("");
     setMaterialInput("");
     setDetailErrors({});
+    setProductOptionErrors({});
   }, [selectedArtwork, open, initialDraft]);
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
     const fieldValue = type === "checkbox" ? checked : value;
-    setFormData((prev) => ({
-      ...changeArtworkFormField(prev, name, name === "mediums_used" && fieldValue === "" ? null : fieldValue),
-      artwork_details: undefined,
-    }));
+    setFormData((prev) => {
+      const next = changeArtworkFormField(
+        prev, name, name === "mediums_used" && fieldValue === "" ? null : fieldValue,
+      );
+      return {
+        ...next,
+        ...(name === "art_type" ? {
+          product_options: fieldValue === "product"
+            ? [createEmptyProductOption(), createEmptyProductOption()]
+            : [],
+          product_price_mode: "shared",
+        } : {}),
+        ...(isProductArtwork ? {
+          stock_available: getProductOptionsTotalQuantity(next.product_options),
+        } : {}),
+        artwork_details: undefined,
+      };
+    });
     if (name === "art_type" || name === "product") {
       setFeatureInput("");
       setFeatureError("");
       setMaterialInput("");
       setDetailErrors({});
+      setProductOptionErrors({});
     } else {
       setDetailErrors((prev) => {
         const next = { ...prev };
@@ -269,6 +307,17 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setError("Product type is required");
       return;
     }
+    if (isProductArtwork) {
+      const errors = getProductOptionsErrors(formData.product_options, formData.product_price_mode);
+      setProductOptionErrors(errors);
+      if (Object.keys(errors).length) {
+        setError(Object.values(errors).find((value) => typeof value === "string")
+          || "Check the product details.");
+        return;
+      }
+    } else {
+      setProductOptionErrors({});
+    }
     if (!formData.art_size.trim()) {
       setError("Art size is required");
       return;
@@ -277,8 +326,13 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setError("Style is required");
       return;
     }
-    if (!Number.isFinite(Number(formData.price)) || Number(formData.price) <= 0) {
+    if (!isManualProductPricing &&
+        (!Number.isFinite(Number(formData.price)) || Number(formData.price) <= 0)) {
       setError("Price must be greater than zero");
+      return;
+    }
+    if (isManualProductPricing && !productStartingPrice) {
+      setError("Enter a valid price for each product.");
       return;
     }
     if (!selectedArtwork && !formData.file) {
@@ -293,6 +347,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     }
     const draft = {
       ...formData,
+      ...(isProductArtwork ? { stock_available: productStockTotal } : {}),
       product,
       material_composition: ["fine_art", "product"].includes(detailCategory) && materialInput.trim()
         ? [...formData.material_composition, materialInput.trim()]
@@ -318,15 +373,25 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
 
     try {
       setIsSubmitting(true);
-      const artworkDetails = getArtworkDetailsPayload(draft);
+      const artworkDetails = {
+        ...getArtworkDetailsPayload(draft),
+        ...(draft.art_type === "product" ? {
+          product_price_mode: draft.product_price_mode,
+          product_options: getProductOptionsPayload(
+            draft.product_options,
+            draft.product_price_mode,
+          ),
+        } : {}),
+      };
       const submission = {
         ...draft,
         ...getArtworkDetailDefaults(),
         ...artworkDetails,
+        ...(draft.art_type === "product" ? { product_options: draft.product_options } : {}),
         artwork_details: artworkDetails,
         ...getArtworkScanDefaults(),
         ...getArtworkScanPayload(draft),
-        price: Number(formData.price),
+        price: isManualProductPricing ? productStartingPrice : Number(formData.price),
       };
       setFormData(submission);
       setFeatureInput("");
@@ -508,6 +573,28 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               </FormControl>
             )}
 
+            {formData.art_type === "product" && (
+              <ProductOptionsFields
+                options={formData.product_options}
+                priceMode={formData.product_price_mode}
+                errors={productOptionErrors}
+                onChange={(options) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    product_options: options,
+                    stock_available: getProductOptionsTotalQuantity(options),
+                  }));
+                  setProductOptionErrors({});
+                  setError("");
+                }}
+                onPriceModeChange={(priceMode) => {
+                  setFormData((prev) => ({ ...prev, product_price_mode: priceMode }));
+                  setProductOptionErrors({});
+                  setError("");
+                }}
+              />
+            )}
+
             {showDetails && (
               <TextField
                 label={typeOptions?.sizeLabel || (formData.product === "3d_object" ? "Object dimensions" : "Artwork dimensions")}
@@ -547,6 +634,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                 errors={detailErrors}
                 onChange={handleChange}
                 materialInput={materialInput}
+                isProductArtwork={isProductArtwork}
+                productStockTotal={productStockTotal}
                 onMaterialInputChange={(value) => {
                   setMaterialInput(value);
                   setDetailErrors((prev) => {
@@ -583,8 +672,12 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               name="price"
               type="number"
               slotProps={{ htmlInput: { min: 0.01, step: 0.01 } }}
-              value={formData.price}
+              value={isManualProductPricing ? productStartingPrice : formData.price}
               onChange={handleChange}
+              disabled={isManualProductPricing}
+              helperText={isManualProductPricing
+                ? "Set individually in each product; this shows the lowest product price."
+                : ""}
               fullWidth
             />
 

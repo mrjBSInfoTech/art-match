@@ -300,8 +300,18 @@ export default function OrderInfo({
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
                       Qty {item.qty} · {formatCurrency(item.price)} each
                     </Typography>
+                    {item.selectedProducts?.map((product) => (
+                      <Typography key={product.id} variant="caption" color="text.secondary" display="block">
+                        {product.name} × {product.quantity}
+                      </Typography>
+                    ))}
+                    {item.orderNote && (
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: "pre-wrap" }}>
+                        Request: {item.orderNote}
+                      </Typography>
+                    )}
                     <Typography sx={{ ...detailValueSx, mt: 0.25 }}>
-                      {formatCurrency(item.price * item.qty)}
+                      {formatCurrency(item.lineTotal ?? item.price * item.qty)}
                     </Typography>
                   </Box>
                 </Stack>

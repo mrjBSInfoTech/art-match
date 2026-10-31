@@ -32,6 +32,8 @@ import {
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
 import ArtworkAdditionalDetails from "../../components/buyer/Artwork/ArtworkAdditionalDetails";
+import ProductSelectionDialog from "../../components/buyer/Artwork/ProductSelectionDialog";
+import { getSavedProductOptions } from "../../utils/productOptions";
 import { getArtworkDetailCategory } from "../../utils/artworkDetails";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
@@ -74,6 +76,7 @@ export default function ArtworkDetail() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [, setRecentHistory] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -253,6 +256,7 @@ export default function ArtworkDetail() {
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
   const isProduct = String(artwork?.art_type || "").trim().toLowerCase() === "product";
+  const productOptions = getSavedProductOptions(artwork || {});
   const stockAvailable = artwork?.stock_available != null && artwork.stock_available !== ""
     ? Number(artwork.stock_available)
     : null;
@@ -266,10 +270,10 @@ export default function ArtworkDetail() {
 
   const similarArtworks = getSimilarArtworks(artwork, artworks);
 
-  const handleAddToCart = async (artworkId, quantity = 1) => {
+  const handleAddToCart = async (artworkId, quantity = 1, selectedProducts = undefined, orderNote = undefined) => {
     try {
       setAddingToCart(true);
-      const result = await addToCart(artworkId, quantity);
+      const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
       setCartMessage("Added to cart");
       showSnackbar(result?.message || "Artwork added to cart", "success");
       return result;
@@ -416,7 +420,7 @@ export default function ArtworkDetail() {
                   <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} RowComponent={Row} />
                 )}
               </Stack>
-              {isProduct && !isOutOfStock && (
+              {isProduct && !productOptions.length && !isOutOfStock && (
                 <Box sx={{ mt: 2.5, mb: 1, p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -508,12 +512,16 @@ export default function ArtworkDetail() {
                   color="primary"
                   fullWidth
                   disabled={addingToCart || isOutOfStock}
-                  onClick={() =>
+                  onClick={() => {
+                    if (productOptions.length) {
+                      setProductDialogOpen(true);
+                      return;
+                    }
                     handleAddToCart(
                       artwork.artwork_id || artwork.id,
                       isProduct ? selectedQuantity : 1,
-                    ).catch(() => {})
-                  }
+                    ).catch(() => {});
+                  }}
                   sx={{
                     padding: 1,
                     px: 3,
@@ -735,6 +743,21 @@ export default function ArtworkDetail() {
             </Stack>
           </Paper>
         </Grid>
+        <ProductSelectionDialog
+          open={productDialogOpen}
+          artwork={artwork}
+          onClose={() => setProductDialogOpen(false)}
+          onConfirm={async (selectedProducts, totalQuantity, orderNote) => {
+            await handleAddToCart(
+              artwork.artwork_id || artwork.id,
+              totalQuantity,
+              selectedProducts,
+              orderNote,
+            );
+            setProductDialogOpen(false);
+          }}
+          isSubmitting={addingToCart}
+        />
       </Grid>
 
       <ArtworkReviews artworkId={artwork.artwork_id || artwork.id} />

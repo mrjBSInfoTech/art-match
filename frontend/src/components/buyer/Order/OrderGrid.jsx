@@ -582,6 +582,16 @@ export default function OrderGrid({
                         <Typography variant="caption" sx={{ color: colors.muted }}>
                           {[item.artist, item.qty != null ? `Qty ${item.qty}` : ""].filter(Boolean).join(" · ")}
                         </Typography>
+                        {item.selectedProducts?.map((product) => (
+                          <Typography key={product.id} variant="caption" display="block" sx={{ color: colors.muted }}>
+                            {product.name} × {product.quantity}
+                          </Typography>
+                        ))}
+                        {item.orderNote && (
+                          <Typography variant="caption" display="block" sx={{ color: colors.muted, whiteSpace: "pre-wrap" }}>
+                            Request: {item.orderNote}
+                          </Typography>
+                        )}
                       </Box>
                     </Stack>
                     <Stack
@@ -592,7 +602,7 @@ export default function OrderGrid({
                       sx={{ pl: { xs: 9.5, sm: 0 }, flexShrink: 0 }}
                     >
                       <Typography variant="body2" fontWeight={700} sx={{ color: colors.text, whiteSpace: "nowrap" }}>
-                        {formatCurrency(Number(item.price) * Number(item.qty || 0))}
+                        {formatCurrency(item.lineTotal ?? Number(item.price) * Number(item.qty || 0))}
                       </Typography>
                       {item.review ? (
                         <Chip

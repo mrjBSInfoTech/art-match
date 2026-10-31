@@ -22,6 +22,7 @@ import {
 } from "../../utils/artworkScanAttributes.js";
 import { baseNameOf, removeDerivatives, writeDerivatives } from "../../utils/artworkStorage.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
+import { getProductOptions } from "../../utils/productOptions.js";
 
 const router = express.Router();
 
@@ -127,10 +128,71 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+const uploadArtworkFiles = (req, res, next) => {
+  upload.fields([
+    { name: "file", maxCount: 1 },
+    { name: "product_option_images", maxCount: 100 },
+  ])(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+    req.file = req.files?.file?.[0] || null;
+    return next();
+  });
+};
+
 function removeTemporaryUpload(file) {
   if (!file) return;
   const temporaryPath = path.join(uploadDir, file.filename);
   if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+}
+
+function removeRequestUploads(req) {
+  for (const files of Object.values(req.files || {})) {
+    for (const file of files) removeTemporaryUpload(file);
+  }
+}
+
+function getProductOptionImageAssignments(req, artworkDetails) {
+  const files = req.files?.product_option_images || [];
+  const rawIds = req.body.product_option_image_ids;
+  const ids = rawIds === undefined ? [] : Array.isArray(rawIds) ? rawIds : [rawIds];
+  if (files.length !== ids.length) {
+    throw new ArtworkDetailsValidationError("Each product picture must match a product option.");
+  }
+  if (!files.length) return [];
+
+  const options = getProductOptions(artworkDetails);
+  const optionMap = new Map(options.map((option) => [option.id, option]));
+  const seen = new Set();
+  return files.map((file, index) => {
+    const id = typeof ids[index] === "string" ? ids[index].trim() : "";
+    const option = optionMap.get(id);
+    if (!option || seen.has(id)) {
+      throw new ArtworkDetailsValidationError("A product picture references an invalid product option.");
+    }
+    seen.add(id);
+    return { file, option };
+  });
+}
+
+async function uploadProductOptionImages(assignments) {
+  const uploadedImages = [];
+  try {
+    for (const { file, option } of assignments) {
+      const absolutePath = path.join(uploadDir, file.filename);
+      const compressed = await compressArtworkImage(absolutePath);
+      const imageName = `${path.parse(file.filename).name}.webp`;
+      uploadedImages.push(imageName);
+      await writeDerivatives(compressed, baseNameOf(imageName));
+      option.image = imageName;
+      removeTemporaryUpload(file);
+    }
+  } catch (error) {
+    await Promise.all(uploadedImages.map((image) => removeDerivatives(baseNameOf(image))));
+    throw error;
+  }
+  return uploadedImages;
 }
 
 // Get artworks for the current user
@@ -250,10 +312,12 @@ router.get("/:id", authenticateSeller, (req, res) => {
 router.post(
   "/",
   authenticateSeller,
-  upload.single("file"),
+  uploadArtworkFiles,
   async (req, res) => {
+    const uploadedProductImageNames = [];
     try {
       if (!req.file) {
+        removeRequestUploads(req);
         return res.status(400).json({ error: "No image file uploaded" });
       }
 
@@ -302,11 +366,11 @@ router.post(
         date_posted || new Date().toISOString().slice(0, 19).replace("T", " ");
 
       if (!studentId) {
-        removeTemporaryUpload(req.file);
+        removeRequestUploads(req);
         return res.status(403).json({ error: "Unable to identify seller" });
       }
       if (!title || !art_size || !art_type || !product || !genre || !price || !description) {
-        removeTemporaryUpload(req.file);
+        removeRequestUploads(req);
         return res
           .status(400)
           .json({ error: "Please fill all required fields." });
@@ -317,6 +381,7 @@ router.post(
         artType: art_type,
         product,
       });
+      const productImageAssignments = getProductOptionImageAssignments(req, artworkDetails);
       const scanOverrides = parseArtworkScanOverrides(req.body, art_type, product);
 
       const absoluteImagePath = path.join(uploadDir, req.file.filename);
@@ -348,12 +413,13 @@ router.post(
       } catch (b2Error) {
         await removeDerivatives(baseNameOf(imageName));
         console.error("B2 artwork upload failed:", b2Error.message);
-        removeTemporaryUpload(req.file);
+        removeRequestUploads(req);
 
         return res.status(502).json({
           error: "Artwork image could not be uploaded to cloud storage.",
         });
       }
+      uploadedProductImageNames.push(...await uploadProductOptionImages(productImageAssignments));
       const sql = `
       INSERT INTO artwork
       (student_id, title, art_size, art_type, product, artwork_details, genre, color_used, price, description, care_instructions, image, date_created)
@@ -377,9 +443,12 @@ router.post(
           imageName,
           createdAt,
         ],
-        (err, result) => {
+        async (err, result) => {
           if (err) {
             console.error("DB Error:", err);
+            await Promise.all(uploadedProductImageNames.map((image) =>
+              removeDerivatives(baseNameOf(image)),
+            ));
             return res.status(500).json({ error: err.message });
           }
 
@@ -390,9 +459,12 @@ router.post(
           VALUES (?, 'Unverified', ?)
         `;
 
-          db.query(artUploadSql, [artworkId, createdAt], (uploadErr) => {
+          db.query(artUploadSql, [artworkId, createdAt], async (uploadErr) => {
             if (uploadErr) {
               console.error("ArtUpload DB Error:", uploadErr);
+              await Promise.all(uploadedProductImageNames.map((image) =>
+                removeDerivatives(baseNameOf(image)),
+              ));
               return res.status(500).json({ error: uploadErr.message });
             }
 
@@ -437,9 +509,16 @@ router.post(
         || error instanceof ArtworkScanValidationError
         || error instanceof ArtworkImageProcessingError
       ) {
-        removeTemporaryUpload(req.file);
+        removeRequestUploads(req);
+        await Promise.all(uploadedProductImageNames.map((image) =>
+          removeDerivatives(baseNameOf(image)),
+        ));
         return res.status(400).json({ error: error.message });
       }
+      removeRequestUploads(req);
+      await Promise.all(uploadedProductImageNames.map((image) =>
+        removeDerivatives(baseNameOf(image)),
+      ));
       console.error("Error creating artwork:", error);
       res.status(500).json({ error: "Failed to process artwork submission." });
     }
@@ -482,9 +561,10 @@ router.put("/:id/verify", authenticateSeller, (req, res) => {
 router.put(
   "/:id",
   authenticateSeller,
-  upload.single("file"),
+  uploadArtworkFiles,
   async (req, res) => {
     const { id } = req.params;
+    const uploadedProductImageNames = [];
 
     const studentId = req.user?.student_id || req.user?.id;
 
@@ -501,14 +581,14 @@ router.put(
     } = req.body;
 
     if (!studentId) {
-      removeTemporaryUpload(req.file);
+      removeRequestUploads(req);
       return res.status(403).json({
         error: "Unable to identify seller",
       });
     }
 
     if (!title || !art_size || !art_type || !product || !genre || !price || !description) {
-      removeTemporaryUpload(req.file);
+      removeRequestUploads(req);
       return res.status(400).json({
         error: "Please fill all required fields.",
       });
@@ -540,7 +620,7 @@ router.put(
       });
 
       if (!currentArtwork) {
-        removeTemporaryUpload(req.file);
+        removeRequestUploads(req);
         return res.status(404).json({
           error: "Artwork not found",
         });
@@ -552,6 +632,10 @@ router.put(
         product,
         currentArtwork,
       });
+      const productImageAssignments = getProductOptionImageAssignments(req, artworkDetails);
+      const previousProductImages = getProductOptions(currentArtwork.artwork_details)
+        .map((option) => option.image)
+        .filter(Boolean);
       const scanOverrides = resolveArtworkScanUpdate(
         requestedScanOverrides, art_type, product, currentArtwork,
       );
@@ -578,6 +662,7 @@ router.put(
 
         console.log("Updated artwork image uploaded to B2:", newB2Key);
       }
+      uploadedProductImageNames.push(...await uploadProductOptionImages(productImageAssignments));
 
       const sql = `
         UPDATE artwork
@@ -682,11 +767,15 @@ router.put(
           console.warn("Could not delete old B2 image:", deleteError.message);
         }
       }
+      const retainedProductImages = new Set(getProductOptions(artworkDetails)
+        .map((option) => option.image)
+        .filter(Boolean));
+      await Promise.all(previousProductImages
+        .filter((image) => !retainedProductImages.has(image))
+        .map((image) => removeDerivatives(baseNameOf(image))));
 
       // Remove temporary local file.
-      if (temporaryImagePath && fs.existsSync(temporaryImagePath)) {
-        fs.unlinkSync(temporaryImagePath);
-      }
+      removeRequestUploads(req);
 
       await logSellerAudit(req.user, {
         action: "UPDATE_ARTWORK",
@@ -710,9 +799,10 @@ router.put(
 
       // Clean temporary file
       // even when update fails.
-      if (temporaryImagePath && fs.existsSync(temporaryImagePath)) {
-        fs.unlinkSync(temporaryImagePath);
-      }
+      removeRequestUploads(req);
+      await Promise.all(uploadedProductImageNames.map((image) =>
+        removeDerivatives(baseNameOf(image)),
+      ));
 
       return res.status(validationError ? 400 : 500).json({
         error: validationError
@@ -738,7 +828,7 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
   try {
     const artwork = await new Promise((resolve, reject) => {
       db.query(
-        `SELECT image
+        `SELECT image, artwork_details
                FROM artwork
                WHERE artwork_id = ?
                  AND student_id = ?`,
@@ -809,6 +899,9 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
       // cannot still be fetched by URL.
       await removeDerivatives(baseNameOf(artwork.image));
     }
+    await Promise.all(getProductOptions(artwork.artwork_details)
+      .filter((option) => option.image)
+      .map((option) => removeDerivatives(baseNameOf(option.image))));
 
     await logSellerAudit(req.user, {
       action: "DELETE_ARTWORK",

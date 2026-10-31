@@ -625,3 +625,46 @@ test("multi-quantity product checkout recalculates subtotal, total, and enforces
   assert.equal(valid.fixture.state.orderItems[0].quantity, 3);
   assert.equal(Number(valid.fixture.state.orderItems[0].unit_price), 150);
 });
+
+test("product option checkout stores exact selections and charges manual option prices", async () => {
+  const { fixture, checkout, sessions } = setup();
+  const artwork = fixture.state.artworks[0];
+  artwork.art_type = "Product";
+  artwork.price = "100.00";
+  artwork.artwork_details = {
+    product_price_mode: "manual",
+    product_options: [
+      { id: "small", name: "Small", description: "Small option", quantity: 4, price: 100 },
+      { id: "large", name: "Large", description: "Large option", quantity: 3, price: 250 },
+    ],
+  };
+  fixture.state.cartItems = [{
+    add_to_id: 1,
+    artwork_id: 20,
+    quantity: 3,
+    selected_products: [
+      { id: "small", quantity: 1 },
+      { id: "large", quantity: 2 },
+    ],
+    order_note: "Please wrap the large options separately.",
+  }];
+
+  const response = await checkout({
+    address_id: 4,
+    payment_method: "paymongo",
+    artwork_ids: [20],
+    quantities: { 20: 99 },
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.total, 600);
+  assert.equal(sessions[0].lineItems[0].quantity, 1);
+  assert.equal(sessions[0].lineItems[0].amount, 60000);
+  assert.equal(fixture.state.orderItems[0].quantity, 3);
+  assert.equal(Number(fixture.state.orderItems[0].line_total), 600);
+  assert.equal(fixture.state.orderItems[0].order_note, "Please wrap the large options separately.");
+  assert.deepEqual(JSON.parse(fixture.state.orderItems[0].selected_products), [
+    { id: "small", name: "Small", description: "Small option", image: null, quantity: 1, unit_price: 100, remaining_stock: 4 },
+    { id: "large", name: "Large", description: "Large option", image: null, quantity: 2, unit_price: 250, remaining_stock: 3 },
+  ]);
+});

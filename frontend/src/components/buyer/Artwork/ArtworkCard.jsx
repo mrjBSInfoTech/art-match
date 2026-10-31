@@ -17,6 +17,8 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import { addToCart } from "../../../api/buyer/cartAPI";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
+import ProductSelectionDialog from "./ProductSelectionDialog";
+import { getSavedProductOptions } from "../../../utils/productOptions";
 
 export default function ArtworkCard({
   artwork,
@@ -25,8 +27,10 @@ export default function ArtworkCard({
 }) {
   const artworkId = artwork?.id || artwork?.artwork_id;
   const isSoldOut = isArtworkSoldOut(artwork);
+  const productOptions = getSavedProductOptions(artwork);
   const [isAdding, setIsAdding] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
   useEffect(() => {
     if (!cartMessage) return;
     const timeoutId = setTimeout(() => setCartMessage(""), 1000);
@@ -35,6 +39,10 @@ export default function ArtworkCard({
 
   const handleAddToCart = async () => {
     if (isAdding || isSoldOut) return;
+    if (productOptions.length) {
+      setProductDialogOpen(true);
+      return;
+    }
     try {
       setIsAdding(true);
       await (onAddToCart ? onAddToCart(artworkId) : addToCart(artworkId));
@@ -52,7 +60,21 @@ export default function ArtworkCard({
     }
   };
 
+  const handleAddSelectedProducts = async (selectedProducts, totalQuantity, orderNote) => {
+    try {
+      setIsAdding(true);
+      await (onAddToCart
+        ? onAddToCart(artworkId, totalQuantity, selectedProducts, orderNote)
+        : addToCart(artworkId, totalQuantity, selectedProducts, orderNote));
+      setProductDialogOpen(false);
+      setCartMessage("Added");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
+    <>
     <Card
       sx={{
         display: "flex",
@@ -161,7 +183,7 @@ export default function ArtworkCard({
                 ? "Sold out"
                 : isAdding
                   ? "Adding..."
-                  : cartMessage || "Add to cart"}
+                  : cartMessage || (productOptions.length ? "Choose options" : "Add to cart")}
             </Button>
           ) : (
             <Button
@@ -176,5 +198,13 @@ export default function ArtworkCard({
         </Stack>
       </CardContent>
     </Card>
+    <ProductSelectionDialog
+      open={productDialogOpen}
+      artwork={artwork}
+      onClose={() => setProductDialogOpen(false)}
+      onConfirm={handleAddSelectedProducts}
+      isSubmitting={isAdding}
+    />
+    </>
   );
 }

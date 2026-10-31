@@ -23,6 +23,12 @@ import { attachOrderReturns } from "../../utils/returns.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { CheckoutVoucherError, quoteCheckoutVoucher, normalizeCheckoutVoucherCode } from "../../utils/checkoutVouchers.js";
+import {
+  getProductOptions,
+  parseArtworkDetails,
+  ProductOptionsError,
+  summarizeProductOptionSelections,
+} from "../../utils/productOptions.js";
 
 const router = express.Router();
 
@@ -40,6 +46,89 @@ const query = async (executor, sql, params = []) => {
   const [rows] = await executor.query(sql, params);
 
   return rows;
+};
+
+const normalizeProductCartItem = (item) => {
+  const details = parseArtworkDetails(item.artwork_details);
+  const isProductArtwork = String(item.art_type || "").trim().toLowerCase() === "product";
+  if (!isProductArtwork || !getProductOptions(details).length) {
+    item.order_quantity = Number(item.quantity || 1);
+    return item;
+  }
+  try {
+    const summary = summarizeProductOptionSelections(
+      details,
+      typeof item.selected_products === "string"
+        ? JSON.parse(item.selected_products)
+        : item.selected_products,
+      item.price,
+    );
+    if (!summary) {
+      throw new ProductOptionsError("Choose product options before checkout.");
+    }
+    item.selected_products = summary.selections;
+    item.order_quantity = summary.quantity;
+    item.quantity = 1;
+    item.price = summary.total;
+    return item;
+  } catch (error) {
+    if (error instanceof ProductOptionsError || error instanceof SyntaxError) {
+      throw new CheckoutVoucherError(error.message || "Product selections are invalid. Please update your cart.");
+    }
+    throw error;
+  }
+};
+
+const parseSelectedProducts = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  const parsed = JSON.parse(value);
+  if (!Array.isArray(parsed)) {
+    throw new CheckoutVoucherError("Product selections are invalid. Please update your cart.");
+  }
+  return parsed;
+};
+
+const getSoldProductOptionQuantities = (purchases) => {
+  const sold = new Map();
+  for (const purchase of purchases) {
+    const artworkId = String(purchase.artwork_id);
+    for (const selection of parseSelectedProducts(purchase.selected_products)) {
+      const key = `${artworkId}:${selection.id}`;
+      sold.set(key, (sold.get(key) || 0) + Number(selection.quantity || 0));
+    }
+  }
+  return sold;
+};
+
+const hasUnavailableProductSelection = (item, soldOptionQuantities) => {
+  const selections = parseSelectedProducts(item.selected_products);
+  if (!selections.length) return false;
+  const options = getProductOptions(parseArtworkDetails(item.artwork_details));
+  return selections.some((selection) => {
+    const option = options.find((candidate) => candidate.id === selection.id);
+    const soldQuantity = soldOptionQuantities.get(`${item.artwork_id}:${selection.id}`) || 0;
+    return !option || Number(selection.quantity) > Math.max(0, Number(option.quantity) - soldQuantity);
+  });
+};
+
+const updateCartTotal = async (executor, cartId) => {
+  const items = await query(executor,
+    `SELECT ci.quantity, ci.selected_products, a.price
+     FROM cart_item ci
+     JOIN artwork a ON a.artwork_id = ci.artwork_id
+     WHERE ci.add_to_id = ?`,
+    [cartId],
+  );
+  const total = items.reduce((sum, item) => {
+    const selections = parseSelectedProducts(item.selected_products);
+    const lineTotal = selections.length
+      ? selections.reduce((subtotal, selection) =>
+        subtotal + Number(selection.unit_price) * Number(selection.quantity), 0)
+      : Number(item.price || 0) * Number(item.quantity || 1);
+    return sum + lineTotal;
+  }, 0);
+  await query(executor, "UPDATE add_cart SET total_price = ? WHERE add_to_id = ?", [total, cartId]);
 };
 
 const groupOrderRows = (rows) => {
@@ -116,6 +205,13 @@ const groupOrderRows = (rows) => {
 
         price: Number(row.unit_price),
         originalPrice: Number(row.original_unit_price ?? row.unit_price),
+        selectedProducts: row.selected_products
+          ? parseSelectedProducts(row.selected_products)
+          : null,
+        orderNote: row.order_note || null,
+        lineTotal: Number(row.line_total ?? (Number(row.unit_price) * Number(row.quantity))),
+        originalLineTotal: Number(row.original_line_total ??
+          (Number(row.original_unit_price ?? row.unit_price) * Number(row.quantity))),
 
         review: row.review_id
           ? {
@@ -183,6 +279,10 @@ const ordersSql = `
     i.unit_price,
     i.original_unit_price,
     i.quantity,
+    i.selected_products,
+    i.order_note,
+    i.line_total,
+    i.original_line_total,
 
     r.review_id,
     r.rating AS review_rating,
@@ -346,7 +446,8 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
   try {
     normalizeCheckoutVoucherCode(body.voucher_code);
     const items = await query(db.promise(),
-      `SELECT a.artwork_id, a.student_id, a.price, a.status, a.is_sold, ci.quantity,
+      `SELECT a.artwork_id, a.student_id, a.price, a.status, a.is_sold, a.art_type,
+        a.artwork_details, ci.quantity, ci.selected_products,
         JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
         ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
         EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
@@ -359,11 +460,13 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
     if (items.length !== selectedIds.length) {
       throw new CheckoutVoucherError("Some selected artworks are no longer in your cart. Please review your selection.");
     }
+    items.forEach(normalizeProductCartItem);
     const requestedQuantities = body.quantities && typeof body.quantities === "object" && !Array.isArray(body.quantities)
       ? body.quantities
       : null;
     if (requestedQuantities) {
       for (const item of items) {
+        if (Array.isArray(item.selected_products) && item.selected_products.length) continue;
         const rawQty = requestedQuantities[item.artwork_id] ?? requestedQuantities[String(item.artwork_id)];
         if (rawQty !== undefined) {
           const parsedQty = Number(rawQty);
@@ -371,11 +474,12 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
             throw new CheckoutVoucherError("Select a valid quantity for each checkout item.");
           }
           item.quantity = parsedQty;
+          item.order_quantity = parsedQty;
         }
       }
     }
     if (items.some((item) => {
-      const quantity = Number(item.quantity || 1);
+      const quantity = Number(item.order_quantity || item.quantity || 1);
       const availability = getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1);
       return !Number(item.is_verified)
         || String(item.status).toLowerCase() !== "available"
@@ -510,7 +614,11 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
          a.title,
          a.price,
          a.image,
+         a.art_type,
+         a.artwork_details,
          ci.quantity,
+         ci.selected_products,
+         ci.order_note,
 
          JSON_UNQUOTE(
            JSON_EXTRACT(
@@ -567,11 +675,14 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       });
     }
 
+    items.forEach(normalizeProductCartItem);
+
     const requestedQuantities = req.body.quantities && typeof req.body.quantities === "object" && !Array.isArray(req.body.quantities)
       ? req.body.quantities
       : null;
     if (requestedQuantities) {
       for (const item of items) {
+        if (Array.isArray(item.selected_products) && item.selected_products.length) continue;
         const rawQty = requestedQuantities[item.artwork_id] ?? requestedQuantities[String(item.artwork_id)];
         if (rawQty !== undefined) {
           const parsedQty = Number(rawQty);
@@ -580,6 +691,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             return res.status(400).json({ message: "A valid quantity is required for each checkout item" });
           }
           item.quantity = parsedQty;
+          item.order_quantity = parsedQty;
         }
       }
     }
@@ -596,7 +708,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
       `SELECT
          oi.artwork_id,
-         oi.quantity
+         oi.quantity,
+         oi.selected_products
 
        FROM marketplace_order_item oi
 
@@ -615,29 +728,29 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     );
 
     const soldQuantities = new Map();
-
     previousPurchases.forEach((purchase) => {
       const artworkId = String(purchase.artwork_id);
-
       soldQuantities.set(
         artworkId,
-
         (soldQuantities.get(artworkId) || 0) + Number(purchase.quantity || 0),
       );
     });
+    const soldOptionQuantities = getSoldProductOptionQuantities(previousPurchases);
 
     const unavailableIds = items
       .filter((item) => {
-        const quantity = Number(item.quantity || 1);
+        const quantity = Number(item.order_quantity || item.quantity || 1);
         const availability = getArtworkAvailability(
           item.stock_available,
           soldQuantities.get(String(item.artwork_id)) || 0,
           Number(item.is_sold) === 1 || String(item.status || "").toLowerCase() === "sold",
         );
+        const optionUnavailable = hasUnavailableProductSelection(item, soldOptionQuantities);
         return String(item.status || "").toLowerCase() !== "available"
           || !Number(item.is_verified)
           || availability.isSoldOut
-          || (availability.hasStockTracking && availability.remainingStock !== null && quantity > availability.remainingStock);
+          || (availability.hasStockTracking && availability.remainingStock !== null && quantity > availability.remainingStock)
+          || optionUnavailable;
       })
       .map((item) => item.artwork_id);
 
@@ -657,31 +770,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         [cartId, unavailableIds],
       );
 
-      await query(
-        connection,
-
-        `UPDATE add_cart ac
-         SET total_price = (
-           SELECT
-             COALESCE(
-               SUM(a.price * ci.quantity),
-               0
-             )
-
-           FROM cart_item ci
-
-           JOIN artwork a
-             ON a.artwork_id =
-                ci.artwork_id
-
-           WHERE ci.add_to_id =
-                 ac.add_to_id
-         )
-
-         WHERE ac.add_to_id = ?`,
-
-        [cartId],
-      );
+      await updateCartTotal(connection, cartId);
 
       await connection.commit();
 
@@ -902,7 +991,6 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
        * marketplace_order_item.
        */
       for (const item of sellerItems) {
-        const itemQuantity = Number(item.quantity || 1);
         const priced = pricedByArtwork.get(Number(item.artwork_id));
         await connection.query(
           `INSERT INTO marketplace_order_item
@@ -914,10 +1002,14 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             image,
             unit_price,
             original_unit_price,
-            quantity
+            quantity,
+            selected_products,
+            line_total,
+            original_line_total,
+            order_note
           )
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
           )`,
 
           [
@@ -926,9 +1018,13 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             item.title,
             item.artist_name,
             item.image,
-            priced.chargedCentavos / itemQuantity / 100,
-            priced.originalCentavos / itemQuantity / 100,
-            itemQuantity,
+            priced.chargedCentavos / Number(item.order_quantity || item.quantity || 1) / 100,
+            priced.originalCentavos / Number(item.order_quantity || item.quantity || 1) / 100,
+            Number(item.order_quantity || item.quantity || 1),
+            item.selected_products?.length ? JSON.stringify(item.selected_products) : null,
+            priced.chargedCentavos / 100,
+            priced.originalCentavos / 100,
+            item.order_note || null,
           ],
         );
 
@@ -1149,20 +1245,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
       [cartId, items.map((item) => item.artwork_id)],
     );
 
-    await query(
-      connection,
-
-      `UPDATE add_cart ac
-       SET total_price = (
-         SELECT COALESCE(SUM(a.price * ci.quantity), 0)
-         FROM cart_item ci
-         JOIN artwork a ON a.artwork_id = ci.artwork_id
-         WHERE ci.add_to_id = ac.add_to_id
-       )
-       WHERE ac.add_to_id = ?`,
-
-      [cartId],
-    );
+    await updateCartTotal(connection, cartId);
 
     await connection.commit();
     for (const order of createdOrders) {
@@ -1332,7 +1415,7 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
     throw new PayMongoError("This payment session has expired. Cancel the checkout and return to your cart.", 409);
   }
   const items = await query(connection,
-    `SELECT oi.artwork_id, oi.quantity, a.status, a.is_sold,
+    `SELECT oi.artwork_id, oi.quantity, oi.selected_products, a.artwork_details, a.status, a.is_sold,
        EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
          AND LOWER(au.request_status) = 'verified') AS is_verified,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
@@ -1340,8 +1423,32 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
      FROM marketplace_order_item oi LEFT JOIN artwork a ON a.artwork_id = oi.artwork_id
      WHERE oi.order_id IN (?) ORDER BY oi.artwork_id FOR UPDATE`, [orders.map(order => order.order_id)],
   );
-  if (!items.length || items.some(item => String(item.status || "").toLowerCase() !== "available" || !Number(item.is_verified) ||
-      getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1).isSoldOut)) {
+  const completedPurchases = items.length
+    ? await query(connection,
+      `SELECT oi.artwork_id, oi.selected_products
+       FROM marketplace_order_item oi
+       JOIN marketplace_order o ON o.order_id = oi.order_id
+       WHERE oi.artwork_id IN (?)
+         AND ${getCompletedOrderCondition("o")}
+       FOR UPDATE`,
+      [[...new Set(items.map(item => item.artwork_id))]],
+    )
+    : [];
+  const soldOptionQuantities = getSoldProductOptionQuantities(completedPurchases);
+  if (!items.length || items.some((item) => {
+    const availability = getArtworkAvailability(
+      item.stock_available,
+      item.sold_quantity,
+      Number(item.is_sold) === 1,
+    );
+    const hasInsufficientArtworkStock = availability.isSoldOut ||
+      (availability.hasStockTracking && availability.remainingStock !== null &&
+        Number(item.quantity || 1) > availability.remainingStock);
+    return String(item.status || "").toLowerCase() !== "available"
+      || !Number(item.is_verified)
+      || hasInsufficientArtworkStock
+      || hasUnavailableProductSelection(item, soldOptionQuantities);
+  })) {
     throw new PayMongoError("An artwork in this checkout is no longer available. Cancel this checkout and review your cart.", 409);
   }
   const checkoutUrl = session.attributes.checkout_url || orders[0].paymongo_checkout_url;

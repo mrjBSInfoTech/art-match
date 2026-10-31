@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -109,13 +109,23 @@ export default function Checkout() {
     return map;
   }, [search, locationState]);
   const [editableQuantities, setEditableQuantities] = useState({});
-  const getItemQuantity = (item) => {
+  const getItemQuantity = useCallback((item) => {
     if (!isProductItem(item)) return 1;
+    if (Array.isArray(item?.selected_products) && item.selected_products.length) {
+      return item.selected_products.reduce((total, selection) => total + Number(selection.quantity || 0), 0);
+    }
     const id = String(item?.artwork_id ?? "");
     const override = editableQuantities[id] ?? requestedQuantities[id];
     const value = Number(override ?? item?.quantity ?? 1);
     return Number.isSafeInteger(value) && value > 0 ? value : 1;
-  };
+  }, [editableQuantities, requestedQuantities]);
+  const getItemSubtotal = useCallback((item) => {
+    const selectedProducts = Array.isArray(item?.selected_products) ? item.selected_products : [];
+    return selectedProducts.length
+      ? selectedProducts.reduce((total, selection) =>
+        total + Number(selection.unit_price || 0) * Number(selection.quantity || 0), 0)
+      : Number(item?.price || 0) * getItemQuantity(item);
+  }, [getItemQuantity]);
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [currentAddress, setCurrentAddress] = useState(null);
@@ -146,7 +156,9 @@ export default function Checkout() {
   const params = new URLSearchParams(search);
   const returnPayment = params.get("payment") || "";
   const paymentReference = params.get("reference") || existingCheckout;
-  const cartKey = JSON.stringify(cartItems.map((item) => [item.artwork_id, item.price, item.seller_id, item.is_sold_out, getItemQuantity(item)]));
+  const cartKey = JSON.stringify(cartItems.map((item) => [
+    item.artwork_id, item.price, item.seller_id, item.is_sold_out, getItemQuantity(item), item.selected_products,
+  ]));
   const appliedVoucher = voucherQuote?.cartKey === cartKey && voucherQuote.code === voucherCode.trim().toUpperCase()
     ? voucherQuote.result : null;
   const voucherMessage = voucherQuote && !appliedVoucher
@@ -377,7 +389,7 @@ export default function Checkout() {
       active = false;
       window.removeEventListener("pageshow", restoreCheckout);
     };
-  }, [selectedArtworkIds, paymentReference]);
+  }, [selectedArtworkIds, paymentReference, requestedQuantities]);
 
   const handleOpenAddAddress = () => {
     setEditingAddress(null);
@@ -417,7 +429,7 @@ export default function Checkout() {
   };
 
   const handleCheckoutQuantityChange = async (item, rawNextQuantity) => {
-    if (!isProductItem(item) || loading || submitting.current) return;
+    if (!isProductItem(item) || item.selected_products?.length || loading || submitting.current) return;
     const remaining = getRemainingStock(item);
     const maxAllowed = remaining !== null ? Math.max(1, remaining) : 999;
     const nextQuantity = Math.min(maxAllowed, Math.max(1, Number(rawNextQuantity) || 1));
@@ -495,15 +507,11 @@ export default function Checkout() {
     email: localStorage.getItem("buyer_email") || "",
   };
 
-  const originalSubtotal = cartItems.reduce(
-    (sum, item) => sum + Number(item.price || 0) * getItemQuantity(item),
-    0,
-  );
+  const originalSubtotal = cartItems.reduce((sum, item) => sum + getItemSubtotal(item), 0);
   const totalUnits = cartItems.reduce(
     (sum, item) => sum + getItemQuantity(item),
     0,
   );
-  const subtotal = appliedVoucher?.subtotal ?? originalSubtotal;
   const discountAmount = Number(appliedVoucher?.discount_amount || 0);
   const shippingFee = 0;
   const hasSoldOutItems = cartItems.some(
@@ -546,11 +554,11 @@ export default function Checkout() {
         subtotal: 0,
       };
       group.items.push(item);
-      group.subtotal += Number(item.price || 0) * getItemQuantity(item);
+      group.subtotal += getItemSubtotal(item);
       groups.set(key, group);
     });
     return [...groups.values()];
-  }, [cartItems, requestedQuantities, editableQuantities]);
+  }, [cartItems, getItemSubtotal]);
   const multiStorefront = storefrontGroups.length > 1;
   const selectionIncomplete = selectedArtworkIds !== null &&
     (!selectedArtworkIds.length || selectedArtworkIds.length !== cartItems.length);
@@ -795,8 +803,20 @@ export default function Checkout() {
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{item.title}</Typography>
                             <Typography variant="body2" color="text.secondary">{item.artist} · Qty {item.qty || 1}</Typography>
+                            {item.selectedProducts?.map((product) => (
+                              <Typography key={product.id} variant="caption" color="text.secondary" display="block">
+                                {product.name} × {product.quantity}
+                              </Typography>
+                            ))}
+                            {item.orderNote && (
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: "pre-wrap" }}>
+                                Request: {item.orderNote}
+                              </Typography>
+                            )}
                           </Box>
-                          <Typography fontWeight={700}>{currency(Number(item.price) * Number(item.qty || 1))}</Typography>
+                          <Typography fontWeight={700}>
+                            {currency(item.lineTotal ?? Number(item.price) * Number(item.qty || 1))}
+                          </Typography>
                         </Stack>
                       ))}
                     </Box>
@@ -1292,7 +1312,8 @@ export default function Checkout() {
                 {cartItems.map((item) => {
                   const qty = getItemQuantity(item);
                   const unitPrice = Number(item.price || 0);
-                  const lineTotal = unitPrice * qty;
+                  const selectedProducts = Array.isArray(item.selected_products) ? item.selected_products : [];
+                  const lineTotal = getItemSubtotal(item);
                   const isProduct = isProductItem(item);
                   const remainingStock = getRemainingStock(item);
                   const typeLabel = isProduct ? "Product" : (item.art_type || "Original Artwork");
@@ -1340,10 +1361,20 @@ export default function Checkout() {
                             {variationParts.length > 0 ? ` · ${variationParts.join(" · ")}` : ""}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-                            Unit Price: ₱{unitPrice.toLocaleString()} × Qty: {qty}
+                            {selectedProducts.length ? "Selected products:" : `Unit Price: ₱${unitPrice.toLocaleString()} × Qty: ${qty}`}
                           </Typography>
+                          {selectedProducts.map((selection) => (
+                            <Typography key={selection.id} variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                              {selection.name} × {selection.quantity} @ {currency(selection.unit_price)}
+                            </Typography>
+                          ))}
+                          {item.order_note && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", whiteSpace: "pre-wrap" }}>
+                              Request: {item.order_note}
+                            </Typography>
+                          )}
 
-                          {isProduct && (
+                          {isProduct && !selectedProducts.length && (
                             <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
                               <IconButton
                                 size="small"

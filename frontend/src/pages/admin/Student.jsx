@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import StudentCard from "../../components/admin/Student/StudentCard";
 import StudentForm from "../../components/admin/Student/StudentForm";
 import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
@@ -30,6 +31,29 @@ import {
   reactivateStudent,
   updateStudent,
 } from "../../api/admin/studentAPI";
+import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+
+const studentReportColumns = [
+  { key: "student_id", label: "Student ID" },
+  { key: "student_number", label: "Student Number" },
+  { key: "first_name", label: "First Name" },
+  { key: "middle_name", label: "Middle Name" },
+  { key: "last_name", label: "Last Name" },
+  { key: "email", label: "Email" },
+  { key: "phone_number", label: "Phone Number" },
+  { key: "birthdate", label: "Birthdate" },
+  { key: "address", label: "Address" },
+  { key: "course", label: "Course" },
+  { key: "year_level", label: "Year Level" },
+  { key: "account_status", label: "Account Status" },
+  { key: "register_status", label: "Registration Status" },
+  { key: "created_at", label: "Created At" },
+  { key: "expire_date", label: "Expires At" },
+  { key: "registered_date", label: "Registered At" },
+  { key: "approved_date", label: "Approved At" },
+  { key: "strikes", label: "Strikes" },
+  { key: "is_banned", label: "Banned" },
+];
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -147,6 +171,18 @@ export default function Student() {
     );
   };
 
+  const handleDownloadReport = () => {
+    try {
+      downloadCsvReport(
+        filteredStudents,
+        studentReportColumns,
+        `student-report-${getReportDateStamp()}.csv`,
+      );
+    } catch (reportError) {
+      showSnackbar(reportError.message || "Unable to generate student report.", "error");
+    }
+  };
+
   const filteredStudents = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
     return students.filter((student) => {
@@ -238,8 +274,23 @@ export default function Student() {
           </Typography>
         </Box>
         <Box
-          sx={{ display: "flex", gap: 1, width: { xs: "100%", sm: "auto" } }}
+          sx={{ display: "flex", gap: 1, flexWrap: "wrap", width: { xs: "100%", sm: "auto" } }}
         >
+          <Button
+            variant="outlined"
+            startIcon={<DownloadOutlinedIcon />}
+            onClick={handleDownloadReport}
+            disabled={loading || filteredStudents.length === 0}
+            sx={{
+              flex: { xs: "1 1 100%", sm: "0 0 auto" },
+              height: { xs: 38, sm: 44 },
+              borderRadius: 1.5,
+              textTransform: "none",
+              fontWeight: 700,
+            }}
+          >
+            Download Report
+          </Button>
           <Button
             variant="outlined"
             onClick={() => setOpenBulkAdd(true)}
@@ -286,6 +337,9 @@ export default function Student() {
         }}
         variant="outlined"
       >
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          Student reports include the current search, course, and year-level filters.
+        </Typography>
         <Box
           sx={{
             display: "flex",

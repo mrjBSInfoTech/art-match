@@ -27,6 +27,15 @@ export const fetchAccountAccess = async () => {
   }
 };
 
+export const fetchAccountAccessReport = async ({ role = "", search = "" } = {}) => {
+  try {
+    const response = await api.get("/reports", { params: { role, search } });
+    return response.data || [];
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const addAccountStrike = async (role, accountId, reason) => {
   try {
     const response = await api.post(`/${role}/${accountId}/strike`, { reason });

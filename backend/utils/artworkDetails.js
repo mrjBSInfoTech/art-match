@@ -1,3 +1,5 @@
+import { normalizeProductDetails, ProductOptionsError } from "./productOptions.js";
+
 const DIGITAL_FORMATS = new Set(["PNG", "JPEG", "WEBP", "TIFF", "SVG", "PDF", "PSD"]);
 const PHOTO_FORMATS = new Set(["JPEG", "PNG", "WEBP", "TIFF", "RAW"]);
 const COLOR_PROFILES = new Set(["sRGB", "Adobe RGB", "Display P3", "ProPhoto RGB", "CMYK"]);
@@ -89,9 +91,37 @@ export function validateArtworkDetails(rawDetails, artType, product) {
     };
   }
   if (category === "product") {
+    const materialComposition = materialTags(details.material_composition);
+    if (normalize(artType) !== "product") {
+      return {
+        stock_available: integerValue(details.stock_available, 0, "Stock available"),
+        material_composition: materialComposition,
+      };
+    }
+    let options;
+    try {
+      options = normalizeProductDetails({
+        product_price_mode: details.product_price_mode || "shared",
+        product_options: details.product_options,
+      });
+    } catch (error) {
+      if (error instanceof ProductOptionsError) {
+        throw new ArtworkDetailsValidationError(error.message);
+      }
+      throw error;
+    }
+    const stockAvailable = options.product_options.reduce(
+      (total, option) => total + option.quantity,
+      0,
+    );
+    if (!Number.isSafeInteger(stockAvailable)) {
+      throw new ArtworkDetailsValidationError("Combined product quantity is too large.");
+    }
     return {
-      stock_available: integerValue(details.stock_available, 0, "Stock available"),
-      material_composition: materialTags(details.material_composition),
+      stock_available: stockAvailable,
+      material_composition: materialComposition,
+      product_price_mode: options.product_price_mode,
+      product_options: options.product_options,
     };
   }
   if (category === "digital") {

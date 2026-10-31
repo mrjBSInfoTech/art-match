@@ -30,6 +30,8 @@ export default function ArtworkDetailsFields({
   onChange,
   materialInput,
   onMaterialInputChange,
+  productStockTotal,
+  isProductArtwork = false,
 }) {
   const headingId = useId();
   const isPhysical = category === "fine_art" || category === "product";
@@ -76,10 +78,13 @@ export default function ArtworkDetailsFields({
           label="Stock available"
           name="stock_available"
           type="number"
-          value={formData.stock_available}
+          value={isProductArtwork ? productStockTotal : formData.stock_available}
           onChange={onChange}
           error={Boolean(errors.stock_available)}
-          helperText={errors.stock_available || "Whole units available; use 0 for out of stock."}
+          helperText={errors.stock_available || (isProductArtwork
+            ? "Calculated from the quantities of all products."
+            : "Whole units available; use 0 for out of stock.")}
+          disabled={isProductArtwork}
           slotProps={{ htmlInput: { min: 0, step: 1 } }}
           sx={{ gridColumn: "1 / -1" }}
         />

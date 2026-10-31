@@ -3,6 +3,12 @@ import { getArtworkAvailability, getCompletedOrderCondition } from "./artworkAva
 import { recordRecommendationInteraction } from "./recommendationInteractions.js";
 
 const query = async (executor, sql, params = []) => (await executor.query(sql, params))[0];
+const parseSelectedProducts = (value) => {
+  if (value == null) return [];
+  const parsed = Array.isArray(value) ? value : JSON.parse(value);
+  if (!Array.isArray(parsed)) throw new TypeError("Cart product selections must be an array.");
+  return parsed;
+};
 
 export class PayMongoReconciliationError extends Error {
   constructor(status, message) {
@@ -145,12 +151,25 @@ export async function reconcilePaidCheckout(
       [customerId, purchasedArtworkIds],
     );
   }
-  await connection.query(
-    `UPDATE add_cart ac SET total_price = (
-       SELECT COALESCE(SUM(a.price * ci.quantity), 0) FROM cart_item ci
-       JOIN artwork a ON a.artwork_id = ci.artwork_id WHERE ci.add_to_id = ac.add_to_id
-     ) WHERE ac.customer_id = ?`,
+  const remainingCartItems = await query(connection,
+    `SELECT ci.quantity, ci.selected_products, a.price
+     FROM add_cart ac
+     JOIN cart_item ci ON ci.add_to_id = ac.add_to_id
+     JOIN artwork a ON a.artwork_id = ci.artwork_id
+     WHERE ac.customer_id = ?`,
     [customerId],
+  );
+  const cartTotal = remainingCartItems.reduce((total, item) => {
+    const selections = parseSelectedProducts(item.selected_products);
+    const lineTotal = selections.length
+      ? selections.reduce((subtotal, selection) =>
+        subtotal + Number(selection.unit_price) * Number(selection.quantity), 0)
+      : Number(item.price || 0) * Number(item.quantity || 1);
+    return total + lineTotal;
+  }, 0);
+  await connection.query(
+    "UPDATE add_cart SET total_price = ? WHERE customer_id = ?",
+    [cartTotal, customerId],
   );
   return {
     payment_status: "Paid",

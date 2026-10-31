@@ -62,6 +62,41 @@ test("stock can be zero and only product fields are persisted", () => {
   }
 });
 
+test("Product artworks require at least two valid options and retain their details", () => {
+  const productArtwork = {
+    stock_available: 8,
+    material_composition: ["Resin"],
+    product_price_mode: "shared",
+    product_options: [
+      { id: "keychain", name: "Keychain", description: "Handmade keychain", quantity: 5, image: null },
+      { id: "pin", name: "Pin", description: "Enamel pin", quantity: 3, image: "pin.webp" },
+    ],
+  };
+  assert.deepEqual(validateArtworkDetails(productArtwork, "Product", "3d_object"), productArtwork);
+  assert.equal(validateArtworkDetails({
+    ...productArtwork,
+    stock_available: 999,
+  }, "Product", "3d_object").stock_available, 8);
+  const manualArtwork = {
+    ...productArtwork,
+    stock_available: 8,
+    product_price_mode: "manual",
+    product_options: productArtwork.product_options.map((option, index) => ({
+      ...option,
+      price: index === 0 ? 12.5 : 20,
+    })),
+  };
+  assert.deepEqual(validateArtworkDetails(manualArtwork, "Product", "3d_object"), manualArtwork);
+  assert.throws(() => validateArtworkDetails({
+    ...productArtwork,
+    product_options: [productArtwork.product_options[0]],
+  }, "Product", "3d_object"), /at least two/);
+  assert.deepEqual(
+    validateArtworkDetails(productArtwork, "Sculpture", "3d_object"),
+    { stock_available: 8, material_composition: ["Resin"] },
+  );
+});
+
 test("digital details use positive integer dimensions and exclude physical attributes", () => {
   assert.deepEqual(validateArtworkDetails({ ...painting, ...product, ...digital, file_format: " png " }, "Digital", "painting"), digital);
   for (const dimension of [0, -100, 0.5, "100", Number.MAX_SAFE_INTEGER + 1]) {

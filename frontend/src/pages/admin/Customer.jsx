@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
   InputAdornment,
   Paper,
@@ -19,7 +20,20 @@ import {
   updateCustomer,
 } from "../../api/admin/customerAPI";
 import SearchIcon from "@mui/icons-material/Search";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import CustomerDelete from "../../components/admin/Customer/CustomerDelete";
+import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+
+const customerReportColumns = [
+  { key: "customer_id", label: "Customer ID" },
+  { key: "username", label: "Username" },
+  { key: "first_name", label: "First Name" },
+  { key: "last_name", label: "Last Name" },
+  { key: "email", label: "Email" },
+  { key: "phone_number", label: "Phone Number" },
+  { key: "strikes", label: "Strikes" },
+  { key: "is_banned", label: "Banned" },
+];
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -103,6 +117,18 @@ export default function Customer() {
     }
   };
 
+  const handleDownloadReport = () => {
+    try {
+      downloadCsvReport(
+        filteredCustomers,
+        customerReportColumns,
+        `customer-report-${getReportDateStamp()}.csv`,
+      );
+    } catch (reportError) {
+      showSnackbar(reportError.message || "Unable to generate customer report.", "error");
+    }
+  };
+
   const filteredCustomers = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
     if (!search) return customers;
@@ -164,6 +190,15 @@ export default function Customer() {
             Monitor and manage the customer accounts of the platform
           </Typography>
         </Box>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadOutlinedIcon />}
+          onClick={handleDownloadReport}
+          disabled={loading || filteredCustomers.length === 0}
+          sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
+        >
+          Download Report
+        </Button>
       </Box>
 
       <Paper

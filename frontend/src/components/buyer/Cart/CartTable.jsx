@@ -178,6 +178,29 @@ export default function CartTable({
                             {item.artist}
                           </Typography>
                         )}
+                        {Array.isArray(item.selected_products) && item.selected_products.length > 0 && (
+                          <Stack spacing={0.25} sx={{ mt: 1 }}>
+                            {item.selected_products.map((option) => (
+                              <Typography
+                                key={option.id}
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ overflowWrap: "anywhere" }}
+                              >
+                                {option.name} × {option.quantity}
+                              </Typography>
+                            ))}
+                          </Stack>
+                        )}
+                        {item.order_note && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block", mt: 0.75, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                          >
+                            Request: {item.order_note}
+                          </Typography>
+                        )}
                         <Chip
                           label={soldOut ? "Sold out" : "Available"}
                           size="small"
@@ -208,7 +231,8 @@ export default function CartTable({
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={!isProductItem(item)}
+                          disabled={!isProductItem(item) ||
+                            (Array.isArray(item.selected_products) && item.selected_products.length > 0)}
                           onClick={() => onQuantityChange?.(item.artwork_id, Math.max(1, Number(cartQuantities[item.artwork_id] || 1) - 1))}
                           sx={{
                             minWidth: 24,
@@ -227,7 +251,8 @@ export default function CartTable({
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={!isProductItem(item)}
+                          disabled={!isProductItem(item) ||
+                            (Array.isArray(item.selected_products) && item.selected_products.length > 0)}
                           onClick={() => onQuantityChange?.(item.artwork_id, Number(cartQuantities[item.artwork_id] || 1) + 1)}
                           sx={{
                             minWidth: 24,
@@ -242,7 +267,8 @@ export default function CartTable({
                         </Button>
                       </Stack>
                       <Typography variant="body2" color="text.primary">
-                        {formatPrice(item.price * (Number(cartQuantities[item.artwork_id] || 1) || 1))}
+                        {formatPrice(item.subtotal ??
+                          item.price * (Number(cartQuantities[item.artwork_id] || 1) || 1))}
                       </Typography>
                     </Stack>
                   </TableCell>

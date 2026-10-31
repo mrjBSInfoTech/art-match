@@ -127,9 +127,14 @@ function CartConfirm({ open, handleClose, onSubmit, selectedItems = [], total = 
                 >
                   <ListItemText
                     primary={item.title || "Untitled Artwork"}
-                    secondary={`Qty: ${qty} × ${formatPrice(unitPrice)}`}
+                    secondary={[
+                      Array.isArray(item.selected_products) && item.selected_products.length
+                        ? item.selected_products.map((option) => `${option.name} × ${option.quantity}`).join(", ")
+                        : `Qty: ${qty} × ${formatPrice(unitPrice)}`,
+                      item.order_note ? `Request: ${item.order_note}` : "",
+                    ].filter(Boolean).join("\n")}
                     primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}
-                    secondaryTypographyProps={{ variant: "caption" }}
+                    secondaryTypographyProps={{ variant: "caption", sx: { whiteSpace: "pre-wrap" } }}
                   />
                   <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: "nowrap", mt: 0.5 }}>
                     {formatPrice(lineTotal)}

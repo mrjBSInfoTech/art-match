@@ -6,6 +6,7 @@ import * as availability from "../utils/artworkAvailability.js";
 import * as paymentSplit from "../utils/paymentSplit.js";
 import * as paymongoReconciliation from "../utils/paymongoReconciliation.js";
 import * as checkoutVouchers from "../utils/checkoutVouchers.js";
+import * as productOptions from "../utils/productOptions.js";
 
 // Execute the real route handlers with isolated dependencies: no TCP, MySQL,
 // environment credentials, or PayMongo calls are used by these tests.
@@ -19,7 +20,7 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     .replace(/^import[\s\S]*?;\s*/gm, "")
     .replace(/export default router;?/, "");
   const context = {
-    ...paymongo, ...availability, ...paymentSplit, ...paymongoReconciliation, ...checkoutVouchers, createHmac, timingSafeEqual, randomUUID,
+    ...paymongo, ...availability, ...paymentSplit, ...paymongoReconciliation, ...checkoutVouchers, ...productOptions, createHmac, timingSafeEqual, randomUUID,
     Buffer, URL, URLSearchParams, Date, setTimeout, clearTimeout,
     express: { Router: () => router },
     authenticateBuyer: () => {},
@@ -135,6 +136,12 @@ export function databaseFixture(overrides = {}) {
           rows = state.voucherListings.filter(row => Number(row.voucher_id) === Number(params[0]));
         } else if (/FROM seller_voucher/i.test(sql)) {
           rows = state.vouchers.filter(row => row.code.toUpperCase() === params[0]);
+        } else if (/FROM add_cart ac JOIN cart_item/i.test(sql) && /ci\.selected_products, a\.price/i.test(sql)) {
+          const cartIds = state.carts.filter(cart => cart.customer_id === Number(params[0])).map(cart => cart.add_to_id);
+          rows = state.cartItems.filter(item => cartIds.includes(item.add_to_id)).map(item => {
+            const artwork = state.artworks.find(art => art.artwork_id === item.artwork_id);
+            return artwork ? { ...item, price: artwork.price } : null;
+          }).filter(Boolean);
         } else if (/FROM add_cart ac JOIN cart_item/i.test(sql)) {
           const cartIds = state.carts.filter(cart => cart.customer_id === Number(params[0])).map(cart => cart.add_to_id);
           rows = state.cartItems.filter(item => cartIds.includes(item.add_to_id) && params[1].includes(item.artwork_id))
@@ -146,7 +153,7 @@ export function databaseFixture(overrides = {}) {
             .filter(item => !/ci\.artwork_id IN \(\?\)/i.test(sql) || params[1].includes(item.artwork_id))
             .map(item => {
               const art = state.artworks.find(art => art.artwork_id === item.artwork_id);
-              return art ? { ...art, quantity: item.quantity ?? 1 } : null;
+              return art ? { ...art, ...item, quantity: item.quantity ?? 1 } : null;
             }).filter(Boolean);
         } else if (/FROM address/i.test(sql)) {
           rows = Number(params[0]) === 4 && Number(params[1]) === 1 ? [{ street_name: "1 Test St", barangay: "Test", city: "Test City", province: "Test Province", region: "Test Region", postal_code: "1000" }] : [];
@@ -225,7 +232,13 @@ export function databaseFixture(overrides = {}) {
         return [{ insertId: order.order_id, affectedRows: 1 }];
       }
       if (/^INSERT INTO marketplace_order_item/i.test(sql)) {
-        state.orderItems.push({ order_id: params[0], artwork_id: params[1], title: params[2], unit_price: params[5], original_unit_price: params[6], quantity: Number(params[7] ?? 1) });
+        state.orderItems.push({
+          order_id: params[0], artwork_id: params[1], title: params[2],
+          unit_price: params[5], original_unit_price: params[6],
+          quantity: Number(params[7] ?? 1), selected_products: params[8],
+          line_total: params[9], original_line_total: params[10],
+          order_note: params[11],
+        });
         return [{ insertId: state.orderItems.length, affectedRows: 1 }];
       }
       if (/^INSERT INTO seller_payment_split/i.test(sql)) {
@@ -273,6 +286,14 @@ export function databaseFixture(overrides = {}) {
         return [{ affectedRows: before - state.cartItems.length }];
       }
       if (/^UPDATE add_cart/i.test(sql)) {
+        if (/SET total_price = \?/i.test(sql)) {
+          const cart = state.carts.find(item =>
+            /WHERE customer_id = \?/i.test(sql)
+              ? item.customer_id === Number(params[1])
+              : item.add_to_id === Number(params[1]));
+          if (cart) cart.total_price = Number(params[0]);
+          return [{ affectedRows: cart ? 1 : 0 }];
+        }
         for (const cart of state.carts) {
           if (/ac.customer_id = \?/i.test(sql) ? cart.customer_id !== Number(params[0]) : cart.add_to_id !== Number(params[0])) continue;
           cart.total_price = state.cartItems.filter(item => item.add_to_id === cart.add_to_id).reduce((total, item) => total + Number(state.artworks.find(art => art.artwork_id === item.artwork_id)?.price || 0), 0);

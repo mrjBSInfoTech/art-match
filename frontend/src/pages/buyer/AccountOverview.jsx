@@ -323,7 +323,7 @@ export default function AccountOverview() {
                   sx={{ pl: { xs: 8.5, sm: 0 }, whiteSpace: "nowrap" }}
                 >
                   {currency.format(
-                    (Number(item.price) || 0) * (Number(item.qty) || 1),
+                    Number(item.lineTotal ?? ((Number(item.price) || 0) * (Number(item.qty) || 1))),
                   )}
                 </Typography>
               </Stack>

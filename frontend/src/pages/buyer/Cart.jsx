@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { fetchCart, removeFromCart, updateCartItemQuantity } from "../../api/buyer/cartAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import { getSelectedProductsTotalQuantity } from "../../utils/productOptions";
 
 export default function Cart() {
   const [items, setItems] = useState([]);
@@ -54,12 +55,15 @@ export default function Cart() {
     await Promise.all(
       artworkIds.map(async (id) => {
         const matchedItem = items.find((item) => String(item.artwork_id) === String(id));
+        const fixedProductSelection = Array.isArray(matchedItem?.selected_products)
+          && matchedItem.selected_products.length > 0;
         const qty = matchedItem && isProductItem(matchedItem)
           ? Math.max(1, Number(cartQuantities[String(id)] ?? matchedItem.quantity ?? 1) || 1)
           : 1;
         quantitiesMap[String(id)] = qty;
         quantityParamParts.push(`${id}:${qty}`);
-        if (matchedItem && isProductItem(matchedItem) && Number(matchedItem.quantity || 1) !== qty) {
+        if (matchedItem && isProductItem(matchedItem) && !fixedProductSelection &&
+            Number(matchedItem.quantity || 1) !== qty) {
           try {
             await updateCartItemQuantity(id, qty);
           } catch {
@@ -146,9 +150,14 @@ export default function Cart() {
       items.forEach((item) => {
         const id = String(item.artwork_id);
         const isProduct = isProductItem(item);
-        const dbQuantity = Math.max(1, Number(item.quantity) || 1);
+        const hasProductSelection = Array.isArray(item.selected_products) && item.selected_products.length > 0;
+        const dbQuantity = hasProductSelection
+          ? getSelectedProductsTotalQuantity(item.selected_products)
+          : Math.max(1, Number(item.quantity) || 1);
         const currentValue = previous[id] !== undefined ? Number(previous[id]) : dbQuantity;
-        next[id] = isProduct ? Math.max(1, Number.isFinite(currentValue) ? currentValue : dbQuantity) : 1;
+        next[id] = isProduct && !hasProductSelection
+          ? Math.max(1, Number.isFinite(currentValue) ? currentValue : dbQuantity)
+          : isProduct ? dbQuantity : 1;
       });
       return next;
     });
@@ -157,16 +166,26 @@ export default function Cart() {
   const getItemQuantity = (item) => {
     if (!isProductItem(item)) return 1;
     const id = String(item.artwork_id);
+    if (Array.isArray(item.selected_products) && item.selected_products.length) {
+      return getSelectedProductsTotalQuantity(item.selected_products);
+    }
     const value = Number(cartQuantities[id] ?? item.quantity ?? 1);
     return Number.isFinite(value) ? Math.max(1, value) : 1;
   };
 
-  const cartItems = items.map((item) => ({
-    ...item,
-    id: item.artwork_id,
-    qty: getItemQuantity(item),
-    subtotal: Number(item.price || 0) * getItemQuantity(item),
-  }));
+  const cartItems = items.map((item) => {
+    const selectedProducts = Array.isArray(item.selected_products) ? item.selected_products : [];
+    const subtotal = selectedProducts.length
+      ? selectedProducts.reduce((sum, option) =>
+        sum + Number(option.unit_price || 0) * Number(option.quantity || 0), 0)
+      : Number(item.price || 0) * getItemQuantity(item);
+    return {
+      ...item,
+      id: item.artwork_id,
+      qty: getItemQuantity(item),
+      subtotal,
+    };
+  });
 
   const selectedItems = cartItems.filter((item) => Number(item.is_sold_out) !== 1 &&
     (selection === null || selection.includes(String(item.artwork_id))));

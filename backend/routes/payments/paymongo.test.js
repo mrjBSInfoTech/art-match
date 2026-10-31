@@ -46,6 +46,18 @@ test("signed paid checkout atomically pays every seller and removes only its buy
   assert.equal(fixture.calls.filter(call => call.type === "commit").length, 1);
 });
 
+test("paid checkout recalculates leftover product cart totals from selected option prices", async () => {
+  const { fixture, post } = setup();
+  fixture.state.cartItems[2] = {
+    add_to_id: 1,
+    artwork_id: 30,
+    quantity: 3,
+    selected_products: [{ id: "option-a", name: "Option A", quantity: 3, unit_price: 25 }],
+  };
+  assert.equal((await post(signedEvent())).status, 200);
+  assert.equal(fixture.state.carts[0].total_price, 75);
+});
+
 test("duplicate paid webhook returns success without repeating purchases or deleting re-added cart items", async () => {
   const { fixture, post } = setup();
   assert.equal((await post(signedEvent())).status, 200);

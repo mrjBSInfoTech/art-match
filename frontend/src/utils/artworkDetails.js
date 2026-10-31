@@ -106,6 +106,10 @@ export function getArtworkDetailsFromArtwork(artwork = {}) {
   return {
     ...getArtworkDetailDefaults(),
     ...getArtworkDetailsPayload({ ...details, art_type: artwork.art_type, product: artwork.product }),
+    ...(Array.isArray(details.product_options) ? {
+      product_price_mode: details.product_price_mode || "shared",
+      product_options: details.product_options,
+    } : {}),
   };
 }
 

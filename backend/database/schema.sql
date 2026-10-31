@@ -189,6 +189,8 @@ CREATE TABLE IF NOT EXISTS cart_item (
   add_to_id INT NOT NULL,
   artwork_id INT NOT NULL,
   quantity INT NOT NULL DEFAULT 1,
+  selected_products JSON NULL,
+  order_note TEXT NULL,
   date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_cart_item_cart
     FOREIGN KEY (add_to_id) REFERENCES add_cart (add_to_id) ON DELETE CASCADE,
@@ -238,6 +240,12 @@ CREATE TABLE IF NOT EXISTS marketplace_order_item (
   unit_price DECIMAL(12, 2) NOT NULL,
   original_unit_price DECIMAL(12, 2) NULL,
   quantity INT NOT NULL DEFAULT 1,
+  product_option_id VARCHAR(100) NULL,
+  product_option_name VARCHAR(255) NULL,
+  selected_products JSON NULL,
+  line_total DECIMAL(12, 2) NULL,
+  original_line_total DECIMAL(12, 2) NULL,
+  order_note TEXT NULL,
   CONSTRAINT fk_marketplace_order_item_order
     FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE,
   CONSTRAINT fk_marketplace_order_item_artwork

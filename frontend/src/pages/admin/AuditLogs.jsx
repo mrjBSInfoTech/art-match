@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -26,6 +27,18 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+
+const auditReportColumns = [
+  { key: "audit_id", label: "Audit ID" },
+  { key: "datetime", label: "Date and Time" },
+  { key: "action", label: "Action" },
+  { key: "actor", label: "Actor" },
+  { key: "role", label: "Role" },
+  { key: "status", label: "Status" },
+  { key: "information", label: "Information" },
+];
 
 export default function AuditLogs() {
   const theme = useTheme();
@@ -35,7 +48,25 @@ export default function AuditLogs() {
   const [logs, setLogs] = useState([]);
   const [visibleCount, setVisibleCount] = useState(50);
   const [logsErrorMessage, setLogsErrorMessage] = useState("");
+  const [reportError, setReportError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const handleDownloadReport = () => {
+    try {
+      setReportError("");
+      if (!logs.length) {
+        setReportError("No audit records match the selected filters.");
+        return;
+      }
+      downloadCsvReport(
+        logs,
+        auditReportColumns,
+        `audit-report-${getReportDateStamp()}.csv`,
+      );
+    } catch (reportError) {
+      setReportError(reportError.message || "Unable to generate audit report.");
+    }
+  };
 
   useEffect(() => {
     const loadLogs = async () => {
@@ -44,6 +75,7 @@ export default function AuditLogs() {
         setLogs(await fetchAuditLogs(search, date, period));
         setVisibleCount(50);
         setLogsErrorMessage("");
+        setReportError("");
       } catch (loadError) {
         setLogsErrorMessage(loadError.message || "Unable to load audit logs.");
       } finally {
@@ -138,6 +170,11 @@ export default function AuditLogs() {
         }}
         variant="outlined"
       >
+        {reportError && (
+          <Alert severity="error" onClose={() => setReportError("")} sx={{ m: 2, mb: 0 }}>
+            {reportError}
+          </Alert>
+        )}
         <Box
           sx={{
             display: "flex",
@@ -280,12 +317,21 @@ export default function AuditLogs() {
             All System Activity
           </Typography>
           {!loading && !logsErrorMessage && (
-            <Typography
-              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
-            >
-              Showing {Math.min(visibleCount, logs.length)} of {logs.length}{" "}
-              entries
-            </Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Typography sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>
+                Showing {Math.min(visibleCount, logs.length)} of {logs.length} entries
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<DownloadOutlinedIcon />}
+                onClick={handleDownloadReport}
+                disabled={!logs.length}
+                sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+              >
+                Download Report
+              </Button>
+            </Stack>
           )}
         </Box>
         {loading ? (

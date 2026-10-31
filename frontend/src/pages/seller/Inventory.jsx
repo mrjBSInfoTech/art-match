@@ -35,8 +35,9 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AddIcon from "@mui/icons-material/Add";
 import InventoryCard from "../../components/seller/Inventory/InventoryCard";
 import {
+  adjustProductOptionStock,
+  adjustInventoryStock,
   fetchSellerInventory,
-  updateInventoryStock,
 } from "../../api/seller/inventoryAPI";
 import { getStockStatus, toStockQuantity } from "../../utils/inventory";
 
@@ -132,16 +133,40 @@ export default function Inventory() {
     setSnackbar({ open: true, message, severity });
   };
 
-  const saveStock = async (artworkId, stockQuantity) => {
+  const saveStock = async (artworkId, direction, quantity) => {
     setSavingProductId(artworkId);
     try {
-      const savedProduct = await updateInventoryStock(artworkId, stockQuantity);
+      const savedProduct = await adjustInventoryStock(artworkId, direction, quantity);
       setProducts((current) =>
         current.map((product) =>
           product.artwork_id === artworkId ? savedProduct : product,
         ),
       );
-      showSnackbar("Stock updated successfully.");
+      showSnackbar(`Stock ${direction === "add" ? "increased" : "reduced"} successfully.`);
+    } finally {
+      setSavingProductId(null);
+    }
+  };
+
+  const adjustOptionStock = async (artworkId, optionId, direction, quantity) => {
+    setSavingProductId(artworkId);
+    try {
+      const savedProduct = await adjustProductOptionStock(
+        artworkId,
+        optionId,
+        direction,
+        quantity,
+      );
+      setProducts((current) =>
+        current.map((product) =>
+          product.artwork_id === artworkId ? savedProduct : product,
+        ),
+      );
+      showSnackbar(
+        `${direction === "add" ? "Added to" : "Reduced"} ${savedProduct.product_options.find(
+          (option) => option.id === optionId,
+        )?.name || "product"} stock successfully.`,
+      );
     } finally {
       setSavingProductId(null);
     }
@@ -492,6 +517,7 @@ export default function Inventory() {
                 key={product.artwork_id}
                 product={product}
                 onSaveStock={saveStock}
+                onAdjustOptionStock={adjustOptionStock}
                 saving={savingProductId === product.artwork_id}
               />
             ))}

@@ -142,9 +142,9 @@ export default function Main() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const handleAddToCart = async (artworkId) => {
+  const handleAddToCart = async (artworkId, quantity = 1, selectedProducts, orderNote) => {
     try {
-      const result = await addToCart(artworkId);
+      const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
       showSnackbar(result?.message || "Artwork added to cart", "success");
       return result;
     } catch (error) {

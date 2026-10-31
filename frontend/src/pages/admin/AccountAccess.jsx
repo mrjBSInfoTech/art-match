@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
   FormControl,
@@ -22,16 +23,36 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
-import { fetchAccountAccess } from "../../api/admin/accountAccessAPI";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import { fetchAccountAccess, fetchAccountAccessReport } from "../../api/admin/accountAccessAPI";
+import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+
+const accessReportColumns = [
+  { key: "datetime", label: "Date and Time" },
+  { key: "action", label: "Action" },
+  { key: "role", label: "Account Role" },
+  { key: "account_id", label: "Account ID" },
+  { key: "account_name", label: "Account Name" },
+  { key: "username", label: "Username / Student Number" },
+  { key: "email", label: "Email" },
+  { key: "strike_number", label: "Strike Number" },
+  { key: "reason", label: "Reason" },
+  { key: "current_strikes", label: "Current Strikes" },
+  { key: "is_banned", label: "Currently Banned" },
+  { key: "admin_id", label: "Admin ID" },
+  { key: "admin_username", label: "Admin Username" },
+];
 
 export default function AccountAccess() {
   const theme = useTheme();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reportError, setReportError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("az");
   const [roleOption, setRoleOption] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
 
   const loadAccounts = async () => {
     try {
@@ -91,6 +112,29 @@ export default function AccountAccess() {
   const isAdmin = currentRole === "admin";
   const hasPermission = (key) =>
     ["1", "true"].includes(String(localStorage.getItem(key)).toLowerCase());
+  const handleDownloadReport = async () => {
+    try {
+      setReportLoading(true);
+      setReportError("");
+      const report = await fetchAccountAccessReport({
+        role: roleOption,
+        search: searchQuery.trim(),
+      });
+      if (!report.length) {
+        setReportError("No strike or ban records match the selected filters.");
+        return;
+      }
+      downloadCsvReport(
+        report,
+        accessReportColumns,
+        `strike-ban-report-${getReportDateStamp()}.csv`,
+      );
+    } catch (reportError) {
+      setReportError(reportError.message || "Unable to generate strike and ban report.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
   return (
     <Box
       sx={{
@@ -135,7 +179,21 @@ export default function AccountAccess() {
             platform
           </Typography>
         </Box>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadOutlinedIcon />}
+          onClick={handleDownloadReport}
+          disabled={reportLoading}
+          sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
+        >
+          {reportLoading ? "Generating..." : "Download Strike/Ban Report"}
+        </Button>
       </Box>
+      {reportError && (
+        <Alert severity="error" onClose={() => setReportError("")} sx={{ mb: 2 }}>
+          {reportError}
+        </Alert>
+      )}
       {/* Filter Section */}
       {/* Filter Section */}
       <Paper

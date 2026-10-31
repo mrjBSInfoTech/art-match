@@ -108,6 +108,7 @@ router.get("/", (req, res) => {
       a.art_type,
       a.product,
       a.art_size,
+      a.artwork_details,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
       ${getArtworkSoldQuantitySql()} AS sold_quantity,
       ${getArtworkSoldOutSql()} AS is_sold_out,

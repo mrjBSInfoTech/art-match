@@ -34,11 +34,13 @@ export const fetchCart = async ({ signal } = {}) => {
   }
 };
 
-export const addToCart = async (artworkId, quantity = 1) => {
+export const addToCart = async (artworkId, quantity = 1, selectedProducts = undefined, orderNote = undefined) => {
   try {
     const response = await api.post("/", {
       artwork_id: artworkId,
       quantity: Number(quantity) > 0 ? Number(quantity) : 1,
+      ...(selectedProducts ? { selected_products: selectedProducts } : {}),
+      ...(typeof orderNote === "string" && orderNote.trim() ? { order_note: orderNote.trim() } : {}),
     });
     window.dispatchEvent(new Event("cart-updated"));
     return response.data;
@@ -47,10 +49,11 @@ export const addToCart = async (artworkId, quantity = 1) => {
   }
 };
 
-export const updateCartItemQuantity = async (artworkId, quantity = 1) => {
+export const updateCartItemQuantity = async (artworkId, quantity = 1, selectedProducts = undefined) => {
   try {
     const response = await api.patch(`/${artworkId}/quantity`, {
       quantity: Number(quantity) > 0 ? Number(quantity) : 1,
+      ...(selectedProducts ? { selected_products: selectedProducts } : {}),
     });
     window.dispatchEvent(new Event("cart-updated"));
     return response.data;

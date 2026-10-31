@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   TextField,
   Typography,
 } from "@mui/material";
 import ArtworkImage from "../../common/ArtworkImage";
+import ProductInventoryDialog from "./ProductInventoryDialog";
 import {
   MAX_STOCK_QUANTITY,
   getStockStatus,
@@ -27,15 +31,28 @@ function validStockInput(value) {
   return /^(?:0|[1-9]\d*)$/.test(String(value).trim());
 }
 
-export default function InventoryCard({ product, onSaveStock, saving = false }) {
-  const [stockInput, setStockInput] = useState(String(toStockQuantity(product.stock_quantity)));
+export default function InventoryCard({
+  product,
+  onSaveStock,
+  onAdjustOptionStock,
+  saving = false,
+}) {
+  const [adjustment, setAdjustment] = useState("add");
+  const [stockInput, setStockInput] = useState("");
   const [error, setError] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const stock = toStockQuantity(product.stock_quantity);
+  const hasProductOptions = product.product_options?.length > 0;
+  const maxAddition = Math.max(
+    0,
+    MAX_STOCK_QUANTITY - stock - toStockQuantity(product.sold_quantity),
+  );
   const status = getStockStatus(stock);
   const colors = statusColors[status];
 
   useEffect(() => {
-    setStockInput(String(toStockQuantity(product.stock_quantity)));
+    setAdjustment("add");
+    setStockInput("");
     setError("");
   }, [product.artwork_id, product.stock_quantity]);
 
@@ -43,8 +60,8 @@ export default function InventoryCard({ product, onSaveStock, saving = false }) 
     const value = stockInput.trim();
     const quantity = Number(value);
 
-    if (!validStockInput(value) || !Number.isSafeInteger(quantity)) {
-      setError("Enter a non-negative whole number.");
+    if (!validStockInput(value) || !Number.isSafeInteger(quantity) || quantity <= 0) {
+      setError("Enter a positive whole number.");
       return;
     }
 
@@ -53,9 +70,15 @@ export default function InventoryCard({ product, onSaveStock, saving = false }) 
       return;
     }
 
+    if (adjustment === "reduce" && quantity > stock) {
+      setError(`You can reduce at most ${stock.toLocaleString()} units.`);
+      return;
+    }
+
     try {
       setError("");
-      await onSaveStock(product.artwork_id, quantity);
+      await onSaveStock(product.artwork_id, adjustment, quantity);
+      setStockInput("");
     } catch (saveError) {
       setError(saveError.message || "Unable to save stock.");
     }
@@ -104,32 +127,82 @@ export default function InventoryCard({ product, onSaveStock, saving = false }) 
           </Typography>
         </Box>
 
-        <TextField
-          label="New stock quantity"
-          type="number"
-          size="small"
-          fullWidth
-          value={stockInput}
-          onChange={(event) => {
-            setStockInput(event.target.value);
-            setError("");
-          }}
-          error={Boolean(error)}
-          helperText={error || "Use a whole number from 0 upward."}
-          slotProps={{ htmlInput: { min: 0, max: MAX_STOCK_QUANTITY, step: 1 } }}
-          disabled={saving}
-        />
-        {error && <Alert severity="error">{error}</Alert>}
-        <Button
-          variant="contained"
-          color="error"
-          onClick={save}
-          disabled={saving || stockInput === String(stock)}
-          sx={{ mt: "auto", textTransform: "none", fontWeight: 700, color:"#fff" }}
-        >
-          {saving ? "Saving..." : "Save Stock"}
-        </Button>
+        {hasProductOptions ? (
+          <Button
+            variant="outlined"
+            onClick={() => setDetailsOpen(true)}
+            disabled={saving}
+            sx={{ mt: "auto", textTransform: "none", fontWeight: 700 }}
+          >
+            Details
+          </Button>
+        ) : (
+          <>
+            <FormControl size="small" fullWidth disabled={saving}>
+              <InputLabel id={`stock-adjustment-label-${product.artwork_id}`}>
+                Stock action
+              </InputLabel>
+              <Select
+                labelId={`stock-adjustment-label-${product.artwork_id}`}
+                value={adjustment}
+                label="Stock action"
+                onChange={(event) => {
+                  setAdjustment(event.target.value);
+                  setError("");
+                }}
+              >
+                <MenuItem value="add">Add stock</MenuItem>
+                <MenuItem value="reduce">Reduce stock</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label={adjustment === "add" ? "Amount to add" : "Amount to reduce"}
+              type="number"
+              size="small"
+              fullWidth
+              value={stockInput}
+              onChange={(event) => {
+                setStockInput(event.target.value);
+                setError("");
+              }}
+              error={Boolean(error)}
+              helperText={
+                error ||
+                (adjustment === "reduce"
+                  ? `Enter a whole number from 1 to ${stock.toLocaleString()}.`
+                  : maxAddition > 0
+                    ? `Enter a whole number from 1 to ${maxAddition.toLocaleString()}.`
+                    : "Stock is already at the supported maximum.")
+              }
+              slotProps={{
+                htmlInput: {
+                  min: 1,
+                  max: adjustment === "reduce" ? stock : maxAddition,
+                  step: 1,
+                },
+              }}
+              disabled={saving || (adjustment === "add" && maxAddition === 0)}
+            />
+            <Button
+              variant="contained"
+              onClick={save}
+              disabled={saving || !stockInput.trim()}
+              sx={{ mt: "auto", textTransform: "none", fontWeight: 700, color: "#fff" }}
+            >
+              {saving ? "Updating..." : "Update Stock"}
+            </Button>
+          </>
+        )}
       </CardContent>
+      {hasProductOptions && (
+        <ProductInventoryDialog
+          open={detailsOpen}
+          product={product}
+          onClose={() => setDetailsOpen(false)}
+          onAdjustStock={onAdjustOptionStock}
+          saving={saving}
+        />
+      )}
     </Card>
   );
 }

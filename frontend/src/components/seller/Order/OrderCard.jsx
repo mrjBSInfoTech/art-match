@@ -91,12 +91,22 @@ export default function OrderCard({
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   Qty {item.qty} · {formatCurrency(item.price)} each
                 </Typography>
+                {item.selectedProducts?.map((product) => (
+                  <Typography key={product.id} variant="caption" color="text.secondary" display="block">
+                    {product.name} × {product.quantity}
+                  </Typography>
+                ))}
+                {item.orderNote && (
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: "pre-wrap" }}>
+                    Request: {item.orderNote}
+                  </Typography>
+                )}
                 <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 700, display: { sm: "none" } }}>
-                  {formatCurrency(item.price * item.qty)}
+                  {formatCurrency(item.lineTotal ?? item.price * item.qty)}
                 </Typography>
               </Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, flexShrink: 0, display: { xs: "none", sm: "block" } }}>
-                {formatCurrency(item.price * item.qty)}
+                {formatCurrency(item.lineTotal ?? item.price * item.qty)}
               </Typography>
             </Stack>
           ))}

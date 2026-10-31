@@ -1,12 +1,21 @@
 import express from "express";
 import db from "../../database/db.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
-import { getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
+import {
+  getArtworkSoldQuantitySql,
+  getCompletedOrderCondition,
+} from "../../utils/artworkAvailability.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
+import {
+  calculateStockAdjustment,
+  getSelectedOptionSoldQuantities,
+  MAX_STOCK_QUANTITY,
+  parseStockAdjustment,
+  parseStockQuantity,
+  serializeInventoryOptions,
+} from "../../utils/inventoryStock.js";
 
 const router = express.Router();
-
-const MAX_STOCK_QUANTITY = 2_147_483_647;
 
 function readArtworkDetails(rawDetails) {
   if (rawDetails && typeof rawDetails === "object" && !Array.isArray(rawDetails)) {
@@ -25,25 +34,21 @@ function readArtworkDetails(rawDetails) {
   }
 }
 
-function parseStockQuantity(value) {
-  const text = typeof value === "number" || typeof value === "string"
-    ? String(value).trim()
-    : "";
-
-  if (!/^(?:0|[1-9]\d*)$/.test(text)) return null;
-
-  const quantity = Number(text);
-  return Number.isSafeInteger(quantity) && quantity <= MAX_STOCK_QUANTITY
-    ? quantity
-    : null;
+function getInventoryProductOptions(details) {
+  return Array.isArray(details.product_options) ? details.product_options : [];
 }
 
-function serializeInventoryProduct(row) {
+function serializeInventoryProduct(row, soldOptionQuantities = new Map()) {
   const details = readArtworkDetails(row.artwork_details);
   const recordedStock = parseStockQuantity(details.stock_available);
   const soldQuantity = Number.isSafeInteger(Number(row.sold_quantity))
     ? Math.max(0, Number(row.sold_quantity))
     : 0;
+  const productOptions = serializeInventoryOptions(
+    getInventoryProductOptions(details),
+    row.artwork_id,
+    soldOptionQuantities,
+  );
 
   return {
     artwork_id: row.artwork_id,
@@ -52,10 +57,12 @@ function serializeInventoryProduct(row) {
     image: row.image,
     art_type: row.art_type,
     product: row.product,
+    artwork_details: details,
     stock_quantity: recordedStock === null
       ? 0
       : Math.max(0, recordedStock - soldQuantity),
     sold_quantity: soldQuantity,
+    product_options: productOptions,
   };
 }
 
@@ -63,43 +70,59 @@ function getSellerId(req) {
   return req.user?.student_id || req.user?.id || null;
 }
 
-router.get("/", authenticateSeller, (req, res) => {
+async function loadOptionSoldQuantities(executor, sellerId, artworkId = null) {
+  const artworkFilter = artworkId === null ? "" : "AND oi.artwork_id = ?";
+  const params = artworkId === null ? [sellerId] : [sellerId, artworkId];
+  const [rows] = await executor.query(
+    `SELECT oi.artwork_id, oi.selected_products
+     FROM marketplace_order_item oi
+     JOIN marketplace_order o ON o.order_id = oi.order_id
+     JOIN artwork a ON a.artwork_id = oi.artwork_id
+     WHERE a.student_id = ?
+       AND oi.selected_products IS NOT NULL
+       ${artworkFilter}
+       AND ${getCompletedOrderCondition("o")}`,
+    params,
+  );
+  return getSelectedOptionSoldQuantities(rows);
+}
+
+router.get("/", authenticateSeller, async (req, res) => {
   const sellerId = getSellerId(req);
   if (!sellerId) {
     return res.status(403).json({ message: "Unable to identify seller" });
   }
 
-  const sql = `
-    SELECT
-      a.artwork_id,
-      a.title,
-      a.price,
-      a.image,
-      a.art_type,
-      a.product,
-      a.artwork_details,
-      ${getArtworkSoldQuantitySql("a")} AS sold_quantity
-    FROM artwork a
-    WHERE a.student_id = ?
-      AND LOWER(TRIM(a.art_type)) = 'product'
-    ORDER BY a.artwork_id DESC
-  `;
-
-  db.query(sql, [sellerId], (error, rows) => {
-    if (error) {
-      console.error("Seller inventory query error:", error);
-      return res.status(500).json({ message: "Unable to load inventory" });
-    }
-
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT
+         a.artwork_id,
+         a.title,
+         a.price,
+         a.image,
+         a.art_type,
+         a.product,
+         a.artwork_details,
+         ${getArtworkSoldQuantitySql("a")} AS sold_quantity
+       FROM artwork a
+       WHERE a.student_id = ?
+         AND LOWER(TRIM(a.art_type)) = 'product'
+       ORDER BY a.artwork_id DESC`,
+      [sellerId],
+    );
+    const soldOptionQuantities = await loadOptionSoldQuantities(db.promise(), sellerId);
     res.set("Cache-Control", "no-store");
-    return res.json(rows.map(serializeInventoryProduct));
-  });
+    return res.json(rows.map((row) => serializeInventoryProduct(row, soldOptionQuantities)));
+  } catch (error) {
+    console.error("Seller inventory query error:", error);
+    return res.status(500).json({ message: "Unable to load inventory" });
+  }
 });
 
-router.patch("/:artworkId/stock", authenticateSeller, (req, res) => {
+router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
   const sellerId = getSellerId(req);
   const artworkId = Number(req.params.artworkId);
-  const requestedStock = parseStockQuantity(req.body?.stock_quantity);
+  const adjustment = parseStockAdjustment(req.body?.direction, req.body?.quantity);
 
   if (!sellerId) {
     return res.status(403).json({ message: "Unable to identify seller" });
@@ -109,9 +132,9 @@ router.patch("/:artworkId/stock", authenticateSeller, (req, res) => {
     return res.status(400).json({ message: "A valid product is required" });
   }
 
-  if (requestedStock === null) {
+  if (!adjustment) {
     return res.status(400).json({
-      message: `Stock must be a whole number from 0 to ${MAX_STOCK_QUANTITY.toLocaleString()}.`,
+      message: `Provide an add or reduce action and a whole-number amount from 1 to ${MAX_STOCK_QUANTITY.toLocaleString()}.`,
     });
   }
 
@@ -132,63 +155,236 @@ router.patch("/:artworkId/stock", authenticateSeller, (req, res) => {
     LIMIT 1
   `;
 
-  db.query(selectSql, [artworkId, sellerId], (selectError, rows) => {
-    if (selectError) {
-      console.error("Seller inventory product lookup error:", selectError);
-      return res.status(500).json({ message: "Unable to update inventory" });
-    }
+  let connection;
+  let transactionOpen = false;
+  try {
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+    transactionOpen = true;
 
+    const [rows] = await connection.query(
+      `${selectSql.trim()} FOR UPDATE`,
+      [artworkId, sellerId],
+    );
     const product = rows?.[0];
     if (!product) {
+      await connection.rollback();
+      transactionOpen = false;
       return res.status(404).json({ message: "Product inventory was not found" });
     }
 
     const soldQuantity = Number.isSafeInteger(Number(product.sold_quantity))
       ? Math.max(0, Number(product.sold_quantity))
       : 0;
-    const recordedStock = requestedStock + soldQuantity;
-
-    if (!Number.isSafeInteger(recordedStock) || recordedStock > MAX_STOCK_QUANTITY) {
+    const details = readArtworkDetails(product.artwork_details);
+    const recordedStock = parseStockQuantity(details.stock_available);
+    if (recordedStock === null) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(409).json({
+        message: "This product has an invalid stock value. Refresh inventory and try again.",
+      });
+    }
+    if (getInventoryProductOptions(details).length > 0) {
+      await connection.rollback();
+      transactionOpen = false;
       return res.status(400).json({
-        message: "Stock cannot be increased because it exceeds the supported limit.",
+        message: "Adjust stock for each product option from its inventory details.",
       });
     }
 
-    const details = readArtworkDetails(product.artwork_details);
-    details.stock_available = recordedStock;
+    let updatedStock;
+    try {
+      updatedStock = calculateStockAdjustment(
+        recordedStock,
+        soldQuantity,
+        adjustment.direction,
+        adjustment.quantity,
+      );
+    } catch (stockError) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(400).json({ message: stockError.message });
+    }
 
-    db.query(
+    details.stock_available = updatedStock.recordedStock;
+    const [result] = await connection.query(
       `UPDATE artwork
        SET artwork_details = ?
        WHERE artwork_id = ?
          AND student_id = ?
          AND LOWER(TRIM(art_type)) = 'product'`,
       [JSON.stringify(details), artworkId, sellerId],
-      async (updateError, result) => {
-        if (updateError) {
-          console.error("Seller inventory update error:", updateError);
-          return res.status(500).json({ message: "Unable to update inventory" });
-        }
-
-        if (!result.affectedRows) {
-          return res.status(404).json({ message: "Product inventory was not found" });
-        }
-
-        await logSellerAudit(req.user, {
-          action: "UPDATE_PRODUCT_STOCK",
-          information: `Stock for product ID ${artworkId} (${product.title}) was set to ${requestedStock}.`,
-        });
-
-        return res.json({
-          message: "Stock updated successfully",
-          product: serializeInventoryProduct({
-            ...product,
-            artwork_details: details,
-          }),
-        });
-      },
     );
-  });
+
+    if (!result.affectedRows) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(404).json({ message: "Product inventory was not found" });
+    }
+
+    await connection.commit();
+    transactionOpen = false;
+
+    await logSellerAudit(req.user, {
+      action: "UPDATE_PRODUCT_STOCK",
+      information: `Stock for product ID ${artworkId} (${product.title}) was ${adjustment.direction === "add" ? "increased" : "reduced"} by ${adjustment.quantity}.`,
+    });
+
+    return res.json({
+      message: "Stock adjusted successfully",
+      product: serializeInventoryProduct({
+        ...product,
+        artwork_details: details,
+      }),
+    });
+  } catch (error) {
+    if (transactionOpen) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Seller inventory rollback error:", rollbackError);
+      }
+    }
+    console.error("Seller inventory adjustment error:", error);
+    return res.status(500).json({ message: "Unable to update inventory" });
+  } finally {
+    connection?.release();
+  }
+});
+
+router.patch("/:artworkId/options/stock", authenticateSeller, async (req, res) => {
+  const sellerId = getSellerId(req);
+  const artworkId = Number(req.params.artworkId);
+  const optionId = typeof req.body?.option_id === "string" ? req.body.option_id.trim() : "";
+  const adjustment = parseStockAdjustment(req.body?.direction, req.body?.quantity);
+
+  if (!sellerId) {
+    return res.status(403).json({ message: "Unable to identify seller" });
+  }
+  if (!Number.isInteger(artworkId) || artworkId <= 0 || !optionId) {
+    return res.status(400).json({ message: "A valid artwork and product option are required." });
+  }
+  if (!adjustment) {
+    return res.status(400).json({
+      message: `Provide an add or reduce action and a whole-number amount from 1 to ${MAX_STOCK_QUANTITY.toLocaleString()}.`,
+    });
+  }
+
+  let connection;
+  let transactionOpen = false;
+  try {
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+    transactionOpen = true;
+    const [rows] = await connection.query(
+      `SELECT a.artwork_id, a.title, a.price, a.image, a.art_type, a.product,
+        a.artwork_details, ${getArtworkSoldQuantitySql("a")} AS sold_quantity
+       FROM artwork a
+       WHERE a.artwork_id = ? AND a.student_id = ?
+         AND LOWER(TRIM(a.art_type)) = 'product'
+       LIMIT 1 FOR UPDATE`,
+      [artworkId, sellerId],
+    );
+    const product = rows?.[0];
+    if (!product) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(404).json({ message: "Product inventory was not found." });
+    }
+
+    const details = readArtworkDetails(product.artwork_details);
+    const options = getInventoryProductOptions(details);
+    const option = options.find((item) => item.id === optionId);
+    if (!option) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(404).json({ message: "Product option was not found." });
+    }
+
+    const soldOptionQuantities = await loadOptionSoldQuantities(
+      connection,
+      sellerId,
+      artworkId,
+    );
+    const soldQuantity = soldOptionQuantities.get(`${artworkId}:${optionId}`) || 0;
+    const recordedQuantity = parseStockQuantity(option.quantity);
+    if (recordedQuantity === null) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(409).json({
+        message: "This product option has an invalid stock value. Refresh inventory and try again.",
+      });
+    }
+
+    let updatedStock;
+    try {
+      updatedStock = calculateStockAdjustment(
+        recordedQuantity,
+        soldQuantity,
+        adjustment.direction,
+        adjustment.quantity,
+      );
+    } catch (stockError) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(400).json({ message: stockError.message });
+    }
+
+    option.quantity = updatedStock.recordedStock;
+    const totalRecordedStock = options.reduce(
+      (total, currentOption) => total + Number(currentOption.quantity),
+      0,
+    );
+    if (!Number.isSafeInteger(totalRecordedStock) || totalRecordedStock > MAX_STOCK_QUANTITY) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(400).json({
+        message: `Combined product stock cannot exceed ${MAX_STOCK_QUANTITY.toLocaleString()}.`,
+      });
+    }
+    details.stock_available = totalRecordedStock;
+    const [result] = await connection.query(
+      `UPDATE artwork SET artwork_details = ?
+       WHERE artwork_id = ? AND student_id = ?
+         AND LOWER(TRIM(art_type)) = 'product'`,
+      [JSON.stringify(details), artworkId, sellerId],
+    );
+    if (!result.affectedRows) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(404).json({ message: "Product inventory was not found." });
+    }
+    await connection.commit();
+    transactionOpen = false;
+
+    await logSellerAudit(req.user, {
+      action: "UPDATE_PRODUCT_OPTION_STOCK",
+      information: `Stock for ${option.name} in product artwork ID ${artworkId} was ${adjustment.direction === "add" ? "increased" : "reduced"} by ${adjustment.quantity}.`,
+    });
+
+    const updatedProduct = {
+      ...product,
+      artwork_details: details,
+      sold_quantity: Number(product.sold_quantity) || 0,
+    };
+    return res.json({
+      message: "Product option stock adjusted successfully.",
+      product: serializeInventoryProduct(updatedProduct, soldOptionQuantities),
+    });
+  } catch (error) {
+    if (transactionOpen) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Seller inventory option rollback error:", rollbackError);
+      }
+    }
+    console.error("Seller product option stock adjustment error:", error);
+    return res.status(500).json({ message: "Unable to update product option stock." });
+  } finally {
+    connection?.release();
+  }
 });
 
 export default router;
