@@ -205,7 +205,7 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
           </Typography>
         )}
         <Typography variant="caption" color="text.secondary">
-          Return requests must be submitted within 7 days of delivery. Approval and receipt do not issue a refund automatically; arrange any refund separately.
+          Return requests must be submitted within 4 days of delivery. Approval and receipt do not issue a refund automatically; arrange any refund separately.
         </Typography>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           {role === "seller" && request.status === "Requested" && (

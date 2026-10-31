@@ -296,13 +296,25 @@ export default function Inventory() {
               key={label}
               variant="outlined"
               sx={{
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2.5,
-                boxShadow: "none",
+                borderRadius: 4,
+                background: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
+                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                border: "1px solid",
+                borderColor: "divider",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 20px 38px rgba(2, 6, 23, 0.28)"
+                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
+                overflow: "hidden",
+                transition: "transform 180ms ease, box-shadow 180ms ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                },
               }}
             >
-              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
                 <Box
                   sx={{
                     display: "flex",
@@ -314,10 +326,10 @@ export default function Inventory() {
                   <Box>
                     <Typography
                       sx={{
-                        color: theme.palette.text.secondary,
+                        color: "text.secondary",
                         fontSize: 11,
                         fontWeight: 800,
-                        letterSpacing: 1,
+                        letterSpacing: 1.2,
                       }}
                     >
                       {label}

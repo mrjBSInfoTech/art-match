@@ -23,7 +23,7 @@ export function getPayoutHoldPolicy(env = process.env) {
   const isTestPayoutProvider = selectedProvider === "paymongo" && hasTestKey && !hasLiveKey;
   const immediateTestPayouts = !production && !explicitDisable && !hasLiveKey &&
     (isDemoProvider || isTestPayoutProvider || (explicitImmediate && (isDemoProvider || isTestPayoutProvider)));
-  return { holdDays: immediateTestPayouts ? 0 : 7, immediateTestPayouts };
+  return { holdDays: immediateTestPayouts ? 0 : 4, immediateTestPayouts };
 }
 
 export function payoutToCentavos(value, { allowZero = true } = {}) {
@@ -199,7 +199,7 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
     if (!order.delivered_at) return finish("Held", "The delivery timestamp is unavailable. Administrator review is required.");
     if (!Number(order.payout_hold_elapsed)) return finish("Held", holdDays === 0
       ? "Waiting for the recorded delivery time."
-      : "Your earnings are held until the 7-day return period ends.");
+      : "Your earnings are held until the 4-day return period ends.");
     return finish("Eligible");
   } catch {
     result.payoutAmountCentavos = 0;

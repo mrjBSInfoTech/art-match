@@ -34,8 +34,8 @@ test("return API authenticates the buyer, keeps selected order items, and preser
     assert.equal(requests.at(-1).url, "/8/shipped");
     assert.deepEqual(JSON.parse(requests.at(-1).data), { return_tracking_url: "https://tracking.example/return/8" });
 
-    rejection = { response: { status: 409, data: { message: "The 7-day return period for this order has expired." } } };
-    await assert.rejects(createReturnRequest(payload), (error) => error.status === 409 && /7-day.*expired/.test(error.message));
+    rejection = { response: { status: 409, data: { message: "The 4-day return period for this order has expired." } } };
+    await assert.rejects(createReturnRequest(payload), (error) => error.status === 409 && /4-day.*expired/.test(error.message));
     rejection = undefined;
     controller.abort();
     await assert.rejects(fetchReturnRequests(19, { signal: controller.signal }), (error) => axios.isCancel(error));

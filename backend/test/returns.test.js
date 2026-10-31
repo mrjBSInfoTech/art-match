@@ -41,7 +41,7 @@ function fixture({ status = "Requested", secondClockExpired = false, failSql } =
       if (/^SELECT conversation_id FROM conversation/.test(sql)) return [[{ conversation_id: 31 }]];
       if (/^UPDATE conversation_read_state/.test(sql)) return [{ affectedRows: 1 }];
       if (/^INSERT INTO marketplace_return_request/.test(sql)) {
-        assert.match(sql, /CURRENT_TIMESTAMP <= DATE_ADD\(delivered_at, INTERVAL 7 DAY\)/);
+        assert.match(sql, /CURRENT_TIMESTAMP <= DATE_ADD\(delivered_at, INTERVAL 4 DAY\)/);
         if (secondClockExpired) return [{ affectedRows: 0, insertId: 0 }];
         state.request.status = "Requested";
         return [{ affectedRows: 1, insertId: 61 }];

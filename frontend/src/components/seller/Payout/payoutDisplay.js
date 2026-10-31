@@ -15,7 +15,7 @@ export const payoutStatusColor = {
 };
 
 export const payoutStatusMessage = {
-  Held: "Your earnings remain held until delivery, the 7-day return period and any return or refund are resolved.",
+  Held: "Your earnings remain held until delivery, the 4-day return period and any return or refund are resolved.",
   Eligible: "Your earnings are ready for administrator payout review.",
   Processing: "Your payout is being processed.",
   Paid: "Your payout has been completed.",

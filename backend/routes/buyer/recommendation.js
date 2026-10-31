@@ -551,17 +551,25 @@ const getSpecialtyMatch = (artwork, specialtyPreferences) => {
   };
 };
 
-const selectSpecialtyCandidates = (artworks, specialtyPreferences, topK) => {
-  const scored = artworks.map((artwork) => ({
-    artwork_id: Number(artwork.artwork_id),
-    ...getSpecialtyMatch(artwork, specialtyPreferences),
-  }));
-  const matches = scored.filter((artwork) => artwork.specialty_boost > 0)
-    .sort((a, b) => b.specialty_boost - a.specialty_boost);
+const selectSpecialtyCandidates = (artworks, specialtyPreferences, preferenceEvents = [], topK) => {
+  const scored = artworks.map((artwork) => {
+    const specialty = getSpecialtyMatch(artwork, specialtyPreferences);
+    const filterBoost = getFilterPreferenceBoost(artwork, preferenceEvents);
+    const searchBoost = getSearchPreferenceBoost(artwork, preferenceEvents);
+    const totalPriority = specialty.specialty_boost + filterBoost * 2.0 + searchBoost * 1.5;
+    return {
+      artwork_id: Number(artwork.artwork_id),
+      specialty_boost: specialty.specialty_boost,
+      filter_boost: filterBoost,
+      total_priority: totalPriority,
+    };
+  });
+  const matches = scored.filter((artwork) => artwork.total_priority > 0)
+    .sort((a, b) => b.total_priority - a.total_priority);
   const desiredCandidatePool = Math.max(topK * 3, 20);
-  // Sparse matches retain the full pool. All candidates also remain in Node fallback.
-  const candidates = specialtyPreferences.size && matches.length >= topK
-    ? [...matches, ...scored.filter((artwork) => artwork.specialty_boost === 0)]
+  // Matches prioritize candidates matching filters, search, and specialties
+  const candidates = (specialtyPreferences.size || preferenceEvents.length) && matches.length >= topK
+    ? [...matches, ...scored.filter((artwork) => artwork.total_priority === 0)]
       .slice(0, desiredCandidatePool)
     : scored;
   return {
@@ -780,18 +788,77 @@ const getSearchPreferenceBoost = (artwork, preferenceEvents) => {
 };
 
 // ============================================================
-// FILTER PREFERENCE SCORE
+// COLOR AND FILTER PREFERENCE SCORING
 // ============================================================
+
+const COLOR_PALETTE = [
+  { hex: "#f52245", name: "Red" },
+  { hex: "#ffe3bb", name: "Beige" },
+  { hex: "#1464ed", name: "Blue" },
+  { hex: "#16b978", name: "Green" },
+  { hex: "#965020", name: "Brown" },
+  { hex: "#151632", name: "Navy" },
+  { hex: "#f5f1ea", name: "White" },
+  { hex: "#1f1f1f", name: "Black" },
+  { hex: "#808080", name: "Gray" },
+  { hex: "#ff8c00", name: "Orange" },
+  { hex: "#ffdd00", name: "Yellow" },
+  { hex: "#00cddd", name: "Cyan" },
+  { hex: "#a020f0", name: "Purple" },
+  { hex: "#ff69b4", name: "Pink" },
+];
+
+const colorFamilyFromHex = (hex) => {
+  if (!hex || typeof hex !== "string") return "";
+  const raw = hex.replace("#", "");
+  const full = raw.length === 3 ? [...raw].map((c) => c + c).join("") : raw;
+  if (full.length !== 6) return "";
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  if (min >= 0.88) return "White";
+  if (saturation < 0.1) return lightness < 0.2 ? "Black" : lightness > 0.85 ? "White" : "Gray";
+  let hue = delta === 0 ? 0 : max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+  hue = (hue * 60 + 360) % 360;
+  if (hue < 20 || hue >= 340) return "Red";
+  if (hue < 50) return lightness < 0.5 ? "Brown" : lightness > 0.75 ? "Beige" : "Orange";
+  if (hue < 70) return "Yellow";
+  if (hue < 165) return "Green";
+  if (hue < 195) return "Cyan";
+  if (hue < 260) return lightness < 0.25 ? "Navy" : "Blue";
+  if (hue < 290) return "Purple";
+  return "Pink";
+};
+
+const artworkMatchesColor = (artworkColors, targetColor) => {
+  if (!targetColor) return false;
+  const value = Array.isArray(artworkColors) ? artworkColors.join(", ") : String(artworkColors || "");
+  if (!value) return false;
+  const target = String(targetColor).trim().toLowerCase();
+
+  const targetName =
+    COLOR_PALETTE.find(
+      (c) => c.name.toLowerCase() === target || c.hex.toLowerCase() === target,
+    )?.name?.toLowerCase() || target;
+
+  const wordRegex = new RegExp(`(^|[^a-zA-Z])${targetName}([^a-zA-Z]|$)`, "i");
+  if (wordRegex.test(value)) return true;
+
+  const hexes = value.match(/#(?:[a-f\d]{6}|[a-f\d]{3})\b/gi) || [];
+  return hexes.some((hex) => {
+    const family = colorFamilyFromHex(hex);
+    return family && family.toLowerCase() === targetName;
+  });
+};
 
 const getFilterPreferenceBoost = (artwork, preferenceEvents) => {
   const genre = normalizeRecommendationText(artwork.genre);
-
   const medium = normalizeRecommendationText(artwork.mediums_used);
-
-  const colors = normalizeRecommendationText(artwork.color_used);
-
+  const rawColors = artwork.color_used;
   const artType = normalizeRecommendationText(artwork.art_type);
-
   const product = normalizeRecommendationText(artwork.product);
 
   const fullText = normalizeRecommendationText(
@@ -815,35 +882,34 @@ const getFilterPreferenceBoost = (artwork, preferenceEvents) => {
 
   filterEvents.forEach((event, index) => {
     const filterType = normalizeRecommendationText(event.filter_type);
-
     const filterValue = normalizeRecommendationText(event.filter_value);
-
     const recencyWeight = getActivityRecencyWeight(event, index);
 
     let matched = false;
+    let matchWeight = 3.0;
 
     // --------------------------------
     // STYLE
-    // Your current artwork genre acts
-    // as the style/category field.
     // --------------------------------
-
     if (filterType === "style") {
-      matched = Boolean(filterValue) && genre.includes(filterValue);
+      matched = Boolean(filterValue) && (genre.includes(filterValue) || fullText.includes(filterValue));
+      matchWeight = 3.5;
     }
 
     // --------------------------------
     // MATERIAL
     // --------------------------------
     else if (filterType === "material" || filterType === "materials") {
-      matched = Boolean(filterValue) && medium.includes(filterValue);
+      matched = Boolean(filterValue) && (medium.includes(filterValue) || fullText.includes(filterValue));
+      matchWeight = 3.5;
     }
 
     // --------------------------------
     // COLOR
     // --------------------------------
     else if (filterType === "color") {
-      matched = Boolean(filterValue) && colors.includes(filterValue);
+      matched = Boolean(filterValue) && artworkMatchesColor(rawColors, filterValue);
+      matchWeight = 4.5;
     }
 
     // --------------------------------
@@ -853,26 +919,24 @@ const getFilterPreferenceBoost = (artwork, preferenceEvents) => {
       if (filterValue === "digital") {
         matched = artType === "digital";
       } else if (filterValue === "painting") {
-        matched = product.includes("painting");
+        matched = product.includes("painting") || artType.includes("painting");
       } else if (filterValue.includes("sculpture")) {
         matched = product.includes("3d") || fullText.includes("sculpt");
       } else {
         matched = fullText.includes(filterValue);
       }
+      matchWeight = 3.5;
     }
 
     // --------------------------------
     // PRICE
-    // Future compatible.
     // --------------------------------
     else if (filterType === "price") {
       const price = Number(artwork.price);
-
       const minPrice =
         event.min_price === null || event.min_price === undefined
           ? null
           : Number(event.min_price);
-
       const maxPrice =
         event.max_price === null || event.max_price === undefined
           ? null
@@ -882,20 +946,22 @@ const getFilterPreferenceBoost = (artwork, preferenceEvents) => {
         Number.isFinite(price) &&
         (minPrice === null || price >= minPrice) &&
         (maxPrice === null || price <= maxPrice);
+      matchWeight = 4.5;
     }
 
     // Unknown filter type:
     // use broad text matching.
     else if (filterValue) {
       matched = fullText.includes(filterValue);
+      matchWeight = 2.5;
     }
 
     if (matched) {
-      boost += 2.5 * recencyWeight;
+      boost += matchWeight * recencyWeight;
     }
   });
 
-  return Math.min(boost, 5);
+  return Math.min(boost, 12);
 };
 
 // ============================================================
@@ -1393,7 +1459,9 @@ router.get("/", async (req, res) => {
     });
     const specialtyCandidates = selectSpecialtyCandidates(
       candidateArtworks.filter((artwork) => !seenArtworkIds.has(Number(artwork.artwork_id))),
-      specialtyPreferences, topK,
+      specialtyPreferences,
+      preferenceEvents,
+      topK,
     );
 
     // --------------------------------
@@ -1409,10 +1477,26 @@ router.get("/", async (req, res) => {
 
     let sasrecResults = [];
 
-    // Explicitly bypass SASRec inference when the current user's interaction history is empty.
+    // Use interaction history or seed from active filter/search preferences so SASRec responds to filter actions.
+    let sasrecSeedArtworkIds = [...artworkIds];
+    if (sasrecSeedArtworkIds.length === 0 && preferenceEvents.length > 0) {
+      const filterMatchingSeeds = candidateArtworks
+        .filter(
+          (artwork) =>
+            getFilterPreferenceBoost(artwork, preferenceEvents) > 0 ||
+            getSearchPreferenceBoost(artwork, preferenceEvents) > 0,
+        )
+        .map((artwork) => Number(artwork.artwork_id))
+        .slice(0, 5);
+      if (filterMatchingSeeds.length > 0) {
+        sasrecSeedArtworkIds = filterMatchingSeeds;
+      }
+    }
+
+    // Explicitly bypass SASRec inference only when no history or filter signals exist.
     if (
       !isColdStart &&
-      artworkIds.length > 0 &&
+      sasrecSeedArtworkIds.length > 0 &&
       specialtyCandidates.artworkIds.length > 0
     ) {
       try {
@@ -1431,7 +1515,7 @@ router.get("/", async (req, res) => {
 
         sasrecResults =
           await callLocalSasrec({
-            artworkIds,
+            artworkIds: sasrecSeedArtworkIds,
 
             candidateArtworkIds:
               specialtyCandidates.artworkIds,

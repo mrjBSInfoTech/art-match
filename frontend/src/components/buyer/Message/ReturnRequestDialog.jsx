@@ -147,7 +147,7 @@ export default function ReturnRequestDialog({ order, onClose, onSubmitted }) {
             </Typography>
           </Box>
           <Alert severity="info">
-            You can request a return within 7 days of delivery. Continue with
+            You can request a return within 4 days of delivery. Continue with
             the seller in Messages after submitting.
           </Alert>
           <Box

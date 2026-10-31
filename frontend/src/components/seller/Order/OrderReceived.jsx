@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   FormHelperText,
+  IconButton,
   Slide,
   Stack,
   Typography,
@@ -98,7 +99,7 @@ export default function OrderReceived({
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <PhotoCameraOutlinedIcon sx={{ color: "success.main", fontSize: 20 }} />
+        <PhotoCameraOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
         Order Received
         <Button
           aria-label="Close received order dialog"
@@ -145,18 +146,45 @@ export default function OrderReceived({
                   {photoPreviews.map((preview, index) => (
                     <Box
                       key={preview}
-                      component="img"
-                      src={preview}
-                      alt={`Delivery photo ${index + 1}`}
                       sx={{
+                        position: "relative",
                         width: 88,
                         height: 88,
-                        objectFit: "cover",
-                        borderRadius: 1.5,
-                        border: "1px solid",
-                        borderColor: theme.palette.divider,
                       }}
-                    />
+                    >
+                      <Box
+                        component="img"
+                        src={preview}
+                        alt={`Delivery photo ${index + 1}`}
+                        sx={{
+                          width: 88,
+                          height: 88,
+                          objectFit: "cover",
+                          borderRadius: 1.5,
+                          border: "1px solid",
+                          borderColor: theme.palette.divider,
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        aria-label={`Remove photo ${index + 1}`}
+                        onClick={() => {
+                          setReceivedPhotos((prev) => prev.filter((_, i) => i !== index));
+                        }}
+                        disabled={saving}
+                        sx={{
+                          position: "absolute",
+                          top: 3,
+                          right: 3,
+                          bgcolor: "rgba(0,0,0,0.65)",
+                          color: "#fff",
+                          p: 0.35,
+                          "&:hover": { bgcolor: "rgba(0,0,0,0.85)" },
+                        }}
+                      >
+                        <CloseIcon sx={{ fontSize: 13 }} />
+                      </IconButton>
+                    </Box>
                   ))}
                 </Box>
               )}

@@ -11,7 +11,7 @@ export const RETURN_REASONS = Object.freeze([
 ]);
 const conflictingStatuses = ["Requested", "Approved", "Return Shipped", "Received", "Completed"];
 const activeStatuses = new Set(["Requested", "Approved", "Return Shipped", "Received"]);
-const expiredMessage = "The 7-day return period for this order has expired.";
+const expiredMessage = "The 4-day return period for this order has expired.";
 
 export class ReturnError extends Error {
   constructor(status, message) { super(message); this.name = "ReturnError"; this.status = status; }
@@ -37,7 +37,7 @@ const trimmedText = (value, minimum, maximum, label) => {
 };
 
 const returnSelectSql = `SELECT r.*, CONCAT('AM-', LPAD(o.order_id, 6, '0')) AS order_number,
-    DATE_ADD(o.delivered_at, INTERVAL 7 DAY) AS return_deadline,
+    DATE_ADD(o.delivered_at, INTERVAL 4 DAY) AS return_deadline,
     o.payment_method AS order_payment_method,
     o.payment_status AS order_payment_status,
     CONCAT(st.first_name, ' ', st.last_name) AS seller_name,
@@ -148,12 +148,12 @@ export async function attachOrderReturns(executor, orders, role, actorId) {
   const accountId = idValue(actorId, "account");
   const ids = orders.map((order) => idValue(order.orderId, "order"));
   const rows = await query(executor, `SELECT order_id, delivered_at,
-      DATE_ADD(delivered_at, INTERVAL 7 DAY) AS return_deadline,
+      DATE_ADD(delivered_at, INTERVAL 4 DAY) AS return_deadline,
       (status = 'Delivered' AND delivered_at IS NOT NULL
         AND CURRENT_TIMESTAMP >= delivered_at
-        AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 7 DAY)) AS in_return_window,
+        AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 4 DAY)) AS in_return_window,
       GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP,
-        DATE_ADD(delivered_at, INTERVAL 7 DAY))) AS return_seconds_remaining
+        DATE_ADD(delivered_at, INTERVAL 4 DAY))) AS return_seconds_remaining
     FROM marketplace_order WHERE ${column} = ? AND order_id IN (?)`, [accountId, ids]);
   const metadata = new Map(rows.map((row) => [Number(row.order_id), row]));
   const returnRows = await query(executor, `${returnSelectSql}
@@ -221,14 +221,14 @@ export async function createReturnRequest(customerId, body = {}, evidencePhotos 
     const orders = await query(connection, `SELECT order_id, customer_id, seller_id, status, delivered_at,
         EXISTS(SELECT 1 FROM seller_payment_split payout WHERE payout.order_id=marketplace_order.order_id
           AND payout.payout_status IN ('Processing','Paid')) AS payout_reserved,
-        (CURRENT_TIMESTAMP >= delivered_at AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 7 DAY)) AS in_return_window
+        (CURRENT_TIMESTAMP >= delivered_at AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 4 DAY)) AS in_return_window
       FROM marketplace_order WHERE order_id = ? AND customer_id = ? FOR UPDATE`, [orderId, buyerId]);
     if (!orders.length) fail(404, "Order not found.");
     const order = orders[0];
     if (order.status !== "Delivered") fail(409, "Only delivered orders can be returned.");
     if (!order.delivered_at) fail(409, "The delivery timestamp is unavailable. Contact support about this order.");
     if (!order.in_return_window) fail(409, expiredMessage);
-    // Both operations lock the order first. At the exact seven-day boundary,
+    // Both operations lock the order first. At the exact four-day boundary,
     // an already reserved transfer and a new return cannot both commit.
     if (order.payout_reserved) fail(409, "A seller payout has already been reserved for this order. Contact support about a return.");
     const items = await query(connection, `SELECT order_item_id, quantity FROM marketplace_order_item
@@ -257,7 +257,7 @@ export async function createReturnRequest(customerId, body = {}, evidencePhotos 
       (order_id, conversation_id, customer_id, seller_id, reason, details)
       SELECT order_id, ?, customer_id, seller_id, ?, ? FROM marketplace_order
       WHERE order_id = ? AND customer_id = ? AND status = 'Delivered'
-        AND CURRENT_TIMESTAMP >= delivered_at AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 7 DAY)`,
+        AND CURRENT_TIMESTAMP >= delivered_at AND CURRENT_TIMESTAMP <= DATE_ADD(delivered_at, INTERVAL 4 DAY)`,
     [conversationId, body.reason, details, orderId, buyerId]);
     if (!result.affectedRows) fail(409, expiredMessage);
     for (const item of items) {

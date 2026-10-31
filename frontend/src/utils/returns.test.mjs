@@ -195,10 +195,10 @@ test("return dialog ignores synchronous duplicate submission, disables dismissal
   assert.equal(dialog.button("Submitting...").props.disabled, true);
   assert.equal(dialog.button("Cancel").props.disabled, true);
   assert.equal(dialog.nodes().find(node => node?.type === "Dialog").props.onClose, undefined);
-  rejectRequest(new Error("The 7-day return period for this order has expired."));
+  rejectRequest(new Error("The 4-day return period for this order has expired."));
   await first;
   await dialog.flush();
-  assert.match(dialog.text(), /7-day return period.*expired/);
+  assert.match(dialog.text(), /4-day return period.*expired/);
   assert.equal(dialog.button("Submit return request").props.disabled, false);
   const retry = dialog.button("Submit return request").props.onClick();
   assert.equal(calls.length, 2);

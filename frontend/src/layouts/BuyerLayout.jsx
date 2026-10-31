@@ -335,37 +335,29 @@ function BuyerLayoutContent({ children }) {
     { title: "Style", filterType: "style", options: ART_STYLES },
     { title: "Materials", filterType: "material", options: ART_MATERIALS },
   ];
-  const selectedCategories = new URLSearchParams(location.search);
   const categoryFilterTypes = [
     ...categoryGroups.map(({ filterType }) => filterType),
     "color",
   ];
-  const hasSelectedCategories = categoryFilterTypes.some(
-    (filterType) => selectedCategories.getAll(filterType).length > 0,
-  );
-  const [priceRange, setPriceRange] = useState(() => readPriceRange(new URLSearchParams(location.search)));
-  useEffect(() => {
-    setPriceRange(readPriceRange(new URLSearchParams(location.search)));
-  }, [location.search]);
 
-  const applyPriceRange = (range) => {
-    setPriceRange(range);
-    const params = new URLSearchParams(location.search);
-    if (range[0] > 0) params.set("minPrice", String(range[0]));
-    else params.delete("minPrice");
-    if (range[1] < PRICE_LIMIT) params.set("maxPrice", String(range[1]));
-    else params.delete("maxPrice");
-    const pathname = location.pathname.startsWith("/buyer/shop") ? location.pathname : "/buyer/shop";
-    navigate(`${pathname}${params.size ? `?${params}` : ""}`);
-    void recordRecommendationEvent({
-      event_type: "filter",
-      filter_type: "price",
-      min_price: range[0],
-      max_price: range[1] === PRICE_LIMIT ? null : range[1],
-      source_page: "buyer_layout",
-    });
-  };
+  const [draftCategories, setDraftCategories] = useState({
+    art_type: [],
+    style: [],
+    material: [],
+    color: [],
+  });
+  const [draftPriceRange, setDraftPriceRange] = useState([0, PRICE_LIMIT]);
+
   const handleCategoriesOpen = (event) => {
+    const params = new URLSearchParams(location.search);
+    setDraftCategories({
+      art_type: params.getAll("art_type"),
+      style: params.getAll("style"),
+      material: params.getAll("material"),
+      color: params.getAll("color"),
+    });
+    setDraftPriceRange(readPriceRange(params));
+
     const buttonRect = event.currentTarget.getBoundingClientRect();
     const navigationRect = event.currentTarget
       .closest("nav")
@@ -375,38 +367,95 @@ function BuyerLayoutContent({ children }) {
       left: 0,
     });
   };
-  const handleCategoryOption = (option, filterType) => {
-    void recordRecommendationEvent({
-      event_type: "filter",
-      filter_type: filterType,
-      filter_value: option,
-      source_page: "buyer_layout",
+
+  const handleDraftCategoryToggle = (filterType, option) => {
+    setDraftCategories((prev) => {
+      const current = prev[filterType] || [];
+      const exists = current.some(
+        (value) => value.toLowerCase() === option.toLowerCase(),
+      );
+      const next = exists
+        ? current.filter((value) => value.toLowerCase() !== option.toLowerCase())
+        : [...current, option];
+      return { ...prev, [filterType]: next };
+    });
+  };
+
+  const handleDraftColorToggle = (colorName) => {
+    handleDraftCategoryToggle("color", colorName);
+  };
+
+  const clearDraftCategories = () => {
+    setDraftCategories({
+      art_type: [],
+      style: [],
+      material: [],
+      color: [],
+    });
+  };
+
+  const clearDraftPrice = () => {
+    setDraftPriceRange([0, PRICE_LIMIT]);
+  };
+
+  const resetAllDraftFilters = () => {
+    clearDraftCategories();
+    clearDraftPrice();
+  };
+
+  const hasDraftCategories = categoryFilterTypes.some(
+    (filterType) => (draftCategories[filterType] || []).length > 0,
+  );
+  const hasDraftPrice =
+    draftPriceRange[0] > 0 || draftPriceRange[1] < PRICE_LIMIT;
+  const hasAnyDraftFilters = hasDraftCategories || hasDraftPrice;
+
+  const handleApplyFiltersAndSearch = () => {
+    const params = new URLSearchParams(location.search);
+
+    // Clear previous filter and price params
+    categoryFilterTypes.forEach((filterType) => params.delete(filterType));
+    params.delete("minPrice");
+    params.delete("maxPrice");
+
+    // Apply draft category filters
+    Object.entries(draftCategories).forEach(([filterType, values]) => {
+      values.forEach((value) => params.append(filterType, value));
     });
 
-    const params = new URLSearchParams(location.search);
-    const currentValues = params.getAll(filterType);
-    const isSelected = currentValues.some(
-      (value) => value.toLowerCase() === option.toLowerCase(),
-    );
-    if (isSelected) {
-      params.delete(filterType);
-      currentValues
-        .filter((value) => value.toLowerCase() !== option.toLowerCase())
-        .forEach((value) => params.append(filterType, value));
-    } else {
-      params.append(filterType, option);
+    // Apply draft price range
+    if (draftPriceRange[0] > 0) {
+      params.set("minPrice", String(draftPriceRange[0]));
     }
-    const pathname = location.pathname.startsWith("/buyer/shop")
-      ? location.pathname
-      : "/buyer/shop";
-    navigate(`${pathname}${params.size ? `?${params}` : ""}`);
-  };
-  const handleColorOption = (color) => {
-    handleCategoryOption(color, "color");
-  };
-  const clearSelectedCategories = () => {
-    const params = new URLSearchParams(location.search);
-    categoryFilterTypes.forEach((filterType) => params.delete(filterType));
+    if (draftPriceRange[1] < PRICE_LIMIT) {
+      params.set("maxPrice", String(draftPriceRange[1]));
+    }
+
+    // Record each filtered action in recommendation system
+    Object.entries(draftCategories).forEach(([filterType, values]) => {
+      values.forEach((filterValue) => {
+        void recordRecommendationEvent({
+          event_type: "filter",
+          filter_type: filterType,
+          filter_value: filterValue,
+          source_page: "buyer_layout",
+        });
+      });
+    });
+
+    if (draftPriceRange[0] > 0 || draftPriceRange[1] < PRICE_LIMIT) {
+      void recordRecommendationEvent({
+        event_type: "filter",
+        filter_type: "price",
+        min_price: draftPriceRange[0],
+        max_price:
+          draftPriceRange[1] === PRICE_LIMIT ? null : draftPriceRange[1],
+        source_page: "buyer_layout",
+      });
+    }
+
+    setCategoriesAnchorPosition(null);
+
     const pathname = location.pathname.startsWith("/buyer/shop")
       ? location.pathname
       : "/buyer/shop";
@@ -1030,8 +1079,8 @@ function BuyerLayoutContent({ children }) {
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
           <Button
             size="small"
-            onClick={clearSelectedCategories}
-            disabled={!hasSelectedCategories}
+            onClick={clearDraftCategories}
+            disabled={!hasDraftCategories}
             sx={{ textTransform: "none" }}
           >
             Clear selected categories
@@ -1078,13 +1127,13 @@ function BuyerLayoutContent({ children }) {
                     control={
                       <Checkbox
                         size="small"
-                        checked={selectedCategories
-                          .getAll(group.filterType)
-                          .some((value) => value.toLowerCase() === option.toLowerCase())}
+                        checked={(draftCategories[group.filterType] || []).some(
+                          (value) => value.toLowerCase() === option.toLowerCase(),
+                        )}
                         onChange={() =>
-                          handleCategoryOption(
-                            option,
+                          handleDraftCategoryToggle(
                             group.filterType,
+                            option,
                           )
                         }
                         sx={{
@@ -1124,38 +1173,44 @@ function BuyerLayoutContent({ children }) {
               Color Palette
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {COLOR_PALETTE.map(({ hex: color, name }) => (
-                <Box
-                  key={color}
-                  onClick={() => handleColorOption(name)}
-                  role="checkbox"
-                  tabIndex={0}
-                  aria-checked={selectedCategories
-                    .getAll("color")
-                    .some((value) => value.toLowerCase() === name.toLowerCase())}
-                  aria-label={`Filter by ${name}`}
-                  title={name}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      handleColorOption(name);
-                    }
-                  }}
-                  sx={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    backgroundColor: color,
-                    border: selectedCategories
-                      .getAll("color")
-                      .some((value) => value.toLowerCase() === name.toLowerCase())
-                      ? `2px solid ${theme.palette.error.main}`
-                      : `1px solid ${theme.palette.divider}`,
-                    cursor: "pointer",
-                    "&:hover": { transform: "scale(1.15)" },
-                  }}
-                />
-              ))}
+              {COLOR_PALETTE.map(({ hex: color, name }) => {
+                const isSelected = (draftCategories.color || []).some(
+                  (value) => value.toLowerCase() === name.toLowerCase(),
+                );
+                return (
+                  <Box
+                    key={color}
+                    onClick={() => handleDraftColorToggle(name)}
+                    role="checkbox"
+                    tabIndex={0}
+                    aria-checked={isSelected}
+                    aria-label={`Filter by ${name}`}
+                    title={name}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleDraftColorToggle(name);
+                      }
+                    }}
+                    sx={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      backgroundColor: color,
+                      border: isSelected
+                        ? `2px solid ${theme.palette.error.main}`
+                        : `1px solid ${theme.palette.divider}`,
+                      outline: isSelected
+                        ? `2px solid ${theme.palette.error.main}`
+                        : "none",
+                      outlineOffset: 1,
+                      cursor: "pointer",
+                      transition: "transform 120ms ease",
+                      "&:hover": { transform: "scale(1.2)" },
+                    }}
+                  />
+                );
+              })}
             </Stack>
           </Box>
 
@@ -1177,11 +1232,11 @@ function BuyerLayoutContent({ children }) {
               </Typography>
             </Stack>
             <Typography variant="body2" color="error.main" sx={{ mt: 1, fontWeight: 600 }}>
-              {formatPriceRange(priceRange)}
+              {formatPriceRange(draftPriceRange)}
             </Typography>
             <Box sx={{ px: 1 }}>
               <Slider
-                value={priceRange}
+                value={draftPriceRange}
                 min={0}
                 max={PRICE_LIMIT}
                 step={100}
@@ -1190,15 +1245,70 @@ function BuyerLayoutContent({ children }) {
                 getAriaValueText={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
                 valueLabelDisplay="auto"
                 valueLabelFormat={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
-                onChange={(_, range) => setPriceRange(range)}
-                onChangeCommitted={(_, range) => applyPriceRange(range)}
+                onChange={(_, range) => setDraftPriceRange(range)}
                 sx={{ color: theme.palette.error.main, mt: 1 }}
               />
             </Box>
-            <Button size="small" onClick={() => applyPriceRange([0, PRICE_LIMIT])} sx={{ textTransform: "none" }}>
+            <Button size="small" onClick={clearDraftPrice} sx={{ textTransform: "none" }}>
               Clear price filter
             </Button>
           </Box>
+        </Box>
+
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            pt: 2,
+            mt: 2.5,
+            borderTop: `1px solid ${theme.palette.divider}`,
+            flexWrap: "wrap",
+            gap: 1.5,
+          }}
+        >
+          <Button
+            size="small"
+            onClick={resetAllDraftFilters}
+            disabled={!hasAnyDraftFilters}
+            sx={{ textTransform: "none", color: "text.secondary" }}
+          >
+            Reset all filters
+          </Button>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Button
+              size="medium"
+              variant="outlined"
+              color="inherit"
+              onClick={() => setCategoriesAnchorPosition(null)}
+              sx={{
+                textTransform: "none",
+                borderRadius: "8px",
+                px: 2.5,
+                fontWeight: 500,
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="medium"
+              variant="contained"
+              color="error"
+              startIcon={<SearchIcon />}
+              onClick={handleApplyFiltersAndSearch}
+              sx={{
+                textTransform: "none",
+                borderRadius: "8px",
+                px: 3.5,
+                py: 0.85,
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                boxShadow: "0 4px 12px rgba(245, 34, 69, 0.3)",
+              }}
+            >
+              Search
+            </Button>
+          </Stack>
         </Box>
       </Popover>
 
