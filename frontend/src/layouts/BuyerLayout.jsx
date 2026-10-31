@@ -45,6 +45,7 @@ import Logout from "@mui/icons-material/Logout";
 import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
@@ -755,6 +756,16 @@ function BuyerLayoutContent({ children }) {
                     <ShoppingBagIcon fontSize="small" />
                   </ListItemIcon>
                   Orders
+                </MenuItem>
+                <MenuItem
+                  onClick={() =>
+                    handleAccountNavigation("/buyer/profile/purchases")
+                  }
+                >
+                  <ListItemIcon>
+                    <ReceiptLongOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  My Purchases
                 </MenuItem>
                 <MenuItem
                   onClick={() =>

@@ -100,7 +100,7 @@ export default function WatermarkedArtworkImage({
       .catch((error) => {
         if (active && error.name !== "AbortError") {
           console.error("Unable to load watermarked artwork:", error);
-          setSrc(fallbackSrc);
+          setSrc(fallbackSrc || "");
         }
       });
 

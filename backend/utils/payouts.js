@@ -46,6 +46,30 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     await audit({ action, actor: String(adminId || "PayMongo"), role: adminId ? "Admin" : "System", status,
       information: `Payout ${payout.split_id}, order ${payout.order_id}, seller ${payout.seller_id}, PHP ${Number(payout.payout_amount || 0).toFixed(2)}.` })
       .catch(error => console.error("Payout audit failed:", error.code || error.name));
+
+    if (payout?.seller_id) {
+      const orderNum = payout.order_id ? `AM-${String(payout.order_id).padStart(6, "0")}` : `Split #${payout.split_id}`;
+      const amount = Number(payout.payout_amount || 0).toFixed(2);
+      const actionDescriptions = {
+        PAYOUT_REQUESTED: `Payout requested for order ${orderNum} (PHP ${amount}). Pending admin approvals.`,
+        PAYOUT_APPROVED: `Payout approved for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_REJECTED: `Payout rejected for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_RELEASED: `Payout transfer initiated for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_SUCCEEDED: `Payout completed successfully for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_DEMO_SUCCEEDED: `Payout demo simulation completed for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_FAILED: `Payout transfer failed for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_RECONCILED: `Payout reconciled for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_STATUS_UPDATED: `Payout status updated for order ${orderNum} (PHP ${amount}).`,
+        PAYOUT_REFUND_VERIFIED: `Payout adjusted for returned order ${orderNum} (refund verified).`,
+      };
+      await audit({
+        action,
+        actor: String(payout.seller_id),
+        role: "Student",
+        status,
+        information: actionDescriptions[action] || `Payout activity for order ${orderNum} (PHP ${amount}). Status: ${status}.`,
+      }).catch(error => console.error("Seller payout audit failed:", error.code || error.name));
+    }
   };
   const admin = async (executor, adminId, { lock = false } = {}) => (await rows(executor, `SELECT a.admin_id,
     CONCAT(a.first_name,' ',a.last_name) AS admin_name,r.role,COALESCE(ac.is_banned,0) AS is_banned

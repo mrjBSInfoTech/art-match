@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
   Chip,
@@ -23,7 +24,30 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { fetchSellerAuditLogs } from "../../api/seller/auditLogsAPI";
+
+const getOrderNumberFromLog = (log) => {
+  if (!log?.information) return null;
+  const match = log.information.match(/AM-\d+/i);
+  return match ? match[0].toUpperCase() : null;
+};
+
+const isTransactionActivity = (log) => {
+  const action = String(log?.action || "").toUpperCase();
+  const info = String(log?.information || "").toUpperCase();
+  return (
+    action.startsWith("SALE_") ||
+    action.startsWith("ORDER_") ||
+    action.startsWith("PAYOUT_") ||
+    action.startsWith("RETURN_") ||
+    action.includes("ORDER") ||
+    info.includes("AM-") ||
+    info.includes("PAYOUT") ||
+    info.includes("PAYMENT") ||
+    info.includes("REFUND")
+  );
+};
 
 export default function SellerAuditLogs() {
   const theme = useTheme();
@@ -31,6 +55,7 @@ export default function SellerAuditLogs() {
   const [search, setSearch] = useState("");
   const [date, setDate] = useState(null);
   const [period, setPeriod] = useState("all");
+  const [activityCategory, setActivityCategory] = useState("all");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -56,12 +81,21 @@ export default function SellerAuditLogs() {
     const query = search.trim().toLowerCase();
 
     return logs.filter((log) => {
+      if (activityCategory === "transactions" && !isTransactionActivity(log)) {
+        return false;
+      }
+      if (activityCategory === "account" && isTransactionActivity(log)) {
+        return false;
+      }
+
+      const orderNumber = getOrderNumberFromLog(log);
       const searchableText = [
         log.action,
         log.actor,
         log.role,
         log.status,
         log.information,
+        orderNumber,
       ]
         .filter(Boolean)
         .join(" ")
@@ -110,7 +144,7 @@ export default function SellerAuditLogs() {
 
       return true;
     });
-  }, [logs, search, date, period]);
+  }, [logs, search, date, period, activityCategory]);
 
   return (
     <Box
@@ -153,8 +187,8 @@ export default function SellerAuditLogs() {
               fontSize: 13,
             }}
           >
-            Review only activity associated with your account, including sign-ins,
-            account changes, sales, and seller actions.
+            Review all activities associated with your account, including artwork sales,
+            order deliveries, payments confirmed, earnings recorded, payouts, and account updates.
           </Typography>
         </Box>
       </Box>
@@ -181,11 +215,11 @@ export default function SellerAuditLogs() {
         >
           <TextField
             variant="outlined"
-            placeholder="Search logs..."
+            placeholder="Search activity by order #, action, or details..."
             size="small"
             sx={{
-              width: { xs: "100%", lg: 280 },
-              maxWidth: { lg: 300 },
+              width: { xs: "100%", lg: 320 },
+              maxWidth: { lg: 360 },
               flex: { lg: 1 },
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
@@ -222,6 +256,32 @@ export default function SellerAuditLogs() {
               width: { xs: "100%", lg: "auto" },
             }}
           >
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: "100%", sm: 180 },
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
+              <Select
+                value={activityCategory}
+                onChange={(event) => setActivityCategory(event.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
+              >
+                <MenuItem value="all">All Activity Types</MenuItem>
+                <MenuItem value="transactions">Orders, Sales & Payouts</MenuItem>
+                <MenuItem value="account">Account & Profile Actions</MenuItem>
+              </Select>
+            </FormControl>
+
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
                 value={date}
@@ -233,8 +293,8 @@ export default function SellerAuditLogs() {
                     size: "small",
                     placeholder: "Select date",
                     sx: {
-                      width: { xs: "100%", sm: 180 },
-                      minWidth: { xs: "100%", sm: 180 },
+                      width: { xs: "100%", sm: 170 },
+                      minWidth: { xs: "100%", sm: 170 },
                       "& .MuiOutlinedInput-root": {
                         fontSize: 13,
                         color: theme.palette.text.primary,
@@ -254,7 +314,7 @@ export default function SellerAuditLogs() {
             <FormControl
               size="small"
               sx={{
-                minWidth: { xs: "100%", sm: 150 },
+                minWidth: { xs: "100%", sm: 140 },
                 width: { xs: "100%", sm: "auto" },
               }}
             >
@@ -304,11 +364,14 @@ export default function SellerAuditLogs() {
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Typography
-            sx={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}
-          >
-            Activity History
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <ReceiptLongIcon sx={{ fontSize: 18, color: "#ef3340" }} />
+            <Typography
+              sx={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}
+            >
+              Activity & Transaction History
+            </Typography>
+          </Box>
           {!loading && !errorMessage && (
             <Typography sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>
               Showing {filteredLogs.length} of {logs.length} entries
@@ -325,12 +388,12 @@ export default function SellerAuditLogs() {
             {errorMessage}
           </Typography>
         ) : filteredLogs.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
+          <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
             No activity has been recorded yet.
           </Typography>
         ) : (
           <TableContainer sx={{ overflowX: "auto" }}>
-            <Table size="small" sx={{ minWidth: 760 }}>
+            <Table size="small" sx={{ minWidth: 800 }}>
               <TableHead
                 sx={{
                   backgroundColor:
@@ -340,7 +403,7 @@ export default function SellerAuditLogs() {
                 }}
               >
                 <TableRow>
-                  {["Date and time", "Activity", "Status", "Details"].map(
+                  {["Date and time", "Activity", "Order #", "Status", "Details"].map(
                     (heading) => (
                       <TableCell
                         key={heading}
@@ -360,91 +423,128 @@ export default function SellerAuditLogs() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredLogs.map((log) => (
-                  <TableRow
-                    key={log.audit_id}
-                    sx={{
-                      "&:hover": { backgroundColor: "action.hover" },
-                      "&:last-child td": { borderBottom: 0 },
-                    }}
-                  >
-                    <TableCell
+                {filteredLogs.map((log) => {
+                  const orderNumber = getOrderNumberFromLog(log);
+                  return (
+                    <TableRow
+                      key={log.audit_id}
                       sx={{
-                        whiteSpace: "nowrap",
-                        fontSize: 10,
-                        color: theme.palette.text.secondary,
+                        "&:hover": { backgroundColor: "action.hover" },
+                        "&:last-child td": { borderBottom: 0 },
                       }}
                     >
-                      {new Date(log.datetime).toLocaleString()}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {String(log.action)
-                        .replace(/_/g, " ")
-                        .toLowerCase()
-                        .replace(/\b\w/g, (letter) => letter.toUpperCase())}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={
-                          String(log.status).charAt(0).toUpperCase() +
-                          String(log.status).slice(1).toLowerCase()
-                        }
-                        size="small"
+                      <TableCell
                         sx={{
-                          height: 20,
-                          minWidth: 58,
-                          borderRadius: 1,
-                          fontWeight: 700,
-                          fontSize: 9,
-                          color: ["success", "logged in", "online"].includes(
-                            String(log.status).toLowerCase(),
-                          )
-                            ? "#15803d"
-                            : ["failed", "error"].includes(
-                                  String(log.status).toLowerCase(),
-                                )
-                              ? theme.palette.error.main
-                              : theme.palette.text.secondary,
-                          backgroundColor: ["success", "logged in", "online"].includes(
-                            String(log.status).toLowerCase(),
-                          )
-                            ? theme.palette.mode === "dark"
-                              ? "rgba(34, 197, 94, 0.16)"
-                              : "#dcfce7"
-                            : theme.palette.mode === "dark"
-                              ? "rgba(148, 163, 184, 0.16)"
-                              : "#f1f5f9",
+                          whiteSpace: "nowrap",
+                          fontSize: 11,
+                          color: theme.palette.text.secondary,
                         }}
-                        color={
-                          String(log.status).toLowerCase() === "success" ||
-                          String(log.status).toLowerCase() === "logged in" ||
-                          String(log.status).toLowerCase() === "online"
-                            ? "success"
-                            : String(log.status).toLowerCase() === "failed" ||
-                                String(log.status).toLowerCase() === "error"
-                              ? "error"
-                              : "default"
-                        }
-                      />
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        minWidth: 260,
-                        fontSize: 10,
-                        color: theme.palette.text.secondary,
-                        whiteSpace: "normal",
-                      }}
-                    >
-                      {log.information || "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      >
+                        {new Date(log.datetime).toLocaleString()}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {String(log.action)
+                          .replace(/_/g, " ")
+                          .toLowerCase()
+                          .replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {orderNumber ? (
+                          <Chip
+                            component={RouterLink}
+                            to={`/seller/orders/manage?search=${encodeURIComponent(orderNumber)}`}
+                            clickable
+                            label={orderNumber}
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontWeight: 700,
+                              fontSize: 11,
+                              borderRadius: 1,
+                              cursor: "pointer",
+                              textDecoration: "none",
+                              color: theme.palette.primary.main,
+                              bgcolor: (t) =>
+                                t.palette.mode === "dark"
+                                  ? "rgba(239,51,64,0.12)"
+                                  : "rgba(239,51,64,0.08)",
+                              "&:hover": {
+                                bgcolor: (t) =>
+                                  t.palette.mode === "dark"
+                                    ? "rgba(239,51,64,0.2)"
+                                    : "rgba(239,51,64,0.16)",
+                              },
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.disabled">
+                            —
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={
+                            String(log.status).charAt(0).toUpperCase() +
+                            String(log.status).slice(1).toLowerCase()
+                          }
+                          size="small"
+                          sx={{
+                            height: 20,
+                            minWidth: 58,
+                            borderRadius: 1,
+                            fontWeight: 700,
+                            fontSize: 9,
+                            color: ["success", "logged in", "online"].includes(
+                              String(log.status).toLowerCase(),
+                            )
+                              ? "#15803d"
+                              : ["failed", "error"].includes(
+                                    String(log.status).toLowerCase(),
+                                  )
+                                ? theme.palette.error.main
+                                : theme.palette.text.secondary,
+                            backgroundColor: ["success", "logged in", "online"].includes(
+                              String(log.status).toLowerCase(),
+                            )
+                              ? theme.palette.mode === "dark"
+                                ? "rgba(34, 197, 94, 0.16)"
+                                : "#dcfce7"
+                              : theme.palette.mode === "dark"
+                                ? "rgba(148, 163, 184, 0.16)"
+                                : "#f1f5f9",
+                          }}
+                          color={
+                            String(log.status).toLowerCase() === "success" ||
+                            String(log.status).toLowerCase() === "logged in" ||
+                            String(log.status).toLowerCase() === "online"
+                              ? "success"
+                              : String(log.status).toLowerCase() === "failed" ||
+                                  String(log.status).toLowerCase() === "error"
+                                ? "error"
+                                : "default"
+                          }
+                        />
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          minWidth: 260,
+                          fontSize: 12,
+                          color: theme.palette.text.secondary,
+                          whiteSpace: "normal",
+                        }}
+                      >
+                        {log.information || "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

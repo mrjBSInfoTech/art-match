@@ -184,12 +184,27 @@ async function uploadProductOptionImages(assignments) {
       const compressed = await compressArtworkImage(absolutePath);
       const imageName = `${path.parse(file.filename).name}.webp`;
       uploadedImages.push(imageName);
+
+      if (isB2Configured()) {
+        await uploadToB2({
+          key: `app-uploads/seller/uploadArtwork/${imageName}`,
+          body: compressed,
+          contentType: "image/webp",
+        });
+      }
       await writeDerivatives(compressed, baseNameOf(imageName));
       option.image = imageName;
       removeTemporaryUpload(file);
     }
   } catch (error) {
-    await Promise.all(uploadedImages.map((image) => removeDerivatives(baseNameOf(image))));
+    await Promise.all(
+      uploadedImages.map(async (image) => {
+        if (isB2Configured()) {
+          await deleteFromB2(`app-uploads/seller/uploadArtwork/${image}`).catch(() => {});
+        }
+        await removeDerivatives(baseNameOf(image));
+      }),
+    );
     throw error;
   }
   return uploadedImages;

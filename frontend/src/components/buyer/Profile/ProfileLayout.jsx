@@ -38,6 +38,7 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 const NAV_ITEMS = [
@@ -45,6 +46,11 @@ const NAV_ITEMS = [
     label: "Orders",
     path: "/buyer/profile/orders",
     icon: <Inventory2OutlinedIcon fontSize="small" />,
+  },
+  {
+    label: "My Purchases",
+    path: "/buyer/profile/purchases",
+    icon: <ReceiptLongOutlinedIcon fontSize="small" />,
   },
   {
     label: "Addresses",

@@ -360,6 +360,24 @@ const recommendationTableSql = `
   ) ENGINE=InnoDB
 `;
 
+// Seller proof that an order was finished/delivered. The image references stay
+// in marketplace_order.received_photos (served through protected routes); this
+// row records who submitted the proof, their notes and the server timestamp.
+export const deliveryProofTableSql = `
+  CREATE TABLE IF NOT EXISTS marketplace_order_delivery_proof (
+    proof_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    seller_id INT NOT NULL,
+    notes TEXT NULL,
+    photo_count INT NOT NULL DEFAULT 0,
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_delivery_proof_order (order_id),
+    INDEX idx_delivery_proof_seller (seller_id, submitted_at),
+    CONSTRAINT fk_delivery_proof_order
+      FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB
+`;
+
 export const ensureOrderTables = async () => {
   await query(orderTableSql);
   await query(orderItemTableSql);
@@ -371,4 +389,5 @@ export const ensureOrderTables = async () => {
     await query("ALTER TABLE marketplace_order_item ADD COLUMN original_unit_price DECIMAL(12, 2) NULL AFTER unit_price");
   }
   await ensureDeliveryColumn();
+  await query(deliveryProofTableSql);
 };

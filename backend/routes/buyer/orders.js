@@ -11,6 +11,7 @@ import {
   PayMongoError,
 } from "../../utils/paymongo.js";
 import { readParcelPhoto } from "../../utils/parcelPhotoStorage.js";
+import { attachDeliveryProof, parsePhotoList } from "../../utils/deliveryProof.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
 import {
   recordRecommendationInteraction,
@@ -212,6 +213,9 @@ const groupOrderRows = (rows) => {
         lineTotal: Number(row.line_total ?? (Number(row.unit_price) * Number(row.quantity))),
         originalLineTotal: Number(row.original_line_total ??
           (Number(row.original_unit_price ?? row.unit_price) * Number(row.quantity))),
+        hasCertificate: Boolean(row.certificate_id),
+        certificateId: row.certificate_id || null,
+        certificateRevoked: Boolean(row.certificate_revoked),
 
         review: row.review_id
           ? {
@@ -287,7 +291,17 @@ const ordersSql = `
     r.review_id,
     r.rating AS review_rating,
     r.comment AS review_comment,
-    r.created_at AS review_created_at
+    r.created_at AS review_created_at,
+
+    c.certificate_id,
+    (EXISTS (
+      SELECT 1 FROM marketplace_certificate_access ca
+      WHERE ca.order_item_id = i.order_item_id AND ca.ownership_status = 'revoked'
+    ) OR EXISTS (
+      SELECT 1 FROM marketplace_return_item ri
+      JOIN marketplace_return_request mr ON mr.return_request_id = ri.return_request_id
+      WHERE ri.order_item_id = i.order_item_id AND mr.status IN ('Completed', 'Received')
+    )) AS certificate_revoked
 
   FROM marketplace_order o
 
@@ -300,6 +314,9 @@ const ordersSql = `
   LEFT JOIN artwork_reviews r
     ON r.order_item_id =
        i.order_item_id
+
+  LEFT JOIN marketplace_certificate c
+    ON c.artwork_id = i.artwork_id AND c.seller_id = o.seller_id
 `;
 
 router.get("/", authenticateBuyer, async (req, res) => {
@@ -322,9 +339,9 @@ router.get("/", authenticateBuyer, async (req, res) => {
       [req.user.customer_id],
     );
 
-    return res.json(await attachOrderReturns(
+    return res.json(await attachDeliveryProof(db.promise(), await attachOrderReturns(
       db.promise(), groupOrderRows(rows), "buyer", req.user.customer_id,
-    ));
+    )));
   } catch (error) {
     console.error("Buyer order list error:", error);
 
@@ -377,6 +394,43 @@ router.get("/payments/:reference", authenticateBuyer, async (req, res) => {
   } catch (error) {
     console.error("Buyer checkout status error:", error.code || error.name);
     return res.status(500).json({ message: "Unable to check payment status. Please try again." });
+  }
+});
+
+router.get("/:id/received-photos/:index", authenticateBuyer, async (req, res) => {
+  const orderId = Number(req.params.id);
+  const photoIndex = Number(req.params.index);
+  if (
+    !Number.isSafeInteger(orderId) || orderId <= 0 ||
+    !Number.isSafeInteger(photoIndex) || photoIndex < 0
+  ) {
+    return res.status(400).json({ message: "Invalid delivery photo request" });
+  }
+  if (req.user.student_id || req.user.student_number || req.user.admin_id) {
+    return res.status(403).json({ message: "Buyer access is required" });
+  }
+  try {
+    // Ownership is part of the query: another customer's order id never matches.
+    const rows = await query(
+      db.promise(),
+      `SELECT received_photos FROM marketplace_order
+       WHERE order_id = ? AND customer_id = ? AND status = 'Delivered' LIMIT 1`,
+      [orderId, req.user.customer_id],
+    );
+    const photo = rows.length ? parsePhotoList(rows[0].received_photos)[photoIndex] : null;
+    if (!photo?.key || !["image/jpeg", "image/png", "image/webp"].includes(photo.contentType)) {
+      return res.status(404).json({ message: "Delivery photo not found" });
+    }
+    const image = await readParcelPhoto(photo, orderId);
+    res.set({
+      "Cache-Control": "private, max-age=300",
+      "Content-Type": photo.contentType,
+      "X-Content-Type-Options": "nosniff",
+    });
+    return res.send(image);
+  } catch (error) {
+    console.error("Buyer delivery photo fetch failed:", error.code || error.message);
+    return res.status(500).json({ message: "Unable to load delivery photo" });
   }
 });
 

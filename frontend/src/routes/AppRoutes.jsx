@@ -80,6 +80,7 @@ import BuyerAccountOverview from "../pages/buyer/AccountOverview";
 import BuyerPaymentMethods from "../pages/buyer/PaymentMethods";
 import BuyerSettings from "../pages/buyer/Settings";
 import BuyerOrder from "../pages/buyer/Order";
+import BuyerPurchases from "../pages/buyer/Purchases";
 import BuyerOrderFinish from "../pages/buyer/OrderFinish";
 import BuyerCertificateView from "../pages/buyer/CertificateView";
 import BuyerNotifications from "../pages/buyer/Notifications";
@@ -135,6 +136,11 @@ export default function AppRoutes() {
                 <Route path="checkout" element={<BuyerCheckout />} />
                 <Route path="favorites" element={<BuyerFavorites />} />
                 <Route path="order-finish" element={<BuyerOrderFinish />} />
+                <Route path="purchases" element={<BuyerPurchases />} />
+                <Route
+                  path="transactions"
+                  element={<Navigate to="../purchases?tab=transactions" replace />}
+                />
                 <Route path="certificate/:orderItemId" element={<BuyerCertificateView />} />
                 <Route path="messages" element={<BuyerMessage />} />
                 <Route path="notifications" element={<BuyerNotifications />} />
@@ -150,6 +156,11 @@ export default function AppRoutes() {
                   <Route path="addresses" element={<BuyerAddress />} />
                   <Route path="messages" element={<BuyerMessage embedded />} />
                   <Route path="orders" element={<BuyerOrder />} />
+                  <Route path="purchases" element={<BuyerPurchases />} />
+                  <Route
+                    path="transactions"
+                    element={<Navigate to="../purchases?tab=transactions" replace />}
+                  />
                   <Route path="settings" element={<BuyerSettings />} />
                   <Route
                     path="payment-methods"

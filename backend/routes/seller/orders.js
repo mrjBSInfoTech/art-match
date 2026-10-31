@@ -5,6 +5,7 @@ import db from "../../database/db.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import {
   deleteParcelPhoto,
+  readParcelPhoto,
   saveParcelPhoto,
 } from "../../utils/parcelPhotoStorage.js";
 import { isB2Configured } from "../../utils/b2Storage.js";
@@ -16,6 +17,11 @@ import {
 import { attachOrderReturns } from "../../utils/returns.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { processDueCertificateDeliveries } from "../../utils/certificates.js";
+import {
+  attachDeliveryProof,
+  parsePhotoList,
+  validateDeliveryProof,
+} from "../../utils/deliveryProof.js";
 
 const router = express.Router();
 const parcelPhotoTypes = new Map([
@@ -185,9 +191,9 @@ router.get("/", authenticateSeller, (req, res) => {
         }
       });
       try {
-        res.json(await attachOrderReturns(
+        res.json(await attachDeliveryProof(db.promise(), await attachOrderReturns(
           db.promise(), [...orders.values()], "seller", req.user.student_id,
-        ));
+        )));
       } catch (error) {
         console.error("Seller order return information error:", error);
         res.status(500).json({ message: "Unable to load orders" });
@@ -257,6 +263,7 @@ router.put(
         }
       }
 
+      let deliveryNotes = null;
       if (requestedStatus === "Packed") {
         try {
           validateParcelPhotoCount(files);
@@ -264,11 +271,18 @@ router.put(
           fail(400, error.message);
         }
       } else if (requestedStatus === "Delivered") {
-        if (files.length > 5) {
-          fail(400, "Upload no more than 5 parcel photos");
+        // Delivery requires real, stored proof. Validation happens before any
+        // upload so a rejected request leaves no files and no status change.
+        try {
+          deliveryNotes = validateDeliveryProof(files, req.body.delivery_notes).notes;
+        } catch (error) {
+          fail(error.statusCode || 400, error.message);
         }
       } else if (files.length) {
-        fail(400, "Parcel photos can only be uploaded when marking the order Packed");
+        fail(400, "Photos can only be uploaded when marking the order Packed or Delivered");
+      }
+      if (requestedStatus !== "Delivered" && req.body.delivery_notes) {
+        fail(400, "Delivery notes can only be added when marking the order Delivered");
       }
 
       const allowedHandlingInstructions = new Set([
@@ -412,6 +426,17 @@ router.put(
         fail(409, "Order status changed; refresh and try again");
       }
 
+      if (requestedStatus === "Delivered") {
+        // Same transaction as the status change: the order can never be
+        // Delivered without its proof record, and vice versa.
+        await connection.query(
+          `INSERT INTO marketplace_order_delivery_proof
+             (order_id, seller_id, notes, photo_count)
+           VALUES (?, ?, ?, ?)`,
+          [orderId, sellerId, deliveryNotes, receivedPhotos.length],
+        );
+      }
+
       const [updatedRows] = await connection.query(
         `SELECT delivered_at, DATE_ADD(delivered_at, INTERVAL 7 DAY) AS return_deadline
          FROM marketplace_order WHERE order_id = ? LIMIT 1`,
@@ -448,6 +473,13 @@ router.put(
         trackingUrl: requestedStatus === "Shipped" ? trackingUrl : order.tracking_url,
         parcelPhotoCount: parcelPhotos.length,
         receivedPhotoCount: receivedPhotos.length,
+        deliveryProof: requestedStatus === "Delivered"
+          ? {
+              notes: deliveryNotes,
+              submittedAt: updatedOrder.delivered_at ?? null,
+              photoCount: receivedPhotos.length,
+            }
+          : undefined,
         handlingInstructions:
           requestedStatus === "Packed"
             ? handlingInstructions
@@ -471,18 +503,54 @@ router.put(
       return res.status(statusCode).json({
         message:
           statusCode === 502
-            ? "Parcel photos could not be uploaded to cloud storage"
+            ? "Photos could not be uploaded to cloud storage"
             : statusCode === 500 && error.code === "ENOSPC"
-              ? "There is not enough disk space to save parcel photos"
+              ? "There is not enough disk space to save photos"
             : error.statusCode
               ? error.message
-              : "Unable to save parcel photos. Please try again.",
+              : "Unable to save the order update. Please try again.",
       });
     } finally {
       connection?.release();
     }
   },
 );
+
+/*
+ * Protected delivery-proof image. Only the seller who owns the order can read
+ * it here; the buyer has a matching route in routes/buyer/orders.js.
+ */
+router.get("/:id/received-photos/:index", authenticateSeller, async (req, res) => {
+  const orderId = Number(req.params.id);
+  const photoIndex = Number(req.params.index);
+  if (
+    !Number.isSafeInteger(orderId) || orderId <= 0 ||
+    !Number.isSafeInteger(photoIndex) || photoIndex < 0
+  ) {
+    return res.status(400).json({ message: "Invalid delivery photo request" });
+  }
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT received_photos FROM marketplace_order
+       WHERE order_id = ? AND seller_id = ? LIMIT 1`,
+      [orderId, req.user.student_id],
+    );
+    const photo = rows.length ? parsePhotoList(rows[0].received_photos)[photoIndex] : null;
+    if (!photo?.key || !["image/jpeg", "image/png", "image/webp"].includes(photo.contentType)) {
+      return res.status(404).json({ message: "Delivery photo not found" });
+    }
+    const image = await readParcelPhoto(photo, orderId);
+    res.set({
+      "Cache-Control": "private, max-age=300",
+      "Content-Type": photo.contentType,
+      "X-Content-Type-Options": "nosniff",
+    });
+    return res.send(image);
+  } catch (error) {
+    console.error("Seller delivery photo fetch failed:", error.code || error.message);
+    return res.status(500).json({ message: "Unable to load delivery photo" });
+  }
+});
 
 /*
  * Payout summary: how this seller's share of each buyer payment is doing.

@@ -25,6 +25,7 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     express: { Router: () => router },
     authenticateBuyer: () => {},
     attachOrderReturns: async (_executor, orders) => orders,
+    attachDeliveryProof: async (_executor, orders) => orders,
     getCommissionRate: () => 0,
     getRecommendationSessionIdFromRequest: () => "test-browser-session",
     logSellerAudit: async () => {},
@@ -217,6 +218,11 @@ export function databaseFixture(overrides = {}) {
             if (/customer_id = \?/i.test(sql)) rows = rows.filter(order => order.customer_id === 1);
           } else if (/order_id = \?/i.test(sql)) {
             rows = rows.filter(order => order.order_id === Number(params[0]) && order.customer_id === Number(params[1] ?? 1));
+          } else if (/order_id IN \(\?\)/i.test(sql)) {
+            const ids = new Set(params.flat().map(Number));
+            rows = rows.filter(order => ids.has(order.order_id));
+          } else if (/FROM marketplace_return_request/i.test(sql) || /FROM marketplace_order_delivery_proof/i.test(sql)) {
+            rows = [];
           } else if (/payment_method = 'paymongo'/i.test(sql)) {
             rows = rows.filter(order => order.payment_method === "paymongo" && order.customer_id === Number(params[0]) && order.payment_status === "Pending" && order.status === "Pending");
           }
