@@ -25,7 +25,12 @@ import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import { fetchAccountAccess, fetchAccountAccessReport } from "../../api/admin/accountAccessAPI";
-import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import {
+  downloadCsvReport,
+  downloadPdfReport,
+  getReportDateStamp,
+} from "../../utils/csvReport";
 
 const accessReportColumns = [
   { key: "datetime", label: "Date and Time" },
@@ -53,6 +58,7 @@ export default function AccountAccess() {
   const [sortOption, setSortOption] = useState("az");
   const [roleOption, setRoleOption] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   const loadAccounts = async () => {
     try {
@@ -112,7 +118,8 @@ export default function AccountAccess() {
   const isAdmin = currentRole === "admin";
   const hasPermission = (key) =>
     ["1", "true"].includes(String(localStorage.getItem(key)).toLowerCase());
-  const handleDownloadReport = async () => {
+  const handleDownloadReport = async (format) => {
+    setReportDialogOpen(false);
     try {
       setReportLoading(true);
       setReportError("");
@@ -124,11 +131,14 @@ export default function AccountAccess() {
         setReportError("No strike or ban records match the selected filters.");
         return;
       }
-      downloadCsvReport(
+      const download = format === "pdf" ? downloadPdfReport : downloadCsvReport;
+      const extension = format === "pdf" ? "pdf" : "csv";
+      await download(
         report,
         accessReportColumns,
-        `strike-ban-report-${getReportDateStamp()}.csv`,
+        `strike-ban-report-${getReportDateStamp()}.${extension}`,
       );
+      setReportDialogOpen(false);
     } catch (reportError) {
       setReportError(reportError.message || "Unable to generate strike and ban report.");
     } finally {
@@ -182,7 +192,7 @@ export default function AccountAccess() {
         <Button
           variant="outlined"
           startIcon={<DownloadOutlinedIcon />}
-          onClick={handleDownloadReport}
+          onClick={() => setReportDialogOpen(true)}
           disabled={reportLoading}
           sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
         >
@@ -401,6 +411,11 @@ export default function AccountAccess() {
           </TableContainer>
         )}
       </Paper>
+      <ReportFormatDialog
+        open={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        onSelectFormat={handleDownloadReport}
+      />
     </Box>
   );
 }

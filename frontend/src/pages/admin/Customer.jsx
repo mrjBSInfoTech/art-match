@@ -22,7 +22,12 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import CustomerDelete from "../../components/admin/Customer/CustomerDelete";
-import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import {
+  downloadCsvReport,
+  downloadPdfReport,
+  getReportDateStamp,
+} from "../../utils/csvReport";
 
 const customerReportColumns = [
   { key: "customer_id", label: "Customer ID" },
@@ -47,6 +52,7 @@ export default function Customer() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [openCustomerDelete, setOpenCustomerDelete] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -117,13 +123,16 @@ export default function Customer() {
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async (format) => {
     try {
-      downloadCsvReport(
+      const download = format === "pdf" ? downloadPdfReport : downloadCsvReport;
+      const extension = format === "pdf" ? "pdf" : "csv";
+      await download(
         filteredCustomers,
         customerReportColumns,
-        `customer-report-${getReportDateStamp()}.csv`,
+        `customer-report-${getReportDateStamp()}.${extension}`,
       );
+      setReportDialogOpen(false);
     } catch (reportError) {
       showSnackbar(reportError.message || "Unable to generate customer report.", "error");
     }
@@ -193,7 +202,7 @@ export default function Customer() {
         <Button
           variant="outlined"
           startIcon={<DownloadOutlinedIcon />}
-          onClick={handleDownloadReport}
+          onClick={() => setReportDialogOpen(true)}
           disabled={loading || filteredCustomers.length === 0}
           sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
         >
@@ -290,6 +299,11 @@ export default function Customer() {
         }}
         onSubmit={handleDeleteCustomer}
         selectedCustomer={selectedCustomer}
+      />
+      <ReportFormatDialog
+        open={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        onSelectFormat={handleDownloadReport}
       />
 
       {/* Snackbar Notification */}

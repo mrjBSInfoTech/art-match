@@ -28,7 +28,12 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import {
+  downloadCsvReport,
+  downloadPdfReport,
+  getReportDateStamp,
+} from "../../utils/csvReport";
 
 const auditReportColumns = [
   { key: "audit_id", label: "Audit ID" },
@@ -50,19 +55,23 @@ export default function AuditLogs() {
   const [logsErrorMessage, setLogsErrorMessage] = useState("");
   const [reportError, setReportError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async (format) => {
     try {
       setReportError("");
       if (!logs.length) {
         setReportError("No audit records match the selected filters.");
         return;
       }
-      downloadCsvReport(
+      const download = format === "pdf" ? downloadPdfReport : downloadCsvReport;
+      const extension = format === "pdf" ? "pdf" : "csv";
+      await download(
         logs,
         auditReportColumns,
-        `audit-report-${getReportDateStamp()}.csv`,
+        `audit-report-${getReportDateStamp()}.${extension}`,
       );
+      setReportDialogOpen(false);
     } catch (reportError) {
       setReportError(reportError.message || "Unable to generate audit report.");
     }
@@ -325,7 +334,7 @@ export default function AuditLogs() {
                 size="small"
                 variant="outlined"
                 startIcon={<DownloadOutlinedIcon />}
-                onClick={handleDownloadReport}
+                onClick={() => setReportDialogOpen(true)}
                 disabled={!logs.length}
                 sx={{ textTransform: "none", whiteSpace: "nowrap" }}
               >
@@ -333,6 +342,11 @@ export default function AuditLogs() {
               </Button>
             </Stack>
           )}
+          <ReportFormatDialog
+            open={reportDialogOpen}
+            onClose={() => setReportDialogOpen(false)}
+            onSelectFormat={handleDownloadReport}
+          />
         </Box>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>

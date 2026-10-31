@@ -23,6 +23,7 @@ import StudentCard from "../../components/admin/Student/StudentCard";
 import StudentForm from "../../components/admin/Student/StudentForm";
 import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
 import StudentDelete from "../../components/admin/Student/StudentDelete";
+import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import { courseOptions, yearLevelOptions } from "../../components/admin/Student/studentOptions";
 import {
   addStudents,
@@ -31,7 +32,11 @@ import {
   reactivateStudent,
   updateStudent,
 } from "../../api/admin/studentAPI";
-import { downloadCsvReport, getReportDateStamp } from "../../utils/csvReport";
+import {
+  downloadCsvReport,
+  downloadPdfReport,
+  getReportDateStamp,
+} from "../../utils/csvReport";
 
 const studentReportColumns = [
   { key: "student_id", label: "Student ID" },
@@ -67,6 +72,7 @@ export default function Student() {
   const [openStudentForm, setOpenStudentForm] = useState(false);
   const [openStudentDelete, setOpenStudentDelete] = useState(false);
   const [openBulkAdd, setOpenBulkAdd] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -171,13 +177,16 @@ export default function Student() {
     );
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async (format) => {
     try {
-      downloadCsvReport(
+      const download = format === "pdf" ? downloadPdfReport : downloadCsvReport;
+      const extension = format === "pdf" ? "pdf" : "csv";
+      await download(
         filteredStudents,
         studentReportColumns,
-        `student-report-${getReportDateStamp()}.csv`,
+        `student-report-${getReportDateStamp()}.${extension}`,
       );
+      setReportDialogOpen(false);
     } catch (reportError) {
       showSnackbar(reportError.message || "Unable to generate student report.", "error");
     }
@@ -279,7 +288,7 @@ export default function Student() {
           <Button
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
-            onClick={handleDownloadReport}
+            onClick={() => setReportDialogOpen(true)}
             disabled={loading || filteredStudents.length === 0}
             sx={{
               flex: { xs: "1 1 100%", sm: "0 0 auto" },
@@ -509,6 +518,11 @@ export default function Student() {
         }}
         onSubmit={handleDeleteStudent}
         selectedStudent={selectedStudent}
+      />
+      <ReportFormatDialog
+        open={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        onSelectFormat={handleDownloadReport}
       />
       {/* Snackbar Notification */}
       <Snackbar

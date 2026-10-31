@@ -18,6 +18,8 @@
     "@toolpad/core": "^0.16.0",
     "axios": "^1.13.1",
     "dayjs": "^1.11.19",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
