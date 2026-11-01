@@ -29,7 +29,7 @@ import {
 } from "@mui/icons-material";
 import { loginUser } from "../../api/seller/sellerAuthenticationAPI";
 import Nexus from "../../assets/Nexus.png";
-import { hasValidToken, setToken } from "../../../utils/auth";
+import { isAuthenticated, setToken } from "../../../utils/auth";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -48,8 +48,8 @@ const Login = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
-    const sellerToken = localStorage.getItem("seller_token");
-    if (sellerToken && hasValidToken(sellerToken)) {
+    const sellerToken = isAuthenticated("seller");
+    if (sellerToken) {
       navigate("/seller/dashboard", { replace: true });
     }
   }, [navigate]);
@@ -111,7 +111,7 @@ const Login = () => {
     try {
       const data = await loginUser({ student_number: studentNumber, password });
 
-      setToken("seller", data.token);
+      setToken("seller");
 
       localStorage.setItem("seller_student_id", data.student_id || "");
       localStorage.setItem("seller_student_number", data.student_number || "");

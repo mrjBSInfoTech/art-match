@@ -19,7 +19,7 @@ export const parseArtworkDetails = (details) => {
 
 export const getProductOptions = (details) => {
   const parsed = parseArtworkDetails(details);
-  return parsed.product_price_mode && Array.isArray(parsed.product_options)
+  return Array.isArray(parsed.product_options) && parsed.product_options.length > 0
     ? parsed.product_options
     : [];
 };
@@ -43,7 +43,10 @@ export const validateProductOptionSelections = (rawSelections, options, priceMod
       throw new ProductOptionsError(`${option.name} has only ${Math.max(0, availableQuantity || 0)} available.`);
     }
     seen.add(id);
-    const price = priceMode === "manual" ? Number(option.price) : Number(artworkPrice);
+    const hasManualPrice = option.price !== undefined && option.price !== null && option.price !== "";
+    const price = (priceMode === "manual" || (priceMode !== "shared" && hasManualPrice))
+      ? Number(option.price)
+      : Number(artworkPrice);
     if (!Number.isFinite(price) || price <= 0) {
       throw new ProductOptionsError("A selected product option has an invalid price.");
     }
@@ -66,10 +69,11 @@ export const summarizeProductOptionSelections = (details, rawSelections, artwork
   const parsedDetails = parseArtworkDetails(details);
   const options = getProductOptions(parsedDetails);
   if (!options.length) return null;
+  const priceMode = parsedDetails.product_price_mode || (options.some((o) => o.price != null && o.price !== "") ? "manual" : "shared");
   const selections = validateProductOptionSelections(
     rawSelections,
     options,
-    parsedDetails.product_price_mode,
+    priceMode,
     artworkPrice,
   );
   const quantity = selections.reduce((sum, option) => sum + option.quantity, 0);

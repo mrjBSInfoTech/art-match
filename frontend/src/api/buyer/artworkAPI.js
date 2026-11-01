@@ -1,19 +1,12 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api",
   timeout: 5000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("buyer_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`; 
-  }
-
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
   if (error.response) {
@@ -39,9 +32,9 @@ const handleError = (error) => {
 // Fetch all artworks
 export const fetchArtworks = async () => {
   try {
-    console.log("Fetching all artworks");
+
     const res = await api.get("/buyer/artworks");
-    console.log("Artworks fetched:", res.data);
+
     return res.data;
   } catch (error) {
     console.error("Error in fetchArtworks:", error);
@@ -107,9 +100,9 @@ export const fetchPublicSellerReviews = async (sellerId) => {
 // Fetch single artwork by id
 export const fetchArtworkById = async (id) => {
   try {
-    console.log('Fetching artwork by id', id);
+
     const res = await api.get(`/buyer/artworks/${encodeURIComponent(id)}`);
-    console.log('Artwork fetched:', res.data);
+
     return res.data;
   } catch (error) {
     console.error('Error in fetchArtworkById:', error);

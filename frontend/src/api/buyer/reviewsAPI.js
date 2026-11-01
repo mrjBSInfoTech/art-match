@@ -1,15 +1,12 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/buyer/reviews",
   timeout: 15000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("buyer_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const reviewError = (error, fallback, signal) => {
   if (signal?.aborted || axios.isCancel(error)) throw error;

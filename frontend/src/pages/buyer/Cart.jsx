@@ -55,14 +55,14 @@ export default function Cart() {
     await Promise.all(
       artworkIds.map(async (id) => {
         const matchedItem = items.find((item) => String(item.artwork_id) === String(id));
-        const fixedProductSelection = Array.isArray(matchedItem?.selected_products)
-          && matchedItem.selected_products.length > 0;
+        const selections = Array.isArray(matchedItem?.selected_products) ? matchedItem.selected_products : [];
+        const isMultiOption = selections.length > 1;
         const qty = matchedItem && isProductItem(matchedItem)
           ? Math.max(1, Number(cartQuantities[String(id)] ?? matchedItem.quantity ?? 1) || 1)
           : 1;
         quantitiesMap[String(id)] = qty;
         quantityParamParts.push(`${id}:${qty}`);
-        if (matchedItem && isProductItem(matchedItem) && !fixedProductSelection &&
+        if (matchedItem && isProductItem(matchedItem) && !isMultiOption &&
             Number(matchedItem.quantity || 1) !== qty) {
           try {
             await updateCartItemQuantity(id, qty);
@@ -150,12 +150,13 @@ export default function Cart() {
       items.forEach((item) => {
         const id = String(item.artwork_id);
         const isProduct = isProductItem(item);
-        const hasProductSelection = Array.isArray(item.selected_products) && item.selected_products.length > 0;
-        const dbQuantity = hasProductSelection
-          ? getSelectedProductsTotalQuantity(item.selected_products)
+        const selections = Array.isArray(item.selected_products) ? item.selected_products : [];
+        const isMultiOption = selections.length > 1;
+        const dbQuantity = selections.length
+          ? getSelectedProductsTotalQuantity(selections)
           : Math.max(1, Number(item.quantity) || 1);
         const currentValue = previous[id] !== undefined ? Number(previous[id]) : dbQuantity;
-        next[id] = isProduct && !hasProductSelection
+        next[id] = isProduct && !isMultiOption
           ? Math.max(1, Number.isFinite(currentValue) ? currentValue : dbQuantity)
           : isProduct ? dbQuantity : 1;
       });
@@ -166,23 +167,33 @@ export default function Cart() {
   const getItemQuantity = (item) => {
     if (!isProductItem(item)) return 1;
     const id = String(item.artwork_id);
-    if (Array.isArray(item.selected_products) && item.selected_products.length) {
-      return getSelectedProductsTotalQuantity(item.selected_products);
+    const selections = Array.isArray(item.selected_products) ? item.selected_products : [];
+    if (selections.length > 1) {
+      return getSelectedProductsTotalQuantity(selections);
     }
-    const value = Number(cartQuantities[id] ?? item.quantity ?? 1);
+    const value = Number(cartQuantities[id] ?? item.quantity ?? (selections[0]?.quantity || 1));
     return Number.isFinite(value) ? Math.max(1, value) : 1;
   };
 
   const cartItems = items.map((item) => {
     const selectedProducts = Array.isArray(item.selected_products) ? item.selected_products : [];
-    const subtotal = selectedProducts.length
+    const isSingleVariant = selectedProducts.length === 1;
+    const qty = getItemQuantity(item);
+    const unitPrice = isSingleVariant
+      ? Number(selectedProducts[0].unit_price || item.price || 0)
+      : Number(item.price || 0);
+    const subtotal = selectedProducts.length > 1
       ? selectedProducts.reduce((sum, option) =>
-        sum + Number(option.unit_price || 0) * Number(option.quantity || 0), 0)
-      : Number(item.price || 0) * getItemQuantity(item);
+        sum + Number(option.unit_price || item.price || 0) * Number(option.quantity || 0), 0)
+      : isSingleVariant
+        ? unitPrice * qty
+        : Number(item.price || 0) * qty;
     return {
       ...item,
       id: item.artwork_id,
-      qty: getItemQuantity(item),
+      image: (isSingleVariant && selectedProducts[0].image) ? selectedProducts[0].image : item.image,
+      qty,
+      unitPrice,
       subtotal,
     };
   });
@@ -286,11 +297,18 @@ export default function Cart() {
                     [String(artworkId)]: nextQuantity,
                   }));
                   setItems((current) =>
-                    current.map((item) =>
-                      String(item.artwork_id) === String(artworkId)
-                        ? { ...item, quantity: nextQuantity }
-                        : item,
-                    ),
+                    current.map((item) => {
+                      if (String(item.artwork_id) !== String(artworkId)) return item;
+                      const selections = Array.isArray(item.selected_products) ? item.selected_products : [];
+                      const updatedSelections = selections.length === 1
+                        ? [{ ...selections[0], quantity: nextQuantity }]
+                        : selections;
+                      return {
+                        ...item,
+                        quantity: nextQuantity,
+                        selected_products: updatedSelections,
+                      };
+                    }),
                   );
 
                   try {

@@ -50,7 +50,7 @@ export default function Address() {
       setLoading(true);
       setAddressLoadError("");
       const data = await fetchAddresses();
-      console.log("Addresses loaded:", data);
+
       setAddresses(data || []);
     } catch (err) {
       console.error("Error loading addresses:", err);

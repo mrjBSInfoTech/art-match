@@ -34,7 +34,7 @@ import {
 } from "@mui/icons-material";
 import Nexus from "../../assets/Nexus.png";
 import { registerUser } from "../../api/seller/sellerAuthenticationAPI";
-import { hasValidToken } from "../../../utils/auth";
+import { isAuthenticated } from "../../../utils/auth";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -67,8 +67,8 @@ export default function Register() {
   const [corImagePreview, setCorImagePreview] = useState(null);
 
   useEffect(() => {
-    const sellerToken = localStorage.getItem("seller_token");
-    if (sellerToken && hasValidToken(sellerToken)) {
+    const sellerToken = isAuthenticated("seller");
+    if (sellerToken) {
       navigate("/seller/dashboard", { replace: true });
     }
   }, [navigate]);

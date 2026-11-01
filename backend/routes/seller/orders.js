@@ -46,15 +46,19 @@ const allowedTransitions = {
   Shipped: new Set(["Delivered"]),
 };
 
-const createOrderStatusNotification = (orderId, buyerId, status, hasTrackingLink = false) =>
+const createOrderStatusNotification = (orderId, buyerId, status, hasTrackingLink = false, isMeetup = false) =>
   new Promise((resolve) => {
     const orderLabel = `AM-${String(orderId).padStart(6, "0")}`;
     const statusMessages = {
       Confirmed: `Your order ${orderLabel} has been confirmed and is now being prepared.`,
-      Packed: `Your order ${orderLabel} has been packed and is ready for shipment.`,
-      Shipped: hasTrackingLink
-        ? `Your order ${orderLabel} has shipped. Tracking is now available in My Orders.`
-        : `Your order ${orderLabel} has shipped and is on the way.`,
+      Packed: isMeetup
+        ? `Your order ${orderLabel} is prepared and ready for meet-up arrangement.`
+        : `Your order ${orderLabel} has been packed and is ready for shipment.`,
+      Shipped: isMeetup
+        ? `Your order ${orderLabel} is ready for meet-up. Coordinate with the seller in Messages for the handover.`
+        : (hasTrackingLink
+            ? `Your order ${orderLabel} has shipped. Tracking is now available in My Orders.`
+            : `Your order ${orderLabel} has shipped and is on the way.`),
       Delivered: `Your order ${orderLabel} has been delivered.`,
       Cancelled: `Your order ${orderLabel} has been cancelled.`,
     };
@@ -90,6 +94,7 @@ router.get("/", authenticateSeller, (req, res) => {
        o.shipping_region, o.shipping_postal_code, o.parcel_photos, o.received_photos,
        o.courier, o.tracking_number, o.tracking_url, o.handling_instructions, i.order_item_id,
        i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity,
+       i.product_option_id, i.product_option_name,
        i.selected_products, i.line_total, i.original_line_total, i.order_note,
        s.gross_amount, s.commission_amount, s.processing_fee_amount,
        s.net_amount, s.payout_status
@@ -180,6 +185,8 @@ router.get("/", authenticateSeller, (req, res) => {
             image: row.image,
             qty: row.quantity,
             price: Number(row.unit_price),
+            productOptionId: row.product_option_id || null,
+            productOptionName: row.product_option_name || null,
             lineTotal: Number(row.line_total ?? (Number(row.unit_price) * Number(row.quantity))),
             originalLineTotal: Number(row.original_line_total ??
               (Number(row.unit_price) * Number(row.quantity))),
@@ -239,7 +246,7 @@ router.put(
       await connection.beginTransaction();
       const [orders] = await connection.query(
         `        SELECT status, customer_id, total_amount, payment_status, parcel_photos, received_photos, courier, tracking_number, tracking_url, handling_instructions,
-                payment_method, payment_status, paid_at
+                payment_method, payment_status, paid_at, delivery_method
          FROM marketplace_order
          WHERE order_id = ? AND seller_id = ?
          LIMIT 1
@@ -319,16 +326,21 @@ router.put(
         fail(409, "Add parcel photos before shipping this order");
       }
 
-      let shipmentTracking;
-      let trackingUrl;
+      const isMeetup = order.delivery_method === "pickup";
+      let shipmentTracking = null;
+      let trackingUrl = null;
       try {
         if (requestedStatus === "Shipped") {
-          shipmentTracking = normalizeShipmentTracking({
-            courier: req.body.courier,
-            trackingNumber: req.body.tracking_number,
-            trackingUrl: req.body.tracking_url,
-          });
-          trackingUrl = shipmentTracking.trackingUrl;
+          if (!isMeetup) {
+            shipmentTracking = normalizeShipmentTracking({
+              courier: req.body.courier,
+              trackingNumber: req.body.tracking_number,
+              trackingUrl: req.body.tracking_url,
+            });
+            trackingUrl = shipmentTracking.trackingUrl;
+          } else if (req.body.tracking_url) {
+            trackingUrl = normalizeTrackingUrl(req.body.tracking_url);
+          }
         } else {
           trackingUrl = normalizeTrackingUrl(req.body.tracking_url);
         }
@@ -338,7 +350,7 @@ router.put(
       if (requestedStatus !== "Shipped" && trackingUrl) {
         fail(400, "A tracking link can only be added when marking the order Shipped");
       }
-      if (requestedStatus !== "Shipped" && (req.body.courier || req.body.tracking_number)) {
+      if (!isMeetup && requestedStatus !== "Shipped" && (req.body.courier || req.body.tracking_number)) {
         fail(400, "Courier tracking information can only be added when marking the order Shipped");
       }
 
@@ -438,7 +450,7 @@ router.put(
       }
 
       const [updatedRows] = await connection.query(
-        `SELECT delivered_at, DATE_ADD(delivered_at, INTERVAL 7 DAY) AS return_deadline
+        `SELECT delivered_at, DATE_ADD(delivered_at, INTERVAL 4 DAY) AS return_deadline
          FROM marketplace_order WHERE order_id = ? LIMIT 1`,
         [orderId],
       );
@@ -450,7 +462,7 @@ router.put(
           console.error("Unable to deliver certificate on order delivery:", certificateError.message),
         );
       }
-      await createOrderStatusNotification(orderId, order.customer_id, requestedStatus, Boolean(trackingUrl));
+      await createOrderStatusNotification(orderId, order.customer_id, requestedStatus, Boolean(trackingUrl), isMeetup);
       const resultingPaymentStatus =
         order.payment_method === "cod" && requestedStatus === "Delivered"
           ? "Paid"

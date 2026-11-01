@@ -1,10 +1,12 @@
 import axios from "axios";
+import { clearAuthData, isAuthenticated as checkIsAuthenticated } from "../../../utils/auth";
 
 const api = axios.create({
   baseURL: "http://localhost:5000/api/seller/authenticate",
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
   timeout: 10000,
 });
 
@@ -28,10 +30,8 @@ export const registerUser = async (data) => {
         ? { headers: { "Content-Type": "multipart/form-data" } }
         : {};
     const res = await api.post("/register", data, config);
-    console.log("Register API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Register API error:", error.message);
     handleError(error);
   }
 };
@@ -43,56 +43,33 @@ export const loginUser = async ({ student_number, password }) => {
       student_number,
       password,
     });
-    console.log("Login API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Login API error:", error.message);
     handleError(error);
   }
 };
 
-// LOGOUT (frontend only)
+// LOGOUT (frontend cleanup)
 export const logoutUser = () => {
-  localStorage.removeItem("seller_token");
-  localStorage.removeItem("token");
-  localStorage.removeItem("student_id");
-  localStorage.removeItem("student_number");
-  localStorage.removeItem("first_name");
-  localStorage.removeItem("middle_name");
-  localStorage.removeItem("last_name");
-  localStorage.removeItem("email");
-  localStorage.removeItem("phone_number");
-  localStorage.removeItem("birthdate");
-  localStorage.removeItem("address");
-  localStorage.removeItem("cor");
-  localStorage.removeItem("year_level");
-  localStorage.removeItem("course");
-  localStorage.removeItem("request_status");
-  localStorage.removeItem("registered_date");
-  localStorage.removeItem("approved_date");
-  localStorage.removeItem("seller_register_status");
-  localStorage.removeItem("seller_registered_date");
-  localStorage.removeItem("seller_approved_date");
+  clearAuthData("seller");
 };
 
 export const recordLogout = async () => {
   try {
-    await api.post("/logout", undefined, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
-      },
-    });
-  } catch (error) {
-    console.error("Unable to record student logout:", error.message);
+    await api.post("/logout");
+  } catch {
+    // Session is cleared on frontend regardless of server logging
+  } finally {
+    clearAuthData("seller");
   }
 };
 
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
-  return !!localStorage.getItem("seller_token");
+  return checkIsAuthenticated("seller");
 };
 
-// GET TOKEN
+// GET TOKEN (returns null; tokens are strictly stored in HttpOnly cookies)
 export const getToken = () => {
-  return localStorage.getItem("seller_token");
+  return null;
 };

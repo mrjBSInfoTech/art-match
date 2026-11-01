@@ -1,26 +1,20 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/seller/inventory",
   timeout: 10000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("seller_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const artworkApi = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/seller",
   timeout: 10000,
 });
 
-artworkApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("seller_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 function handleError(error, fallbackMessage) {
   const inventoryError = new Error(

@@ -110,6 +110,11 @@ import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 // Routes (Payments)
 import paymongoPaymentRoutes from "./routes/payments/paymongo.js";
 import { assertPayoutProviderConfiguration } from "./utils/payoutProvider.js";
+import {
+  cookieMiddleware,
+  csrfProtection,
+  getAllowedOrigins,
+} from "./utils/authCookies.js";
 
 // Routes (Chat of both buyer and seller)
 import chatRoutes from "./routes/chat.js";
@@ -126,7 +131,30 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = getAllowedOrigins();
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const cleanOrigin = origin.replace(/\/+$/, "");
+      if (
+        allowedOrigins.has(cleanOrigin) ||
+        (process.env.NODE_ENV !== "production" &&
+          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin))
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposedHeaders: ["Content-Disposition"],
+  }),
+);
+
+app.use(cookieMiddleware);
+app.use(csrfProtection);
 app.use(
   express.json({
     verify: (req, res, buffer) => {
@@ -421,7 +449,7 @@ const serveB2Cached =
 // =====================================================
 
 const optionalBuyerAuthentication = (req, res, next) => {
-  if (!req.headers.authorization) return next();
+  if (!req.headers.authorization && !req.cookies?.buyer_token) return next();
   authenticateBuyer(req, res, next);
 };
 

@@ -388,6 +388,20 @@ export const ensureOrderTables = async () => {
   if (!itemColumns.length) {
     await query("ALTER TABLE marketplace_order_item ADD COLUMN original_unit_price DECIMAL(12, 2) NULL AFTER unit_price");
   }
+  const itemCols = await query("SHOW COLUMNS FROM marketplace_order_item");
+  const existingItemCols = new Set(itemCols.map((c) => c.Field));
+  for (const [name, definition] of [
+    ["product_option_id", "VARCHAR(100) NULL"],
+    ["product_option_name", "VARCHAR(255) NULL"],
+    ["selected_products", "JSON NULL"],
+    ["line_total", "DECIMAL(12, 2) NULL"],
+    ["original_line_total", "DECIMAL(12, 2) NULL"],
+    ["order_note", "TEXT NULL"],
+  ]) {
+    if (!existingItemCols.has(name)) {
+      await query(`ALTER TABLE marketplace_order_item ADD COLUMN ${name} ${definition}`);
+    }
+  }
   await ensureDeliveryColumn();
   await query(deliveryProofTableSql);
 };

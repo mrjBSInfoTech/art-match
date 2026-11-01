@@ -20,6 +20,7 @@ import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import { isAuthenticated } from "../../../utils/auth";
 
 const profileImageUrl = (image) => {
   if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
@@ -276,7 +277,7 @@ export default function Gallery() {
     };
 
     const loadFavoriteIds = async () => {
-      if (!localStorage.getItem("buyer_token")) {
+      if (!isAuthenticated("buyer")) {
         if (active) setFavoriteIds(new Set());
         return;
       }
@@ -301,7 +302,7 @@ export default function Gallery() {
 
   const handleFavoriteToggle = async (artworkId) => {
     const artworkKey = String(artworkId);
-    if (!localStorage.getItem("buyer_token")) {
+    if (!isAuthenticated("buyer")) {
       navigate("/buyer/login");
       return;
     }

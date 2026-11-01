@@ -72,11 +72,16 @@ const availableNextStatuses = (order) => canFulfillOrder(order)
 const fulfillmentHint = (order) => {
   if (needsPaymentSupport(order)) return "Payment received. Contact support for refund review.";
   if (String(order.paymentStatus).toLowerCase() === "refunded") return "Payment refunded. This order cannot be processed.";
+  const isMeetup = order.deliveryMethod === "pickup";
   const hints = {
     Pending: "Confirm this order to start preparing it.",
     Confirmed: "Mark as packed and upload 1–5 parcel photos.",
-    Packed: "Mark as shipped; choose a courier and add its tracking information.",
-    Shipped: "Mark as delivered after the buyer receives the parcel.",
+    Packed: isMeetup
+      ? "Mark as ready for meet-up. Coordinate handover in chat."
+      : "Mark as shipped; choose a courier and add its tracking information.",
+    Shipped: isMeetup
+      ? "Meet the buyer and confirm delivery with proof photos."
+      : "Mark as delivered after the buyer receives the parcel.",
     Delivered: "Order completed.",
     Cancelled: "Order cancelled.",
   };
@@ -98,6 +103,7 @@ export default function SellerOrder() {
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [receivedPhotos, setReceivedPhotos] = useState([]);
   const [receivedPreviews, setReceivedPreviews] = useState([]);
+  const [deliveryNotes, setDeliveryNotes] = useState("");
   const [courier, setCourier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [trackingUrl, setTrackingUrl] = useState("");
@@ -252,14 +258,29 @@ export default function SellerOrder() {
       setStatusError("Choose the next available order status. Refresh if the order has changed.");
       return;
     }
-    if (nextStatus === "Packed" || nextStatus === "Shipped") {
+    if (nextStatus === "Packed") {
       const order = orders.find((item) => item.orderId === orderId);
       setStatusError("");
       setParcelPhotos([]);
-      const shipmentCourier = nextStatus === "Shipped" ? getShipmentCourier(order?.courier) : undefined;
+      setHandlingInstructions(order?.handlingInstructions || []);
+      setSelectedOrder(null);
+      setFulfillmentTarget({ orderId, status: nextStatus, order });
+      return;
+    }
+    if (nextStatus === "Shipped") {
+      const order = orders.find((item) => item.orderId === orderId);
+      const isMeetup = order?.deliveryMethod === "pickup";
+      if (isMeetup) {
+        // Meet-up Delivery does not require courier, tracking number or tracking URL.
+        await saveOrderStatus(orderId, "Shipped");
+        return;
+      }
+      setStatusError("");
+      setParcelPhotos([]);
+      const shipmentCourier = getShipmentCourier(order?.courier);
       setCourier(shipmentCourier?.value || "");
-      setTrackingNumber(nextStatus === "Shipped" ? order?.trackingNumber || "" : "");
-      setTrackingUrl(nextStatus === "Shipped" ? shipmentCourier?.trackingUrl || order?.trackingUrl || "" : "");
+      setTrackingNumber(order?.trackingNumber || "");
+      setTrackingUrl(shipmentCourier?.trackingUrl || order?.trackingUrl || "");
       setHandlingInstructions(order?.handlingInstructions || []);
       setSelectedOrder(null);
       setFulfillmentTarget({ orderId, status: nextStatus, order });
@@ -269,6 +290,7 @@ export default function SellerOrder() {
       const order = orders.find((item) => item.orderId === orderId);
       setStatusError("");
       setReceivedPhotos([]);
+      setDeliveryNotes("");
       setSelectedOrder(null);
       setFulfillmentTarget({ orderId, status: nextStatus, order });
       return;
@@ -300,6 +322,9 @@ export default function SellerOrder() {
         return;
       }
       receivedPhotos.forEach((file) => formData.append("parcel_photos", file));
+      if (deliveryNotes.trim()) {
+        formData.append("delivery_notes", deliveryNotes.trim());
+      }
     } else {
       const shipmentCourier = getShipmentCourier(courier);
       if (!shipmentCourier) {
@@ -340,6 +365,7 @@ export default function SellerOrder() {
         setFulfillmentTarget(null);
         setReceivedPhotos([]);
         setParcelPhotos([]);
+        setDeliveryNotes("");
         if (targetStatus === "Delivered") {
           const finishedOrder = orders.find((item) => item.orderId === targetOrderId);
           if (finishedOrder) {
@@ -696,10 +722,13 @@ export default function SellerOrder() {
         receivedPhotos={receivedPhotos}
         setReceivedPhotos={setReceivedPhotos}
         photoPreviews={receivedPreviews}
+        deliveryNotes={deliveryNotes}
+        setDeliveryNotes={setDeliveryNotes}
         saving={savingFulfillment}
         onClose={() => {
           setFulfillmentTarget(null);
           setReceivedPhotos([]);
+          setDeliveryNotes("");
         }}
         onSubmit={submitFulfillmentUpdate}
       />

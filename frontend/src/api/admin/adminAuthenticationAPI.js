@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearAuthData, isAuthenticated as checkIsAuthenticated } from "../../../utils/auth";
 
 // Axios instance (centralized config)
 const api = axios.create({
@@ -6,31 +7,19 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 5000,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
+  withCredentials: true,
+  timeout: 10000,
 });
 
 // Centralized error handler
 const handleError = (error) => {
   if (error.response) {
-    // Backend responded with an error
     const errorObj = new Error(error.response.data.message || "Server error");
     errorObj.response = error.response;
     throw errorObj;
   } else if (error.request) {
-    // Request sent but no response
     throw new Error("Server not responding");
   } else {
-    // Something else happened
     throw new Error("Unexpected error occurred");
   }
 };
@@ -42,42 +31,24 @@ export const loginUser = async ({ username, password }) => {
       username,
       password,
     });
-    console.log("Login API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Login API error:", error.message);
     handleError(error);
   }
 };
 
 // LOGOUT
 export const logout = () => {
-  localStorage.removeItem("admin_token");
-  localStorage.removeItem("admin_id");
-  localStorage.removeItem("username");
-  localStorage.removeItem("first_name");
-  localStorage.removeItem("last_name");
-  localStorage.removeItem("email");
-  localStorage.removeItem("image");
-  localStorage.removeItem("admin_account_type");
-  localStorage.removeItem("admin_role");
-  localStorage.removeItem("admin_can_add");
-  localStorage.removeItem("admin_can_edit");
-  localStorage.removeItem("admin_can_delete");
-  localStorage.removeItem("admin_can_promote");
-  localStorage.removeItem("admin_can_demote");
-  localStorage.removeItem("admin_password_changed");
-  localStorage.removeItem("admin_created_at");
-  localStorage.removeItem("admin_updated_at");
-}
+  clearAuthData("admin");
+};
 
 export const recordLogout = async () => {
   try {
-    await api.post("/logout", undefined, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-  } catch (error) {
-    console.error("Unable to record admin logout:", error.message);
+    await api.post("/logout");
+  } catch {
+    // Session is cleared on frontend regardless of server logging
+  } finally {
+    clearAuthData("admin");
   }
 };
 
@@ -92,12 +63,12 @@ export const verifyPassword = async (password) => {
 
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
-  return !!localStorage.getItem("admin_token");
+  return checkIsAuthenticated("admin");
 };
 
-// GET TOKEN
+// GET TOKEN (returns null; tokens are strictly stored in HttpOnly cookies)
 export const getToken = () => {
-  return localStorage.getItem("admin_token");
+  return null;
 };
 
 // CHANGE PASSWORD

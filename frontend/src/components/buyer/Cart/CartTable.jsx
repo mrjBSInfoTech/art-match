@@ -178,7 +178,16 @@ export default function CartTable({
                             {item.artist}
                           </Typography>
                         )}
-                        {Array.isArray(item.selected_products) && item.selected_products.length > 0 && (
+                        {Array.isArray(item.selected_products) && item.selected_products.length === 1 && (
+                          <Typography
+                            variant="caption"
+                            color="primary.main"
+                            sx={{ display: "block", mt: 0.5, fontWeight: 600, overflowWrap: "anywhere" }}
+                          >
+                            Option: {item.selected_products[0].name} ({formatPrice(item.unitPrice || item.selected_products[0].unit_price || item.price)})
+                          </Typography>
+                        )}
+                        {Array.isArray(item.selected_products) && item.selected_products.length > 1 && (
                           <Stack spacing={0.25} sx={{ mt: 1 }}>
                             {item.selected_products.map((option) => (
                               <Typography
@@ -187,7 +196,7 @@ export default function CartTable({
                                 color="text.secondary"
                                 sx={{ overflowWrap: "anywhere" }}
                               >
-                                {option.name} × {option.quantity}
+                                {option.name} × {option.quantity} · {formatPrice(option.unit_price || item.price)}
                               </Typography>
                             ))}
                           </Stack>
@@ -232,7 +241,7 @@ export default function CartTable({
                           size="small"
                           variant="outlined"
                           disabled={!isProductItem(item) ||
-                            (Array.isArray(item.selected_products) && item.selected_products.length > 0)}
+                            (Array.isArray(item.selected_products) && item.selected_products.length > 1)}
                           onClick={() => onQuantityChange?.(item.artwork_id, Math.max(1, Number(cartQuantities[item.artwork_id] || 1) - 1))}
                           sx={{
                             minWidth: 24,
@@ -252,7 +261,7 @@ export default function CartTable({
                           size="small"
                           variant="outlined"
                           disabled={!isProductItem(item) ||
-                            (Array.isArray(item.selected_products) && item.selected_products.length > 0)}
+                            (Array.isArray(item.selected_products) && item.selected_products.length > 1)}
                           onClick={() => onQuantityChange?.(item.artwork_id, Number(cartQuantities[item.artwork_id] || 1) + 1)}
                           sx={{
                             minWidth: 24,

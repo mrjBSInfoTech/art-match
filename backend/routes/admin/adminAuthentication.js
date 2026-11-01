@@ -4,6 +4,11 @@ import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
+import {
+  getAuthCookieOptions,
+  clearAuthCookieOptions,
+  authRateLimiter,
+} from "../../utils/authCookies.js";
 
 const router = express.Router();
 
@@ -22,7 +27,7 @@ const auditAdminPasswordChange = async (req, status, information) => {
 };
 
 // Login route
-router.post("/login", (req, res) => {
+router.post("/login", authRateLimiter, (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -106,8 +111,10 @@ router.post("/login", (req, res) => {
         updated_at: user.updated_at,
       },
       process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "10d" },
+      { expiresIn: "1h" },
     );
+
+    res.cookie("admin_token", token, getAuthCookieOptions());
 
     logAudit({
       action: "LOGIN",
@@ -117,7 +124,7 @@ router.post("/login", (req, res) => {
       information: "Admin logged in",
     });
     res.json({
-      token,
+      success: true,
       admin_id: user.admin_id,
       username: user.username,
       first_name: user.first_name,
@@ -137,21 +144,38 @@ router.post("/login", (req, res) => {
   });
 });
 
-router.post("/logout", authenticateAdmin, async (req, res) => {
+router.post("/logout", async (req, res) => {
   try {
+    res.clearCookie("admin_token", clearAuthCookieOptions());
     await logAudit({
       action: "LOGOUT",
-      actor: req.user.username || req.user.admin_id,
-      role: req.user.role || "Admin",
+      actor: req.user?.username || req.user?.admin_id || "Admin",
+      role: req.user?.role || "Admin",
       status: "SUCCESS",
       information: "Admin logged out",
     });
-    res.json({ message: "Logout recorded" });
+    res.json({ success: true, message: "Logout recorded" });
   } catch (error) {
+    res.clearCookie("admin_token", clearAuthCookieOptions());
     res
       .status(500)
       .json({ message: "Unable to record logout", error: error.message });
   }
+});
+
+router.get("/me", authenticateAdmin, (req, res) => {
+  db.query(
+    `SELECT a.admin_id, a.username, a.first_name, a.last_name, a.email, a.image, a.password_changed,
+            ar.role, ar.can_add, ar.can_edit, ar.can_delete, ar.can_promote, ar.can_demote
+     FROM admin a
+     LEFT JOIN admin_role ar ON a.admin_id = ar.admin_id
+     WHERE a.admin_id = ?`,
+    [req.user.admin_id],
+    (err, results) => {
+      if (err || !results.length) return res.status(404).json({ message: "Admin not found" });
+      res.json(results[0]);
+    },
+  );
 });
 
 router.post("/verify-password", authenticateAdmin, async (req, res) => {

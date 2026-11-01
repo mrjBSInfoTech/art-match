@@ -2,15 +2,12 @@ import axios from "axios";
 import { clearAuthData } from "../../../utils/auth";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/seller",
   timeout: 30000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("seller_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 api.interceptors.response.use(
   (response) => response,

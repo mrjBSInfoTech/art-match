@@ -17,6 +17,8 @@ import {
 } from "@mui/material";
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
+import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
@@ -80,6 +82,7 @@ export default function OrderGrid({
   actionPending = "",
   onCancel,
   onReview,
+  onViewDetails,
   onRequestReturn,
   onViewReturn,
   onTrackOrder,
@@ -93,6 +96,15 @@ export default function OrderGrid({
       setCopyStatus({ orderId: order.orderId, copied: true });
     } catch {
       setCopyStatus({ orderId: order.orderId, copied: false });
+    }
+  };
+  const copyReturnTrackingNumber = async (activeReturn) => {
+    if (!activeReturn?.return_tracking_number) return;
+    try {
+      await navigator.clipboard.writeText(activeReturn.return_tracking_number);
+      setCopyStatus({ returnId: activeReturn.return_request_id, copied: true });
+    } catch {
+      setCopyStatus({ returnId: activeReturn.return_request_id, copied: false });
     }
   };
   const isDark = theme.palette.mode === "dark";
@@ -157,6 +169,19 @@ export default function OrderGrid({
         const orderChipColor = statusColor[order.status] || "default";
         const trackingUrl = getSecureTrackingUrl(order.trackingUrl);
         const courier = getShipmentCourier(order.courier);
+        const hasActiveReturnTracking = Boolean(
+          order.activeReturn && (
+            order.activeReturn.status === "Return Shipped" ||
+            order.activeReturn.return_tracking_url ||
+            order.activeReturn.return_tracking_number ||
+            order.activeReturn.return_courier
+          )
+        );
+        const returnCourier = getShipmentCourier(order.activeReturn?.return_courier);
+        const returnTrackingUrl = getSecureTrackingUrl(
+          order.activeReturn?.return_tracking_url || returnCourier?.trackingUrl
+        );
+        const returnTrackingNumber = order.activeReturn?.return_tracking_number || "";
         const placedDate = formatDate(order.date, {
           year: "numeric",
           month: "numeric",
@@ -214,14 +239,14 @@ export default function OrderGrid({
                     {placedDate ? `Placed ${placedDate} · ` : ""}
                     {getPaymentMethodLabel(order)}
                     {" · "}
-                    {order.deliveryMethod === "pickup" ? "Store / Campus Pickup" : "Door-to-Door"}
+                    {order.deliveryMethod === "pickup" ? "Meet-up Delivery" : "Door-to-Door"}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{ display: "block", mt: 0.75, color: colors.muted }}
                   >
                     {order.deliveryMethod === "pickup"
-                      ? "Pickup order. Coordinate collection schedule directly with the seller."
+                      ? "Meet-up Delivery · Coordinate collection schedule directly with the seller in Messages."
                       : "Artworks only. Delivery is arranged with a third-party courier and paid directly to the seller."}
                   </Typography>
                   {reference && (
@@ -348,26 +373,57 @@ export default function OrderGrid({
               {(order.status === "Shipped" || order.status === "Delivered") && (
                 <Alert
                   severity={order.status === "Delivered" ? "success" : "info"}
-                  action={onTrackOrder ? (
-                    <Button
-                      size="small"
-                      onClick={() => onTrackOrder(order)}
-                      sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap", fontWeight: 700 }}
-                    >
-                      {order.status === "Delivered" ? "View delivery tracking" : "Track delivery"}
-                    </Button>
-                  ) : trackingUrl ? (
-                    <Button
-                      component="a"
-                      href={trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      size="small"
-                      sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap" }}
-                    >
-                      {order.status === "Delivered" ? "View delivery tracking" : "Track delivery"}
-                    </Button>
-                  ) : undefined}
+                  action={
+                    hasActiveReturnTracking && returnTrackingUrl ? (
+                      <Button
+                        component="a"
+                        href={returnTrackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="small"
+                        endIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 14 }} />}
+                        sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap", fontWeight: 700 }}
+                      >
+                        Track Return
+                      </Button>
+                    ) : onTrackOrder ? (
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          if (hasActiveReturnTracking) {
+                            onTrackOrder({
+                              ...order,
+                              isReturn: true,
+                              courier: order.activeReturn?.return_courier,
+                              trackingNumber: returnTrackingNumber,
+                              trackingUrl: returnTrackingUrl,
+                              activeReturn: order.activeReturn,
+                            });
+                          } else {
+                            onTrackOrder(order);
+                          }
+                        }}
+                        sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap", fontWeight: 700 }}
+                      >
+                        {hasActiveReturnTracking
+                          ? "Track Return"
+                          : order.deliveryMethod === "pickup"
+                          ? (order.status === "Delivered" ? "View meet-up details" : "Meet-up progress")
+                          : (order.status === "Delivered" ? "View delivery tracking" : "Track delivery")}
+                      </Button>
+                    ) : trackingUrl ? (
+                      <Button
+                        component="a"
+                        href={trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="small"
+                        sx={{ color: "inherit", textTransform: "none", whiteSpace: "nowrap" }}
+                      >
+                        {order.status === "Delivered" ? "View delivery tracking" : "Track delivery"}
+                      </Button>
+                    ) : undefined
+                  }
                   sx={isDark ? {
                     mt: 2,
                     color: "#fff",
@@ -379,8 +435,12 @@ export default function OrderGrid({
                   } : { mt: 2 }}
                 >
                   {order.status === "Delivered"
-                    ? "Your order has been delivered. Please review the artwork if you’re happy with it."
-                    : "Shipping update: your order is on the way and should arrive soon."}
+                    ? (order.deliveryMethod === "pickup"
+                        ? "Meet-up completed and order delivered. Please review the artwork if you're happy with it."
+                        : "Your order has been delivered. Please review the artwork if you’re happy with it.")
+                    : (order.deliveryMethod === "pickup"
+                        ? "Meet-up update: the seller is ready for the meet-up handover. Coordinate via Messages."
+                        : "Shipping update: your order is on the way and should arrive soon.")}
                   {courier && (
                     <Typography variant="body2" sx={{ mt: 0.75 }}>
                       Courier: {courier.label}
@@ -528,6 +588,66 @@ export default function OrderGrid({
                       </Alert>
                     )}
 
+                    {hasActiveReturnTracking && (
+                      <Box
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 1.5,
+                          backgroundColor: colors.inset,
+                          border: `1px solid ${colors.divider}`,
+                        }}
+                      >
+                        <Stack spacing={0.75}>
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{ color: colors.subtle, textTransform: "uppercase", letterSpacing: 0.5 }}
+                          >
+                            Return Shipment Details
+                          </Typography>
+                          {returnCourier && (
+                            <Typography variant="body2" sx={{ color: colors.text }}>
+                              <strong>Courier:</strong> {returnCourier.label}
+                            </Typography>
+                          )}
+                          {returnTrackingNumber && (
+                            <Stack direction="row" alignItems="center" flexWrap="wrap" gap={0.75}>
+                              <Typography variant="body2" sx={{ color: colors.text, overflowWrap: "anywhere" }}>
+                                <strong>{returnCourier?.trackingNumberLabel || "Tracking No."}:</strong>{" "}
+                                {returnTrackingNumber}
+                              </Typography>
+                              <Button
+                                size="small"
+                                onClick={() => copyReturnTrackingNumber(order.activeReturn)}
+                                sx={{ color: "inherit", textTransform: "none", minWidth: 0, py: 0, fontWeight: 700 }}
+                              >
+                                {copyStatus?.returnId === order.activeReturn.return_request_id && copyStatus.copied
+                                  ? "Copied"
+                                  : "Copy"}
+                              </Button>
+                            </Stack>
+                          )}
+                          {returnTrackingUrl && (
+                            <Box sx={{ pt: 0.5 }}>
+                              <Button
+                                component="a"
+                                href={returnTrackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                size="small"
+                                variant="contained"
+                                color="error"
+                                endIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 16 }} />}
+                                sx={{ color: "#fff", textTransform: "none", fontWeight: 700 }}
+                              >
+                                Track Return on {returnCourier?.label || "Courier"}
+                              </Button>
+                            </Box>
+                          )}
+                        </Stack>
+                      </Box>
+                    )}
+
                     {order.activeReturn && (
                       <Box sx={{ pt: 0.5 }}>
                         <Button
@@ -582,7 +702,12 @@ export default function OrderGrid({
                         <Typography variant="caption" sx={{ color: colors.muted }}>
                           {[item.artist, item.qty != null ? `Qty ${item.qty}` : ""].filter(Boolean).join(" · ")}
                         </Typography>
-                        {item.selectedProducts?.map((product) => (
+                        {item.productOptionName && (
+                          <Typography variant="caption" display="block" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            Option: {item.productOptionName}
+                          </Typography>
+                        )}
+                        {(!item.productOptionName || item.selectedProducts?.length > 1) && item.selectedProducts?.map((product) => (
                           <Typography key={product.id} variant="caption" display="block" sx={{ color: colors.muted }}>
                             {product.name} × {product.quantity}
                           </Typography>
@@ -646,10 +771,10 @@ export default function OrderGrid({
                 {order.address && (
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="overline" sx={{ color: colors.subtle, lineHeight: 1.4 }}>
-                      {order.deliveryMethod === "pickup" ? "Pickup Location" : "Ship to"}
+                      {order.deliveryMethod === "pickup" ? "Meet-up Delivery" : "Ship to"}
                     </Typography>
                     <Typography variant="body2" sx={{ color: colors.secondary, overflowWrap: "anywhere" }}>
-                      {order.address}
+                      {order.deliveryMethod === "pickup" ? "In-person meet-up (coordinate details in chat)" : order.address}
                     </Typography>
                   </Box>
                 )}
@@ -660,20 +785,74 @@ export default function OrderGrid({
                   gap={1}
                   sx={{ flexShrink: 0 }}
                 >
-                  {onTrackOrder && order.status !== "Cancelled" && (
+                  {onViewDetails && (
                     <Button
                       size="small"
                       variant="outlined"
-                      onClick={() => onTrackOrder(order)}
+                      onClick={() => onViewDetails(order)}
                       sx={{
                         color: colors.text,
                         borderColor: colors.buttonBorder,
                         textTransform: "none",
+                        fontWeight: 600,
                         "&:hover": { borderColor: colors.text, backgroundColor: colors.hover },
                       }}
                     >
-                      Track Order
+                      View Details
                     </Button>
+                  )}
+                  {onTrackOrder && order.status !== "Cancelled" && (
+                    hasActiveReturnTracking && returnTrackingUrl ? (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        component="a"
+                        href={returnTrackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        endIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 16 }} />}
+                        sx={{
+                          color: colors.text,
+                          borderColor: colors.buttonBorder,
+                          textTransform: "none",
+                          fontWeight: 700,
+                          "&:hover": { borderColor: colors.text, backgroundColor: colors.hover },
+                        }}
+                      >
+                        Track Return
+                      </Button>
+                    ) : (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          if (hasActiveReturnTracking) {
+                            onTrackOrder({
+                              ...order,
+                              isReturn: true,
+                              courier: order.activeReturn?.return_courier,
+                              trackingNumber: returnTrackingNumber,
+                              trackingUrl: returnTrackingUrl,
+                              activeReturn: order.activeReturn,
+                            });
+                          } else {
+                            onTrackOrder(order);
+                          }
+                        }}
+                        sx={{
+                          color: colors.text,
+                          borderColor: colors.buttonBorder,
+                          textTransform: "none",
+                          "&:hover": { borderColor: colors.text, backgroundColor: colors.hover },
+                        }}
+                      >
+                        {hasActiveReturnTracking
+                          ? "Track Return"
+                          : order.deliveryMethod === "pickup"
+                          ? "Meet-up Details"
+                          : "Track Order"}
+                      </Button>
+                    )
                   )}
                   {(order.sellerId || items[0]?.sellerId) && (
                     <Button

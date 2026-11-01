@@ -21,6 +21,7 @@ import {
   fetchArtworkReviews,
   submitBuyerReview,
 } from "../../../api/buyer/reviewsAPI";
+import { isAuthenticated } from "../../../../utils/auth";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -52,8 +53,7 @@ function ArtworkReviewsContent({ artworkId }) {
   const savingRef = useRef(false);
   const submitController = useRef(null);
   const mounted = useRef(false);
-  const token = localStorage.getItem("buyer_token");
-  const signedIn = Boolean(token);
+  const signedIn = isAuthenticated("buyer");
 
   useEffect(() => {
     mounted.current = true;
@@ -101,7 +101,7 @@ function ArtworkReviewsContent({ artworkId }) {
     loadReviews();
     loadEligibility();
     return () => controller.abort();
-  }, [artworkId, page, refresh, signedIn, token]);
+  }, [artworkId, page, refresh, signedIn]);
 
   const canReview = signedIn && !eligibilityLoading && eligibility?.can_review === true;
   const validRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;

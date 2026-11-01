@@ -5,7 +5,6 @@ export const STATUS_TABS = [
   "Packed",
   "Shipped",
   "Delivered",
-  "Cancelled",
   "Refunded",
 ];
 
@@ -45,7 +44,6 @@ export const getTabCounts = (orders = []) => {
     Packed: 0,
     Shipped: 0,
     Delivered: 0,
-    Cancelled: 0,
     Refunded: 0,
   };
   if (!Array.isArray(orders)) return counts;

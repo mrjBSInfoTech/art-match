@@ -1,19 +1,12 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/buyer",
   timeout: 30000, 
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("buyer_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
   if (error.response) {
@@ -39,9 +32,9 @@ const handleError = (error) => {
 // Fetch all address
 export const fetchAddresses = async () => {
   try {
-    console.log("Fetching all addresses");
+
     const res = await api.get("/addresses");
-    console.log("Addresses fetched:", res.data);
+
     return res.data;
   } catch (error) {
     console.error("Error in fetchAddresses:", error);
@@ -52,9 +45,9 @@ export const fetchAddresses = async () => {
 // Fetch single address by ID
 export const fetchAddressById = async (id) => {
   try {
-    console.log("Fetching address by ID:", id);
+
     const res = await api.get(`/addresses/${id}`);
-    console.log("Address fetched:", res.data);
+
     return res.data;
   } catch (error) {
     console.error("Error in fetchAddressById:", error);

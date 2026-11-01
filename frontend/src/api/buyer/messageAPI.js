@@ -1,17 +1,12 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/chat",
   timeout: 10000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("buyer_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
   const message = error.response?.data?.message || error.message || "Request failed";
@@ -91,10 +86,8 @@ export const fetchBuyerNotifications = async () => {
 
 export const fetchBuyerParcelPhoto = async (photoPath) => {
   try {
-    const token = localStorage.getItem("buyer_token");
     const response = await axios.get(`http://localhost:5000${photoPath}`, {
       responseType: "blob",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     return response.data;
   } catch (error) {
@@ -170,6 +163,7 @@ export const resetBuyerChatRecoveryBackup = async () => {
 };
 
 export const fetchSellerChatKey = async (sellerId) => {
+  if (!sellerId || sellerId === "undefined" || Number.isNaN(Number(sellerId))) return null;
   const res = await api.get(`/buyer/keys/${sellerId}`);
-  return res.data.publicKey;
+  return res.data?.publicKey || null;
 };

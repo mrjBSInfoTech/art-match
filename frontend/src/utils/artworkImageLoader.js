@@ -36,7 +36,7 @@ export function createArtworkImageLoader({
     for (let attempt = 0; attempt < 4; attempt++) {
       while (pauseUntil > now()) await wait(pauseUntil - now());
       let response;
-      try { response = await fetcher(url, { cache: "no-store", ...options }); }
+      try { response = await fetcher(url, { cache: "no-store", credentials: "include", ...options }); }
       catch (error) {
         if (attempt === 3 || error.name === "AbortError") throw error;
         await wait(500 * (attempt + 1));
@@ -68,7 +68,7 @@ export function createArtworkImageLoader({
     if (pending.has(key)) return pending.get(key);
     const promise = schedule(async () => {
       const response = await request(`${API_BASE_URL}/api/artwork-image-url/${encodeURIComponent(filename)}?variant=${encodeURIComponent(variant)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: token && token.includes(".") ? { Authorization: `Bearer ${token}` } : {},
       });
       const { url } = await response.json();
       const signed = new URL(url, API_BASE_URL);

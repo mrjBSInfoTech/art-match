@@ -123,7 +123,7 @@ export default function Checkout() {
     const selectedProducts = Array.isArray(item?.selected_products) ? item.selected_products : [];
     return selectedProducts.length
       ? selectedProducts.reduce((total, selection) =>
-        total + Number(selection.unit_price || 0) * Number(selection.quantity || 0), 0)
+        total + Number(selection.unit_price || item?.price || 0) * Number(selection.quantity || 0), 0)
       : Number(item?.price || 0) * getItemQuantity(item);
   }, [getItemQuantity]);
   const [loading, setLoading] = useState(false);
@@ -429,7 +429,8 @@ export default function Checkout() {
   };
 
   const handleCheckoutQuantityChange = async (item, rawNextQuantity) => {
-    if (!isProductItem(item) || item.selected_products?.length || loading || submitting.current) return;
+    const selectedProducts = Array.isArray(item.selected_products) ? item.selected_products : [];
+    if (!isProductItem(item) || selectedProducts.length > 1 || loading || submitting.current) return;
     const remaining = getRemainingStock(item);
     const maxAllowed = remaining !== null ? Math.max(1, remaining) : 999;
     const nextQuantity = Math.min(maxAllowed, Math.max(1, Number(rawNextQuantity) || 1));
@@ -440,11 +441,17 @@ export default function Checkout() {
       [artworkIdKey]: nextQuantity,
     }));
     setCartItems((prev) =>
-      prev.map((entry) =>
-        String(entry.artwork_id) === artworkIdKey
-          ? { ...entry, quantity: nextQuantity }
-          : entry,
-      ),
+      prev.map((entry) => {
+        if (String(entry.artwork_id) !== artworkIdKey) return entry;
+        const entrySelections = Array.isArray(entry.selected_products) ? entry.selected_products : [];
+        return {
+          ...entry,
+          quantity: nextQuantity,
+          selected_products: entrySelections.length === 1
+            ? [{ ...entrySelections[0], quantity: nextQuantity }]
+            : entrySelections,
+        };
+      }),
     );
 
     try {
@@ -611,47 +618,26 @@ export default function Checkout() {
       );
 
       /*
-       * CASH ON DELIVERY
-       */
-      if (paymentMethod === "cod") {
-        navigate("/buyer/order-finish", {
-          state: {
-            orders: result.orders,
-            paymentMethod,
-            deliveryMethod,
-          },
-        });
-
-        return;
-      }
-
-      /*
        * PAYMONGO
        *
        * Backend creates the checkout session
        * and gives us the PayMongo checkout URL.
        */
-      if (paymentMethod === "paymongo") {
-        if (!result?.checkout_url) {
-          throw new Error("PayMongo checkout URL was not returned.");
-        }
-
-        try {
-          if (result.payment_reference) sessionStorage.setItem("paymongo_payment_reference", result.payment_reference);
-        } catch {
-          // The return URL also includes the reference when browser storage is unavailable.
-        }
-
-        /*
-         * Leave ArtMatch and open the secure
-         * PayMongo Hosted Checkout page.
-         */
-        window.location.assign(result.checkout_url);
-
-        return;
+      if (!result?.checkout_url) {
+        throw new Error("PayMongo checkout URL was not returned.");
       }
 
-      throw new Error("Unsupported payment method.");
+      try {
+        if (result.payment_reference) sessionStorage.setItem("paymongo_payment_reference", result.payment_reference);
+      } catch {
+        // The return URL also includes the reference when browser storage is unavailable.
+      }
+
+      /*
+       * Leave ArtMatch and open the secure
+       * PayMongo Hosted Checkout page.
+       */
+      window.location.assign(result.checkout_url);
     } catch (orderError) {
       setError(orderError.message || "Unable to place your order");
       if (orderError.code === "voucher_invalid") {
@@ -951,8 +937,8 @@ export default function Checkout() {
                   />
                   <DeliveryOptionCard
                     value="pickup"
-                    title="Pickup"
-                    subtitle="Collect the order from the seller's designated pickup location (No shipping fee)"
+                    title="Meet-up Delivery"
+                    subtitle="Personally meet with the seller to receive your order at a mutually agreed location (No shipping fee)"
                     icon={<StorefrontOutlinedIcon color="error" />}
                     selectedValue={deliveryMethod}
                     onSelect={setDeliveryMethod}
@@ -1115,14 +1101,14 @@ export default function Checkout() {
                   </>
                 ) : (
                   <>
-                    {/* Seller Pickup Location(s) */}
+                    {/* Meet-up Delivery Details */}
                     <Typography
                       variant="caption"
                       color="text.secondary"
                       fontWeight={700}
                       sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
                     >
-                      Seller Pickup Location{storefrontGroups.length > 1 ? "s" : ""}
+                      Meet-up Delivery Details
                     </Typography>
                     <Stack spacing={1.5} sx={{ mt: 1 }}>
                       {storefrontGroups.map((group) => (
@@ -1150,17 +1136,17 @@ export default function Checkout() {
                                     {group.shopName}
                                   </Typography>
                                   <Chip
-                                    label="Free Pickup"
+                                    label="Free Meet-up"
                                     size="small"
                                     color="success"
-                                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700, color: "#fff" }}
                                   />
                                 </Stack>
                                 <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
-                                  {group.pickupLocation}
+                                  Meet-up delivery arranged directly with {group.artistName}.
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                                  Coordinate your pickup schedule directly with {group.artistName}.
+                                  After placing your order, coordinate the meetup location, date, and time via Messages.
                                 </Typography>
                               </Box>
                             </Stack>
@@ -1246,19 +1232,6 @@ export default function Checkout() {
                     selectedValue={paymentMethod}
                     disabled={loading}
                   />
-
-                  <PaymentOptionCard
-                    value="cod"
-                    title={isDoorToDoor ? "Cash on Delivery" : "Cash on Pickup / Delivery"}
-                    subtitle={
-                      isDoorToDoor
-                        ? "Pay in cash upon artwork delivery"
-                        : "Pay in cash when collecting your order from the seller"
-                    }
-                    icon={<LocalAtmOutlinedIcon color="error" />}
-                    selectedValue={paymentMethod}
-                    disabled={loading}
-                  />
                 </RadioGroup>
                 {paymentMethod === "paymongo" && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
@@ -1266,14 +1239,6 @@ export default function Checkout() {
                     e-wallet, card, and QR payment options. Your purchase appears in
                     Orders after payment is confirmed.
                   </Typography>
-                )}
-
-                {paymentMethod === "cod" && (
-                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-                    {isDoorToDoor
-                      ? "Pay the order amount in cash when your artwork arrives."
-                      : "Pay the order amount in cash when picking up your order from the seller."}
-                  </Alert>
                 )}
               </Paper>
             </Stack>
@@ -1311,8 +1276,12 @@ export default function Checkout() {
               >
                 {cartItems.map((item) => {
                   const qty = getItemQuantity(item);
-                  const unitPrice = Number(item.price || 0);
                   const selectedProducts = Array.isArray(item.selected_products) ? item.selected_products : [];
+                  const isSingleVariant = selectedProducts.length === 1;
+                  const itemImage = (isSingleVariant && selectedProducts[0].image) ? selectedProducts[0].image : item.image;
+                  const itemUnitPrice = isSingleVariant
+                    ? Number(selectedProducts[0].unit_price || item.price || 0)
+                    : Number(item.price || 0);
                   const lineTotal = getItemSubtotal(item);
                   const isProduct = isProductItem(item);
                   const remainingStock = getRemainingStock(item);
@@ -1336,7 +1305,7 @@ export default function Checkout() {
                     >
                       <Stack direction="row" spacing={1.75} alignItems="flex-start">
                         <WatermarkedArtworkImage
-                          image={item.image}
+                          image={itemImage}
                           alt={item.title || "Artwork"}
                           sx={{
                             width: 60,
@@ -1353,19 +1322,23 @@ export default function Checkout() {
                           <Typography variant="subtitle2" fontWeight={700} noWrap>
                             {item.title}
                           </Typography>
+                          {isSingleVariant && (
+                            <Typography variant="caption" color="primary.main" fontWeight={700} sx={{ display: "block" }}>
+                              Option: {selectedProducts[0].name}
+                            </Typography>
+                          )}
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                             Seller: {item.artist || item.shop_name || "Independent artist"}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                            Type: {typeLabel}
-                            {variationParts.length > 0 ? ` · ${variationParts.join(" · ")}` : ""}
-                          </Typography>
+                         
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-                            {selectedProducts.length ? "Selected products:" : `Unit Price: ₱${unitPrice.toLocaleString()} × Qty: ${qty}`}
+                            {selectedProducts.length > 1
+                              ? "Selected products:"
+                              : `Unit Price: ₱${itemUnitPrice.toLocaleString()} × Quantity: ${qty}`}
                           </Typography>
-                          {selectedProducts.map((selection) => (
+                          {selectedProducts.length > 1 && selectedProducts.map((selection) => (
                             <Typography key={selection.id} variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                              {selection.name} × {selection.quantity} @ {currency(selection.unit_price)}
+                              {selection.name} × {selection.quantity} @ {currency(selection.unit_price || item.price)}
                             </Typography>
                           ))}
                           {item.order_note && (
@@ -1374,7 +1347,7 @@ export default function Checkout() {
                             </Typography>
                           )}
 
-                          {isProduct && !selectedProducts.length && (
+                          {isProduct && selectedProducts.length <= 1 && (
                             <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
                               <IconButton
                                 size="small"
@@ -1498,11 +1471,11 @@ export default function Checkout() {
                 />
                 <SummaryRow
                   label="Delivery Option"
-                  value={isDoorToDoor ? "Door-to-Door" : "Pickup"}
+                  value={isDoorToDoor ? "Door-to-Door" : "Meet-up Delivery"}
                 />
                 <SummaryRow
                   label="Shipping Fee"
-                  value={isDoorToDoor ? "₱0 (Paid to courier)" : "₱0 (Free Pickup)"}
+                  value={isDoorToDoor ? "₱0 (Paid to courier)" : "₱0 (Free Meet-up)"}
                 />
                 {isDoorToDoor ? (
                   <Typography
@@ -1518,7 +1491,7 @@ export default function Checkout() {
                     color="text.secondary"
                     sx={{ display: "block", mt: -1, mb: 0.5 }}
                   >
-                    No shipping fee for Pickup orders. Coordinate pickup schedule with the seller.
+                    No shipping fee for Meet-up Delivery. Coordinate the meetup schedule with the seller via chat.
                   </Typography>
                 )}
                 {appliedVoucher && (
@@ -1563,9 +1536,7 @@ export default function Checkout() {
               >
                 {loading
                   ? "Processing..."
-                  : paymentMethod === "paymongo"
-                    ? "Continue to Secure Payment"
-                    : "Place COD Order"}
+                  : "Continue to Secure Payment"}
               </Button>
             </Paper>
           </Grid>

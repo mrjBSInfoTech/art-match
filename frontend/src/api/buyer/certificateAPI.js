@@ -3,15 +3,12 @@ import axios from "axios";
 const apiRoot = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: `${apiRoot}/buyer/certificates`,
   timeout: 30000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("buyer_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 export async function fetchBuyerCertificate(orderItemId, { signal } = {}) {
   try {

@@ -74,10 +74,18 @@ export default function ProductSelectionDialog({
   }, [open, artwork?.artwork_id, artwork?.id]);
 
   const selectedProducts = options
-    .map((option) => ({
-      id: option.id,
-      quantity: Number(quantities[option.id] || 0),
-    }))
+    .map((option) => {
+      const unitPrice = priceMode === "manual" || (option.price != null && option.price !== "")
+        ? Number(option.price)
+        : Number(artwork?.price || 0);
+      return {
+        id: option.id,
+        name: option.name,
+        image: option.image || null,
+        unit_price: unitPrice,
+        quantity: Number(quantities[option.id] || 0),
+      };
+    })
     .filter((option) => option.quantity > 0);
 
   const totalQuantity = getSelectedProductsTotalQuantity(selectedProducts);

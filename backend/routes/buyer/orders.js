@@ -206,6 +206,8 @@ const groupOrderRows = (rows) => {
 
         price: Number(row.unit_price),
         originalPrice: Number(row.original_unit_price ?? row.unit_price),
+        productOptionId: row.product_option_id || null,
+        productOptionName: row.product_option_name || null,
         selectedProducts: row.selected_products
           ? parseSelectedProducts(row.selected_products)
           : null,
@@ -283,6 +285,8 @@ const ordersSql = `
     i.unit_price,
     i.original_unit_price,
     i.quantity,
+    i.product_option_id,
+    i.product_option_name,
     i.selected_products,
     i.order_note,
     i.line_total,
@@ -602,7 +606,13 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     });
   }
 
-  if (!paymentMethods.has(paymentMethod)) {
+  if (paymentMethod === "cod") {
+    return res.status(400).json({
+      message: "Cash on Delivery is no longer available. Please select an online payment method.",
+    });
+  }
+
+  if (paymentMethod !== "paymongo") {
     return res.status(400).json({
       message: "Choose a valid payment method",
     });
@@ -1024,7 +1034,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           "Pending",
           paymentReference,
 
-          isPickup ? `Pickup: ${sellerPickupLocation}` : address.street_name,
+          isPickup ? `Meet-up: ${sellerPickupLocation}` : address.street_name,
           isPickup ? "" : address.barangay,
           isPickup ? "" : address.city,
           isPickup ? "" : address.province,
@@ -1046,6 +1056,17 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
        */
       for (const item of sellerItems) {
         const priced = pricedByArtwork.get(Number(item.artwork_id));
+        const selections = Array.isArray(item.selected_products) ? item.selected_products : [];
+        const isSingleOption = selections.length === 1;
+        const optionId = isSingleOption
+          ? (selections[0].id || null)
+          : (selections.length > 1 ? selections.map((s) => s.id).join(",") : null);
+        const optionName = isSingleOption
+          ? (selections[0].name || null)
+          : (selections.length > 1 ? selections.map((s) => `${s.name} (x${s.quantity})`).join(", ") : null);
+        const itemImage = (isSingleOption && selections[0].image) ? selections[0].image : item.image;
+        const totalQuantity = Number(item.order_quantity || item.quantity || 1);
+
         await connection.query(
           `INSERT INTO marketplace_order_item
           (
@@ -1057,13 +1078,15 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             unit_price,
             original_unit_price,
             quantity,
+            product_option_id,
+            product_option_name,
             selected_products,
             line_total,
             original_line_total,
             order_note
           )
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
           )`,
 
           [
@@ -1071,11 +1094,13 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             item.artwork_id,
             item.title,
             item.artist_name,
-            item.image,
-            priced.chargedCentavos / Number(item.order_quantity || item.quantity || 1) / 100,
-            priced.originalCentavos / Number(item.order_quantity || item.quantity || 1) / 100,
-            Number(item.order_quantity || item.quantity || 1),
-            item.selected_products?.length ? JSON.stringify(item.selected_products) : null,
+            itemImage,
+            priced.chargedCentavos / totalQuantity / 100,
+            priced.originalCentavos / totalQuantity / 100,
+            totalQuantity,
+            optionId,
+            optionName,
+            selections.length ? JSON.stringify(selections) : null,
             priced.chargedCentavos / 100,
             priced.originalCentavos / 100,
             item.order_note || null,

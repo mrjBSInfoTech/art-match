@@ -28,6 +28,7 @@ import { getSearchColor } from "../../utils/artworkColors";
 import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from "../../utils/artworkPrice";
 import { scoreArtworkSearch } from "../../utils/artworkSearch";
 import { matchesArtworkCategoryFilters } from "../../utils/artworkCategoryFilters";
+import { isAuthenticated } from "../../../utils/auth";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
@@ -301,7 +302,7 @@ export default function Shop() {
     };
 
     const loadFavoriteIds = async () => {
-      if (!localStorage.getItem("buyer_token")) {
+      if (!isAuthenticated("buyer")) {
         if (active) setFavoriteIds(new Set());
         return;
       }
@@ -324,7 +325,7 @@ export default function Shop() {
 
   const handleFavoriteToggle = async (artworkId) => {
     const artworkKey = String(artworkId);
-    if (!localStorage.getItem("buyer_token")) {
+    if (!isAuthenticated("buyer")) {
       navigate("/buyer/login");
       return;
     }

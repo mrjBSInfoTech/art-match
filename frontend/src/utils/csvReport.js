@@ -37,10 +37,17 @@ export const downloadCsvReport = (rows, columns, filename) => {
 export const downloadPdfReport = async (rows, columns, filename) => {
   if (!rows.length) return false;
 
-  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+  const [jspdfModule, autoTableModule] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
   ]);
+  const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+  const autoTable =
+    typeof autoTableModule.default === "function"
+      ? autoTableModule.default
+      : autoTableModule.default?.default ||
+        autoTableModule.default?.autoTable ||
+        autoTableModule.autoTable;
   const doc = new jsPDF({
     orientation: columns.length > 6 ? "landscape" : "portrait",
     unit: "mm",

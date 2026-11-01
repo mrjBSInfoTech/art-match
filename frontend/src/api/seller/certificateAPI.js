@@ -1,15 +1,12 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: `${(import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "")}/seller/certificates`,
   timeout: 30000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("seller_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
   throw new Error(error.response?.data?.message || error.message || "Unable to publish certificate");

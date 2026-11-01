@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { Link } from "react-router-dom";
 import {
   Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   Divider, FormControl, FormHelperText, MenuItem, Select, Slide, Stack, Typography,
@@ -61,7 +62,7 @@ const getReturnDeadlineDisplay = (returnDeadline, deliveredAt) => {
   if (deliveredAt) {
     const base = new Date(deliveredAt);
     if (!Number.isNaN(base.getTime())) {
-      const deadline = new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const deadline = new Date(base.getTime() + 4 * 24 * 60 * 60 * 1000);
       return formatReceiptDate(deadline);
     }
   }
@@ -111,20 +112,26 @@ export default function OrderInfo({
       ? order?.customer || "Not provided"
       : "Pending");
 
+  const isMeetup = order?.deliveryMethod === "pickup";
   const receiptRows = order
     ? [
         { label: "Receipt No.:", value: order.id || order.orderNumber || "N/A" },
         { label: "Date Received:", value: formatReceiptDateTime(order.deliveredAt || order.receivedAt) },
         { label: "Buyer:", value: order.customer || "Not provided" },
         { label: "Order Date:", value: formatReceiptDate(order.date) },
+        { label: "Delivery Method:", value: isMeetup ? "Meet-up Delivery" : "Door-to-Door" },
         { label: "Item:", value: itemTitles },
         { label: "Qty:", value: String(totalQty) },
         { label: "Amount:", value: formatReceiptAmount(order.total), highlight: true },
         { label: "Payment:", value: getPaymentMethodLabel(order), isPayment: true },
-        { label: "Courier:", value: courierDisplay },
-        { label: "Tracking No.:", value: order.trackingNumber || "N/A" },
+        ...(isMeetup
+          ? [{ label: "Courier:", value: "Personal meet-up handover (No courier)" }]
+          : [
+              { label: "Courier:", value: courierDisplay },
+              { label: "Tracking No.:", value: order.trackingNumber || "N/A" },
+            ]),
         { label: "Received by:", value: receivedByDisplay },
-        { label: "Delivery Address:", value: order.address || "Not provided" },
+        { label: isMeetup ? "Meet-up Location:" : "Delivery Address:", value: order.address || "Not provided" },
         { label: "Return deadline:", value: getReturnDeadlineDisplay(order.returnDeadline, order.deliveredAt) },
       ]
     : [];
@@ -258,30 +265,37 @@ export default function OrderInfo({
               )}
             </Box>
 
-            {receiptPhotos.length > 0 && (
+            {(receiptPhotos.length > 0 || order.deliveryProof?.notes) && (
               <Box sx={{ mt: 2 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1, fontSize: 12, fontWeight: 700 }}>
                   Delivery / receipt proof
                 </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(72px, 1fr))", gap: 1 }}>
-                  {receiptPhotos.map((photo, index) => (
-                    <Box
-                      key={photo?.url || photo || `${order.id}-receipt-${index}`}
-                      component="img"
-                      src={photo?.url || photo}
-                      alt={`Receipt proof ${index + 1}`}
-                      sx={{
-                        width: "100%",
-                        height: 80,
-                        objectFit: "cover",
-                        borderRadius: 1.5,
-                        border: "1px solid",
-                        borderColor: "divider",
-                        bgcolor: "background.default",
-                      }}
-                    />
-                  ))}
-                </Box>
+                {order.deliveryProof?.notes && (
+                  <Typography variant="body2" sx={{ mb: 1, fontSize: 12, color: "text.secondary", whiteSpace: "pre-wrap", p: 1.25, bgcolor: "action.hover", borderRadius: 1.5 }}>
+                    <strong>Completion note:</strong> {order.deliveryProof.notes}
+                  </Typography>
+                )}
+                {receiptPhotos.length > 0 && (
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(72px, 1fr))", gap: 1 }}>
+                    {receiptPhotos.map((photo, index) => (
+                      <Box
+                        key={photo?.url || photo || `${order.id}-receipt-${index}`}
+                        component="img"
+                        src={photo?.url || photo}
+                        alt={`Receipt proof ${index + 1}`}
+                        sx={{
+                          width: "100%",
+                          height: 80,
+                          objectFit: "cover",
+                          borderRadius: 1.5,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          bgcolor: "background.default",
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
               </Box>
             )}
 
@@ -300,7 +314,12 @@ export default function OrderInfo({
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
                       Qty {item.qty} · {formatCurrency(item.price)} each
                     </Typography>
-                    {item.selectedProducts?.map((product) => (
+                    {item.productOptionName && (
+                      <Typography variant="caption" color="primary.main" display="block" sx={{ fontWeight: 600 }}>
+                        Option: {item.productOptionName}
+                      </Typography>
+                    )}
+                    {(!item.productOptionName || item.selectedProducts?.length > 1) && item.selectedProducts?.map((product) => (
                       <Typography key={product.id} variant="caption" color="text.secondary" display="block">
                         {product.name} × {product.quantity}
                       </Typography>
@@ -346,6 +365,16 @@ export default function OrderInfo({
 
       <DialogActions sx={{ justifyContent: "flex-end", flexWrap: "wrap", gap: 1,
         px: 2.5, py: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+        {order?.customerId && (
+          <Button
+            component={Link}
+            to={`/seller/messages?buyer=${order.customerId}`}
+            variant="outlined"
+            sx={{ fontSize: 11, fontWeight: 700, textTransform: "none" }}
+          >
+            Chat with Buyer
+          </Button>
+        )}
         <Button variant="contained" startIcon={<PrintOutlinedIcon />} disabled={!order || !canFulfillOrder(order)}
           onClick={onPrint} sx={{ fontSize: 11, fontWeight: 700, color:"#fff" }}>
           Print Parcel Label

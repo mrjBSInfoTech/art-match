@@ -238,13 +238,20 @@ export function databaseFixture(overrides = {}) {
         return [{ insertId: order.order_id, affectedRows: 1 }];
       }
       if (/^INSERT INTO marketplace_order_item/i.test(sql)) {
-        state.orderItems.push({
-          order_id: params[0], artwork_id: params[1], title: params[2],
-          unit_price: params[5], original_unit_price: params[6],
-          quantity: Number(params[7] ?? 1), selected_products: params[8],
-          line_total: params[9], original_line_total: params[10],
-          order_note: params[11],
-        });
+        const match = sql.match(/^INSERT INTO marketplace_order_item\s*\(([^)]+)\)/is);
+        if (match) {
+          const columns = match[1].split(",").map(value => value.trim());
+          const item = Object.fromEntries(columns.map((column, index) => [column, params[index]]));
+          state.orderItems.push(item);
+        } else {
+          state.orderItems.push({
+            order_id: params[0], artwork_id: params[1], title: params[2],
+            unit_price: params[5], original_unit_price: params[6],
+            quantity: Number(params[7] ?? 1), selected_products: params[8],
+            line_total: params[9], original_line_total: params[10],
+            order_note: params[11],
+          });
+        }
         return [{ insertId: state.orderItems.length, affectedRows: 1 }];
       }
       if (/^INSERT INTO seller_payment_split/i.test(sql)) {

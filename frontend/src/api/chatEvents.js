@@ -13,9 +13,10 @@ export const subscribeToChatEvents = (role, onEvent) => {
       activeController = controller;
 
       try {
-        const token = localStorage.getItem(`${role}_token`);
+
         const response = await fetch(`${chatEventsUrl}/${role}/events`, {
-          headers: { Authorization: `Bearer ${token || ""}` },
+          credentials: "include",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
           signal: controller.signal,
         });
 

@@ -2,20 +2,13 @@ import axios from "axios";
 
 // Create an Axios instance (you can set global options here)
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api",
   timeout: 5000, // wait max 5 seconds
 });
 
 // This interceptor will automatically add the Authorization header with the token for every request
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 // Helper function to handle errors globally
 const handleError = (error) => {

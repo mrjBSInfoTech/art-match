@@ -105,6 +105,7 @@ export default function Messages() {
   const [searchParams] = useSearchParams();
   const targetConversationId = searchParams.get("conversation")?.trim() || "";
   const targetReturnId = searchParams.get("return")?.trim() || "";
+  const targetBuyerId = searchParams.get("buyer")?.trim() || searchParams.get("customer")?.trim() || "";
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -320,7 +321,7 @@ export default function Messages() {
           }
 
           let keyAgreementPublicKey = latestMessage.sender_public_key;
-          if (latestMessage.sender_type === "seller") {
+          if (latestMessage.sender_type === "seller" && chat.other_id) {
             const otherId = String(chat.other_id);
             if (!previewPublicKeysRef.current.has(otherId)) {
               const keyRequest = fetchBuyerChatKey(chat.other_id).catch(
@@ -380,6 +381,32 @@ export default function Messages() {
     setSelectedConversationId(Number(targetConversationId));
     setSelectedNotificationId(null);
   }, [targetConversationId]);
+
+  useEffect(() => {
+    if (!targetBuyerId || targetConversationId) return undefined;
+    let active = true;
+
+    const openBuyerConversation = async () => {
+      try {
+        setError("");
+        const result = await startSellerConversation(targetBuyerId);
+        const updated = await loadConversationList();
+        if (!active) return;
+        setConversations(
+          clearConversationUnreadCount(updated || [], result.conversation_id),
+        );
+        setSelectedNotificationId(null);
+        setSelectedConversationId(result.conversation_id);
+      } catch (err) {
+        if (active) setError(err.message || "Unable to open buyer conversation");
+      }
+    };
+
+    openBuyerConversation();
+    return () => {
+      active = false;
+    };
+  }, [encryptionReady, loadConversationList, targetBuyerId, targetConversationId]);
 
   useEffect(() => {
     if (!selectedConversationId) {
@@ -493,10 +520,13 @@ export default function Messages() {
       try {
         const data = await fetchSellerMessages(selectedConversationId);
         let recipientPublicKey = null;
-        try {
-          recipientPublicKey = await fetchBuyerChatKey(activeChat?.other_id);
-        } catch {
-          // Show the existing encrypted-message fallback if the buyer key is unavailable.
+        const buyerId = activeChat?.other_id || (data && data.find((m) => m.sender_type === "buyer")?.sender_id);
+        if (buyerId) {
+          try {
+            recipientPublicKey = await fetchBuyerChatKey(buyerId);
+          } catch {
+            // Show the existing encrypted-message fallback if the buyer key is unavailable.
+          }
         }
         const decryptedMessages = await Promise.all(
           (data || []).map(async (msg) => {

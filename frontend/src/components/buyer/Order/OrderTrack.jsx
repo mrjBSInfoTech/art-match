@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -18,6 +19,8 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import { SHIPMENT_COURIERS, getShipmentCourier } from "../../../utils/shipmentCouriers.js";
@@ -70,28 +73,47 @@ export default function OrderTrack({
   const [internalTrackingUrl, setInternalTrackingUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
+  let navigate = null;
+  try {
+    navigate = useNavigate();
+  } catch {
+    navigate = null;
+  }
+
   const effectiveOrder = fulfillmentTarget?.order || fulfillmentTarget || order;
+  const isReturn = Boolean(
+    fulfillmentTarget?.status === "Return Shipped" ||
+    effectiveOrder?.isReturn ||
+    effectiveOrder?.activeReturn?.status === "Return Shipped" ||
+    effectiveOrder?.return_courier ||
+    effectiveOrder?.activeReturn?.return_courier
+  );
 
   useEffect(() => {
     if (effectiveOrder) {
-      const match = getShipmentCourier(effectiveOrder.courier || effectiveOrder.return_courier);
+      const activeCourier = isReturn
+        ? (effectiveOrder.return_courier || effectiveOrder.activeReturn?.return_courier || effectiveOrder.courier)
+        : effectiveOrder.courier;
+      const activeNum = isReturn
+        ? (effectiveOrder.return_tracking_number || effectiveOrder.activeReturn?.return_tracking_number || effectiveOrder.trackingNumber)
+        : effectiveOrder.trackingNumber;
+      const activeUrl = isReturn
+        ? (effectiveOrder.return_tracking_url || effectiveOrder.activeReturn?.return_tracking_url || effectiveOrder.trackingUrl)
+        : effectiveOrder.trackingUrl;
+
+      const match = getShipmentCourier(activeCourier);
       if (courier === undefined) {
         setInternalCourier(match?.value || SHIPMENT_COURIERS[0]?.value || "");
       }
       if (trackingNumber === undefined) {
-        setInternalTrackingNumber(effectiveOrder.trackingNumber || effectiveOrder.return_tracking_number || "");
+        setInternalTrackingNumber(activeNum || "");
       }
       if (trackingUrl === undefined) {
-        setInternalTrackingUrl(
-          effectiveOrder.trackingUrl ||
-          effectiveOrder.return_tracking_url ||
-          match?.trackingUrl ||
-          ""
-        );
+        setInternalTrackingUrl(activeUrl || match?.trackingUrl || "");
       }
       setCopied(false);
     }
-  }, [effectiveOrder, courier, trackingNumber, trackingUrl]);
+  }, [effectiveOrder, isReturn, courier, trackingNumber, trackingUrl]);
 
   const activeCourierValue = courier !== undefined ? courier : internalCourier;
   const activeTrackingNumber = trackingNumber !== undefined ? trackingNumber : internalTrackingNumber;
@@ -100,17 +122,16 @@ export default function OrderTrack({
   const secureTrackingUrl = getSecureTrackingUrl(activeTrackingUrl || selectedCourier?.trackingUrl);
 
   const handleCourierChange = (value) => {
+    const match = getShipmentCourier(value);
+    const newTrackingUrl = match?.trackingUrl || "";
     if (onCourierChange) {
       onCourierChange(value);
-      const match = getShipmentCourier(value);
-      if (match?.trackingUrl && setTrackingUrl && !trackingUrl) {
-        setTrackingUrl(match.trackingUrl);
-      }
+      if (setTrackingNumber) setTrackingNumber("");
+      if (setTrackingUrl) setTrackingUrl(newTrackingUrl);
     } else {
       setInternalCourier(value);
-      const match = getShipmentCourier(value);
       setInternalTrackingNumber("");
-      setInternalTrackingUrl(match?.trackingUrl || "");
+      setInternalTrackingUrl(newTrackingUrl);
       if (setStatusError) setStatusError("");
     }
   };
@@ -143,7 +164,7 @@ export default function OrderTrack({
     }
   };
 
-  const isReturn = fulfillmentTarget?.status === "Return Shipped";
+  const isMeetupOrder = !isReturn && !onSubmit && effectiveOrder?.deliveryMethod === "pickup";
   const validReturnTracking = !activeTrackingUrl.trim() || Boolean(getSecureTrackingUrl(activeTrackingUrl.trim()));
 
   return (
@@ -175,8 +196,14 @@ export default function OrderTrack({
           borderBottom: `1px solid ${theme?.palette?.divider || "#e0e0e0"}`,
         }}
       >
-        <LocalShippingOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
-        {isReturn
+        {isMeetupOrder ? (
+          <StorefrontOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
+        ) : (
+          <LocalShippingOutlinedIcon sx={{ color: "error.main", fontSize: 20 }} />
+        )}
+        {isMeetupOrder
+          ? "Meet-up Delivery Details"
+          : isReturn
           ? "Return Tracking Details"
           : onSubmit
           ? "Add Tracking Link"
@@ -198,102 +225,191 @@ export default function OrderTrack({
         </Button>
       </DialogTitle>
       <DialogContent dividers>
-        <Stack spacing={2.5}>
-          {statusError && <Alert severity="error">{statusError}</Alert>}
+        {isMeetupOrder ? (
+          <Stack spacing={2.5}>
+            {statusError && <Alert severity="error">{statusError}</Alert>}
+            <Alert severity="info" icon={<StorefrontOutlinedIcon fontSize="inherit" />}>
+              This order is fulfilled through <strong>Meet-up Delivery</strong>. The seller personally meets you at a mutually agreed campus or local spot to hand over the artwork.
+            </Alert>
 
-          <Typography variant="body2" color="text.secondary">
-            {isReturn
-              ? "Choose the return shipping courier and enter tracking details so the delivery can be monitored."
-              : onSubmit
-              ? "Choose the courier and add its tracking information. The recipient will use these details to track the delivery."
-              : "Select any shipping courier to view tracking details or open its official tracking portal."}
-          </Typography>
-
-          <TextField
-            select
-            label="Courier"
-            required={!isReturn}
-            value={activeCourierValue}
-            onChange={(event) => handleCourierChange(event.target.value)}
-            disabled={saving}
-            fullWidth
-          >
-            {SHIPMENT_COURIERS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          {selectedCourier?.trackingNumberLabel && (
-            <TextField
-              label={selectedCourier.trackingNumberLabel}
-              required={Boolean(onSubmit && !isReturn)}
-              value={activeTrackingNumber}
-              onChange={(event) => handleTrackingNumberChange(event.target.value)}
-              inputProps={{ maxLength: 100 }}
-              InputProps={{
-                endAdornment: activeTrackingNumber ? (
-                  <InputAdornment position="end">
-                    <Button
-                      size="small"
-                      startIcon={<ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />}
-                      onClick={handleCopyTrackingNumber}
-                      sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
-                    >
-                      {copied ? "Copied" : "Copy"}
-                    </Button>
-                  </InputAdornment>
-                ) : null,
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: "action.hover",
+                border: `1px solid ${theme?.palette?.divider || "#e0e0e0"}`,
               }}
+            >
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: 0.5, display: "block", mb: 0.5 }}
+              >
+                Meet-up Progress
+              </Typography>
+              <Typography variant="body1" fontWeight={700} color="error.main">
+                {effectiveOrder?.status === "Delivered"
+                  ? "Handover Completed (Delivered)"
+                  : effectiveOrder?.status === "Shipped"
+                  ? "Ready for Meet-up"
+                  : effectiveOrder?.status === "Packed"
+                  ? "Artwork Prepared & Packed"
+                  : effectiveOrder?.status === "Confirmed"
+                  ? "Order Confirmed"
+                  : "Pending Confirmation"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {effectiveOrder?.status === "Delivered"
+                  ? "The meet-up was completed and marked delivered by the seller."
+                  : effectiveOrder?.status === "Shipped"
+                  ? "The seller is ready to meet. Check your Messages for exact arrival and location updates."
+                  : effectiveOrder?.status === "Packed"
+                  ? "The seller has finished preparing the artwork for your meetup."
+                  : "The seller will confirm your order and coordinate the meetup schedule in chat."}
+              </Typography>
+            </Box>
+
+            {effectiveOrder?.deliveryProof && (
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "action.selected",
+                  border: `1px solid ${theme?.palette?.divider || "#e0e0e0"}`,
+                }}
+              >
+                <Typography variant="caption" fontWeight={700} color="text.secondary" display="block">
+                  Completion Proof & Notes:
+                </Typography>
+                {effectiveOrder.deliveryProof.notes && (
+                  <Typography variant="body2" sx={{ mt: 0.5, fontStyle: "italic" }}>
+                    &ldquo;{effectiveOrder.deliveryProof.notes}&rdquo;
+                  </Typography>
+                )}
+                {effectiveOrder.deliveredAt && (
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                    Delivered on {new Date(effectiveOrder.deliveredAt).toLocaleString("en-PH")}
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Stack>
+        ) : (
+          <Stack spacing={2.5}>
+            {statusError && <Alert severity="error">{statusError}</Alert>}
+
+            <Typography variant="body2" color="text.secondary">
+              {isReturn
+                ? "Choose the return shipping courier and enter tracking details so the delivery can be monitored."
+                : onSubmit
+                ? "Choose the courier and add its tracking information. The recipient will use these details to track the delivery."
+                : "Select any shipping courier to view tracking details or open its official tracking portal."}
+            </Typography>
+
+            <TextField
+              select
+              label="Courier"
+              required
+              value={activeCourierValue}
+              onChange={(event) => handleCourierChange(event.target.value)}
               disabled={saving}
               fullWidth
-            />
-          )}
+            >
+              {SHIPMENT_COURIERS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
 
-          <TextField
-            label={isReturn ? "Return tracking URL (optional)" : (selectedCourier?.trackingUrl ? "Tracking Link" : "Tracking / Share Link")}
-            placeholder={selectedCourier?.trackingUrl ? undefined : "https://share.lalamove.com/..."}
-            required={Boolean(onSubmit && !isReturn)}
-            value={activeTrackingUrl}
-            onChange={(event) => handleTrackingUrlChange(event.target.value)}
-            inputProps={{ maxLength: 2048 }}
-            InputProps={{
-              endAdornment: secureTrackingUrl ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    component="a"
-                    href={secureTrackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    edge="end"
-                    size="small"
-                    title={`Open tracking on ${selectedCourier?.label || "Courier"}`}
-                    sx={{ color: "error.main" }}
-                  >
-                    <OpenInNewOutlinedIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
-            helperText={
-              isReturn
-                ? "Enter the courier tracking link or URL so both parties can track the returned shipment."
-                : selectedCourier?.trackingUrl
-                ? "Official courier tracking page. You can enter or paste a specific tracking link here."
-                : "Open the booked delivery, use Share, and paste the generated tracking/share link here."
-            }
-            error={isReturn && Boolean(activeTrackingUrl.trim() && !validReturnTracking)}
-            disabled={saving}
-            fullWidth
-          />
-        </Stack>
+            {selectedCourier?.trackingNumberLabel && (
+              <TextField
+                label={selectedCourier.trackingNumberLabel}
+                required={Boolean(onSubmit)}
+                value={activeTrackingNumber}
+                onChange={(event) => handleTrackingNumberChange(event.target.value)}
+                inputProps={{ maxLength: 100 }}
+                InputProps={{
+                  endAdornment: activeTrackingNumber ? (
+                    <InputAdornment position="end">
+                      <Button
+                        size="small"
+                        startIcon={<ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />}
+                        onClick={handleCopyTrackingNumber}
+                        sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
+                      >
+                        {copied ? "Copied" : "Copy"}
+                      </Button>
+                    </InputAdornment>
+                  ) : null,
+                }}
+                disabled={saving}
+                fullWidth
+              />
+            )}
+
+            {selectedCourier && (
+              <TextField
+                label={selectedCourier.trackingUrl ? "Tracking Link" : "Tracking / Share Link"}
+                placeholder={selectedCourier.trackingUrl ? undefined : "https://share.lalamove.com/..."}
+                required={Boolean(onSubmit)}
+                value={activeTrackingUrl}
+                onChange={(event) => handleTrackingUrlChange(event.target.value)}
+                inputProps={{ maxLength: 2048 }}
+                InputProps={{
+                  readOnly: Boolean(selectedCourier.trackingUrl),
+                  endAdornment: secureTrackingUrl ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        component="a"
+                        href={secureTrackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        edge="end"
+                        size="small"
+                        title={`Open tracking on ${selectedCourier?.label || "Courier"}`}
+                        sx={{ color: "error.main" }}
+                      >
+                        <OpenInNewOutlinedIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }}
+                helperText={
+                  selectedCourier.trackingUrl
+                    ? "Official courier tracking page. The recipient can enter the tracking number / ID there."
+                    : "Open the booked Lalamove delivery, use Share, and paste the generated tracking/share link here."
+                }
+                disabled={saving}
+                fullWidth
+              />
+            )}
+          </Stack>
+        )}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} disabled={saving} sx={{ color: "text.secondary" }}>
           {isReturn ? "Back" : onSubmit ? "Cancel" : "Close"}
         </Button>
-        {secureTrackingUrl && (
+        {isMeetupOrder && (
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<ChatBubbleOutlineRoundedIcon fontSize="small" />}
+            onClick={() => {
+              onClose();
+              const sellerId = effectiveOrder?.sellerId || effectiveOrder?.items?.[0]?.sellerId;
+              if (sellerId && navigate) {
+                navigate(`/buyer/messages?seller=${encodeURIComponent(sellerId)}`);
+              }
+            }}
+            sx={{ color: "#fff", textTransform: "none", borderRadius: 2 }}
+          >
+            Chat with Seller
+          </Button>
+        )}
+        {!isMeetupOrder && secureTrackingUrl && (
           <Button
             component="a"
             href={secureTrackingUrl}
@@ -307,22 +423,20 @@ export default function OrderTrack({
             Track on {selectedCourier?.label || "Courier"}
           </Button>
         )}
-        {onSubmit && (
+        {!isMeetupOrder && onSubmit && (
           <Button
             variant="contained"
             color="error"
             onClick={onSubmit}
             disabled={
               saving ||
-              (isReturn
-                ? !validReturnTracking
-                : !selectedCourier ||
-                  !activeTrackingUrl.trim() ||
-                  (Boolean(selectedCourier.trackingNumberLabel) && !activeTrackingNumber.trim()))
+              !selectedCourier ||
+              !activeTrackingUrl.trim() ||
+              (Boolean(selectedCourier.trackingNumberLabel) && !activeTrackingNumber.trim())
             }
             sx={{ color: "#fff", textTransform: "none" }}
           >
-            {saving ? "Saving..." : submitButtonText || (isReturn ? "Confirm" : `Mark ${fulfillmentTarget?.status || "Shipped"}`)}
+            {saving ? "Saving..." : submitButtonText || (isReturn ? "Confirm Return Shipped" : `Mark ${fulfillmentTarget?.status || "Shipped"}`)}
           </Button>
         )}
       </DialogActions>

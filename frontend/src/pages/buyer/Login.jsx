@@ -26,7 +26,7 @@ import { FaFacebookF, FaGoogle } from "react-icons/fa6";
 import Nexus from "../../assets/Nexus.png";
 import { loginUser } from "../../api/buyer/buyerAuthenticationAPI";
 import { clearRecommendationClientState } from "../../api/buyer/recommendationAPI";
-import { clearAuthData, hasValidToken, setToken } from "../../../utils/auth";
+import { clearAuthData, isAuthenticated, setToken } from "../../../utils/auth";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -42,8 +42,8 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const buyerToken = localStorage.getItem("buyer_token");
-    if (buyerToken && hasValidToken(buyerToken)) {
+    const buyerToken = isAuthenticated("buyer");
+    if (buyerToken) {
       navigate("/buyer/main", { replace: true });
     }
   }, [navigate]);
@@ -71,7 +71,7 @@ export default function Login() {
       showSnackbar("Login successful!", "success");
 
       clearAuthData("buyer");
-      setToken("buyer", data.token);
+      setToken("buyer");
       localStorage.setItem("buyer_customer_id", data.customer_id);
       localStorage.setItem("buyer_username", data.username || "");
       localStorage.setItem("buyer_first_name", data.first_name);

@@ -2,6 +2,7 @@ import {
   Box, Button, Chip, Divider, FormControl, FormHelperText,
   MenuItem, Paper, Select, Stack, Typography,
 } from "@mui/material";
+import { Link } from "react-router-dom";
 import ArrowForwardOutlinedIcon from "@mui/icons-material/ArrowForwardOutlined";
 import ArtworkImage from "../../common/ArtworkImage";
 import { getPaymentColor, getPaymentLabel } from "../../../utils/orderPayments.js";
@@ -53,6 +54,12 @@ export default function OrderCard({
         <Stack direction="row" gap={0.75} flexWrap="wrap">
           <Chip label={order.status} color={statusColorMap[order.status] || "default"}
             size="small" sx={{ color: "#fff", fontWeight: 700 }} />
+          <Chip
+            label={order.deliveryMethod === "pickup" ? "Meet-up Delivery" : "Door-to-Door"}
+            size="small"
+            variant="outlined"
+            color={order.deliveryMethod === "pickup" ? "info" : "default"}
+          />
           {order.activeReturn && <Chip label={`Return: ${order.activeReturn.status}`} size="small" color="warning" variant="outlined" />}
           <Chip label={getPaymentLabel(order)} color={getPaymentColor(order)}
             size="small" variant="outlined"/>
@@ -91,7 +98,12 @@ export default function OrderCard({
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                   Qty {item.qty} · {formatCurrency(item.price)} each
                 </Typography>
-                {item.selectedProducts?.map((product) => (
+                {item.productOptionName && (
+                  <Typography variant="caption" color="primary.main" display="block" sx={{ fontWeight: 600 }}>
+                    Option: {item.productOptionName}
+                  </Typography>
+                )}
+                {(!item.productOptionName || item.selectedProducts?.length > 1) && item.selectedProducts?.map((product) => (
                   <Typography key={product.id} variant="caption" color="text.secondary" display="block">
                     {product.name} × {product.quantity}
                   </Typography>
@@ -144,6 +156,16 @@ export default function OrderCard({
         <Stack direction={{ xs: "column", sm: "row" }} gap={1}>
           {order.activeReturn && <Button variant="outlined" onClick={() => onViewReturn(order.activeReturn)}
             sx={{ borderRadius: 2, minHeight: 40, textTransform: "none" }}>View return in Messages</Button>}
+          {order.customerId && (
+            <Button
+              variant="outlined"
+              component={Link}
+              to={`/seller/messages?buyer=${order.customerId}`}
+              sx={{ borderRadius: 2, whiteSpace: "nowrap", minHeight: 40, textTransform: "none" }}
+            >
+              Contact Buyer
+            </Button>
+          )}
           <Button variant="outlined" endIcon={<ArrowForwardOutlinedIcon />} onClick={() => onViewDetails(order)}
             sx={{ borderRadius: 2, whiteSpace: "nowrap", minHeight: 40, textTransform: "none" }}>
             View details

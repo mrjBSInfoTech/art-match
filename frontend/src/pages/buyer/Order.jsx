@@ -18,6 +18,7 @@ import { submitBuyerReview } from "../../api/buyer/reviewsAPI";
 import OrderGrid from "../../components/buyer/Order/OrderGrid";
 import OrderTrack from "../../components/buyer/Order/OrderTrack";
 import OrderReviewDialog from "../../components/buyer/Order/OrderReviewDialog";
+import OrderDetailsDialog from "../../components/buyer/Order/OrderDetailsDialog";
 import ReturnRequestDialog from "../../components/buyer/Message/ReturnRequestDialog.jsx";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import {
@@ -41,6 +42,7 @@ export default function Orders() {
   const [actionMessage, setActionMessage] = useState("");
   const [actionPending, setActionPending] = useState("");
   const paymentAction = useRef(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [trackTarget, setTrackTarget] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
@@ -311,7 +313,7 @@ export default function Orders() {
         ) : orders.length === 0 && !error ? (
           <Paper variant="outlined" sx={{ p: 5, textAlign: "center", borderRadius: 2 }}>
             <Typography variant="h6" fontWeight={700}>No orders yet</Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>Paid purchases and cash-on-delivery orders will show up here.</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.5 }}>Your purchased orders will show up here.</Typography>
           </Paper>
         ) : filteredOrders.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 5, textAlign: "center", borderRadius: 2 }}>
@@ -335,12 +337,31 @@ export default function Orders() {
             actionPending={actionPending}
             onCancel={handleCancel}
             onReview={openReview}
+            onViewDetails={(order) => setSelectedOrder(order)}
             onRequestReturn={setReturnTarget}
             onTrackOrder={setTrackTarget}
             onViewReturn={(request) => navigate(`/buyer/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`)}
           />
         )}
       </Stack>
+
+      <OrderDetailsDialog
+        open={Boolean(selectedOrder)}
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onTrackOrder={(order) => {
+          setSelectedOrder(null);
+          setTrackTarget(order);
+        }}
+        onContactSeller={(order) => {
+          setSelectedOrder(null);
+          navigate(`/buyer/messages?seller=${encodeURIComponent(order.sellerId || order.items?.[0]?.sellerId)}`);
+        }}
+        onRequestReturn={(order) => {
+          setSelectedOrder(null);
+          setReturnTarget(order);
+        }}
+      />
 
       <OrderTrack
         open={Boolean(trackTarget)}

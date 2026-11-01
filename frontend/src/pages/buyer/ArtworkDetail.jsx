@@ -39,6 +39,7 @@ import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import { isAuthenticated } from "../../../utils/auth";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -76,6 +77,7 @@ export default function ArtworkDetail() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedOptionId, setSelectedOptionId] = useState("");
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [, setRecentHistory] = useState(null);
@@ -99,7 +101,7 @@ export default function ArtworkDetail() {
     const loadRecentlyViewed = async () => {
       try {
         const customerId =
-          localStorage.getItem("buyer_token") &&
+          isAuthenticated("buyer") &&
           localStorage.getItem("buyer_customer_id");
         const viewer = customerId
           ? `buyer-${customerId}`
@@ -256,7 +258,28 @@ export default function ArtworkDetail() {
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
   const isProduct = String(artwork?.art_type || "").trim().toLowerCase() === "product";
-  const productOptions = getSavedProductOptions(artwork || {});
+  const productOptions = useMemo(() => getSavedProductOptions(artwork || {}), [artwork]);
+
+  useEffect(() => {
+    if (productOptions.length > 0) {
+      setSelectedOptionId((current) =>
+        productOptions.some((o) => o.id === current) ? current : productOptions[0].id,
+      );
+    } else {
+      setSelectedOptionId("");
+    }
+  }, [productOptions]);
+
+  const selectedOption = useMemo(() => {
+    if (!productOptions.length) return null;
+    return productOptions.find((o) => o.id === selectedOptionId) || productOptions[0];
+  }, [productOptions, selectedOptionId]);
+
+  const displayedImage = selectedOption?.image || artwork.image || imageUrl;
+  const displayedUnitPrice = selectedOption?.price != null && !isNaN(Number(selectedOption.price))
+    ? Number(selectedOption.price)
+    : Number(artwork.price || 0);
+
   const stockAvailable = artwork?.stock_available != null && artwork.stock_available !== ""
     ? Number(artwork.stock_available)
     : null;
@@ -264,8 +287,15 @@ export default function ArtworkDetail() {
   const remainingStock = stockAvailable !== null
     ? Math.max(0, stockAvailable - soldQuantity)
     : (isSoldOut ? 0 : null);
-  const maxAvailableQuantity = remainingStock !== null ? remainingStock : 9999;
-  const isOutOfStock = isSoldOut || (isProduct && remainingStock !== null && remainingStock <= 0);
+
+  const optionRemainingStock = selectedOption
+    ? (selectedOption.remaining_stock != null
+      ? Number(selectedOption.remaining_stock)
+      : Number(selectedOption.quantity ?? remainingStock ?? 9999))
+    : remainingStock;
+
+  const maxAvailableQuantity = optionRemainingStock !== null ? Math.max(0, optionRemainingStock) : 9999;
+  const isOutOfStock = isSoldOut || (isProduct && optionRemainingStock !== null && optionRemainingStock <= 0);
   const detailCategory = getArtworkDetailCategory(artwork.art_type, artwork.product);
 
   const similarArtworks = getSimilarArtworks(artwork, artworks);
@@ -331,8 +361,8 @@ export default function ArtworkDetail() {
       <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
         <Grid size={{ xs: 12, md: 7 }}>
           <WatermarkedArtworkImage
-            image={artwork.image || imageUrl}
-            alt={artwork.title}
+            image={displayedImage}
+            alt={selectedOption ? `${artwork.title} - ${selectedOption.name}` : artwork.title}
             variant="web"
             hideWhenBlurred
             sx={{
@@ -392,6 +422,11 @@ export default function ArtworkDetail() {
             >
               {artwork.title}
             </Typography>
+            {selectedOption && (
+              <Typography variant="subtitle1" color="primary.main" fontWeight={700} sx={{ mb: 0.5 }}>
+                {selectedOption.name}
+              </Typography>
+            )}
             <Typography variant="subtitle2" color="text.secondary">
               By {artwork.artist || "Unknown artist"}
             </Typography>
@@ -399,14 +434,93 @@ export default function ArtworkDetail() {
             <Typography
               variant="h4"
               sx={{
-                mt: 3,
-                mb: 3,
+                mt: 2.5,
+                mb: 2.5,
                 fontWeight: 700,
                 fontSize: { xs: "1.75rem", sm: "2rem", md: "2.125rem" },
               }}
             >
-              ₱{Number(artwork.price || 0).toLocaleString()}
+              ₱{displayedUnitPrice.toLocaleString()}
             </Typography>
+
+            {isProduct && productOptions.length > 0 && (
+              <Box sx={{ mt: 2, mb: 2.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  Select Option:{" "}
+                  <Typography component="span" variant="subtitle2" color="primary.main" fontWeight={700}>
+                    {selectedOption?.name}
+                  </Typography>
+                </Typography>
+                <Stack direction="row" flexWrap="wrap" gap={1.25}>
+                  {productOptions.map((option) => {
+                    const isSelected = option.id === selectedOption?.id;
+                    const optPrice = option.price != null && !isNaN(Number(option.price))
+                      ? Number(option.price)
+                      : Number(artwork.price || 0);
+                    const optStock = option.remaining_stock != null
+                      ? Number(option.remaining_stock)
+                      : Number(option.quantity || 0);
+                    const optOutOfStock = optStock <= 0;
+
+                    return (
+                      <Box
+                        key={option.id}
+                        onClick={() => {
+                          if (!optOutOfStock) {
+                            setSelectedOptionId(option.id);
+                            setSelectedQuantity(1);
+                          }
+                        }}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1.25,
+                          p: 1,
+                          pr: 1.75,
+                          borderRadius: 2,
+                          border: "2px solid",
+                          borderColor: isSelected ? "primary.main" : "divider",
+                          bgcolor: isSelected ? "action.selected" : "background.paper",
+                          cursor: optOutOfStock ? "not-allowed" : "pointer",
+                          opacity: optOutOfStock ? 0.45 : 1,
+                          transition: "all 0.15s ease",
+                          "&:hover": {
+                            borderColor: optOutOfStock ? "divider" : "primary.light",
+                          },
+                        }}
+                      >
+                        {option.image ? (
+                          <Box
+                            component="img"
+                            src={option.image}
+                            alt={option.name}
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 1,
+                              objectFit: "cover",
+                              flexShrink: 0,
+                            }}
+                          />
+                        ) : null}
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: isSelected ? 700 : 500, lineHeight: 1.2 }}>
+                            {option.name}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color={isSelected ? "primary.main" : "text.secondary"}
+                            sx={{ fontWeight: 600 }}
+                          >
+                            ₱{optPrice.toLocaleString()} {optOutOfStock ? "· Out of stock" : ""}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
 
             <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
               <Stack spacing={1.5}>
@@ -420,12 +534,19 @@ export default function ArtworkDetail() {
                   <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} RowComponent={Row} />
                 )}
               </Stack>
-              {isProduct && !productOptions.length && !isOutOfStock && (
+              {isProduct && !isOutOfStock && (
                 <Box sx={{ mt: 2.5, mb: 1, p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Quantity
-                    </Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Quantity
+                      </Typography>
+                      {displayedUnitPrice > 0 && selectedQuantity > 1 && (
+                        <Typography variant="caption" color="text.secondary">
+                          Subtotal: ₱{(displayedUnitPrice * selectedQuantity).toLocaleString()}
+                        </Typography>
+                      )}
+                    </Box>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Button
                         size="small"
@@ -474,7 +595,7 @@ export default function ArtworkDetail() {
                       </Button>
                     </Stack>
                   </Stack>
-                  {remainingStock !== null && (
+                  {maxAvailableQuantity !== 9999 && (
                     <Typography
                       variant="caption"
                       sx={{
@@ -482,12 +603,12 @@ export default function ArtworkDetail() {
                         textAlign: "right",
                         mt: 0.75,
                         fontWeight: 600,
-                        color: remainingStock <= 5 ? "warning.main" : "text.secondary",
+                        color: maxAvailableQuantity <= 5 ? "warning.main" : "text.secondary",
                       }}
                     >
-                      {remainingStock <= 5
-                        ? `Only ${remainingStock} left in stock`
-                        : `Available stock: ${remainingStock} units`}
+                      {maxAvailableQuantity <= 5
+                        ? `Only ${maxAvailableQuantity} left in stock`
+                        : `Available stock: ${maxAvailableQuantity} units`}
                     </Typography>
                   )}
                 </Box>
@@ -506,15 +627,26 @@ export default function ArtworkDetail() {
                   Out of Stock
                 </Typography>
               )}
-              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              <Stack direction="column" spacing={1} sx={{ mt: 2 }}>
                 <Button
                   variant="contained"
                   color="primary"
                   fullWidth
                   disabled={addingToCart || isOutOfStock}
                   onClick={() => {
-                    if (productOptions.length) {
-                      setProductDialogOpen(true);
+                    if (isProduct && selectedOption) {
+                      const selectionPayload = [{
+                        id: selectedOption.id,
+                        name: selectedOption.name,
+                        image: selectedOption.image || null,
+                        unit_price: displayedUnitPrice,
+                        quantity: selectedQuantity,
+                      }];
+                      handleAddToCart(
+                        artwork.artwork_id || artwork.id,
+                        selectedQuantity,
+                        selectionPayload,
+                      ).catch(() => {});
                       return;
                     }
                     handleAddToCart(
@@ -522,21 +654,34 @@ export default function ArtworkDetail() {
                       isProduct ? selectedQuantity : 1,
                     ).catch(() => {});
                   }}
+                  startIcon={
+                    addingToCart ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <ShoppingBag />
+                    )
+                  }
                   sx={{
-                    padding: 1,
-                    px: 3,
-                    borderRadius: 999,
-                    fontSize: 10,
+                    py: 1.5,
+                    borderRadius: 2,
+                    textTransform: "none",
                     fontWeight: 600,
-                    color: "white",
                   }}
                 >
-                  {isOutOfStock
-                    ? "Sold out"
-                    : addingToCart
-                      ? "Adding..."
-                      : cartMessage || "Add to cart"}
+                  {addingToCart
+                    ? "Adding to cart..."
+                    : cartMessage || "Add to cart"}
                 </Button>
+                {isProduct && productOptions.length > 1 && (
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => setProductDialogOpen(true)}
+                    sx={{ textTransform: "none", fontSize: 13, fontWeight: 600, py: 0.75 }}
+                  >
+                    Choose multiple options or add custom request
+                  </Button>
+                )}
               </Stack>
             </Box>
           </Box>

@@ -1,21 +1,22 @@
 import jwt from "jsonwebtoken";
 
 export const authenticateAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.split(" ")[1];
+  const token =
+    req.cookies?.admin_token ||
+    (req.headers?.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.split(" ")[1]
+      : req.headers?.authorization?.split(" ")[1]);
 
-  if (!authHeader) {
+  if (!token) {
     return res
       .status(401)
       .json({ message: "Access denied. No token provided." });
-  }
-  if (!token) {
-    return res.status(401).json({ message: "Invalid token format." });
   }
 
   jwt.verify(
     token,
     process.env.JWT_SECRET || "your_secret_key",
+    { algorithms: ["HS256"] },
     (err, user) => {
       if (err) {
         return res.status(403).json({ message: "Invalid or expired token." });
@@ -26,7 +27,14 @@ export const authenticateAdmin = (req, res, next) => {
         return res.status(403).json({ message: "Unable to identify admin." });
       }
 
-      req.user = { ...user, admin_id: adminId };
+      const normalizedRole = String(user.role || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+      const ALLOWED_ADMIN_ROLES = new Set(["admin", "superadmin", "moderator", "customize"]);
+
+      if (user.role && !ALLOWED_ADMIN_ROLES.has(normalizedRole)) {
+        return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      }
+
+      req.user = { ...user, admin_id: adminId, role: user.role || "admin" };
       next();
     },
   );

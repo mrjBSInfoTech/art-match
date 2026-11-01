@@ -52,6 +52,8 @@ export default function MessageConversationCard({
         </ListItemAvatar>
 
         <ListItemText
+          primaryTypographyProps={{ component: "div" }}
+          secondaryTypographyProps={{ component: "div" }}
           primary={
             <Box component="div">
               <Stack

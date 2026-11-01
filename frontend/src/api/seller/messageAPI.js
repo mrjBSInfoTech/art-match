@@ -2,17 +2,12 @@ import axios from "axios";
 import { clearAuthData } from "../../../utils/auth";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/chat",
   timeout: 10000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("seller_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
   if ([401, 403].includes(error.response?.status)) {
@@ -163,6 +158,7 @@ export const resetSellerChatRecoveryBackup = async () => {
 };
 
 export const fetchBuyerChatKey = async (buyerId) => {
+  if (!buyerId || buyerId === "undefined" || Number.isNaN(Number(buyerId))) return null;
   const res = await api.get(`/seller/keys/${buyerId}`);
-  return res.data.publicKey;
+  return res.data?.publicKey || null;
 };

@@ -7,19 +7,12 @@ import {
 } from "../../utils/productOptions.js";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/seller",
   timeout: 120000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("seller_token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+// HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
   if (error.response) {
@@ -114,9 +107,9 @@ function appendArtworkAttributes(formData, artworkData, details) {
 // Fetch all artworks
 export const fetchArtworks = async () => {
   try {
-    console.log("Fetching all artworks");
+
     const res = await api.get("/artwork");
-    console.log("Artworks fetched:", res.data);
+
     return res.data;
   } catch (error) {
     console.error("Error in fetchArtworks:", error);
@@ -127,9 +120,9 @@ export const fetchArtworks = async () => {
 // Fetch single artwork by ID
 export const fetchArtworkById = async (id) => {
   try {
-    console.log("Fetching artwork by ID:", id);
+
     const res = await api.get(`/artwork/${id}`);
-    console.log("Artwork fetched:", res.data);
+
     return res.data;
   } catch (error) {
     console.error("Error in fetchArtworkById:", error);

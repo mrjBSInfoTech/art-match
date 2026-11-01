@@ -16,7 +16,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import Slide from "@mui/material/Slide";
-import { clearAuthData } from "../../utils/auth";
+import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
 import {
   fetchSellerConversations,
@@ -129,7 +129,7 @@ function SellerLayoutContent() {
 
   useEffect(() => {
     const loadBadgeCounts = async () => {
-      if (!localStorage.getItem("seller_token")) {
+      if (!isAuthenticated("seller")) {
         setNotifications([]);
         setUnreadMessageCount(0);
         return;

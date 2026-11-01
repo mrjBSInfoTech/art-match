@@ -64,7 +64,7 @@ function returnComponent(name, initialProps, api = {}) {
           });
         }
         if (specifier.includes("/api/")) return api;
-        if (specifier.startsWith("./") || specifier.includes("OrderTrack") || specifier.includes("shipmentCouriers") || specifier.includes("trackingUrl")) {
+        if (specifier.startsWith(".") || specifier.includes("OrderTrack") || specifier.includes("shipmentCouriers") || specifier.includes("trackingUrl")) {
           const base = resolve(dirname(filename), specifier);
           if (existsSync(base)) return loadComponent(base);
           if (existsSync(`${base}.jsx`)) return loadComponent(`${base}.jsx`);
@@ -268,13 +268,22 @@ test("buyer return shipment permits optional tracking, rejects unsafe URLs, and 
       shipReturnRequest: async (...args) => calls.push(plain(args)),
     });
     await openAction(card, "Mark return shipped");
-    await setField(card, "Return tracking URL (optional)", "javascript:alert(1)");
-    assert.equal(card.button("Confirm").props.disabled, true);
-    await card.button("Confirm").props.onClick();
+    const trackDialog = card.nodes().find(node => node?.props?.fulfillmentTarget);
+    assert.ok(trackDialog);
+    assert.equal(trackDialog.props.fulfillmentTarget.status, "Return Shipped");
+
+    trackDialog.props.setTrackingUrl("javascript:alert(1)");
+    await card.flush();
+    await trackDialog.props.onSubmit();
     assert.equal(calls.length, 0);
-    await setField(card, "Return tracking URL (optional)", trackingUrl);
-    await card.button("Confirm").props.onClick();
-    assert.deepEqual(calls, [[8, trackingUrl.trim() ? { return_tracking_url: trackingUrl.trim() } : {}]]);
+
+    trackDialog.props.onCourierChange("lalamove");
+    trackDialog.props.setTrackingUrl(trackingUrl);
+    await card.flush();
+    await trackDialog.props.onSubmit();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], 8);
+    assert.equal(calls[0][1].courier, "lalamove");
   }
 });
 

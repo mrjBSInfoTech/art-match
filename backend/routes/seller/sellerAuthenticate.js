@@ -10,6 +10,11 @@ import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import {
+  getAuthCookieOptions,
+  clearAuthCookieOptions,
+  authRateLimiter,
+} from "../../utils/authCookies.js";
 
 const router = express.Router();
 
@@ -79,7 +84,7 @@ const profileUpload = multer({
 });
 
 // Register route
-router.post("/register", upload.single("cor"), (req, res) => {
+router.post("/register", authRateLimiter, upload.single("cor"), (req, res) => {
   const {
     first_name,
     middle_name,
@@ -183,7 +188,7 @@ router.post("/register", upload.single("cor"), (req, res) => {
 });
 
 // Login route
-router.post("/login", (req, res) => {
+router.post("/login", authRateLimiter, (req, res) => {
   const { student_number, password } = req.body;
 
   if (!student_number || !password) {
@@ -281,10 +286,13 @@ router.post("/login", (req, res) => {
         id: user.student_id,
         student_id: user.student_id,
         student_number: user.student_number,
+        role: "seller",
       },
-      process.env.JWT_SECRET,
-      { expiresIn: "10d" },
+      process.env.JWT_SECRET || "your_secret_key",
+      { expiresIn: "1h", algorithm: "HS256" },
     );
+
+    res.cookie("seller_token", token, getAuthCookieOptions(1));
 
     logAudit({
       action: "LOGIN",
@@ -294,7 +302,7 @@ router.post("/login", (req, res) => {
       information: "Student logged in",
     });
     res.json({
-      token,
+      success: true,
       student_id: user.student_id,
       first_name: user.first_name,
       middle_name: user.middle_name,
@@ -1025,17 +1033,19 @@ router.put("/change-password", authenticateSeller, async (req, res) => {
   }
 });
 
-router.post("/logout", authenticateSeller, async (req, res) => {
+router.post("/logout", async (req, res) => {
   try {
+    res.clearCookie("seller_token", clearAuthCookieOptions());
     await logAudit({
       action: "LOGOUT",
-      actor: req.user.student_number || req.user.student_id,
+      actor: req.user?.student_number || req.user?.student_id || "Student",
       role: "Student",
       status: "SUCCESS",
       information: "Student logged out",
     });
-    res.json({ message: "Logout recorded" });
+    res.json({ success: true, message: "Logout recorded" });
   } catch (error) {
+    res.clearCookie("seller_token", clearAuthCookieOptions());
     res
       .status(500)
       .json({ message: "Unable to record logout", error: error.message });

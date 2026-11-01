@@ -129,7 +129,7 @@ function CartConfirm({ open, handleClose, onSubmit, selectedItems = [], total = 
                     primary={item.title || "Untitled Artwork"}
                     secondary={[
                       Array.isArray(item.selected_products) && item.selected_products.length
-                        ? item.selected_products.map((option) => `${option.name} × ${option.quantity}`).join(", ")
+                        ? item.selected_products.map((option) => `${option.name} × ${option.quantity} (${formatPrice(option.unit_price || unitPrice)})`).join(", ")
                         : `Qty: ${qty} × ${formatPrice(unitPrice)}`,
                       item.order_note ? `Request: ${item.order_note}` : "",
                     ].filter(Boolean).join("\n")}

@@ -2,18 +2,17 @@ import axios from "axios";
 import { getRecommendationSessionId } from "./recommendationAPI";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/buyer/cart",
   timeout: 5000,
 });
 
+import { isAuthenticated } from "../../../utils/auth";
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("buyer_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    delete config.headers["X-Recommendation-Session"];
-  } else {
-    delete config.headers.Authorization;
-    config.headers["X-Recommendation-Session"] = getRecommendationSessionId();
+  const sessionId = getRecommendationSessionId();
+  if (sessionId) {
+    config.headers["X-Recommendation-Session"] = sessionId;
   }
   return config;
 });

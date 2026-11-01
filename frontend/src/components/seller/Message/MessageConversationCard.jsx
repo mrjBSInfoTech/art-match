@@ -37,6 +37,8 @@ export default function MessageConversationCard({ chat, isSelected, avatarSrc, t
           </Badge>
         </ListItemAvatar>
         <ListItemText
+          primaryTypographyProps={{ component: "div" }}
+          secondaryTypographyProps={{ component: "div" }}
           primary={
             <Stack
               direction="row"

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearAuthData, isAuthenticated as checkIsAuthenticated } from "../../../utils/auth";
 
 // Axios instance (centralized config)
 const api = axios.create({
@@ -6,21 +7,19 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 5000,
+  withCredentials: true,
+  timeout: 10000,
 });
 
 // Centralized error handler
 const handleError = (error) => {
   if (error.response) {
-    // Backend responded with an error
     const errorObj = new Error(error.response.data.message || "Server error");
     errorObj.response = error.response;
     throw errorObj;
   } else if (error.request) {
-    // Request sent but no response
     throw new Error("Server not responding");
   } else {
-    // Something else happened
     throw new Error("Unexpected error occurred");
   }
 };
@@ -29,10 +28,8 @@ const handleError = (error) => {
 export const registerUser = async (formData) => {
   try {
     const res = await api.post("/register", formData);
-    console.log("Register API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Register API error:", error.message);
     handleError(error);
   }
 };
@@ -44,19 +41,11 @@ export const loginUser = async ({ username, password }) => {
       username,
       password,
     });
-    console.log("Login API response:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Login API error:", error.message);
     handleError(error);
   }
 };
-
-const authenticatedConfig = () => ({
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("buyer_token")}`,
-  },
-});
 
 export const cacheBuyerProfile = (profile) => {
   for (const field of ["username", "first_name", "last_name", "email", "phone_number", "profile_image"]) {
@@ -69,9 +58,9 @@ export const cacheBuyerProfile = (profile) => {
 
 export const updateBuyerProfile = async (profile) => {
   try {
-    const config = authenticatedConfig();
+    const config = {};
     if (profile instanceof FormData) {
-      config.headers["Content-Type"] = "multipart/form-data";
+      config.headers = { "Content-Type": "multipart/form-data" };
       config.timeout = 30000;
     }
     const res = await api.put("/me", profile, config);
@@ -83,7 +72,7 @@ export const updateBuyerProfile = async (profile) => {
 
 export const getBuyerSecuritySettings = async () => {
   try {
-    const res = await api.get("/me", authenticatedConfig());
+    const res = await api.get("/me");
     return res.data;
   } catch (error) {
     handleError(error);
@@ -92,11 +81,7 @@ export const getBuyerSecuritySettings = async () => {
 
 export const updateBuyerPrivacy = async (isPrivate) => {
   try {
-    const res = await api.put(
-      "/me",
-      { is_private: isPrivate },
-      authenticatedConfig(),
-    );
+    const res = await api.put("/me", { is_private: isPrivate });
     return res.data;
   } catch (error) {
     handleError(error);
@@ -105,11 +90,7 @@ export const updateBuyerPrivacy = async (isPrivate) => {
 
 export const changeBuyerPassword = async (currentPassword, newPassword) => {
   try {
-    const res = await api.put(
-      "/change-password",
-      { currentPassword, newPassword },
-      authenticatedConfig(),
-    );
+    const res = await api.put("/change-password", { currentPassword, newPassword });
     return res.data;
   } catch (error) {
     handleError(error);
@@ -118,40 +99,25 @@ export const changeBuyerPassword = async (currentPassword, newPassword) => {
 
 // LOGOUT
 export const logout = () => {
-  localStorage.removeItem("buyer_token");
-  localStorage.removeItem("buyer_customer_id");
-  localStorage.removeItem("buyer_username");
-  localStorage.removeItem("buyer_first_name");
-  localStorage.removeItem("buyer_last_name");
-  localStorage.removeItem("buyer_email");
-  localStorage.removeItem("buyer_phone_number");
-  localStorage.removeItem("buyer_profile_image");
-  localStorage.removeItem("recommendation_session_id");
-  localStorage.removeItem("customer_id");
-  localStorage.removeItem("username");
-  localStorage.removeItem("first_name");
-  localStorage.removeItem("last_name");
-  localStorage.removeItem("email");
+  clearAuthData("buyer");
 };
 
 export const recordLogout = async () => {
   try {
-    await api.post("/logout", undefined, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("buyer_token")}`,
-      },
-    });
-  } catch (error) {
-    console.error("Unable to record customer logout:", error.message);
+    await api.post("/logout");
+  } catch {
+    // Session is cleared on frontend regardless of server logging
+  } finally {
+    clearAuthData("buyer");
   }
 };
 
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
-  return !!localStorage.getItem("buyer_token");
+  return checkIsAuthenticated("buyer");
 };
 
-// GET TOKEN
+// GET TOKEN (returns null; tokens are strictly stored in HttpOnly cookies)
 export const getToken = () => {
-  return localStorage.getItem("buyer_token");
+  return null;
 };

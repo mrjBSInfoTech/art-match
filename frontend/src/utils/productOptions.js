@@ -30,10 +30,13 @@ export function getSavedProductOptions(artwork = {}) {
     name: typeof option.name === "string" ? option.name : "",
     description: typeof option.description === "string" ? option.description : "",
     quantity: option.quantity ?? "1",
+    remaining_stock: option.remaining_stock != null
+      ? Number(option.remaining_stock)
+      : (option.quantity != null ? Number(option.quantity) : null),
     image: typeof option.image === "string" ? option.image : null,
     imageFile: null,
     imagePreview: typeof option.image === "string" ? option.image : null,
-    price: option.price,
+    price: option.price != null && option.price !== "" ? Number(option.price) : undefined,
   }));
 }
 

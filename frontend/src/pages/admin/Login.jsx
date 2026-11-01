@@ -29,7 +29,7 @@ import {
 } from "@mui/icons-material";
 import { loginUser } from "../../api/admin/adminAuthenticationAPI";
 import Nexus from "../../assets/Nexus.png";
-import { clearAuthData, hasValidToken, setToken } from "../../../utils/auth";
+import { clearAuthData, isAuthenticated, setToken } from "../../../utils/auth";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -48,8 +48,8 @@ const Login = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
-    const adminToken = localStorage.getItem("admin_token");
-    if (adminToken && hasValidToken(adminToken)) {
+    const adminToken = isAuthenticated("admin");
+    if (adminToken) {
       navigate("/admin/dashboard", { replace: true });
     }
   }, [navigate]);
@@ -101,9 +101,9 @@ const Login = () => {
       const data = await loginUser({ username: username, password: password });
 
       clearAuthData("admin");
-      setToken("admin", data.token);
+      setToken("admin");
 
-      localStorage.setItem("admin_token", data.token || "");
+
       localStorage.setItem("admin_id", data.admin_id);
       localStorage.setItem("admin_username", data.username || "");
       localStorage.setItem("admin_first_name", data.first_name || "");

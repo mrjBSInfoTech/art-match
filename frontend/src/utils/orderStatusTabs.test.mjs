@@ -36,7 +36,7 @@ const sampleOrders = [
   },
 ];
 
-test("STATUS_TABS contains all 8 required tabs", () => {
+test("STATUS_TABS contains all 7 required tabs without standalone Cancelled button", () => {
   assert.deepEqual(STATUS_TABS, [
     "All",
     "Pending",
@@ -44,7 +44,6 @@ test("STATUS_TABS contains all 8 required tabs", () => {
     "Packed",
     "Shipped",
     "Delivered",
-    "Cancelled",
     "Refunded",
   ]);
 });
@@ -106,7 +105,6 @@ test("getTabCounts counts orders for all tabs", () => {
   assert.equal(counts.Packed, 1);
   assert.equal(counts.Shipped, 1);
   assert.equal(counts.Delivered, 3);
-  assert.equal(counts.Cancelled, 1);
   assert.equal(counts.Refunded, 2);
 });
 

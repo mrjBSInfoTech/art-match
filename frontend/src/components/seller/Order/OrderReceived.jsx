@@ -11,6 +11,7 @@ import {
   IconButton,
   Slide,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -39,6 +40,8 @@ export default function OrderReceived({
   setStatusError,
   receivedPhotos = [],
   setReceivedPhotos,
+  deliveryNotes = "",
+  setDeliveryNotes,
   photoPreviews = [],
   saving,
   onClose,
@@ -211,6 +214,23 @@ export default function OrderReceived({
                 Each file must be 5 MB or smaller.
               </FormHelperText>
             </Stack>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>
+              Delivery / Completion Notes (Optional)
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Add notes about the delivery or meetup handover (e.g., handed over directly to buyer at campus entrance)..."
+              value={deliveryNotes}
+              onChange={(e) => setDeliveryNotes && setDeliveryNotes(e.target.value)}
+              disabled={saving}
+              inputProps={{ maxLength: 1000 }}
+              helperText={`${(deliveryNotes || "").length}/1000 characters`}
+            />
           </Box>
 
           {order && (

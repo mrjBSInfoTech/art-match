@@ -6,6 +6,11 @@ import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import multer from "multer";
 import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import {
+  getAuthCookieOptions,
+  clearAuthCookieOptions,
+  authRateLimiter,
+} from "../../utils/authCookies.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -54,7 +59,7 @@ const profileUpload = multer({
 });
 
 // Register route
-router.post("/register", (req, res) => {
+router.post("/register", authRateLimiter, (req, res) => {
   const { username, first_name, last_name, email, phone_number, password } =
     req.body;
 
@@ -91,7 +96,7 @@ router.post("/register", (req, res) => {
 });
 
 // Login route
-router.post("/login", (req, res) => {
+router.post("/login", authRateLimiter, (req, res) => {
   const { username, password } = req.body;
 
   const sql = `
@@ -146,11 +151,15 @@ router.post("/login", (req, res) => {
     const token = jwt.sign(
       {
         id: user.customer_id,
+        customer_id: user.customer_id,
         username: user.username,
+        role: "buyer",
       },
       process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "10d" },
+      { expiresIn: "7d", algorithm: "HS256" },
     );
+
+    res.cookie("buyer_token", token, getAuthCookieOptions());
 
     logAudit({
       action: "LOGIN",
@@ -160,7 +169,7 @@ router.post("/login", (req, res) => {
       information: "Customer logged in",
     });
     res.json({
-      token,
+      success: true,
       customer_id: user.customer_id,
       username: user.username,
       first_name: user.first_name,
@@ -325,20 +334,28 @@ router.put("/change-password", authenticateBuyer, async (req, res) => {
   }
 });
 
-router.post("/logout", authenticateBuyer, async (req, res) => {
+router.post("/logout", async (req, res) => {
   try {
-    await logAudit({
-      action: "LOGOUT",
-      actor: req.user.username || req.user.customer_id,
-      role: "Customer",
-      status: "SUCCESS",
-      information: "Customer logged out",
-    });
-    res.json({ message: "Logout recorded" });
+    res.clearCookie("buyer_token", clearAuthCookieOptions());
+    const token = req.cookies?.buyer_token || req.headers?.authorization?.replace(/^Bearer\s+/i, "");
+    if (token) {
+      try {
+        const user = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key", { algorithms: ["HS256"] });
+        await logAudit({
+          action: "LOGOUT",
+          actor: user.username || user.customer_id || "Customer",
+          role: "Customer",
+          status: "SUCCESS",
+          information: "Customer logged out",
+        });
+      } catch {
+        // Token was already expired/invalid
+      }
+    }
+    res.json({ success: true, message: "Logout recorded" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Unable to record logout", error: error.message });
+    res.clearCookie("buyer_token", clearAuthCookieOptions());
+    res.json({ success: true, message: "Logged out" });
   }
 });
 

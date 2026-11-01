@@ -31,6 +31,7 @@ import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlid
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
 import Footer from "./Footer";
+import { isAuthenticated } from "../../../utils/auth";
 // Icons
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import HomeIcon from "@mui/icons-material/Home";
@@ -225,7 +226,7 @@ export default function Main() {
     let request = 0;
     const loadFollowing = async () => {
       const current = ++request;
-      if (!localStorage.getItem("buyer_token")) {
+      if (!isAuthenticated("buyer")) {
         setFollowedArtists([]);
         setFollowingError("");
         setFollowingLoading(false);
@@ -308,7 +309,7 @@ export default function Main() {
   ].includes(recommendationMode);
 
   const getRecommendationMessage = () => {
-    const isGuest = !localStorage.getItem("buyer_token");
+    const isGuest = !isAuthenticated("buyer");
 
     const hasHistory = recommendationHistoryLength > 0;
 
@@ -495,7 +496,7 @@ export default function Main() {
       )}
 
       {/* Recently Added Artworks From the Users Followings */}
-      {Boolean(localStorage.getItem("buyer_token")) && !artworksLoading && !artworkErrorMessage && (
+      {Boolean(isAuthenticated("buyer")) && !artworksLoading && !artworkErrorMessage && (
         <Box
           sx={{
             px: { xs: 3, sm: 5, lg: 7 },

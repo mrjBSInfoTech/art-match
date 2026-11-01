@@ -359,9 +359,9 @@ export default function PurchaseTable({
                     >
                       {item.title}
                     </Typography>
-                    {item.rawItem?.selectedProducts && item.rawItem.selectedProducts.length > 0 && (
+                    {(item.rawItem?.productOptionName || (item.rawItem?.selectedProducts && item.rawItem.selectedProducts.length > 0)) && (
                       <Typography variant="caption" color="text.secondary" display="block" noWrap>
-                        Variant: {item.rawItem.selectedProducts.map((p) => p.name).join(", ")}
+                        Variant: {item.rawItem?.productOptionName || item.rawItem.selectedProducts.map((p) => p.name).join(", ")}
                       </Typography>
                     )}
                   </Box>

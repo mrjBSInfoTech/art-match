@@ -66,7 +66,7 @@ import {
   clearRecommendationClientState,
   recordRecommendationEvent,
 } from "../api/buyer/recommendationAPI";
-import { clearAuthData } from "../../utils/auth";
+import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
 
 const DEFAULT_PROMOTION_HEADER = {
@@ -164,7 +164,7 @@ function BuyerLayoutContent({ children }) {
 
   useEffect(() => {
     const refreshProfile = () => {
-      const storedLoggedIn = localStorage.getItem("buyer_token");
+      const storedLoggedIn = isAuthenticated("buyer");
       const storedUsername = localStorage.getItem("buyer_username");
       const storedFirstName = localStorage.getItem("buyer_first_name");
       const storedLastName = localStorage.getItem("buyer_last_name");
@@ -190,7 +190,7 @@ function BuyerLayoutContent({ children }) {
     let controller;
     const loadCartCount = async (event) => {
       controller?.abort();
-      if (!localStorage.getItem("buyer_token")) {
+      if (!isAuthenticated("buyer")) {
         setCartCount(0);
         return;
       }
@@ -227,7 +227,7 @@ function BuyerLayoutContent({ children }) {
 
   useEffect(() => {
     const loadUnreadMessageCount = async () => {
-      if (!localStorage.getItem("buyer_token")) {
+      if (!isAuthenticated("buyer")) {
         setUnreadMessageCount(0);
         setUnreadNotificationCount(0);
         return;

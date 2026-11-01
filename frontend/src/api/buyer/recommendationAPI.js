@@ -1,41 +1,16 @@
 import axios from "axios";
+import { isAuthenticated } from "../../../utils/auth";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL:
     "http://localhost:5000/api/buyer/recommendation",
   timeout: 10000,
 });
 
-const getBuyerIdFromToken = (token) => {
-  if (!token) return null;
-  try {
-    const parts = String(token).split(".");
-    if (parts.length < 2) return null;
-    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = JSON.parse(
-      decodeURIComponent(
-        globalThis
-          .atob(payload)
-          .split("")
-          .map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`)
-          .join(""),
-      ),
-    );
-    const id = Number(decoded.customer_id ?? decoded.id);
-    return Number.isInteger(id) && id > 0 ? String(id) : null;
-  } catch {
-    return null;
-  }
-};
-
 export const getActiveBuyerIdentity = () => {
-  const token = localStorage.getItem("buyer_token");
-  if (!token) return null;
-  return (
-    getBuyerIdFromToken(token) ||
-    localStorage.getItem("buyer_customer_id") ||
-    null
-  );
+  if (!isAuthenticated("buyer")) return null;
+  return localStorage.getItem("buyer_customer_id") || null;
 };
 
 const getSessionStorageKey = () => {
@@ -153,17 +128,9 @@ export const getRecommendationSessionId = () => {
 };
 
 api.interceptors.request.use((config) => {
-  const token =
-    localStorage.getItem("buyer_token");
-
-  if (token) {
-    config.headers.Authorization =
-      `Bearer ${token}`;
-    delete config.headers["X-Recommendation-Session"];
-  } else {
-    delete config.headers.Authorization;
-    config.headers["X-Recommendation-Session"] =
-      getRecommendationSessionId();
+  const sessionId = getRecommendationSessionId();
+  if (sessionId) {
+    config.headers["X-Recommendation-Session"] = sessionId;
   }
 
   return config;
@@ -173,14 +140,12 @@ export const recordRecommendationEvent = async (
   event,
 ) => {
   try {
-    const isLoggedIn = Boolean(localStorage.getItem("buyer_token"));
+    const sessionId = getRecommendationSessionId();
     const response = await api.post(
       "/interactions",
       {
         ...event,
-        session_id: isLoggedIn
-          ? null
-          : getRecommendationSessionId(),
+        session_id: event.session_id || sessionId,
       },
     );
 

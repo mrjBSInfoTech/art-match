@@ -6,6 +6,7 @@ import {
   useArtworkBlurOnAway,
 } from "../../../utils/artworkImageProtection";
 import { loadArtworkImage } from "../../../utils/artworkImageLoader.js";
+import { isAuthenticated } from "../../../../utils/auth";
 
 const API_BASE_URL = "http://localhost:5000";
 
@@ -89,7 +90,7 @@ export default function WatermarkedArtworkImage({
 
     let active = true;
     let objectUrl;
-    const token = useBuyerIdentity ? localStorage.getItem("buyer_token") : null;
+    const token = useBuyerIdentity && isAuthenticated("buyer") ? "buyer" : null;
 
     loadArtworkImage({ filename, variant, token })
       .then((blob) => {

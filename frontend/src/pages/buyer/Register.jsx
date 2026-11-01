@@ -112,7 +112,7 @@ const Register = () => {
         phone_number: phoneNumber,
         password,
       });
-      console.log("Register response:", response);
+
 
       showSnackbar("Registration Successful!", "success");
 

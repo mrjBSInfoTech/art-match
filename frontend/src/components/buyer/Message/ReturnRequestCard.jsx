@@ -12,7 +12,8 @@ import ReturnActionDialog from "./ReturnActionDialog.jsx";
 import OrderTrack from "../Order/OrderTrack.jsx";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import ArtworkImage from "../../common/ArtworkImage";
-import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
+import { getShipmentCourier, SHIPMENT_COURIERS } from "../../../utils/shipmentCouriers.js";
+import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 
 const statuses = {
   Requested: { label: "Awaiting seller", color: "warning" },
@@ -61,10 +62,19 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
   const openAction = (nextAction) => {
     setError("");
     setResponse("");
-    setCourier(request.return_courier || "");
+    const initialCourier = request.return_courier || SHIPMENT_COURIERS[0]?.value || "";
+    setCourier(initialCourier);
     setTrackingNumber(request.return_tracking_number || "");
-    setTrackingUrl(request.return_tracking_url || "");
+    const match = getShipmentCourier(initialCourier);
+    setTrackingUrl(request.return_tracking_url || match?.trackingUrl || "");
     setAction(nextAction);
+  };
+
+  const handleCourierChange = (value) => {
+    setCourier(value);
+    setTrackingNumber("");
+    const match = getShipmentCourier(value);
+    setTrackingUrl(match?.trackingUrl || "");
   };
 
   const submit = async () => {
@@ -78,10 +88,13 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
       if (action === "reject") await rejectReturnRequest(id, { seller_response: response.trim() });
       if (action === "cancel") await cancelReturnRequest(id);
       if (action === "ship") {
+        const finalUrl = trackingUrl.trim() ? getSecureTrackingUrl(trackingUrl.trim()) : "";
+        if (trackingUrl.trim() && !finalUrl) {
+          setError("Add a valid secure HTTPS tracking link.");
+          return;
+        }
         await shipReturnRequest(id, {
-          ...(courier ? { courier } : {}),
-          ...(trackingNumber.trim() ? { tracking_number: trackingNumber.trim() } : {}),
-          ...(trackingUrl.trim() ? { return_tracking_url: trackingUrl.trim() } : {}),
+          ...(finalUrl ? { return_tracking_url: finalUrl } : {}),
         });
       }
       if (action === "receive") await receiveReturnRequest(id);
@@ -226,48 +239,21 @@ export default function ReturnRequestCard({ request, role, highlighted = false, 
         </Stack>
       </Stack>
 
-      {/* When action === 'ship', open OrderTrack so buyer can pick any courier and tracking link */}
-      {action === "ship" ? (
-        <OrderTrack
-          open={true}
-          fulfillmentTarget={{
-            status: "Return Shipped",
-            order: {
-              orderId: request.order_id,
-              id: request.order_number,
-              courier: courier || request.return_courier,
-              trackingNumber: trackingNumber || request.return_tracking_number,
-              trackingUrl: trackingUrl || request.return_tracking_url,
-            },
-          }}
-          statusError={error}
-          setStatusError={setError}
-          courier={courier}
-          onCourierChange={setCourier}
-          trackingNumber={trackingNumber}
-          setTrackingNumber={setTrackingNumber}
-          trackingUrl={trackingUrl}
-          setTrackingUrl={setTrackingUrl}
-          saving={busy}
-          onClose={() => !busy && setAction("")}
-          onSubmit={submit}
-        />
-      ) : (
-        <ReturnActionDialog
-          requestId={request.return_request_id}
-          action={action}
-          response={response}
-          trackingUrl={trackingUrl}
-          busy={busy}
-          error={error}
-          validResponse={validResponse}
-          validTracking={validTracking}
-          onResponseChange={setResponse}
-          onTrackingChange={setTrackingUrl}
-          onClose={() => !busy && setAction("")}
-          onSubmit={submit}
-        />
-      )}
+      {/* Action Dialog for approve, reject, cancel, ship, receive */}
+      <ReturnActionDialog
+        requestId={request.return_request_id}
+        action={action}
+        response={response}
+        trackingUrl={trackingUrl}
+        busy={busy}
+        error={error}
+        validResponse={validResponse}
+        validTracking={validTracking}
+        onResponseChange={setResponse}
+        onTrackingChange={setTrackingUrl}
+        onClose={() => !busy && setAction("")}
+        onSubmit={submit}
+      />
 
       {/* Dialog to view and track return delivery */}
       <OrderTrack

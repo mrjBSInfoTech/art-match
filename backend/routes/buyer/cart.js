@@ -120,7 +120,12 @@ router.get("/", authenticateBuyer, (req, res) => {
       return res.status(500).json({ message: "Database error" });
     }
 
-    res.json(items);
+    const formatted = items.map((item) => ({
+      ...item,
+      selected_products: parseJsonArray(item.selected_products),
+    }));
+
+    res.json(formatted);
   });
 });
 
@@ -360,6 +365,9 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
   db.query(
     `SELECT
        a.artwork_id,
+       a.art_type,
+       a.price,
+       a.artwork_details,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
        ${getArtworkSoldQuantitySql()} AS sold_quantity,
        a.is_sold,
@@ -408,15 +416,57 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
             return res.status(404).json({ message: "Cart item not found" });
           }
 
-          if (parseJsonArray(items[0].selected_products)?.length) {
-            return res.status(400).json({
-              message: "Change product quantities by updating the selected product options.",
-            });
+          const existingSelections = parseJsonArray(items[0].selected_products);
+          let updatedSelections = null;
+          let finalQuantity = requestedQuantity;
+
+          if (existingSelections?.length) {
+            const productDetails = parseArtworkDetails(artworks[0].artwork_details);
+            const productOptions = getProductOptions(productDetails);
+            if (Array.isArray(req.body.selected_products) && req.body.selected_products.length) {
+              try {
+                updatedSelections = validateProductOptionSelections(
+                  req.body.selected_products,
+                  productOptions,
+                  productDetails.product_price_mode,
+                  artworks[0].price,
+                );
+                finalQuantity = sumSelectedQuantity(updatedSelections);
+              } catch (error) {
+                if (error instanceof ProductOptionsError) {
+                  return res.status(400).json({ message: error.message });
+                }
+                throw error;
+              }
+            } else if (existingSelections.length === 1) {
+              try {
+                updatedSelections = validateProductOptionSelections(
+                  [{ id: existingSelections[0].id, quantity: requestedQuantity }],
+                  productOptions,
+                  productDetails.product_price_mode,
+                  artworks[0].price,
+                );
+                finalQuantity = requestedQuantity;
+              } catch (error) {
+                if (error instanceof ProductOptionsError) {
+                  return res.status(400).json({ message: error.message });
+                }
+                throw error;
+              }
+            } else {
+              return res.status(400).json({
+                message: "Change product quantities by updating the selected product options.",
+              });
+            }
           }
 
           db.query(
-            "UPDATE cart_item SET quantity = ? WHERE cart_item_id = ?",
-            [requestedQuantity, items[0].cart_item_id],
+            "UPDATE cart_item SET quantity = ?, selected_products = ? WHERE cart_item_id = ?",
+            [
+              finalQuantity,
+              updatedSelections ? JSON.stringify(updatedSelections) : (items[0].selected_products || null),
+              items[0].cart_item_id,
+            ],
             (updateError) => {
               if (updateError) {
                 return res.status(500).json({ message: "Database error" });
@@ -429,7 +479,8 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
 
                 return res.json({
                   message: "Cart quantity updated",
-                  quantity: requestedQuantity,
+                  quantity: finalQuantity,
+                  selected_products: updatedSelections || existingSelections || null,
                 });
               });
             },

@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
+  withCredentials: true,
   baseURL: "http://localhost:5000/api/seller/authenticate",
   headers: {
     "Content-Type": "application/json",
@@ -27,13 +28,7 @@ export const updateSeller = async (sellerId, data) => {
       data instanceof FormData
         ? { headers: { "Content-Type": "multipart/form-data" } }
         : {};
-    const res = await api.put("/me", data, {
-      ...config,
-      headers: {
-        ...config.headers,
-        Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
-      },
-    });
+    const res = await api.put("/me", data, config);
     return res.data;
   } catch (error) {
     console.error("Update seller API error:", error.message);
@@ -44,11 +39,7 @@ export const updateSeller = async (sellerId, data) => {
 // GET SELLER PROFILE
 export const getSellerProfile = async () => {
   try {
-    const res = await api.get("/me", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
-      },
-    });
+    const res = await api.get("/me");
     return res.data;
   } catch (error) {
     console.error("Get seller profile API error:", error.message);
@@ -59,15 +50,7 @@ export const getSellerProfile = async () => {
 // VERIFY PASSWORD (for confirmation dialogs)
 export const verifyPassword = async (password) => {
   try {
-    const res = await api.post(
-      "/verify-password",
-      { password },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
-        },
-      },
-    );
+    const res = await api.post("/verify-password", { password });
     return res.data;
   } catch (error) {
     console.error("Verify password API error:", error.message);
@@ -78,15 +61,7 @@ export const verifyPassword = async (password) => {
 // CHANGE PASSWORD
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const res = await api.put(
-      "/change-password",
-      { currentPassword, newPassword },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("seller_token")}`,
-        },
-      },
-    );
+    const res = await api.put("/change-password", { currentPassword, newPassword });
     return res.data;
   } catch (error) {
     console.error("Change password API error:", error.message);

@@ -15,16 +15,19 @@ const ML_RECOMMEND_URL =
   process.env.ML_RECOMMEND_URL || "http://127.0.0.1:8000/recommend";
 
 const optionalCustomerId = (req) => {
-  const authorization = String(req.headers.authorization || "");
-  if (!authorization.startsWith("Bearer ")) return null;
+  const token =
+    req.cookies?.buyer_token ||
+    (String(req.headers.authorization || "").startsWith("Bearer ")
+      ? req.headers.authorization.slice(7).trim()
+      : null);
 
-  const token = authorization.slice(7).trim();
   if (!token) return null;
 
   try {
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || "your_secret_key",
+      { algorithms: ["HS256"] },
     );
 
     const customerId = Number(decoded.customer_id ?? decoded.id);
