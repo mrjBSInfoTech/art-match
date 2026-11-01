@@ -23,6 +23,8 @@ import adminDashboardRoutes from "./routes/admin/dashboard.js";
 import sellerPayoutAccountRoutes from "./routes/seller/payouts.js";
 import { ensurePayoutTables } from "./database/payouts.js";
 import aboutContentRoutes from "./routes/aboutContent.js";
+import footerContentRoutes from "./routes/footerContent.js";
+import { ensureFooterContentTable } from "./database/footerContent.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
 import {
@@ -653,6 +655,7 @@ app.use("/api/admin/account-access", adminAccountAccessRoutes);
 app.use("/api/admin/admin", adminAdminRoutes);
 app.use("/api/admin/system-settings", adminSystemSettingsRoutes);
 app.use("/api/about-content", aboutContentRoutes);
+app.use("/api/footer-content", footerContentRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
@@ -727,6 +730,7 @@ ensureAccountAccessTable()
   .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
+  .then(() => ensureFooterContentTable())
   .then(() => ensureFaqTable())
   .then(() => ensureSupportChatTables())
   .then(() => ensureEventsTable())

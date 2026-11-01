@@ -12,8 +12,11 @@ import {
   DialogTitle,
   Grid,
   IconButton,
+  MenuItem,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -21,6 +24,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { fetchAboutContent, saveAboutContent } from "../../api/aboutContentAPI";
+import { fetchFooterContent, saveFooterContent } from "../../api/footerContentAPI";
 
 const requiredTextFields = [
   "collegeName",
@@ -52,6 +56,41 @@ function validateAboutContent(content) {
     if (!contact.value.trim()) errors[`contacts.${index}.value`] = "Contact details are required.";
   });
   return errors;
+}
+
+function validateFooterContent(content) {
+  if (!content.brandName.trim()) return "Enter a footer brand name.";
+  if (!content.description.trim()) return "Enter a footer description.";
+  if (!content.copyright.trim()) return "Enter footer copyright text.";
+  if (content.columns.length > 6) return "A maximum of 6 link columns is allowed.";
+  for (const column of content.columns) {
+    if (!column.title.trim()) return "Every link column needs a title.";
+    if (column.links.length > 20) return "A maximum of 20 links per column is allowed.";
+    for (const link of column.links) {
+      if (!link.label.trim()) return "Every footer link needs a label.";
+      if (!isValidFooterUrl(link.url)) {
+        return "Footer links must use a relative path or a valid HTTP(S) URL.";
+      }
+    }
+  }
+  if (content.socials.length > 10) return "A maximum of 10 social links is allowed.";
+  for (const social of content.socials) {
+    if (social.url && !isValidFooterUrl(social.url, true)) {
+      return "Social links must use a valid HTTP(S) URL.";
+    }
+  }
+  return "";
+}
+
+function isValidFooterUrl(value, externalOnly = false) {
+  if (typeof value !== "string" || !value.trim()) return false;
+  if (!externalOnly && value.startsWith("/") && !value.startsWith("//")) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 function ContentSection({ title, description, children, action }) {
@@ -92,7 +131,10 @@ function ContentSection({ title, description, children, action }) {
 }
 
 export default function SystemSetting() {
+  const [activeSection, setActiveSection] = useState("about-us");
   const [content, setContent] = useState(null);
+  const [footerContent, setFooterContent] = useState(null);
+  const [footerLoading, setFooterLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -112,6 +154,23 @@ export default function SystemSetting() {
       })
       .finally(() => {
         if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchFooterContent()
+      .then((data) => {
+        if (active) setFooterContent(data);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message);
+      })
+      .finally(() => {
+        if (active) setFooterLoading(false);
       });
     return () => {
       active = false;
@@ -156,13 +215,113 @@ export default function SystemSetting() {
     }));
   };
 
+  const updateFooterField = (field, value) => {
+    setFooterContent((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateFooterColumn = (columnIndex, field, value) => {
+    setFooterContent((current) => ({
+      ...current,
+      columns: current.columns.map((column, index) =>
+        index === columnIndex ? { ...column, [field]: value } : column,
+      ),
+    }));
+  };
+
+  const updateFooterLink = (columnIndex, linkIndex, field, value) => {
+    setFooterContent((current) => ({
+      ...current,
+      columns: current.columns.map((column, index) =>
+        index === columnIndex
+          ? {
+              ...column,
+              links: column.links.map((link, itemIndex) =>
+                itemIndex === linkIndex ? { ...link, [field]: value } : link,
+              ),
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const updateFooterSocial = (socialIndex, field, value) => {
+    setFooterContent((current) => ({
+      ...current,
+      socials: current.socials.map((social, index) =>
+        index === socialIndex ? { ...social, [field]: value } : social,
+      ),
+    }));
+  };
+
+  const addFooterColumn = () => {
+    setFooterContent((current) => ({
+      ...current,
+      columns: [...current.columns, { title: "", links: [] }],
+    }));
+  };
+
+  const addFooterLink = (columnIndex) => {
+    setFooterContent((current) => ({
+      ...current,
+      columns: current.columns.map((column, index) =>
+        index === columnIndex
+          ? { ...column, links: [...column.links, { label: "", url: "" }] }
+          : column,
+      ),
+    }));
+  };
+
+  const removeFooterColumn = (columnIndex) => {
+    setFooterContent((current) => ({
+      ...current,
+      columns: current.columns.filter((_, index) => index !== columnIndex),
+    }));
+  };
+
+  const removeFooterLink = (columnIndex, linkIndex) => {
+    setFooterContent((current) => ({
+      ...current,
+      columns: current.columns.map((column, index) =>
+        index === columnIndex
+          ? {
+              ...column,
+              links: column.links.filter((_, itemIndex) => itemIndex !== linkIndex),
+            }
+          : column,
+      ),
+    }));
+  };
+
+  const addFooterSocial = () => {
+    setFooterContent((current) => ({
+      ...current,
+      socials: [...current.socials, { platform: "Instagram", url: "" }],
+    }));
+  };
+
+  const removeFooterSocial = (socialIndex) => {
+    setFooterContent((current) => ({
+      ...current,
+      socials: current.socials.filter((_, index) => index !== socialIndex),
+    }));
+  };
+
   const handleSave = async () => {
-    setHasAttemptedSave(true);
-    const validationErrors = validateAboutContent(content);
-    if (Object.keys(validationErrors).length) {
-      setError("Complete all required fields before saving. Goals, objectives, and academic offerings must each have at least one entry.");
-      setNotice("");
-      return;
+    if (activeSection === "footer") {
+      const validationError = validateFooterContent(footerContent);
+      if (validationError) {
+        setError(validationError);
+        setNotice("");
+        return;
+      }
+    } else {
+      setHasAttemptedSave(true);
+      const validationErrors = validateAboutContent(content);
+      if (Object.keys(validationErrors).length) {
+        setError("Complete all required fields before saving. Goals, objectives, and academic offerings must each have at least one entry.");
+        setNotice("");
+        return;
+      }
     }
 
     setError("");
@@ -173,7 +332,7 @@ export default function SystemSetting() {
 
   const handleConfirmSave = async () => {
     if (!confirmationPassword) {
-      setError("Enter your admin password to save About Us changes.");
+      setError(`Enter your admin password to save ${activeSection === "footer" ? "Footer" : "About Us"} changes.`);
       return;
     }
 
@@ -181,14 +340,24 @@ export default function SystemSetting() {
     setError("");
     setNotice("");
     try {
-      const saved = await saveAboutContent(content, confirmationPassword);
-      setContent(saved);
-      setNotice("About page content saved successfully.");
+      if (activeSection === "footer") {
+        const saved = await saveFooterContent(footerContent, confirmationPassword);
+        setFooterContent(saved);
+        setNotice("Footer content saved successfully.");
+      } else {
+        const saved = await saveAboutContent(content, confirmationPassword);
+        setContent(saved);
+        setNotice("About page content saved successfully.");
+      }
       setConfirmationPassword("");
       setPasswordDialogOpen(false);
     } catch (saveError) {
       try {
-        setContent(await fetchAboutContent());
+        if (activeSection === "footer") {
+          setFooterContent(await fetchFooterContent());
+        } else {
+          setContent(await fetchAboutContent());
+        }
         setError(saveError.message);
       } catch (reloadError) {
         setError(`${saveError.message} Could not reload saved content: ${reloadError.message}`);
@@ -210,7 +379,7 @@ export default function SystemSetting() {
         }}
       >
         <Helmet titleTemplate="%s - ArtMatch">
-          <title>About Us</title>
+          <title>System Content</title>
         </Helmet>
         <Typography
           sx={{
@@ -219,7 +388,7 @@ export default function SystemSetting() {
             lineHeight: 1.1,
           }}
         >
-          About Us Content
+          System Content
         </Typography>
         <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
           <CircularProgress />
@@ -240,7 +409,7 @@ export default function SystemSetting() {
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
-        <title>About Us</title>
+        <title>System Content</title>
       </Helmet>
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -257,16 +426,26 @@ export default function SystemSetting() {
               color: "text.primary",
             }}
           >
-            About Us Content
+            System Content
           </Typography>
           <Typography
             color="text.secondary"
             sx={{ mt: 0.75, fontSize: 13 }}
           >
-            Edit the information shown on the public About Us page.
+            Manage the content displayed on public-facing pages.
           </Typography>
         </Box>
       </Stack>
+
+      <Tabs
+        value={activeSection}
+        onChange={(_event, value) => setActiveSection(value)}
+        aria-label="System content"
+        sx={{ mt: 2, mb: 2 }}
+      >
+        <Tab value="about-us" label="About Us" />
+        <Tab value="footer" label="Footer" />
+      </Tabs>
 
       {error && (
         <Alert severity="error" sx={{ mt: 2 }}>
@@ -278,7 +457,7 @@ export default function SystemSetting() {
           {notice}
         </Alert>
       )}
-      {!content ? null : (
+      {activeSection === "about-us" && !content ? null : activeSection === "about-us" ? (
         <Stack spacing={2.5} sx={{ mt: 3 }}>
           <ContentSection title="Institution profile">
             <Grid container spacing={2.5}>
@@ -392,24 +571,234 @@ export default function SystemSetting() {
             </Stack>
           </ContentSection>
         </Stack>
-      )}
-      {content && (
+      ) : footerLoading ? (
+        <Box sx={{ display: "grid", placeItems: "center", minHeight: 240 }}>
+          <CircularProgress />
+        </Box>
+      ) : footerContent ? (
+        <Stack spacing={2.5} sx={{ mt: 3 }}>
+          <ContentSection title="Brand information">
+            <Stack spacing={2}>
+              <TextField
+                required
+                label="Brand name"
+                value={footerContent.brandName}
+                onChange={(event) => updateFooterField("brandName", event.target.value)}
+                fullWidth
+              />
+              <TextField
+                required
+                label="Description"
+                value={footerContent.description}
+                onChange={(event) => updateFooterField("description", event.target.value)}
+                fullWidth
+                multiline
+                minRows={3}
+              />
+              <TextField
+                required
+                label="Copyright text"
+                value={footerContent.copyright}
+                onChange={(event) => updateFooterField("copyright", event.target.value)}
+                helperText='Use {year} to insert the current year automatically.'
+                fullWidth
+              />
+            </Stack>
+          </ContentSection>
+
+          <ContentSection
+            title="Footer link columns"
+            description="Edit the column headings and links shown in the footer."
+            action={
+              <Button
+                startIcon={<AddRoundedIcon />}
+                onClick={addFooterColumn}
+                disabled={footerContent.columns.length >= 6}
+              >
+                Add column
+              </Button>
+            }
+          >
+            <Stack spacing={2}>
+              {footerContent.columns.map((column, columnIndex) => (
+                <Paper
+                  key={`footer-column-${columnIndex}`}
+                  variant="outlined"
+                  sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 3 }}
+                >
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                      <TextField
+                        required
+                        label="Column heading"
+                        value={column.title}
+                        onChange={(event) =>
+                          updateFooterColumn(columnIndex, "title", event.target.value)
+                        }
+                        fullWidth
+                      />
+                      <IconButton
+                        aria-label="Delete footer column"
+                        color="error"
+                        onClick={() => removeFooterColumn(columnIndex)}
+                      >
+                        <DeleteOutlineRoundedIcon />
+                      </IconButton>
+                    </Stack>
+                    <Stack spacing={1.5}>
+                      {column.links.map((link, linkIndex) => (
+                        <Stack
+                          key={`footer-link-${columnIndex}-${linkIndex}`}
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1.5}
+                          alignItems={{ xs: "stretch", sm: "flex-start" }}
+                        >
+                          <TextField
+                            required
+                            label="Link label"
+                            value={link.label}
+                            onChange={(event) =>
+                              updateFooterLink(
+                                columnIndex,
+                                linkIndex,
+                                "label",
+                                event.target.value,
+                              )
+                            }
+                            sx={{ flex: 1 }}
+                          />
+                          <TextField
+                            required
+                            label="Link URL"
+                            value={link.url}
+                            onChange={(event) =>
+                              updateFooterLink(
+                                columnIndex,
+                                linkIndex,
+                                "url",
+                                event.target.value,
+                              )
+                            }
+                            helperText="Use a site path like /buyer/about or an HTTP(S) URL."
+                            sx={{ flex: 2 }}
+                          />
+                          <IconButton
+                            aria-label="Delete footer link"
+                            color="error"
+                            onClick={() => removeFooterLink(columnIndex, linkIndex)}
+                          >
+                            <DeleteOutlineRoundedIcon />
+                          </IconButton>
+                        </Stack>
+                      ))}
+                      {!column.links.length && (
+                        <Typography variant="body2" color="text.secondary">
+                          No links in this column.
+                        </Typography>
+                      )}
+                    </Stack>
+                    <Button
+                      startIcon={<AddRoundedIcon />}
+                      onClick={() => addFooterLink(columnIndex)}
+                      disabled={column.links.length >= 20}
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Add link
+                    </Button>
+                  </Stack>
+                </Paper>
+              ))}
+              {!footerContent.columns.length && (
+                <Typography variant="body2" color="text.secondary">
+                  No link columns added.
+                </Typography>
+              )}
+            </Stack>
+          </ContentSection>
+
+          <ContentSection
+            title="Social links"
+            description="Add social profiles to display as icons in the footer. Blank URLs show an unlinked icon."
+            action={
+              <Button
+                startIcon={<AddRoundedIcon />}
+                onClick={addFooterSocial}
+                disabled={footerContent.socials.length >= 10}
+              >
+                Add social link
+              </Button>
+            }
+          >
+            <Stack spacing={1.5}>
+              {footerContent.socials.map((social, socialIndex) => (
+                <Stack
+                  key={`footer-social-${socialIndex}`}
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  alignItems={{ xs: "stretch", sm: "flex-start" }}
+                >
+                  <TextField
+                    select
+                    label="Platform"
+                    value={social.platform}
+                    onChange={(event) =>
+                      updateFooterSocial(socialIndex, "platform", event.target.value)
+                    }
+                    sx={{ minWidth: { sm: 180 } }}
+                  >
+                    {["Twitter", "Facebook", "Instagram", "LinkedIn", "YouTube"].map(
+                      (platform) => (
+                        <MenuItem key={platform} value={platform}>
+                          {platform}
+                        </MenuItem>
+                      ),
+                    )}
+                  </TextField>
+                  <TextField
+                    label="Profile URL"
+                    value={social.url}
+                    onChange={(event) =>
+                      updateFooterSocial(socialIndex, "url", event.target.value)
+                    }
+                    helperText="Enter an HTTP(S) URL; leave blank to show the icon without a link."
+                    fullWidth
+                  />
+                  <IconButton
+                    aria-label="Delete social link"
+                    color="error"
+                    onClick={() => removeFooterSocial(socialIndex)}
+                  >
+                    <DeleteOutlineRoundedIcon />
+                  </IconButton>
+                </Stack>
+              ))}
+              {!footerContent.socials.length && (
+                <Typography variant="body2" color="text.secondary">
+                  No social links added.
+                </Typography>
+              )}
+            </Stack>
+          </ContentSection>
+        </Stack>
+      ) : null}
+      {((content && activeSection === "about-us") ||
+        (footerContent && activeSection === "footer")) && (
         <Button
           variant="contained"
           size="large"
           startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveRoundedIcon />}
           onClick={handleSave}
           disabled={saving}
-            sx={{
-              position: "fixed",
-              color: "#fff",
-              right: { xs: 16, sm: 28 },
-              bottom: { xs: 16, sm: 28 },
-              zIndex: (theme) => theme.zIndex.snackbar + 1,
-              px: 3,
-              py: 1.5,
-              borderRadius: 2,
-            }}
+          sx={{
+            position: "fixed",
+            color: "#fff",
+            right: { xs: 16, sm: 28 },
+            bottom: { xs: 16, sm: 28 },
+            zIndex: (theme) => theme.zIndex.snackbar + 1,
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+          }}
         >
           {saving ? "Saving…" : "Save changes"}
         </Button>
@@ -428,7 +817,7 @@ export default function SystemSetting() {
         <DialogTitle>Confirm your password</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Enter your admin password to save these About Us changes.
+            Enter your admin password to save these {activeSection === "footer" ? "Footer" : "About Us"} changes.
           </DialogContentText>
           <TextField
             autoFocus

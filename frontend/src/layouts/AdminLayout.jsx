@@ -226,7 +226,7 @@ function AdminLayoutContent() {
       children: [
         {
           segment: "about-us",
-          title: "About Us",
+          title: "System Content",
           icon: <InfoOutlinedIcon />,
         },
         {
