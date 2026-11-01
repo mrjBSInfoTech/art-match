@@ -310,19 +310,34 @@ const sendFileIfPresent = (res, filePath, options = {}) =>
     });
   });
 
+const safeUploadContentTypes = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
+
 const serveB2Cached =
   ({
     keyPrefix,
     localFolder,
     label,
     cacheControl = "private, max-age=86400",
+    contentType,
   }) =>
   async (req, res, next) => {
     const fileName = path.basename(req.params.filename);
+    if (path.extname(fileName).toLowerCase() === ".svg") {
+      return res.status(404).json({ message: `${label} not found.` });
+    }
 
     const key = `${keyPrefix}/${fileName}`;
 
     const cachePath = getCachePath(key);
+    const responseContentType =
+      contentType ||
+      safeUploadContentTypes[path.extname(fileName).toLowerCase()] ||
+      "application/octet-stream";
 
     /*
      * 1. Already cached locally.
@@ -333,6 +348,8 @@ const serveB2Cached =
       res.setHeader("Cache-Control", cacheControl);
 
       res.setHeader("X-ArtMatch-Storage", "cache");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Type", responseContentType);
 
       // A relative path keeps the trusted .cache root out of Express's
       // hidden-file check, while hidden files within the cache stay blocked.
@@ -371,6 +388,8 @@ const serveB2Cached =
         res.setHeader("Cache-Control", cacheControl);
 
         res.setHeader("X-ArtMatch-Storage", "local");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Content-Type", responseContentType);
 
         if (await sendFileIfPresent(res, localPath)) return;
       }
@@ -392,13 +411,11 @@ const serveB2Cached =
     try {
       const result = await downloadAndCacheB2(key, cachePath);
 
-      if (result.contentType) {
-        res.setHeader("Content-Type", result.contentType);
-      }
-
       res.setHeader("Cache-Control", cacheControl);
 
       res.setHeader("X-ArtMatch-Storage", "b2");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Type", responseContentType);
 
       console.log(`${label} downloaded and cached:`, key);
 
@@ -649,6 +666,7 @@ app.get(
     localFolder: path.join(__dirname, "uploads", "chat"),
 
     label: "Chat attachment",
+    contentType: "application/octet-stream",
   }),
 );
 
@@ -662,7 +680,18 @@ app.use(
     req.path.startsWith("/seller/uploadArtwork")
       ? res.status(404).json({ message: "Artwork image not found." })
       : next(),
-  express.static(path.join(__dirname, "uploads")),
+  (req, res, next) =>
+    path.extname(req.path).toLowerCase() === ".svg"
+      ? res.status(404).json({ message: "Uploaded file not found." })
+      : next(),
+  express.static(path.join(__dirname, "uploads"), {
+    setHeaders(res, filePath) {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      const contentType =
+        safeUploadContentTypes[path.extname(filePath).toLowerCase()];
+      if (contentType) res.setHeader("Content-Type", contentType);
+    },
+  }),
 );
 
 // Root route (just to test if server runs)

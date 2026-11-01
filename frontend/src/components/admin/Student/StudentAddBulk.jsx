@@ -13,6 +13,11 @@ import {
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import * as XLSX from "xlsx";
+import {
+  MAX_IMPORT_FILE_SIZE,
+  MAX_IMPORT_ROWS,
+  readStudentSpreadsheet,
+} from "./studentImportSpreadsheet.js";
 import { bulkAddStudents } from "../../../api/admin/studentAPI";
 import { useTheme } from "@mui/material/styles";
 // Icons
@@ -251,7 +256,7 @@ export default function StudentBulkAdd({
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
@@ -260,132 +265,97 @@ export default function StudentBulkAdd({
     setError("");
     setParsedData([]);
 
-    const reader = new FileReader();
-
-    reader.onload = (evt) => {
-      try {
-        const data = evt.target.result;
-
-        const workbook = XLSX.read(data, {
-          type: "array",
-        });
-
-        let bestSheet = null;
-
-        // Search every worksheet.
-        // Beneficiaries do not have
-        // to move the correct sheet
-        // to the first position.
-        for (const sheetName of workbook.SheetNames) {
-          const worksheet = workbook.Sheets[sheetName];
-
-          const rows = XLSX.utils.sheet_to_json(worksheet, {
-            header: 1,
-            raw: false,
-            defval: "",
-            blankrows: false,
-          });
-
-          const header = findHeaderRow(rows);
-
-          if (header && (!bestSheet || header.score > bestSheet.header.score)) {
-            bestSheet = {
-              sheetName,
-              rows,
-              header,
-            };
-          }
-        }
-
-        if (!bestSheet) {
-          throw new Error(
-            "Could not automatically find the student columns in this file.",
-          );
-        }
-
-        const { rows, header } = bestSheet;
-
-        const { rowIndex, columnMap } = header;
-
-        const students = rows
-          .slice(rowIndex + 1)
-          .map((row) => {
-            const studentNumber = getCellValue(
-              row,
-              columnMap,
-              "student_number",
-            );
-
-            const firstName = formatPersonName(
-              getCellValue(row, columnMap, "first_name"),
-            );
-
-            const middleName = formatPersonName(
-              getCellValue(row, columnMap, "middle_name"),
-            );
-
-            const lastName = formatPersonName(
-              getCellValue(row, columnMap, "last_name"),
-            );
-
-            const course = normalizeCourse(
-              getCellValue(row, columnMap, "course"),
-            );
-
-            const yearLevel = normalizeYearLevel(
-              getCellValue(row, columnMap, "year_level"),
-            );
-
-            return {
-              student_number: studentNumber,
-
-              first_name: firstName,
-
-              middle_name: middleName,
-
-              last_name: lastName,
-
-              course,
-
-              year_level: yearLevel,
-            };
-          })
-
-          // Ignore empty/footer rows.
-          .filter(
-            (student) =>
-              student.student_number && student.first_name && student.last_name,
-          );
-
-        if (!students.length) {
-          throw new Error(
-            "Student columns were found, but no valid student rows were detected.",
-          );
-        }
-
-        // Remove duplicated student
-        // numbers inside the same file.
-        const uniqueStudents = [
-          ...new Map(
-            students.map((student) => [
-              student.student_number.toLowerCase(),
-
-              student,
-            ]),
-          ).values(),
-        ];
-
-        setParsedData(uniqueStudents);
-      } catch (err) {
-        console.error("Bulk student file error:", err);
-
-        setParsedData([]);
-
-        setError(err.message || "Unable to read this Excel or CSV file.");
+    try {
+      const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+      if (![".xlsx", ".csv"].includes(extension)) {
+        throw new Error("Choose an .xlsx or .csv file.");
       }
-    };
+      if (file.size > MAX_IMPORT_FILE_SIZE) {
+        throw new Error("The file must be 5 MiB or smaller.");
+      }
 
-    reader.readAsArrayBuffer(file);
+      const sheets = await readStudentSpreadsheet(await file.arrayBuffer(), extension);
+      let bestSheet = null;
+
+      for (const { sheetName, rows } of sheets) {
+        const header = findHeaderRow(rows);
+
+        if (header && (!bestSheet || header.score > bestSheet.header.score)) {
+          bestSheet = { sheetName, rows, header };
+        }
+      }
+
+      if (!bestSheet) {
+        throw new Error(
+          "Could not automatically find the student columns in this file.",
+        );
+      }
+
+      const { rows, header } = bestSheet;
+      const { rowIndex, columnMap } = header;
+      const dataRows = rows.slice(rowIndex + 1);
+      if (dataRows.length > MAX_IMPORT_ROWS) {
+        throw new Error(`The file cannot contain more than ${MAX_IMPORT_ROWS} student rows.`);
+      }
+
+      const students = dataRows
+        .map((row) => {
+          const studentNumber = getCellValue(
+            row,
+            columnMap,
+            "student_number",
+          );
+          const firstName = formatPersonName(
+            getCellValue(row, columnMap, "first_name"),
+          );
+          const middleName = formatPersonName(
+            getCellValue(row, columnMap, "middle_name"),
+          );
+          const lastName = formatPersonName(
+            getCellValue(row, columnMap, "last_name"),
+          );
+          const course = normalizeCourse(
+            getCellValue(row, columnMap, "course"),
+          );
+          const yearLevel = normalizeYearLevel(
+            getCellValue(row, columnMap, "year_level"),
+          );
+
+          return {
+            student_number: studentNumber,
+            first_name: firstName,
+            middle_name: middleName,
+            last_name: lastName,
+            course,
+            year_level: yearLevel,
+          };
+        })
+        .filter(
+          (student) =>
+            student.student_number && student.first_name && student.last_name,
+        );
+
+      if (!students.length) {
+        throw new Error(
+          "Student columns were found, but no valid student rows were detected.",
+        );
+      }
+
+      const uniqueStudents = [
+        ...new Map(
+          students.map((student) => [
+            student.student_number.toLowerCase(),
+            student,
+          ]),
+        ).values(),
+      ];
+
+      setParsedData(uniqueStudents);
+    } catch (err) {
+      console.error("Bulk student file error:", err);
+      setParsedData([]);
+      setError(err.message || "Unable to read this Excel or CSV file.");
+    }
   };
 
   const handleSubmit = async () => {
@@ -431,10 +401,10 @@ export default function StudentBulkAdd({
         "Profile Picture": "",
       },
     ];
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "Student_Bulk_Import_Template.xlsx");
+    const worksheet = XLSX.utils.json_to_sheet(template);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    XLSX.writeFile(workbook, "Student_Bulk_Import_Template.xlsx");
   };
 
   return (
@@ -491,8 +461,8 @@ export default function StudentBulkAdd({
         )}
 
         <Typography variant="body2" color="textSecondary" paragraph>
-          Upload an Excel (.xlsx, .xls) or CSV file to add multiple students at
-          once. Ensure your column headers match the required format.
+          Upload an Excel (.xlsx) or CSV file (maximum 5 MiB and 10,000 rows).
+          Ensure your column headers match the required format.
         </Typography>
 
         <Button
@@ -529,7 +499,7 @@ export default function StudentBulkAdd({
 
         <input
           type="file"
-          accept=".xlsx, .xls, .csv"
+          accept=".xlsx, .csv"
           hidden
           ref={fileInputRef}
           onChange={handleFileChange}

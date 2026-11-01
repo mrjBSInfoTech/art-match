@@ -11,9 +11,13 @@ import {
   requireAdminRoleManagement,
   requireLowerAdmin,
   requireLowerAdminOrSelf,
+  canAssignAdminRole,
+  normalizeAdminRole,
+  roleRank,
 } from "../../middleware/adminPermissionMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import { encodeSafeWebp, safeWebpFilename } from "../../utils/safeImageUpload.js";
 
 const router = express.Router();
 
@@ -76,10 +80,6 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"));
-  },
 });
 
 const toBoolean = (value) =>
@@ -88,7 +88,7 @@ const toBoolean = (value) =>
   ["1", "true"].includes(String(value).toLowerCase());
 
 const rolePermissions = (role, values = {}) => {
-  const normalizedRole = String(role || "admin").toLowerCase();
+  const normalizedRole = String(role || "admin").trim().toLowerCase();
   if (
     !["super admin", "admin", "moderator", "customize"].includes(normalizedRole)
   ) {
@@ -162,7 +162,8 @@ const changeRole = (direction) => (req, res) => {
         return res.status(404).json({ error: "Admin role not found." });
       }
 
-      const currentIndex = roleOrder.indexOf(results[0].role);
+      const currentRole = normalizeAdminRole(results[0].role);
+      const currentIndex = roleOrder.indexOf(currentRole);
       const nextIndex = currentIndex + direction;
       if (nextIndex < 0 || nextIndex >= roleOrder.length) {
         await auditAdminManagement(req, action, "FAILED", `Admin ID ${targetId} cannot be ${direction > 0 ? "promoted" : "demoted"} further.`);
@@ -172,13 +173,25 @@ const changeRole = (direction) => (req, res) => {
       }
 
       const newRole = roleOrder[nextIndex];
+      const actorRole = normalizeAdminRole(req.adminAccess?.role);
+      if (!canAssignAdminRole(actorRole, newRole)) {
+        await auditAdminManagement(
+          req,
+          action,
+          "FAILED",
+          `Role change was rejected because ${actorRole || "unknown"} cannot assign ${newRole}.`,
+        );
+        return res.status(403).json({
+          error: "You cannot assign an admin role equal to or higher than your own.",
+        });
+      }
       const permissions = rolePermissions(newRole);
 
       // Special case: if promoting to super admin, demote the existing super admin to admin
       if (direction > 0 && newRole === "super admin") {
         // First, find and demote the current super admin
         db.query(
-          "SELECT admin_id FROM admin_role WHERE role = ? AND admin_id != ?",
+          "SELECT admin_id FROM admin_role WHERE LOWER(TRIM(role)) = ? AND admin_id != ?",
           ["super admin", targetId],
           async (findError, superAdminResults) => {
             if (findError) {
@@ -413,35 +426,25 @@ router.post(
         });
       }
 
-      const creatableRoles = {
-        "super admin": ["admin", "moderator", "customize"],
+      const normalizedRole = normalizeAdminRole(role);
+      const currentUserRole = normalizeAdminRole(req.adminAccess?.role);
+      const allowedRoles = Object.keys(roleRank).filter((candidateRole) =>
+        canAssignAdminRole(currentUserRole, candidateRole),
+      );
 
-        admin: ["moderator", "customize"],
-
-        moderator: ["customize"],
-
-        customize: ["customize"],
-      };
-
-      const currentUserRole = req.adminRole || "admin";
-
-      const allowedRoles = creatableRoles[currentUserRole] || [];
-
-      if (!allowedRoles.includes(role)) {
+      if (!canAssignAdminRole(currentUserRole, normalizedRole)) {
         await auditAdminManagement(
           req,
           "CREATE_ADMIN_ACCOUNT",
           "FAILED",
-          `Admin account creation was rejected because role ${role} cannot be assigned by ${currentUserRole}.`,
+          `Admin account creation was rejected because role ${normalizedRole} cannot be assigned by ${currentUserRole}.`,
         );
         return res.status(403).json({
-          error: `Your role cannot create ${role} accounts. Allowed roles: ${
-            allowedRoles.join(", ") || "none"
-          }.`,
+          error: `Your role cannot create ${normalizedRole} accounts. Allowed roles: ${allowedRoles.join(", ") || "none"}.`,
         });
       }
 
-      const permissions = rolePermissions(role, {
+      const permissions = rolePermissions(normalizedRole, {
         can_add,
         can_edit,
         can_delete,
@@ -454,7 +457,7 @@ router.post(
           req,
           "CREATE_ADMIN_ACCOUNT",
           "FAILED",
-          `Admin account creation failed: role ${role} is invalid.`,
+          `Admin account creation failed: role ${normalizedRole} is invalid.`,
         );
         return res.status(400).json({
           error: "Invalid admin role.",
@@ -465,17 +468,15 @@ router.post(
        * Upload image to B2 first.
        */
       if (req.file) {
-        uploadedB2Key = `${ADMIN_B2_PREFIX}/${path.basename(
-          req.file.filename,
-        )}`;
+        const imageBuffer = await encodeSafeWebp(req.file.path);
+        req.file.safeFilename = safeWebpFilename(req.file.filename);
+        uploadedB2Key = `${ADMIN_B2_PREFIX}/${req.file.safeFilename}`;
 
         try {
           await uploadToB2({
             key: uploadedB2Key,
-
-            body: await fs.promises.readFile(req.file.path),
-
-            contentType: req.file.mimetype || "application/octet-stream",
+            body: imageBuffer,
+            contentType: "image/webp",
           });
 
           console.log("Admin image uploaded to B2:", uploadedB2Key);
@@ -496,7 +497,7 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const imageName = req.file ? req.file.filename : null;
+      const imageName = req.file ? req.file.safeFilename : null;
 
       /*
        * Keep your Admin + Admin Role
@@ -513,7 +514,7 @@ router.post(
           `INSERT INTO admin_role
             (admin_id, role, can_add, can_edit, can_delete, can_promote, can_demote)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [result.insertId, role, permissions.can_add, permissions.can_edit,
+          [result.insertId, normalizedRole, permissions.can_add, permissions.can_edit,
             permissions.can_delete, permissions.can_promote, permissions.can_demote],
         );
         return result.insertId;
@@ -524,7 +525,7 @@ router.post(
         req,
         "CREATE_ADMIN_ACCOUNT",
         "SUCCESS",
-        `Admin account ID ${newAdminId} (${username.trim()}) was created with role ${role}.`,
+        `Admin account ID ${newAdminId} (${username.trim()}) was created with role ${normalizedRole}.`,
       );
 
       return res.json({
@@ -562,7 +563,7 @@ router.post(
         });
       }
 
-      return res.status(500).json({
+      return res.status(error.status || 500).json({
         error: error.message || "Unable to create admin account.",
       });
     } finally {
@@ -645,17 +646,15 @@ router.put(
        * before changing MySQL.
        */
       if (req.file) {
-        uploadedB2Key = `${ADMIN_B2_PREFIX}/${path.basename(
-          req.file.filename,
-        )}`;
+        const imageBuffer = await encodeSafeWebp(req.file.path);
+        req.file.safeFilename = safeWebpFilename(req.file.filename);
+        uploadedB2Key = `${ADMIN_B2_PREFIX}/${req.file.safeFilename}`;
 
         try {
           await uploadToB2({
             key: uploadedB2Key,
-
-            body: await fs.promises.readFile(req.file.path),
-
-            contentType: req.file.mimetype || "application/octet-stream",
+            body: imageBuffer,
+            contentType: "image/webp",
           });
 
           console.log("Updated admin image uploaded to B2:", uploadedB2Key);
@@ -698,7 +697,7 @@ router.put(
       if (req.file) {
         adminUpdates.push("image = ?");
 
-        adminValues.push(req.file.filename);
+        adminValues.push(req.file.safeFilename);
       } else if (image !== undefined) {
         adminUpdates.push("image = ?");
 
@@ -718,8 +717,10 @@ router.put(
       const roleUpdates = [];
       const roleValues = [];
 
-      if (role) {
-        const permissions = rolePermissions(role, req.body);
+      if (role !== undefined) {
+        const normalizedRole = normalizeAdminRole(role);
+        const actorRole = normalizeAdminRole(req.adminAccess?.role);
+        const permissions = rolePermissions(normalizedRole, req.body);
 
         if (!permissions) {
           return res.status(400).json({
@@ -727,18 +728,15 @@ router.put(
           });
         }
 
-        if (
-          req.adminRole === "admin" &&
-          String(role).toLowerCase() === "super admin"
-        ) {
+        if (!canAssignAdminRole(actorRole, normalizedRole)) {
           return res.status(403).json({
-            error: "Only a Super Admin can assign the Super Admin role.",
+            error: "You cannot assign an admin role equal to or higher than your own.",
           });
         }
 
         roleUpdates.push("role = ?");
 
-        roleValues.push(String(role).toLowerCase());
+        roleValues.push(normalizedRole);
 
         for (const permission of Object.keys(permissions)) {
           roleUpdates.push(`${permission} = ?`);
@@ -797,7 +795,7 @@ router.put(
       if (
         req.file &&
         currentAdmin.image &&
-        currentAdmin.image !== req.file.filename
+        currentAdmin.image !== req.file.safeFilename
       ) {
         const oldB2Key = `${ADMIN_B2_PREFIX}/${path.basename(
           currentAdmin.image,
@@ -838,7 +836,7 @@ router.put(
       return res.json({
         message: "✅ Admin account updated successfully",
 
-        image: req.file?.filename,
+        image: req.file?.safeFilename,
       });
     } catch (error) {
       console.error("Admin update error:", error);
@@ -865,7 +863,7 @@ router.put(
 
       await auditAdminUpdate(req, id, "FAILED", message);
 
-      return res.status(error.code === "ER_DUP_ENTRY" ? 400 : 500).json({
+      return res.status(error.status || (error.code === "ER_DUP_ENTRY" ? 400 : 500)).json({
         error: message,
       });
     } finally {

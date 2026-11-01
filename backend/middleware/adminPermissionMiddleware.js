@@ -8,11 +8,23 @@ const permissionColumns = new Set([
   "can_demote",
 ]);
 
-const roleRank = {
+export const normalizeAdminRole = (role) =>
+  String(role || "").trim().toLowerCase();
+
+export const roleRank = {
   customize: 1,
   moderator: 2,
   admin: 3,
   "super admin": 4,
+};
+
+export const canAssignAdminRole = (actorRole, requestedRole) => {
+  const normalizedActorRole = normalizeAdminRole(actorRole);
+  const normalizedRequestedRole = normalizeAdminRole(requestedRole);
+  if (normalizedActorRole === "super admin") return true;
+  const actorRank = roleRank[normalizedActorRole];
+  const requestedRank = roleRank[normalizedRequestedRole];
+  return Boolean(actorRank && requestedRank && requestedRank < actorRank);
 };
 
 export const requireAdminPermission = (permission) => (req, res, next) => {
@@ -34,6 +46,7 @@ export const requireAdminPermission = (permission) => (req, res, next) => {
           .status(403)
           .json({ message: "Admin role is not configured." });
 
+      access.role = normalizeAdminRole(access.role);
       const fixedPermissions = {
         admin: new Set(["can_add", "can_edit", "can_delete"]),
         moderator: new Set(["can_add", "can_edit"]),
@@ -66,8 +79,13 @@ export const requireAdminRoleManagement = (req, res, next) => {
         return res
           .status(500)
           .json({ message: "Unable to verify admin role." });
-      const role = results[0]?.role;
+      const access = results[0];
+      const role = normalizeAdminRole(access?.role);
       const can_add = results[0]?.can_add;
+      if (access) {
+        access.role = role;
+        req.adminAccess = access;
+      }
       req.adminRole = role;
       req.adminCanAdd = can_add;
       // Allow if super admin, admin, moderator, or custom role with can_add permission
@@ -95,9 +113,14 @@ export const requireLowerAdmin = (permission) => (req, res, next) => {
           return res
             .status(500)
             .json({ message: "Unable to verify target admin role." });
-        const actorRank = roleRank[req.adminAccess.role];
-        const targetRole = results[0]?.role;
+        const actorRole = normalizeAdminRole(req.adminAccess?.role);
+        const actorRank = roleRank[actorRole];
+        const targetRole = normalizeAdminRole(results[0]?.role);
         const targetRank = roleRank[targetRole];
+        if (!actorRank)
+          return res
+            .status(403)
+            .json({ message: "Admin role is not configured." });
         if (!targetRank)
           return res
             .status(404)

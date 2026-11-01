@@ -11,6 +11,11 @@ import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
 import {
+  encodeSafeWebp,
+  replaceUploadWithSafeWebp,
+  safeWebpFilename,
+} from "../../utils/safeImageUpload.js";
+import {
   getAuthCookieOptions,
   clearAuthCookieOptions,
   authRateLimiter,
@@ -49,13 +54,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"), false);
-    }
-  },
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
@@ -80,11 +78,10 @@ const profileUpload = multer({
       ),
   }),
   limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith("image/")),
 });
 
 // Register route
-router.post("/register", authRateLimiter, upload.single("cor"), (req, res) => {
+router.post("/register", authRateLimiter, upload.single("cor"), async (req, res) => {
   const {
     first_name,
     middle_name,
@@ -117,7 +114,16 @@ router.post("/register", authRateLimiter, upload.single("cor"), (req, res) => {
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const corPath = req.file ? req.file.filename : null;
+  let corPath = null;
+  if (req.file) {
+    try {
+      await replaceUploadWithSafeWebp(req.file, uploadDir);
+      corPath = req.file.filename;
+    } catch (error) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+      return res.status(error.status || 400).json({ message: error.message });
+    }
+  }
 
   const sql = `
     INSERT INTO student (
@@ -461,13 +467,23 @@ router.put(
             profileImageFile.filename,
           )
         : null;
-    const temporaryCorPath = corFile
+    let temporaryCorPath = corFile
       ? path.join(uploadDir, corFile.filename)
       : null;
 
     let newB2Key = null;
+    let profileImageBuffer = null;
 
     try {
+      if (profileImageFile) {
+        profileImageBuffer = await encodeSafeWebp(profileImageFile.path);
+        profileImageFile.safeFilename = safeWebpFilename(profileImageFile.filename);
+      }
+      if (corFile) {
+        await replaceUploadWithSafeWebp(corFile, uploadDir);
+        temporaryCorPath = corFile.path;
+      }
+
       /*
        * Get the existing profile image first.
        * We need this so we can remove the old
@@ -523,20 +539,14 @@ router.put(
        */
       if (profileImageFile) {
         newB2Key =
-          `app-uploads/seller/uploadProfile/${profileImageFile.filename}`;
+          `app-uploads/seller/uploadProfile/${profileImageFile.safeFilename}`;
 
         try {
           await uploadToB2({
             key: newB2Key,
 
-            body:
-              fs.readFileSync(
-                temporaryProfilePath,
-              ),
-
-            contentType:
-              profileImageFile.mimetype ||
-              "application/octet-stream",
+            body: profileImageBuffer,
+            contentType: "image/webp",
           });
 
           console.log(
@@ -618,7 +628,7 @@ router.put(
         );
 
         values.push(
-          profileImageFile.filename,
+          profileImageFile.safeFilename,
         );
       }
 
@@ -698,7 +708,7 @@ router.put(
         profileImageFile &&
         currentStudent.profile_image &&
         currentStudent.profile_image !==
-          profileImageFile.filename
+          profileImageFile.safeFilename
       ) {
         const oldB2Key =
           `app-uploads/seller/uploadProfile/${currentStudent.profile_image}`;
@@ -790,7 +800,7 @@ router.put(
           "Seller profile updated successfully.",
 
         profile_image:
-          profileImageFile?.filename,
+          profileImageFile?.safeFilename,
         cor: corFile?.filename,
       });
     } catch (error) {
@@ -865,6 +875,10 @@ router.put(
             message:
               "Student number or email already exists.",
           });
+      }
+
+      if (error.status === 400) {
+        return res.status(400).json({ message: error.message });
       }
 
       return res

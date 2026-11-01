@@ -14,6 +14,7 @@ import {
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { encodeSafeWebp, safeWebpFilename } from "../../utils/safeImageUpload.js";
 
 const router = express.Router();
 
@@ -52,10 +53,6 @@ const profileUpload = multer({
       ),
   }),
   limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) return cb(new Error("Only image files are allowed."));
-    cb(null, true);
-  },
 });
 
 // Register route
@@ -241,16 +238,19 @@ router.put(
       );
       if (!rows.length) return res.status(404).json({ message: "Buyer not found." });
       if (req.file) {
-        const key = `app-uploads/buyer/uploadProfile/${req.file.filename}`;
+        const profileImage = await encodeSafeWebp(req.file.path);
+        const profileImageName = safeWebpFilename(req.file.filename);
+        const key = `app-uploads/buyer/uploadProfile/${profileImageName}`;
         try {
-          await uploadToB2({ key, body: await fs.promises.readFile(req.file.path), contentType: req.file.mimetype });
+          await uploadToB2({ key, body: profileImage, contentType: "image/webp" });
           uploadedKey = key;
         } catch (error) {
           console.error("Buyer profile upload failed:", error.message);
           return res.status(502).json({ message: "Profile image could not be uploaded to cloud storage." });
         }
         updates.push("profile_image");
-        values.push(req.file.filename);
+        values.push(profileImageName);
+        req.file.safeFilename = profileImageName;
       }
       await db.promise().query(
         `UPDATE customer SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`,
@@ -262,12 +262,12 @@ router.put(
       }
       await logAudit({ action: "UPDATE_ACCOUNT_INFORMATION", actor: req.user.customer_id,
         role: "Customer", status: "SUCCESS", information: "Buyer profile updated successfully." }).catch(() => {});
-      res.json({ message: "Buyer profile updated successfully.", profile_image: req.file?.filename });
+      res.json({ message: "Buyer profile updated successfully.", profile_image: req.file?.safeFilename });
     } catch (error) {
       if (uploadedKey && !committed) await removeCloudImage(uploadedKey);
       console.error("Buyer profile update failed:", error.message);
-      res.status(error.code === "ER_DUP_ENTRY" ? 409 : 500).json({
-        message: error.code === "ER_DUP_ENTRY" ? "Username or email already exists." : "Unable to update buyer profile.",
+      res.status(error.status || (error.code === "ER_DUP_ENTRY" ? 409 : 500)).json({
+        message: error.status ? error.message : error.code === "ER_DUP_ENTRY" ? "Username or email already exists." : "Unable to update buyer profile.",
       });
     } finally {
       if (req.file) await fs.promises.unlink(req.file.path).catch(() => {});
