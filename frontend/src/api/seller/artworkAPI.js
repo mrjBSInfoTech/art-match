@@ -94,11 +94,6 @@ function optionalArtworkDetails(artworkData) {
 function appendArtworkAttributes(formData, artworkData, details) {
   formData.append("exact_art_type", artworkData.exact_art_type?.trim() || "");
   formData.append("product_type", artworkData.product_type);
-  formData.append("payment_mode", artworkData.payment_mode || "straight");
-  if (artworkData.product_type === "Customize"
-      && artworkData.payment_mode === "stage_by_stage") {
-    formData.append("upfront_percentage", artworkData.upfront_percentage);
-  }
   if (details !== null) formData.append("artwork_details", JSON.stringify(details));
   if (details?.product_options) {
     (artworkData.product_options || []).forEach((option) => {
@@ -113,28 +108,9 @@ function appendArtworkAttributes(formData, artworkData, details) {
 }
 
 function validateProductSettings(artworkData) {
-  const { product_type: productType, payment_mode: paymentMode } = artworkData;
+  const { product_type: productType } = artworkData;
   if (!["Premade", "Digital", "Customize"].includes(productType)) {
     throw new Error("Choose a product type.");
-  }
-  if (productType === "Customize") {
-    if (!["straight", "stage_by_stage"].includes(paymentMode)) {
-      throw new Error("Choose a mode of payment.");
-    }
-    if (paymentMode === "stage_by_stage") {
-      const percentage = String(artworkData.upfront_percentage ?? "").trim();
-      if (!/^\d{1,2}(?:\.\d{1,2})?$/.test(percentage)
-          || Number(percentage) < 1
-          || Number(percentage) > 99) {
-        throw new Error("Upfront percentage must be between 1 and 99.");
-      }
-    } else if (String(artworkData.upfront_percentage ?? "").trim()) {
-      throw new Error("Straight payment cannot include an upfront percentage.");
-    }
-  } else if (paymentMode !== "straight") {
-    throw new Error("Premade and Digital artwork use straight payment.");
-  } else if (String(artworkData.upfront_percentage ?? "").trim()) {
-    throw new Error("Only customizable artwork can have an upfront percentage.");
   }
 }
 

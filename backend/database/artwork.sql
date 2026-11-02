@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `artwork` (
     `exact_art_type` VARCHAR(100) NULL,
     `product` VARCHAR(50) NULL,
     `product_type` ENUM('Premade', 'Digital', 'Customize') NOT NULL DEFAULT 'Premade',
-    `payment_mode` ENUM('straight', 'stage_by_stage') NOT NULL DEFAULT 'straight',
+    `payment_mode` ENUM('straight') NOT NULL DEFAULT 'straight',
     `upfront_percentage` DECIMAL(5,2) NULL,
     `product_sample_image` VARCHAR(255) NULL,
     `status` ENUM('Available','Reserved','Sold') NULL DEFAULT 'Available',

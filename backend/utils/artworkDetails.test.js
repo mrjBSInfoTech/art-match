@@ -166,7 +166,7 @@ test("legacy updates preserve details only while art type and product are unchan
   assert.deepEqual(resolveArtworkDetails({ rawDetails: product, artType: "Sculpture", product: "3d_object", currentArtwork }), product);
 });
 
-test("customizable artwork cannot retain stock, and stage-payment stock is omitted", () => {
+test("customizable artwork cannot retain stock", () => {
   const customized = {
     material_composition: ["Wood"],
     stock_available: 10,
@@ -186,11 +186,8 @@ test("customizable artwork cannot retain stock, and stage-payment stock is omitt
   );
 });
 
-test("product payment settings enforce customization percentage boundaries", () => {
+test("product payment settings always use straight payment", () => {
   assert.throws(() => normalizeArtworkProductSettings({}), /valid product type/);
-  assert.throws(() => normalizeArtworkProductSettings({
-    product_type: "Customize",
-  }), /mode of payment/);
   assert.deepEqual(normalizeArtworkProductSettings({
     product_type: "Premade",
   }), {
@@ -205,8 +202,8 @@ test("product payment settings enforce customization percentage boundaries", () 
     upfront_percentage: "1",
   }), {
     productType: "Customize",
-    paymentMode: "stage_by_stage",
-    upfrontPercentage: 1,
+    paymentMode: "straight",
+    upfrontPercentage: null,
   });
   assert.deepEqual(normalizeArtworkProductSettings({
     product_type: "Customize",
@@ -214,16 +211,16 @@ test("product payment settings enforce customization percentage boundaries", () 
     upfront_percentage: "99",
   }), {
     productType: "Customize",
-    paymentMode: "stage_by_stage",
-    upfrontPercentage: 99,
+    paymentMode: "straight",
+    upfrontPercentage: null,
   });
-  for (const percentage of ["", "0", "0.99", "100", "99.999", "abc"]) {
-    assert.throws(() => normalizeArtworkProductSettings({
-      product_type: "Customize",
-      payment_mode: "stage_by_stage",
-      upfront_percentage: percentage,
-    }), ArtworkDetailsValidationError);
-  }
+  assert.deepEqual(normalizeArtworkProductSettings({
+    product_type: "Customize",
+  }), {
+    productType: "Customize",
+    paymentMode: "straight",
+    upfrontPercentage: null,
+  });
   assert.deepEqual(normalizeArtworkProductSettings({
     product_type: "Digital",
     payment_mode: "straight",

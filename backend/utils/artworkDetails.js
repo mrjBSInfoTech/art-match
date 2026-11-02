@@ -19,44 +19,11 @@ export class ArtworkDetailsValidationError extends Error {
   }
 }
 
-export function normalizeArtworkProductSettings(body, currentArtwork = null) {
-  const rawType = body.product_type ?? currentArtwork?.product_type;
+export function normalizeArtworkProductSettings(body) {
+  const rawType = body.product_type;
   const productType = PRODUCT_TYPES.get(String(rawType).trim().toLowerCase());
   if (!productType) {
     throw new ArtworkDetailsValidationError("Choose a valid product type.");
-  }
-  const existingType = String(currentArtwork?.product_type || "").trim().toLowerCase();
-  const rawMode = body.payment_mode
-    ?? (existingType === productType.toLowerCase() ? currentArtwork?.payment_mode : undefined);
-  if (productType === "Customize" && rawMode == null) {
-    throw new ArtworkDetailsValidationError("Choose a mode of payment.");
-  }
-  const paymentMode = rawMode == null && productType !== "Customize"
-    ? "straight"
-    : String(rawMode).trim().toLowerCase();
-  if (productType === "Customize") {
-    if (!["straight", "stage_by_stage"].includes(paymentMode)) {
-      throw new ArtworkDetailsValidationError("Choose a valid mode of payment.");
-    }
-    if (paymentMode === "stage_by_stage") {
-      const rawPercentage = String(body.upfront_percentage ?? currentArtwork?.upfront_percentage ?? "").trim();
-      if (!/^(?:\d{1,2})(?:\.\d{1,2})?$/.test(rawPercentage)
-          || Number(rawPercentage) < 1
-          || Number(rawPercentage) > 99) {
-        throw new ArtworkDetailsValidationError("Upfront percentage must be between 1 and 99.");
-      }
-      return { productType, paymentMode, upfrontPercentage: Number(rawPercentage) };
-    }
-    if (body.upfront_percentage != null && String(body.upfront_percentage).trim() !== "") {
-      throw new ArtworkDetailsValidationError("Straight payment cannot include an upfront percentage.");
-    }
-    return { productType, paymentMode, upfrontPercentage: null };
-  }
-  if (paymentMode !== "straight") {
-    throw new ArtworkDetailsValidationError("Premade and Digital artwork use straight payment.");
-  }
-  if (body.upfront_percentage != null && String(body.upfront_percentage).trim() !== "") {
-    throw new ArtworkDetailsValidationError("Only customizable artwork can have an upfront percentage.");
   }
   return { productType, paymentMode: "straight", upfrontPercentage: null };
 }

@@ -323,19 +323,6 @@ export default function ArtworkDetail() {
     : Number(artwork.price || 0);
   const hasPriceRange = isProduct && productPriceMode === "manual"
     && optionPrices.some((price) => price !== displayedUnitPrice);
-  const upfrontPercentage = Number(artwork.upfront_percentage);
-  const hasStagePayment = artwork.product_type === "Customize"
-    && artwork.payment_mode === "stage_by_stage"
-    && Number.isFinite(upfrontPercentage)
-    && upfrontPercentage >= 1
-    && upfrontPercentage <= 99;
-  const upfrontAmount = hasStagePayment
-    ? Math.round((displayedUnitPrice * upfrontPercentage / 100) * 100) / 100
-    : 0;
-  const remainingAmount = hasStagePayment
-    ? Math.round((displayedUnitPrice - upfrontAmount) * 100) / 100
-    : 0;
-
   const isOutOfStock = isSoldOut || (
     isProduct && productOptions.length > 0
     && productOptions.every(
@@ -576,26 +563,6 @@ export default function ArtworkDetail() {
             >
               {hasPriceRange ? "From " : ""}₱{displayedUnitPrice.toLocaleString()}
             </Typography>
-            {hasStagePayment && (
-              <Box sx={{ mt: -1.5, mb: 2.5 }}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Stage-by-stage payment
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Upfront ({upfrontPercentage}%): ₱{upfrontAmount.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  After completion ({100 - upfrontPercentage}%): ₱{remainingAmount.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </Typography>
-              </Box>
-            )}
-
             <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2.5 }}>
               <Stack spacing={1.5}>
                 <Row
@@ -633,18 +600,11 @@ export default function ArtworkDetail() {
                       void handleRemoveFromCart();
                       return;
                     }
-                    if (String(artwork.product_type || "").trim().toLowerCase() === "customize") {
-                      setCustomizeDialogOpen(true);
-                      return;
-                    }
                     if (isProduct && productOptions.length > 0) {
                       setProductDialogOpen(true);
                       return;
                     }
-                    handleAddToCart(
-                      artwork.artwork_id || artwork.id,
-                      1,
-                    ).catch(() => {});
+                    setCustomizeDialogOpen(true);
                   }}
                   startIcon={
                     addingToCart || isRemovingFromCart ? (
@@ -895,6 +855,7 @@ export default function ArtworkDetail() {
         <CustomizeOrderDialog
           open={customizeDialogOpen}
           artwork={artwork}
+          isCustomizable={String(artwork?.product_type || "").trim().toLowerCase() === "customize"}
           onClose={() => setCustomizeDialogOpen(false)}
           onConfirm={(orderNote) => handleAddToCart(
             artwork.artwork_id || artwork.id,

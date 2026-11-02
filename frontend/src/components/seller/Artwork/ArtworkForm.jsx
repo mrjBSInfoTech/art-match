@@ -57,8 +57,6 @@ const createEmptyArtworkForm = () => ({
   exact_art_type: "",
   product: "",
   product_type: "Premade",
-  payment_mode: "straight",
-  upfront_percentage: "",
   art_size: "",
   genre: "",
   price: "",
@@ -180,8 +178,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         exact_art_type: selectedArtwork.exact_art_type || "",
         product: getArtworkFormOptions(selectedArtwork.art_type)?.product || selectedArtwork.product || "",
         product_type: selectedArtwork.product_type || "Premade",
-        payment_mode: selectedArtwork.payment_mode || "straight",
-        upfront_percentage: selectedArtwork.upfront_percentage ?? "",
         genre: selectedArtwork.genre || selectedArtwork.color_used || "",
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
@@ -223,14 +219,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       return {
         ...next,
         ...(name === "product_type" ? {
-          payment_mode: fieldValue === "Customize" ? prev.payment_mode || "straight" : "straight",
-          upfront_percentage: fieldValue === "Customize" ? prev.upfront_percentage : "",
           stock_available: fieldValue === "Customize" ? "" : prev.stock_available,
           remove_product_sample: fieldValue !== "Customize",
         } : {}),
-        ...(name === "payment_mode" && fieldValue !== "stage_by_stage"
-          ? { upfront_percentage: "" }
-          : {}),
         ...(name === "art_type" ? {
           product_options: fieldValue === "product"
             ? [createEmptyProductOption(), createEmptyProductOption()]
@@ -409,19 +400,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       const stock = Number(formData.stock_available);
       if (!Number.isSafeInteger(stock) || stock < 0) {
         setError("Stock must be a whole number of 0 or more.");
-        return;
-      }
-    }
-    if (isCustomizable) {
-      if (!["straight", "stage_by_stage"].includes(formData.payment_mode)) {
-        setError("Choose a mode of payment.");
-        return;
-      }
-      if (formData.payment_mode === "stage_by_stage" &&
-          (!/^\d{1,2}(?:\.\d{1,2})?$/.test(String(formData.upfront_percentage).trim()) ||
-            Number(formData.upfront_percentage) < 1 ||
-            Number(formData.upfront_percentage) > 99)) {
-        setError("Upfront percentage must be between 1 and 99.");
         return;
       }
     }
@@ -642,31 +620,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                   )}
                 </Stack>
               </Box>
-              <FormControl fullWidth required>
-                <InputLabel>Mode of payment</InputLabel>
-                <Select
-                  label="Mode of payment"
-                  name="payment_mode"
-                  value={formData.payment_mode}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="straight">Straight payment</MenuItem>
-                  <MenuItem value="stage_by_stage">Stage-by-stage payment</MenuItem>
-                </Select>
-              </FormControl>
-              {formData.payment_mode === "stage_by_stage" && (
-                <TextField
-                  required
-                  fullWidth
-                  label="Upfront percentage"
-                  name="upfront_percentage"
-                  type="number"
-                  value={formData.upfront_percentage}
-                  onChange={handleChange}
-                  helperText="Enter a percentage from 1 to 99. The remaining percentage is calculated automatically."
-                  slotProps={{ htmlInput: { min: 1, max: 99, step: 0.01 } }}
-                />
-              )}
             </>
           )}
           {!hasArtType && (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   Alert,
   Box,
@@ -21,9 +21,11 @@ export default function CustomizeOrderDialog({
   artwork,
   onClose,
   onConfirm,
+  isCustomizable = true,
   isSubmitting = false,
 }) {
-  const [step, setStep] = useState("choice");
+  const titleId = useId();
+  const [step, setStep] = useState(isCustomizable ? "choice" : "note");
   const [selectedChoice, setSelectedChoice] = useState("");
   const [details, setDetails] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +33,7 @@ export default function CustomizeOrderDialog({
 
   useEffect(() => {
     if (open) {
-      setStep("choice");
+      setStep(isCustomizable ? "choice" : "note");
       setSelectedChoice("");
       setDetails("");
       setError("");
@@ -43,6 +45,7 @@ export default function CustomizeOrderDialog({
     artwork?.id,
     artwork?.product_sample_image,
     artwork?.image,
+    isCustomizable,
   ]);
 
   const addSelection = async (orderNote = "") => {
@@ -55,9 +58,9 @@ export default function CustomizeOrderDialog({
     }
   };
 
-  const handleCustomize = () => {
+  const handleAddWithDetails = () => {
     const request = details.trim();
-    if (!request) {
+    if (step === "customize" && !request) {
       setError("Enter the details you want the seller to customize.");
       return;
     }
@@ -66,9 +69,11 @@ export default function CustomizeOrderDialog({
 
   const handleContinue = () => {
     if (selectedChoice === "sample") {
-      void addSelection();
+      setError("");
+      setStep("note");
     } else if (selectedChoice === "customize") {
       setError("");
+      setDetails("");
       setStep("customize");
     }
   };
@@ -156,10 +161,10 @@ export default function CustomizeOrderDialog({
           overflow: "hidden",
         },
       }}
-      aria-labelledby="premade-order-title"
+      aria-labelledby={titleId}
     >
       <DialogTitle
-        id="premade-order-title"
+        id={titleId}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -173,7 +178,11 @@ export default function CustomizeOrderDialog({
         }}
       >
         <ShoppingBagOutlinedIcon sx={{ color: "#ef3340" }} />
-        {step === "choice" ? "Choose an option" : "Customize this artwork"}
+        {step === "choice"
+          ? "Choose an option"
+          : step === "customize"
+            ? "Customize this artwork"
+            : "Add an order note"}
         <Button
           aria-label="Close"
           onClick={isSubmitting ? undefined : onClose}
@@ -213,11 +222,13 @@ export default function CustomizeOrderDialog({
               fullWidth
               multiline
               minRows={3}
-              label="Customization details"
-              placeholder="Describe what you would like the seller to customize"
+              label={step === "customize" ? "Customization details" : "Order note (optional)"}
+              placeholder={step === "customize"
+                ? "Describe what you would like the seller to customize"
+                : "Add any details or requests for the seller"}
               value={details}
               onChange={(event) => {
-                setDetails(event.target.value);
+                setDetails(event.target.value.slice(0, 2000));
                 setError("");
               }}
               inputProps={{ maxLength: 2000 }}
@@ -247,16 +258,20 @@ export default function CustomizeOrderDialog({
           <>
           <Button
             onClick={() => {
-              setStep("choice");
+              if (isCustomizable) {
+                setStep("choice");
+              } else {
+                onClose();
+              }
               setError("");
             }}
             disabled={isSubmitting}
           >
-            Back
+            {isCustomizable ? "Back" : "Cancel"}
           </Button>
           <Button
             variant="contained"
-            onClick={handleCustomize}
+            onClick={handleAddWithDetails}
             disabled={isSubmitting}
           >
             Add to cart - ₱{Number(artwork?.price || 0).toLocaleString()}

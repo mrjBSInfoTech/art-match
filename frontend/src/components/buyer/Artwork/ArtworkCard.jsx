@@ -43,29 +43,11 @@ export default function ArtworkCard({
 
   const handleAddToCart = async () => {
     if (isAdding || isSoldOut) return;
-    if (isCustomize) {
-      setCustomizeDialogOpen(true);
-      return;
-    }
     if (isProduct && productOptions.length) {
       setProductDialogOpen(true);
       return;
     }
-    try {
-      setIsAdding(true);
-      await (onAddToCart ? onAddToCart(artworkId) : addToCart(artworkId));
-      setCartMessage("Added");
-    } catch (error) {
-      setCartMessage(
-        error.status === 409
-          ? /sold out/i.test(error.message)
-            ? "Sold out"
-            : "Already in cart"
-          : "Try again",
-      );
-    } finally {
-      setIsAdding(false);
-    }
+    setCustomizeDialogOpen(true);
   };
 
   const handleAddSelectedProducts = async (selectedProducts, totalQuantity, orderNote) => {
@@ -228,6 +210,7 @@ export default function ArtworkCard({
     <CustomizeOrderDialog
       open={customizeDialogOpen}
       artwork={artwork}
+      isCustomizable={isCustomize}
       onClose={() => setCustomizeDialogOpen(false)}
       onConfirm={handleAddPremadeSelection}
       isSubmitting={isAdding}

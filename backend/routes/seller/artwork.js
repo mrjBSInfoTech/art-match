@@ -720,7 +720,7 @@ router.put(
       }
 
       const { productType, paymentMode, upfrontPercentage } =
-        normalizeArtworkProductSettings(req.body, currentArtwork);
+        normalizeArtworkProductSettings(req.body);
       if (req.productSampleFile && productType !== "Customize") {
         throw new ArtworkDetailsValidationError(
           "Product sample images are only allowed for customizable artwork.",
