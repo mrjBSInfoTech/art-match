@@ -16,6 +16,7 @@ import * as XLSX from "xlsx";
 import {
   MAX_IMPORT_FILE_SIZE,
   MAX_IMPORT_ROWS,
+  normalizeStudentBirthdate,
   readStudentSpreadsheet,
 } from "./studentImportSpreadsheet.js";
 import { bulkAddStudents } from "../../../api/admin/studentAPI";
@@ -51,6 +52,14 @@ const COLUMN_ALIASES = {
   middle_name: ["middle name", "middlename", "middle"],
 
   last_name: ["last name", "lastname", "surname", "family name"],
+
+  birthdate: ["date of birth", "birthdate", "birth date", "dob"],
+
+  email: ["email", "email address", "student email"],
+
+  address: ["address", "home address", "residential address"],
+
+  phone_number: ["phone number", "phone", "mobile number", "contact number", "telephone"],
 
   course: ["course", "program", "degree", "degree program"],
 
@@ -131,7 +140,10 @@ const findHeaderRow = (rows) => {
     best.score < 7 ||
     best.columnMap.student_number === undefined ||
     best.columnMap.first_name === undefined ||
-    best.columnMap.last_name === undefined
+    best.columnMap.last_name === undefined ||
+    ["birthdate", "email", "address", "phone_number"].some(
+      (field) => best.columnMap[field] === undefined,
+    )
   ) {
     return null;
   }
@@ -287,7 +299,7 @@ export default function StudentBulkAdd({
 
       if (!bestSheet) {
         throw new Error(
-          "Could not automatically find the student columns in this file.",
+          "Could not find all required columns. Include Student Number, First Name, Last Name, Date of Birth, Email, Address, and Phone Number.",
         );
       }
 
@@ -314,6 +326,12 @@ export default function StudentBulkAdd({
           const lastName = formatPersonName(
             getCellValue(row, columnMap, "last_name"),
           );
+          const birthdate = normalizeStudentBirthdate(
+            getCellValue(row, columnMap, "birthdate"),
+          );
+          const email = getCellValue(row, columnMap, "email");
+          const address = getCellValue(row, columnMap, "address");
+          const phoneNumber = getCellValue(row, columnMap, "phone_number");
           const course = normalizeCourse(
             getCellValue(row, columnMap, "course"),
           );
@@ -326,6 +344,10 @@ export default function StudentBulkAdd({
             first_name: firstName,
             middle_name: middleName,
             last_name: lastName,
+            birthdate,
+            email,
+            address,
+            phone_number: phoneNumber,
             course,
             year_level: yearLevel,
           };
@@ -338,6 +360,17 @@ export default function StudentBulkAdd({
       if (!students.length) {
         throw new Error(
           "Student columns were found, but no valid student rows were detected.",
+        );
+      }
+
+      const studentWithMissingDetails = students.find((student) =>
+        ["birthdate", "email", "address", "phone_number"].some(
+          (field) => !student[field],
+        ),
+      );
+      if (studentWithMissingDetails) {
+        throw new Error(
+          `Student ${studentWithMissingDetails.student_number} is missing a birthdate, email, address, or phone number.`,
         );
       }
 
@@ -464,6 +497,9 @@ export default function StudentBulkAdd({
           Upload an Excel (.xlsx) or CSV file (maximum 5 MiB and 10,000 rows).
           Ensure your column headers match the required format.
         </Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Each new student's initial password will be their surname in uppercase.
+        </Alert>
 
         <Button
           variant="text"

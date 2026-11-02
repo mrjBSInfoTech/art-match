@@ -6,6 +6,54 @@ export const MAX_IMPORT_ROWS = 10000;
 
 const MAX_ROWS_WITH_HEADER = MAX_IMPORT_ROWS + 30;
 
+export function normalizeStudentBirthdate(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const slashMatch = text.match(/^(\d{1,4})\/(\d{1,2})\/(\d{1,4})$/);
+  let year;
+  let month;
+  let day;
+
+  if (isoMatch) {
+    [, year, month, day] = isoMatch;
+  } else if (slashMatch) {
+    const [, first, second, third] = slashMatch;
+    if (first.length === 4) {
+      year = first;
+      month = second;
+      day = third;
+    } else {
+      const firstValue = Number(first);
+      const dayFirst = firstValue > 12;
+      month = dayFirst ? second : first;
+      day = dayFirst ? first : second;
+      year = third.length === 2
+        ? String(Number(third) >= 50 ? 1900 + Number(third) : 2000 + Number(third))
+        : third;
+    }
+  } else {
+    throw new Error("Birthdates must use YYYY-MM-DD or a slash-separated date.");
+  }
+
+  const yearNumber = Number(year);
+  const monthNumber = Number(month);
+  const dayNumber = Number(day);
+  const date = new Date(Date.UTC(yearNumber, monthNumber - 1, dayNumber));
+  if (
+    !Number.isInteger(yearNumber)
+    || yearNumber < 1000
+    || date.getUTCFullYear() !== yearNumber
+    || date.getUTCMonth() !== monthNumber - 1
+    || date.getUTCDate() !== dayNumber
+  ) {
+    throw new Error("Enter a valid birthdate.");
+  }
+
+  return `${yearNumber}-${String(monthNumber).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
+}
+
 export async function readStudentSpreadsheet(data, extension) {
   const normalizedExtension = extension.toLowerCase();
   if (normalizedExtension === ".csv") {

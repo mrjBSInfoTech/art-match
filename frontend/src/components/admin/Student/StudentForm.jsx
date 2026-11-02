@@ -241,6 +241,11 @@ export default function StudentForm({
             {error}
           </Alert>
         )}
+        {!selectedStudent && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            The initial password will be the student's surname in uppercase.
+          </Alert>
+        )}
         {uploadError && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {uploadError}

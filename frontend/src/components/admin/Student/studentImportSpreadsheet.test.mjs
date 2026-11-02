@@ -3,8 +3,18 @@ import test from "node:test";
 import * as XLSX from "xlsx";
 import {
   MAX_IMPORT_ROWS,
+  normalizeStudentBirthdate,
   readStudentSpreadsheet,
 } from "./studentImportSpreadsheet.js";
+
+test("student birthdates normalize to database date format", () => {
+  assert.equal(normalizeStudentBirthdate("2001-01-15"), "2001-01-15");
+  assert.equal(normalizeStudentBirthdate("1/15/01"), "2001-01-15");
+  assert.equal(normalizeStudentBirthdate("15/1/2001"), "2001-01-15");
+  assert.equal(normalizeStudentBirthdate(""), "");
+  assert.throws(() => normalizeStudentBirthdate("2001-02-29"), /valid birthdate/);
+  assert.throws(() => normalizeStudentBirthdate("not a date"), /YYYY-MM-DD/);
+});
 
 test("student spreadsheet reader handles xlsx and quoted CSV values", async () => {
   const workbook = XLSX.utils.book_new();

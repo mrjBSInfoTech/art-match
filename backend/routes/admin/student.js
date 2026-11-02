@@ -114,23 +114,22 @@ router.post(
     const adminId = req.user?.admin_id || null;
     let createdCount = 0;
     let reactivatedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
 
     const processStudent = (index, expirationDate) => {
       if (index >= students.length) {
-        const summary = `Bulk import complete: ${createdCount} added, ${reactivatedCount} reactivated, ${skippedCount} already active/skipped`;
+        const summary = `Bulk import complete: ${createdCount} added, ${updatedCount} updated, ${reactivatedCount} reactivated, ${skippedCount} unchanged/skipped`;
         return res.status(201).json({
           message: summary,
           added: createdCount,
+          updated: updatedCount,
           reactivated: reactivatedCount,
           skipped: skippedCount,
         });
       }
 
-      const studentData = {
-        ...students[index],
-        password: students[index].password || "Admin123456",
-      };
+      const studentData = students[index];
       const studentNumber = studentData.student_number;
 
       const createStudent = () => {
@@ -149,7 +148,9 @@ router.post(
       }
 
       db.query(
-        `SELECT student_id, (expire_date <= CURRENT_TIMESTAMP) AS is_expired
+        `SELECT student_id, DATE_FORMAT(birthdate, '%Y-%m-%d') AS birthdate,
+                email, address, phone_number,
+                (expire_date <= CURRENT_TIMESTAMP) AS is_expired
          FROM student WHERE student_number = ? LIMIT 1`,
         [studentNumber],
         (lookupError, results) => {
@@ -162,9 +163,45 @@ router.post(
           }
 
           const existingStudent = results[0];
+          const contactFields = ["birthdate", "email", "address", "phone_number"];
+          const changedContactFields = contactFields.flatMap((field) => {
+            if (
+              !Object.prototype.hasOwnProperty.call(studentData, field)
+              || studentData[field] == null
+            ) {
+              return [];
+            }
+            const value = String(studentData[field]).trim();
+            if (!value || value === String(existingStudent[field] ?? "").trim()) {
+              return [];
+            }
+            return [{ field, value }];
+          });
+
           if (!existingStudent.is_expired) {
-            skippedCount += 1;
-            return processStudent(index + 1, expirationDate);
+            if (!changedContactFields.length) {
+              skippedCount += 1;
+              return processStudent(index + 1, expirationDate);
+            }
+
+            const assignments = changedContactFields.map(({ field }) => `${field} = ?`);
+            const values = changedContactFields.map(({ value }) => value);
+            db.query(
+              `UPDATE student SET ${assignments.join(", ")} WHERE student_id = ?`,
+              [...values, existingStudent.student_id],
+              (updateError, updateResult) => {
+                if (updateError) {
+                  return res.status(500).json({ message: updateError.message });
+                }
+                if (updateResult.affectedRows > 0) {
+                  updatedCount += 1;
+                } else {
+                  skippedCount += 1;
+                }
+                processStudent(index + 1, expirationDate);
+              },
+            );
+            return;
           }
 
           if (!String(studentData.year_level || "").trim()) {
@@ -178,19 +215,24 @@ router.post(
             });
           }
 
+          const assignments = changedContactFields.map(({ field }) => `${field} = ?`);
+          const values = changedContactFields.map(({ value }) => value);
+          assignments.push(
+            "year_level = ?",
+            "course = ?",
+            "account_status = 'active'",
+            "expire_date = DATE_ADD(?, INTERVAL 1 DAY)",
+          );
+          values.push(
+            studentData.year_level.trim(),
+            studentData.course.trim(),
+            expirationDate,
+            existingStudent.student_id,
+          );
           db.query(
-            `UPDATE student
-             SET year_level = ?,
-                 course = ?,
-                 account_status = 'active',
-                 expire_date = DATE_ADD(?, INTERVAL 1 DAY)
+            `UPDATE student SET ${assignments.join(", ")}
              WHERE student_id = ? AND expire_date <= CURRENT_TIMESTAMP`,
-            [
-              studentData.year_level.trim(),
-              studentData.course.trim(),
-              expirationDate,
-              existingStudent.student_id,
-            ],
+            values,
             (reactivationError, updateResult) => {
               if (reactivationError) {
                 return res.status(500).json({ message: reactivationError.message });
@@ -360,6 +402,10 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
   const requiredFields = [
     "first_name",
     "last_name",
+    "birthdate",
+    "email",
+    "address",
+    "phone_number",
     "year_level",
     "course",
     "student_number",
@@ -369,7 +415,7 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
     (field) =>
       studentData[field] === undefined ||
       studentData[field] === null ||
-      studentData[field] === "",
+      !String(studentData[field]).trim(),
   );
 
   if (missingField) {
@@ -383,22 +429,7 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
   }
 
   const now = formatDateTime();
-  const password = studentData.password || "Admin123456";
-
-  /* // For future use: Use last name as default password
-  const password =
-  String(
-    studentData.last_name || "",
-  )
-    .trim()
-    .toUpperCase();
-
-const passwordHash =
-  bcrypt.hashSync(
-    password,
-    10,
-  );
-  */
+  const password = String(studentData.last_name).trim().toUpperCase();
   const passwordHash = bcrypt.hashSync(password, 10);
 
   const studentSql = `

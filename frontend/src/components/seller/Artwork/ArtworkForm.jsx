@@ -68,6 +68,14 @@ const STYLE_OPTIONS = [
   "Minimalism",
   "Pop Art",
 ];
+const CUSTOM_STYLE_VALUE = "__custom_style__";
+
+const getArtworkStyleFormValues = (genre = "") => {
+  const style = String(genre || "");
+  return STYLE_OPTIONS.includes(style)
+    ? { genre: style, custom_style: "" }
+    : { genre: style ? CUSTOM_STYLE_VALUE : "", custom_style: style };
+};
 
 const createEmptyArtworkForm = () => ({
   title: "",
@@ -77,6 +85,7 @@ const createEmptyArtworkForm = () => ({
   product_type: "Premade",
   art_size: "",
   genre: "",
+  custom_style: "",
   price: "",
   description: "",
   care_instructions: "",
@@ -182,6 +191,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setFormData({
         ...createEmptyArtworkForm(),
         ...initialDraft,
+        ...getArtworkStyleFormValues(initialDraft.genre || initialDraft.color_used || ""),
         ...getArtworkDetailsFromArtwork(initialDraft),
         ...(initialDraft.art_type === "product"
           ? { product_options: getProductOptionsFromArtwork(initialDraft) }
@@ -198,7 +208,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         exact_art_type: selectedArtwork.exact_art_type || "",
         product: getArtworkFormOptions(selectedArtwork.art_type)?.product || selectedArtwork.product || "",
         product_type: selectedArtwork.product_type || "Premade",
-        genre: selectedArtwork.genre || selectedArtwork.color_used || "",
+        ...getArtworkStyleFormValues(selectedArtwork.genre || selectedArtwork.color_used || ""),
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
         care_instructions: selectedArtwork.care_instructions || "",
@@ -247,11 +257,13 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
           stock_available: "",
         } : {}),
         ...(name === "art_type" ? {
+          custom_style: "",
           product_options: fieldValue === "product"
             ? [createEmptyProductOption(), createEmptyProductOption()]
             : [],
           product_price_mode: "shared",
         } : {}),
+        ...(name === "product" ? { custom_style: "" } : {}),
         ...(isProductArtwork && next.product_type !== "Customize" ? {
           stock_available: getProductOptionsTotalQuantity(next.product_options),
         } : {}),
@@ -414,7 +426,10 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setError("Art size is required");
       return;
     }
-    if (!formData.genre.trim()) {
+    const artworkStyle = formData.genre === CUSTOM_STYLE_VALUE
+      ? formData.custom_style.trim()
+      : formData.genre.trim();
+    if (!artworkStyle) {
       setError("Style is required");
       return;
     }
@@ -446,6 +461,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     }
     const draft = {
       ...formData,
+      genre: artworkStyle,
+      custom_style: undefined,
       ...(isCustomizable || !isStockable || formData.product_type === "Digital" ? { stock_available: "" } : {}),
       ...(!isStockable ? { stockable: false } : {}),
       ...(isProductArtwork ? { stock_available: productStockTotal } : {}),
@@ -825,25 +842,36 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             )}
 
             {showDetails && (
-              <FormControl fullWidth sx={{ gridColumn: "1 / -1" }}>
-                <InputLabel id="artwork-style-label">Style</InputLabel>
-                <Select
-                  labelId="artwork-style-label"
-                  label="Style"
-                  name="genre"
-                  value={formData.genre || ""}
-                  onChange={(event) => handleChange({ target: { name: "genre", value: event.target.value } })}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
-                >
-                  <MenuItem value=""><em>Select a style</em></MenuItem>
-                  {STYLE_OPTIONS.map((style) => (
-                    <MenuItem key={style} value={style}>{style}</MenuItem>
-                  ))}
-                  {formData.genre && !STYLE_OPTIONS.includes(formData.genre) && (
-                    <MenuItem value={formData.genre}>{formData.genre}</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
+              <>
+                <FormControl fullWidth sx={{ gridColumn: "1 / -1" }}>
+                  <InputLabel id="artwork-style-label">Style</InputLabel>
+                  <Select
+                    labelId="artwork-style-label"
+                    label="Style"
+                    name="genre"
+                    value={formData.genre || ""}
+                    onChange={(event) => handleChange({ target: { name: "genre", value: event.target.value } })}
+                    MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+                  >
+                    <MenuItem value=""><em>Select a style</em></MenuItem>
+                    {STYLE_OPTIONS.map((style) => (
+                      <MenuItem key={style} value={style}>{style}</MenuItem>
+                    ))}
+                    <MenuItem value={CUSTOM_STYLE_VALUE}>None of the Above</MenuItem>
+                  </Select>
+                </FormControl>
+                {formData.genre === CUSTOM_STYLE_VALUE && (
+                  <TextField
+                    label="Specify your style"
+                    name="custom_style"
+                    value={formData.custom_style || ""}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    sx={{ gridColumn: "1 / -1" }}
+                  />
+                )}
+              </>
             )}
 
             {showDetails && (
