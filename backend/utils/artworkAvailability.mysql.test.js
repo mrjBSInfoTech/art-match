@@ -69,6 +69,7 @@ test("MySQL: stock JSON null/empty/invalid and tracked stock agree with checkout
     { name: "whole decimal text", details: { stock_available: "3.0" } },
     { name: "scientific whole text", details: { stock_available: "3e1" } },
     { name: "untracked purchased artwork", details: { stock_available: null }, sold: 1 },
+    { name: "customized repeat order", details: { stock_available: null }, sold: 10, productType: "Customize" },
     { name: "partially purchased stock", details: { stock_available: 3 }, sold: 2 },
     { name: "exhausted stock", details: { stock_available: 3 }, sold: 3 },
     { name: "manually sold flag", details: { stock_available: 3 }, markedSold: 1 },
@@ -80,11 +81,11 @@ test("MySQL: stock JSON null/empty/invalid and tracked stock agree with checkout
   for (const sample of cases) {
     const [rows] = await db.promise().query(`SELECT ${expression} AS is_sold_out,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available
-      FROM (SELECT ? AS artwork_details, ? AS sold_quantity, ? AS is_sold, ? AS status) a`,
+      FROM (SELECT ? AS artwork_details, ? AS sold_quantity, ? AS is_sold, ? AS status, ? AS product_type) a`,
     [sample.details === null ? null : JSON.stringify(sample.details), sample.sold || 0,
-      sample.markedSold || 0, sample.status || "Available"]);
+      sample.markedSold || 0, sample.status || "Available", sample.productType || "Premade"]);
     const expected = getArtworkAvailability(rows[0].stock_available, sample.sold || 0,
-      Boolean(sample.markedSold) || sample.status === "Sold");
+      Boolean(sample.markedSold) || sample.status === "Sold", sample.productType || "Premade");
     assert.equal(Number(rows[0].is_sold_out), Number(expected.isSoldOut), sample.name);
   }
 });

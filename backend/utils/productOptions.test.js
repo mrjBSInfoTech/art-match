@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   calculateProductOptionsTotal,
   normalizeProductDetails,
+  requiresProductOptionSelection,
   validateProductOptionSelections,
 } from "./productOptions.js";
 
@@ -36,4 +37,17 @@ test("selection prices are canonical for shared/manual mode and reject unknown I
   assert.deepEqual(manual.map(({ unit_price }) => unit_price), [12.5, 20]);
   assert.equal(calculateProductOptionsTotal(manual), 45);
   assert.throws(() => validateProductOptionSelections([{ id: "unknown", quantity: 1 }], optionList, "manual", 1), /no longer available/);
+});
+
+test("Only Customize listings bypass Product variant selection", () => {
+  const premade = {
+    art_type: "product",
+    product_type: "Premade",
+    artwork_details: { product_options: optionList },
+  };
+  assert.equal(requiresProductOptionSelection(premade), true);
+  assert.equal(requiresProductOptionSelection({ ...premade, product_type: "Digital" }), true);
+  assert.equal(requiresProductOptionSelection({ ...premade, product_type: "Customize" }), false);
+  assert.equal(requiresProductOptionSelection({ ...premade, product_type: "Unknown" }), true);
+  assert.equal(requiresProductOptionSelection({ ...premade, art_type: "painting" }), false);
 });

@@ -6,7 +6,8 @@ export const ART_TYPES = [
   "Photography",
   "Print",
   "Mixed Media",
-  "Product"
+  "Product",
+  "Customize",
 ];
 
 export const ART_STYLES = [

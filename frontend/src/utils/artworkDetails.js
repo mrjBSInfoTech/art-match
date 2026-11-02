@@ -68,29 +68,35 @@ const trimmedString = (value) => typeof value === "string" ? value.trim() : "";
 
 export function getArtworkDetailsPayload(formData) {
   const category = getArtworkDetailCategory(formData.art_type, formData.product);
+  const isCustomizable = String(formData.product_type || "").trim().toLowerCase() === "customize";
+  const materials = materialTags(formData.material_composition);
+  const commonDetails = {
+    material_composition: materials,
+    ...(!isCustomizable ? {
+      stock_available: integerValue(formData.stock_available) ?? formData.stock_available ?? "",
+    } : {}),
+  };
   if (category === "fine_art") {
     return {
       is_fragile: booleanValue(formData.is_fragile),
       humidity_sensitive: booleanValue(formData.humidity_sensitive),
       light_sensitive: booleanValue(formData.light_sensitive),
-      material_composition: materialTags(formData.material_composition),
+      ...commonDetails,
     };
   }
   if (category === "product") {
-    return {
-      material_composition: materialTags(formData.material_composition),
-      stock_available: integerValue(formData.stock_available) ?? formData.stock_available ?? "",
-    };
+    return commonDetails;
   }
   if (category === "digital") {
     return {
+      ...commonDetails,
       resolution_width: integerValue(formData.resolution_width) ?? formData.resolution_width ?? "",
       resolution_height: integerValue(formData.resolution_height) ?? formData.resolution_height ?? "",
       file_format: trimmedString(formData.file_format).toUpperCase(),
       color_profile: trimmedString(formData.color_profile),
     };
   }
-  return {};
+  return commonDetails;
 }
 
 export function getArtworkDetailsFromArtwork(artwork = {}) {
@@ -105,7 +111,12 @@ export function getArtworkDetailsFromArtwork(artwork = {}) {
   if (!details || typeof details !== "object" || Array.isArray(details)) details = artwork;
   return {
     ...getArtworkDetailDefaults(),
-    ...getArtworkDetailsPayload({ ...details, art_type: artwork.art_type, product: artwork.product }),
+    ...getArtworkDetailsPayload({
+      ...details,
+      art_type: artwork.art_type,
+      product: artwork.product,
+      product_type: artwork.product_type || "Premade",
+    }),
     ...(Array.isArray(details.product_options) ? {
       product_price_mode: details.product_price_mode || "shared",
       product_options: details.product_options,
@@ -116,24 +127,25 @@ export function getArtworkDetailsFromArtwork(artwork = {}) {
 export function getArtworkDetailsErrors(formData) {
   const category = getArtworkDetailCategory(formData.art_type, formData.product);
   const errors = {};
-  if (category === "fine_art" || category === "product") {
-    const tags = materialTags(formData.material_composition);
-    if (!tags.length) errors.material_composition = "Add at least one material or composition.";
-    else if (tags.length > 10) errors.material_composition = "Add no more than 10 materials.";
-    else if (tags.some((tag) => tag.length > 100)) {
-      errors.material_composition = "Each material must be 100 characters or fewer.";
-    } else if (formData.material_composition.some((tag) => typeof tag !== "string")) {
-      errors.material_composition = "Each material must be text.";
-    }
+  const tags = materialTags(formData.material_composition);
+  if (!tags.length) errors.material_composition = "Add at least one material or composition.";
+  else if (tags.length > 10) errors.material_composition = "Add no more than 10 materials.";
+  else if (tags.some((tag) => tag.length > 100)) {
+    errors.material_composition = "Each material must be 100 characters or fewer.";
+  } else if (formData.material_composition.some((tag) => typeof tag !== "string")) {
+    errors.material_composition = "Each material must be text.";
   }
   if (category === "fine_art") {
     for (const field of ["is_fragile", "humidity_sensitive", "light_sensitive"]) {
       if (typeof formData[field] !== "boolean") errors[field] = "Choose whether this applies to your artwork.";
     }
   }
-  if (category === "product") {
+  if (normalized(formData.product_type) !== "customize"
+      && normalized(formData.art_type) !== "product") {
     const stock = integerValue(formData.stock_available);
-    if (stock === null || stock < 0) errors.stock_available = "Enter stock as a whole number of 0 or more.";
+    if (stock === null || stock < 0) {
+      errors.stock_available = "Enter stock as a whole number of 0 or more.";
+    }
   }
   if (category === "digital") {
     for (const field of ["resolution_width", "resolution_height"]) {

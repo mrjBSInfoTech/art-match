@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -123,8 +124,8 @@ export default function ProductSelectionDialog({
         keepMounted
         PaperProps={{
           sx: {
-            width: "min(100% - 24px, 470px)",
-            maxWidth: "470px",
+            width: "min(calc(100% - 24px), 590px)",
+            maxWidth: "590px",
             borderRadius: 3,
             overflow: "hidden",
             backgroundColor: theme.palette.background.paper,
@@ -167,11 +168,12 @@ export default function ProductSelectionDialog({
         <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 } }}>
           <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
-              Select one or more products and enter how many of each you want.
+              Select the products you want. Set a quantity for each selected product.
             </Typography>
             {options.map((option) => {
               const quantity = Number(quantities[option.id] || 0);
-              const available = Number(option.quantity);
+              const available = Number(option.remaining_stock ?? option.quantity);
+              const isSelected = quantity > 0;
               const price = priceMode === "manual" ? Number(option.price) : Number(artwork?.price);
               return (
                 <Box
@@ -194,10 +196,22 @@ export default function ProductSelectionDialog({
                       display: "flex",
                       flex: 1,
                       minWidth: 0,
-                      gap: 1.5,
-                      alignItems: "flex-start",
+                      gap: 1,
+                      alignItems: "center",
                     }}
                   >
+                    <Checkbox
+                      checked={isSelected}
+                      disabled={!Number.isSafeInteger(available) || available <= 0 || isSubmitting}
+                      onChange={(event) => {
+                        setQuantities((current) => ({
+                          ...current,
+                          [option.id]: event.target.checked ? 1 : 0,
+                        }));
+                        setError("");
+                      }}
+                      inputProps={{ "aria-label": `Select ${option.name}` }}
+                    />
                     {option.imagePreview && (
                       <ArtworkImage
                         image={option.imagePreview}
@@ -242,40 +256,42 @@ export default function ProductSelectionDialog({
                       </Typography>
                     </Box>
                   </Box>
-                  <Box
-                    sx={{
-                      width: { xs: "100%", sm: 96 },
-                      flexShrink: 0,
-                      pt: { xs: 0.5, sm: 0 },
-                    }}
-                  >
-                    <TextField
-                      type="number"
-                      size="small"
-                      fullWidth
-                      value={quantity === 0 ? "" : quantity}
-                      placeholder="0"
-                      onChange={(event) => {
-                        const raw = event.target.value;
-                        if (raw === "") {
+                  {isSelected && (
+                    <Box
+                      sx={{
+                        width: { xs: "100%", sm: 96 },
+                        flexShrink: 0,
+                        pt: { xs: 0.5, sm: 0 },
+                      }}
+                    >
+                      <TextField
+                        type="number"
+                        size="small"
+                        fullWidth
+                        label="Quantity"
+                        value={quantity}
+                        onChange={(event) => {
+                          const raw = event.target.value;
+                          if (raw === "") {
+                            setQuantities((current) => ({
+                              ...current,
+                              [option.id]: 0,
+                            }));
+                            return;
+                          }
+                          const value = Number(raw);
                           setQuantities((current) => ({
                             ...current,
-                            [option.id]: 0,
+                            [option.id]: Number.isSafeInteger(value)
+                              ? Math.min(Math.max(value, 1), available)
+                              : 1,
                           }));
-                          return;
-                        }
-                        const value = Number(raw);
-                        setQuantities((current) => ({
-                          ...current,
-                          [option.id]: Number.isSafeInteger(value)
-                            ? Math.min(Math.max(value, 0), available)
-                            : 0,
-                        }));
-                      }}
-                      inputProps={{ min: 0, max: available, step: 1 }}
-                      disabled={!Number.isSafeInteger(available) || available <= 0}
-                    />
-                  </Box>
+                        }}
+                        inputProps={{ min: 1, max: available, step: 1 }}
+                        disabled={!Number.isSafeInteger(available) || available <= 0 || isSubmitting}
+                      />
+                    </Box>
+                  )}
                 </Box>
               );
             })}
@@ -330,8 +346,8 @@ export default function ProductSelectionDialog({
         keepMounted
         PaperProps={{
           sx: {
-            width: "min(100% - 24px, 470px)",
-            maxWidth: "470px",
+            width: "min(calc(100% - 24px), 590px)",
+            maxWidth: "590px",
             borderRadius: 3,
             overflow: "hidden",
             backgroundColor: theme.palette.background.paper,

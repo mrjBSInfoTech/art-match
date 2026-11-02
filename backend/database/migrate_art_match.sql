@@ -1,4 +1,4 @@
-﻿CREATE DATABASE IF NOT EXISTS art_match;
+CREATE DATABASE IF NOT EXISTS art_match;
 USE art_match;
 
 DROP TABLE IF EXISTS `account_access`;
@@ -126,6 +126,7 @@ CREATE TABLE `artwork` (
   `price` decimal(10,2) NOT NULL,
   `description` text DEFAULT NULL,
   `image` varchar(255) DEFAULT NULL,
+  `product_sample_image` varchar(255) DEFAULT NULL,
   `genre` varchar(100) DEFAULT NULL,
   `color_used` varchar(255) DEFAULT NULL,
   `art_size` varchar(100) DEFAULT NULL,
@@ -317,7 +318,5 @@ CREATE TABLE `transaction_tbl` (
   CONSTRAINT `fk_transaction_address` FOREIGN KEY (`address_id`) REFERENCES `address` (`address_id`),
   CONSTRAINT `transaction_tbl_ibfk_1` FOREIGN KEY (`add_to_id`) REFERENCES `add_cart` (`add_to_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-
 
 

@@ -24,6 +24,11 @@ export const getProductOptions = (details) => {
     : [];
 };
 
+export const requiresProductOptionSelection = (artwork) =>
+  String(artwork?.art_type || "").trim().toLowerCase() === "product"
+  && String(artwork?.product_type || "").trim().toLowerCase() !== "customize"
+  && getProductOptions(artwork?.artwork_details).length > 0;
+
 export const validateProductOptionSelections = (rawSelections, options, priceMode, artworkPrice) => {
   if (!Array.isArray(rawSelections) || !rawSelections.length) {
     throw new ProductOptionsError("Select at least one product option.");

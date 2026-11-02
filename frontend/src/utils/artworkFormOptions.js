@@ -17,6 +17,13 @@ export function getArtworkFormOptions(artType) {
   if (type === "digital") {
     return { product: "painting", sizeLabel: "Digital dimensions", sizeHint: "Width × height in pixels, e.g. 3000 × 2000 px" };
   }
+  if (type === "customize") {
+    return {
+      product: "3d_object",
+      sizeLabel: "Artwork dimensions",
+      sizeHint: "Enter the expected dimensions and units.",
+    };
+  }
   if (["painting", "architecture", "photography", "print"].includes(type)) {
     return {
       product: ["photography", "print"].includes(type) ? "image" : "painting",
@@ -40,6 +47,7 @@ export function changeArtworkFormField(previous, name, value) {
       ...getArtworkDetailDefaults(),
       ...getArtworkScanDefaults(),
       art_type: value,
+      exact_art_type: "",
       product: getArtworkFormOptions(value)?.product || "",
       art_size: "",
       genre: "",

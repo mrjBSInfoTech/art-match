@@ -62,7 +62,8 @@ function optionalArtworkDetails(artworkData) {
   };
   const error = Object.values(getArtworkDetailsErrors(data))[0];
   if (error) throw new Error(error);
-  const isProductArtwork = String(artworkData.art_type || "").trim().toLowerCase() === "product";
+  const isProductArtwork = String(artworkData.art_type || "").trim().toLowerCase() === "product"
+    && artworkData.product_type !== "Customize";
   const priceMode = details.product_price_mode
     || artworkData.product_price_mode
     || "shared";
@@ -91,6 +92,13 @@ function optionalArtworkDetails(artworkData) {
 }
 
 function appendArtworkAttributes(formData, artworkData, details) {
+  formData.append("exact_art_type", artworkData.exact_art_type?.trim() || "");
+  formData.append("product_type", artworkData.product_type);
+  formData.append("payment_mode", artworkData.payment_mode || "straight");
+  if (artworkData.product_type === "Customize"
+      && artworkData.payment_mode === "stage_by_stage") {
+    formData.append("upfront_percentage", artworkData.upfront_percentage);
+  }
   if (details !== null) formData.append("artwork_details", JSON.stringify(details));
   if (details?.product_options) {
     (artworkData.product_options || []).forEach((option) => {
@@ -102,6 +110,54 @@ function appendArtworkAttributes(formData, artworkData, details) {
   const scan = getArtworkScanPayload(artworkData);
   if (Object.hasOwn(scan, "mediums_used")) formData.append("mediums_used", scan.mediums_used);
   if (Object.hasOwn(scan, "feature_scanned")) formData.append("feature_scanned", JSON.stringify(scan.feature_scanned));
+}
+
+function validateProductSettings(artworkData) {
+  const { product_type: productType, payment_mode: paymentMode } = artworkData;
+  if (!["Premade", "Digital", "Customize"].includes(productType)) {
+    throw new Error("Choose a product type.");
+  }
+  if (productType === "Customize") {
+    if (!["straight", "stage_by_stage"].includes(paymentMode)) {
+      throw new Error("Choose a mode of payment.");
+    }
+    if (paymentMode === "stage_by_stage") {
+      const percentage = String(artworkData.upfront_percentage ?? "").trim();
+      if (!/^\d{1,2}(?:\.\d{1,2})?$/.test(percentage)
+          || Number(percentage) < 1
+          || Number(percentage) > 99) {
+        throw new Error("Upfront percentage must be between 1 and 99.");
+      }
+    } else if (String(artworkData.upfront_percentage ?? "").trim()) {
+      throw new Error("Straight payment cannot include an upfront percentage.");
+    }
+  } else if (paymentMode !== "straight") {
+    throw new Error("Premade and Digital artwork use straight payment.");
+  } else if (String(artworkData.upfront_percentage ?? "").trim()) {
+    throw new Error("Only customizable artwork can have an upfront percentage.");
+  }
+}
+
+function validateImageFile(file) {
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error("Artwork images must be 2MB or smaller.");
+  }
+  if (!["image/jpeg", "image/png", "image/webp"].includes(String(file.type || "").toLowerCase())) {
+    throw new Error("Choose a JPEG, PNG, or WebP image.");
+  }
+}
+
+function appendProductSample(formData, artworkData) {
+  const sampleFile = artworkData.product_sample_file;
+  validateImageFile(sampleFile);
+  if (artworkData.product_type === "Customize" && sampleFile) {
+    formData.append("product_sample_file", sampleFile);
+  }
+  formData.append(
+    "remove_product_sample",
+    artworkData.product_type !== "Customize" || artworkData.remove_product_sample ? "1" : "0",
+  );
 }
 
 // Fetch all artworks
@@ -132,6 +188,8 @@ export const fetchArtworkById = async (id) => {
 
 // Add new artwork
 export const addArtwork = async (artworkData) => {
+  validateProductSettings(artworkData);
+  validateImageFile(artworkData.file);
   const details = optionalArtworkDetails(artworkData);
   const scanError = Object.values(getArtworkScanErrors(artworkData))[0];
   if (scanError) throw new Error(scanError);
@@ -157,6 +215,12 @@ export const addArtwork = async (artworkData) => {
     if (!artworkData.art_type || !artworkData.art_type.trim()) {
       throw new Error("Art type is required");
     }
+    if (artworkData.art_type === "customize" && !artworkData.exact_art_type?.trim()) {
+      throw new Error("Enter the exact art type.");
+    }
+    if (!["Premade", "Digital", "Customize"].includes(artworkData.product_type)) {
+      throw new Error("Choose a product type.");
+    }
     if (!artworkData.product || !artworkData.product.trim()) {
       throw new Error("Product type is required");
     }
@@ -172,6 +236,7 @@ export const addArtwork = async (artworkData) => {
     formData.append("art_type", artworkData.art_type.trim());
     formData.append("product", artworkData.product.trim());
     appendArtworkAttributes(formData, artworkData, details);
+    appendProductSample(formData, artworkData);
 
     const res = await api.post("/artwork", formData);
     return res.data;
@@ -182,6 +247,8 @@ export const addArtwork = async (artworkData) => {
 
 // Update artwork
 export const updateArtwork = async (id, artworkData) => {
+  validateProductSettings(artworkData);
+  validateImageFile(artworkData.file);
   const details = optionalArtworkDetails(artworkData);
   const scanError = Object.values(getArtworkScanErrors(artworkData))[0];
   if (scanError) throw new Error(scanError);
@@ -198,6 +265,12 @@ export const updateArtwork = async (id, artworkData) => {
     if (!artworkData.art_type || !artworkData.art_type.trim()) {
       throw new Error("Art type is required");
     } 
+    if (artworkData.art_type === "customize" && !artworkData.exact_art_type?.trim()) {
+      throw new Error("Enter the exact art type.");
+    }
+    if (!["Premade", "Digital", "Customize"].includes(artworkData.product_type)) {
+      throw new Error("Choose a product type.");
+    }
     if (!artworkData.product || !artworkData.product.trim()) {
       throw new Error("Product type is required");
     }
@@ -215,6 +288,7 @@ export const updateArtwork = async (id, artworkData) => {
     formData.append("art_type", artworkData.art_type.trim());
     formData.append("product", artworkData.product.trim());
     appendArtworkAttributes(formData, artworkData, details);
+    appendProductSample(formData, artworkData);
 
     const res = await api.put(`/artwork/${id}`, formData);
     return res.data;

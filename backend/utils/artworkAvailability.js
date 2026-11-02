@@ -37,6 +37,7 @@ export function getArtworkSoldOutSql(artworkAlias = "a") {
   return `(CASE
     WHEN COALESCE(${artworkAlias}.is_sold, 0) = 1
       OR LOWER(COALESCE(${artworkAlias}.status, '')) = 'sold' THEN 1
+    WHEN LOWER(COALESCE(${artworkAlias}.product_type, '')) = 'customize' THEN 0
     WHEN ${hasStockTracking}
       THEN ${numericStock} <= ${soldQuantity}
     ELSE ${soldQuantity} > 0
@@ -47,6 +48,7 @@ export function getArtworkAvailability(
   stockAvailable,
   soldQuantity = 0,
   markedSold = false,
+  productType = "",
 ) {
   const stockText = ["number", "string"].includes(typeof stockAvailable)
     ? String(stockAvailable).trim() : "";
@@ -60,6 +62,14 @@ export function getArtworkAvailability(
       hasStockTracking,
       remainingStock: 0,
       isSoldOut: true,
+    };
+  }
+  if (String(productType).trim().toLowerCase() === "customize") {
+    return {
+      hasStockTracking: false,
+      remainingStock: null,
+      isSoldOut: false,
+      isUnlimited: true,
     };
   }
 

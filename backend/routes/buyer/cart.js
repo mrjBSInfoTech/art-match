@@ -10,6 +10,7 @@ import {
   getProductOptions,
   parseArtworkDetails,
   ProductOptionsError,
+  requiresProductOptionSelection,
   validateProductOptionSelections,
 } from "../../utils/productOptions.js";
 import {
@@ -55,9 +56,6 @@ const parseJsonArray = (value) => {
     return null;
   }
 };
-
-const isProductArtwork = (artwork) =>
-  String(artwork?.art_type || "").trim().toLowerCase() === "product";
 
 const sumSelectedQuantity = (selections) =>
   selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
@@ -156,6 +154,7 @@ router.post("/", authenticateBuyer, (req, res) => {
     `SELECT
        a.artwork_id,
        a.art_type,
+       a.product_type,
        a.price,
        a.artwork_details,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
@@ -186,6 +185,7 @@ router.post("/", authenticateBuyer, (req, res) => {
         artworks[0].sold_quantity,
         Number(artworks[0].is_sold) === 1 ||
           String(artworks[0].status || "").toLowerCase() === "sold",
+        artworks[0].product_type,
       );
       if (isSoldOut) {
         return res.status(409).json({
@@ -196,7 +196,7 @@ router.post("/", authenticateBuyer, (req, res) => {
       const artwork = artworks[0];
       const productDetails = parseArtworkDetails(artwork.artwork_details);
       const productOptions = getProductOptions(productDetails);
-      const hasProductOptions = isProductArtwork(artwork) && productOptions.length > 0;
+      const hasProductOptions = requiresProductOptionSelection(artwork);
       let incomingSelections = null;
       if (hasProductOptions) {
         try {
@@ -242,6 +242,7 @@ router.post("/", authenticateBuyer, (req, res) => {
                   artworks[0].sold_quantity,
                   Number(artworks[0].is_sold) === 1 ||
                     String(artworks[0].status || "").toLowerCase() === "sold",
+                  artworks[0].product_type,
                 );
                 const existingQuantity = existingItems.length ? Number(existingItems[0].quantity || 1) : 0;
                 let selectedProducts = null;
@@ -266,6 +267,14 @@ router.post("/", authenticateBuyer, (req, res) => {
                     if (!(error instanceof ProductOptionsError)) throw error;
                     return res.status(409).json({ message: error.message });
                   }
+                } else if (existingItems.length && incomingOrderNote) {
+                  const existingNote = String(existingItems[0]?.order_note || "").trim();
+                  orderNote = [existingNote, incomingOrderNote].filter(Boolean).join("\n\n");
+                  if (orderNote.length > 2000) {
+                    return res.status(409).json({
+                      message: "Combined order requests must be 2000 characters or fewer.",
+                    });
+                  }
                 }
 
                 if (availability.hasStockTracking && availability.remainingStock !== null && nextQuantity > availability.remainingStock) {
@@ -279,13 +288,17 @@ router.post("/", authenticateBuyer, (req, res) => {
                   const queryText = existingItems.length
                     ? hasProductOptions
                       ? "UPDATE cart_item SET quantity = ?, selected_products = ?, order_note = ? WHERE cart_item_id = ?"
-                      : "UPDATE cart_item SET quantity = quantity + ? WHERE cart_item_id = ?"
+                      : incomingOrderNote
+                        ? "UPDATE cart_item SET quantity = quantity + ?, order_note = ? WHERE cart_item_id = ?"
+                        : "UPDATE cart_item SET quantity = quantity + ? WHERE cart_item_id = ?"
                     : "INSERT INTO cart_item (add_to_id, artwork_id, quantity, selected_products, order_note) VALUES (?, ?, ?, ?, ?)";
 
                   const params = existingItems.length
                     ? hasProductOptions
                       ? [nextQuantity, JSON.stringify(selectedProducts), orderNote || null, existingItems[0].cart_item_id]
-                      : [requestedQuantity, existingItems[0].cart_item_id]
+                      : incomingOrderNote
+                        ? [requestedQuantity, orderNote || null, existingItems[0].cart_item_id]
+                        : [requestedQuantity, existingItems[0].cart_item_id]
                     : [...payload, selectedProducts ? JSON.stringify(selectedProducts) : null, orderNote || null];
 
                   db.query(queryText, params, (insertError) => {
@@ -366,6 +379,7 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
     `SELECT
        a.artwork_id,
        a.art_type,
+       a.product_type,
        a.price,
        a.artwork_details,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
@@ -388,6 +402,7 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
         artworks[0].stock_available,
         artworks[0].sold_quantity,
         Number(artworks[0].is_sold) === 1 || String(artworks[0].status || "").toLowerCase() === "sold",
+        artworks[0].product_type,
       );
 
       if (availability.isSoldOut) {

@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   ArtworkDetailsValidationError,
   getArtworkDetailsCategory,
+  normalizeExactArtworkType,
+  normalizeArtworkProductSettings,
   resolveArtworkDetails,
   validateArtworkDetails,
 } from "./artworkDetails.js";
@@ -12,9 +14,12 @@ const painting = {
   humidity_sensitive: false,
   light_sensitive: true,
   material_composition: [" Oil on canvas ", "Acrylic", "oil ON canvas"],
+  stock_available: 5,
 };
 const product = { stock_available: 0, material_composition: ["Resin", "Sterling silver"] };
 const digital = {
+  stock_available: 5,
+  material_composition: ["Digital"],
   resolution_width: 3000,
   resolution_height: 2000,
   file_format: "PNG",
@@ -51,7 +56,8 @@ test("fine art trims and deduplicates composition while removing hidden category
     is_fragile: true,
     humidity_sensitive: false,
     light_sensitive: true,
-    material_composition: ["Oil on canvas", "Acrylic"],
+    material_composition: ["Digital"],
+    stock_available: 9,
   });
 });
 
@@ -133,17 +139,112 @@ test("malformed JSON, nonobjects, invalid booleans and material constraints fail
   }
 });
 
-test("legacy creation can omit details and unknown category cannot retain unrelated metadata", () => {
-  assert.equal(resolveArtworkDetails({ artType: "Painting", product: "painting" }), null);
-  assert.equal(validateArtworkDetails({ ...painting, ...digital }, "", ""), null);
+test("artwork details are required even when the art type has no specialized fields", () => {
+  assert.throws(() => resolveArtworkDetails({ artType: "Painting", product: "painting" }), ArtworkDetailsValidationError);
+  assert.deepEqual(validateArtworkDetails({
+    material_composition: ["Mixed media"],
+    stock_available: 2,
+  }, "Unknown", ""), {
+    material_composition: ["Mixed media"],
+    stock_available: 2,
+  });
   assert.throws(() => validateArtworkDetails("{", "", ""), ArtworkDetailsValidationError);
 });
 
 test("legacy updates preserve details only while art type and product are unchanged", () => {
   const currentArtwork = { art_type: "Painting", product: "painting", artwork_details: painting };
-  assert.deepEqual(resolveArtworkDetails({ artType: " painting ", product: "Painting", currentArtwork }), painting);
-  assert.deepEqual(resolveArtworkDetails({ artType: "Painting", product: "painting", currentArtwork: { ...currentArtwork, artwork_details: JSON.stringify(painting) } }), painting);
-  assert.equal(resolveArtworkDetails({ artType: "Architecture", product: "painting", currentArtwork }), null);
-  assert.equal(resolveArtworkDetails({ artType: "Painting", product: "3d_object", currentArtwork }), null);
+  assert.deepEqual(resolveArtworkDetails({ artType: " painting ", product: "Painting", currentArtwork }), {
+    ...painting,
+    material_composition: ["Oil on canvas", "Acrylic"],
+  });
+  assert.deepEqual(resolveArtworkDetails({ artType: "Painting", product: "painting", currentArtwork: { ...currentArtwork, artwork_details: JSON.stringify(painting) } }), {
+    ...painting,
+    material_composition: ["Oil on canvas", "Acrylic"],
+  });
+  assert.throws(() => resolveArtworkDetails({ artType: "Architecture", product: "painting", currentArtwork }), ArtworkDetailsValidationError);
+  assert.throws(() => resolveArtworkDetails({ artType: "Painting", product: "3d_object", currentArtwork }), ArtworkDetailsValidationError);
   assert.deepEqual(resolveArtworkDetails({ rawDetails: product, artType: "Sculpture", product: "3d_object", currentArtwork }), product);
+});
+
+test("customizable artwork cannot retain stock, and stage-payment stock is omitted", () => {
+  const customized = {
+    material_composition: ["Wood"],
+    stock_available: 10,
+  };
+  assert.throws(
+    () => validateArtworkDetails(customized, "Sculpture", "3d_object", "Customize"),
+    /cannot include stock/,
+  );
+  assert.deepEqual(
+    validateArtworkDetails(
+      { material_composition: ["Wood"] },
+      "Sculpture",
+      "3d_object",
+      "Customize",
+    ),
+    { material_composition: ["Wood"] },
+  );
+});
+
+test("product payment settings enforce customization percentage boundaries", () => {
+  assert.throws(() => normalizeArtworkProductSettings({}), /valid product type/);
+  assert.throws(() => normalizeArtworkProductSettings({
+    product_type: "Customize",
+  }), /mode of payment/);
+  assert.deepEqual(normalizeArtworkProductSettings({
+    product_type: "Premade",
+  }), {
+    productType: "Premade",
+    paymentMode: "straight",
+    upfrontPercentage: null,
+  });
+
+  assert.deepEqual(normalizeArtworkProductSettings({
+    product_type: " customize ",
+    payment_mode: "stage_by_stage",
+    upfront_percentage: "1",
+  }), {
+    productType: "Customize",
+    paymentMode: "stage_by_stage",
+    upfrontPercentage: 1,
+  });
+  assert.deepEqual(normalizeArtworkProductSettings({
+    product_type: "Customize",
+    payment_mode: "stage_by_stage",
+    upfront_percentage: "99",
+  }), {
+    productType: "Customize",
+    paymentMode: "stage_by_stage",
+    upfrontPercentage: 99,
+  });
+  for (const percentage of ["", "0", "0.99", "100", "99.999", "abc"]) {
+    assert.throws(() => normalizeArtworkProductSettings({
+      product_type: "Customize",
+      payment_mode: "stage_by_stage",
+      upfront_percentage: percentage,
+    }), ArtworkDetailsValidationError);
+  }
+  assert.deepEqual(normalizeArtworkProductSettings({
+    product_type: "Digital",
+    payment_mode: "straight",
+  }), {
+    productType: "Digital",
+    paymentMode: "straight",
+    upfrontPercentage: null,
+  });
+});
+
+test("exact art type is required and bounded only for Customize", () => {
+  assert.equal(normalizeExactArtworkType("Customize", "  paper sculpture  "), "paper sculpture");
+  assert.equal(normalizeExactArtworkType("Painting", ""), null);
+  for (const value of ["", "  ", 12, "x".repeat(101)]) {
+    assert.throws(
+      () => normalizeExactArtworkType("customize", value),
+      ArtworkDetailsValidationError,
+    );
+  }
+  assert.throws(
+    () => normalizeExactArtworkType("Painting", "Oil painting"),
+    /only be provided for Customize/,
+  );
 });

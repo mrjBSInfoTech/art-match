@@ -20,8 +20,10 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import RemoveShoppingCart from "@mui/icons-material/RemoveShoppingCart";
+import ShoppingBag from "@mui/icons-material/ShoppingBag";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
-import { addToCart } from "../../api/buyer/cartAPI";
+import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import RelatedArtists from "../../components/buyer/Artist/RelatedArtists";
 import {
@@ -33,6 +35,7 @@ import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedA
 import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
 import ArtworkAdditionalDetails from "../../components/buyer/Artwork/ArtworkAdditionalDetails";
 import ProductSelectionDialog from "../../components/buyer/Artwork/ProductSelectionDialog";
+import CustomizeOrderDialog from "../../components/buyer/Artwork/CustomizeOrderDialog";
 import { getSavedProductOptions } from "../../utils/productOptions";
 import { getArtworkDetailCategory } from "../../utils/artworkDetails";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
@@ -40,6 +43,10 @@ import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { isAuthenticated } from "../../../utils/auth";
+
+const unavailableImageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="100%" height="100%" fill="#e2e8f0"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#64748b" font-family="sans-serif" font-size="24">Image unavailable</text></svg>',
+);
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -72,13 +79,18 @@ export default function ArtworkDetail() {
     () => getArtworkRelatedArtists(artwork, artworks),
     [artwork, artworks],
   );
+  const productOptions = useMemo(
+    () => getSavedProductOptions(artwork || {}),
+    [artwork],
+  );
   const [loading, setLoading] = useState(false);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
+  const [isRemovingFromCart, setIsRemovingFromCart] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
-  const [selectedOptionId, setSelectedOptionId] = useState("");
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [, setRecentHistory] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -92,7 +104,35 @@ export default function ArtworkDetail() {
   }, [cartMessage]);
 
   useEffect(() => {
-    setSelectedQuantity(1);
+    if (!isAuthenticated("buyer")) {
+      setIsInCart(false);
+      return undefined;
+    }
+
+    let active = true;
+    const refreshCartState = async () => {
+      try {
+        const items = await fetchCart();
+        if (active) {
+          setIsInCart(
+            (Array.isArray(items) ? items : []).some(
+              (item) => String(item.artwork_id) === String(id),
+            ),
+          );
+        }
+      } catch (error) {
+        if (active) {
+          console.error("Unable to check whether artwork is in cart:", error);
+        }
+      }
+    };
+
+    refreshCartState();
+    window.addEventListener("cart-updated", refreshCartState);
+    return () => {
+      active = false;
+      window.removeEventListener("cart-updated", refreshCartState);
+    };
   }, [id]);
 
   // Fetch artwork detail and also the list for related items
@@ -258,44 +298,43 @@ export default function ArtworkDetail() {
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
   const isProduct = String(artwork?.art_type || "").trim().toLowerCase() === "product";
-  const productOptions = useMemo(() => getSavedProductOptions(artwork || {}), [artwork]);
-
-  useEffect(() => {
-    if (productOptions.length > 0) {
-      setSelectedOptionId((current) =>
-        productOptions.some((o) => o.id === current) ? current : productOptions[0].id,
-      );
-    } else {
-      setSelectedOptionId("");
+  const productPriceMode = (() => {
+    try {
+      const details = typeof artwork.artwork_details === "string"
+        ? JSON.parse(artwork.artwork_details)
+        : artwork.artwork_details;
+      return details?.product_price_mode || "shared";
+    } catch {
+      return "shared";
     }
-  }, [productOptions]);
-
-  const selectedOption = useMemo(() => {
-    if (!productOptions.length) return null;
-    return productOptions.find((o) => o.id === selectedOptionId) || productOptions[0];
-  }, [productOptions, selectedOptionId]);
-
-  const displayedImage = selectedOption?.image || artwork.image || imageUrl;
-  const displayedUnitPrice = selectedOption?.price != null && !isNaN(Number(selectedOption.price))
-    ? Number(selectedOption.price)
+  })();
+  const optionPrices = productOptions
+    .map((option) => Number(option.price))
+    .filter((price) => Number.isFinite(price) && price > 0);
+  const displayedUnitPrice = isProduct && productPriceMode === "manual" && optionPrices.length
+    ? Math.min(...optionPrices)
     : Number(artwork.price || 0);
+  const hasPriceRange = isProduct && productPriceMode === "manual"
+    && optionPrices.some((price) => price !== displayedUnitPrice);
+  const upfrontPercentage = Number(artwork.upfront_percentage);
+  const hasStagePayment = artwork.product_type === "Customize"
+    && artwork.payment_mode === "stage_by_stage"
+    && Number.isFinite(upfrontPercentage)
+    && upfrontPercentage >= 1
+    && upfrontPercentage <= 99;
+  const upfrontAmount = hasStagePayment
+    ? Math.round((displayedUnitPrice * upfrontPercentage / 100) * 100) / 100
+    : 0;
+  const remainingAmount = hasStagePayment
+    ? Math.round((displayedUnitPrice - upfrontAmount) * 100) / 100
+    : 0;
 
-  const stockAvailable = artwork?.stock_available != null && artwork.stock_available !== ""
-    ? Number(artwork.stock_available)
-    : null;
-  const soldQuantity = Number(artwork?.sold_quantity || 0);
-  const remainingStock = stockAvailable !== null
-    ? Math.max(0, stockAvailable - soldQuantity)
-    : (isSoldOut ? 0 : null);
-
-  const optionRemainingStock = selectedOption
-    ? (selectedOption.remaining_stock != null
-      ? Number(selectedOption.remaining_stock)
-      : Number(selectedOption.quantity ?? remainingStock ?? 9999))
-    : remainingStock;
-
-  const maxAvailableQuantity = optionRemainingStock !== null ? Math.max(0, optionRemainingStock) : 9999;
-  const isOutOfStock = isSoldOut || (isProduct && optionRemainingStock !== null && optionRemainingStock <= 0);
+  const isOutOfStock = isSoldOut || (
+    isProduct && productOptions.length > 0
+    && productOptions.every(
+      (option) => Number(option.remaining_stock ?? option.quantity ?? 0) <= 0,
+    )
+  );
   const detailCategory = getArtworkDetailCategory(artwork.art_type, artwork.product);
 
   const similarArtworks = getSimilarArtworks(artwork, artworks);
@@ -304,6 +343,7 @@ export default function ArtworkDetail() {
     try {
       setAddingToCart(true);
       const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
+      setIsInCart(true);
       setCartMessage("Added to cart");
       showSnackbar(result?.message || "Artwork added to cart", "success");
       return result;
@@ -328,6 +368,21 @@ export default function ArtworkDetail() {
       throw error;
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleRemoveFromCart = async () => {
+    if (isRemovingFromCart) return;
+    try {
+      setIsRemovingFromCart(true);
+      await removeFromCart(artwork.artwork_id || artwork.id);
+      setIsInCart(false);
+      setCartMessage("Removed from cart");
+      showSnackbar("Artwork removed from cart", "success");
+    } catch (error) {
+      showSnackbar(error.message || "Unable to remove artwork from cart", "error");
+    } finally {
+      setIsRemovingFromCart(false);
     }
   };
 
@@ -361,9 +416,10 @@ export default function ArtworkDetail() {
       <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
         <Grid size={{ xs: 12, md: 7 }}>
           <WatermarkedArtworkImage
-            image={displayedImage}
-            alt={selectedOption ? `${artwork.title} - ${selectedOption.name}` : artwork.title}
+            image={artwork.image || imageUrl}
+            alt={artwork.title}
             variant="web"
+            fallbackSrc={unavailableImageSrc}
             hideWhenBlurred
             sx={{
               width: { xs: "100%", md: 600 },
@@ -384,6 +440,23 @@ export default function ArtworkDetail() {
               }
             }}
           />
+          {String(artwork.product_type || "").trim().toLowerCase() === "customize" && (
+            <Box sx={{ mt: 3 }}>
+              <WatermarkedArtworkImage
+                image={artwork.product_sample_image || artwork.image || imageUrl}
+                alt={`${artwork.title} product sample`}
+                variant="web"
+                sx={{
+                  width: "100%",
+                  maxHeight: 420,
+                  borderRadius: 2,
+                  objectFit: "contain",
+                  display: "block",
+                  bgcolor: "action.hover",
+                }}
+              />
+            </Box>
+          )}
         </Grid>
 
         <Grid size={{ xs: 12, md: 5 }}>
@@ -422,14 +495,14 @@ export default function ArtworkDetail() {
             >
               {artwork.title}
             </Typography>
-            {selectedOption && (
-              <Typography variant="subtitle1" color="primary.main" fontWeight={700} sx={{ mb: 0.5 }}>
-                {selectedOption.name}
-              </Typography>
-            )}
             <Typography variant="subtitle2" color="text.secondary">
               By {artwork.artist || "Unknown artist"}
             </Typography>
+            {artwork.art_type === "customize" && artwork.exact_art_type && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Art type: {artwork.exact_art_type}
+              </Typography>
+            )}
 
             <Typography
               variant="h4"
@@ -440,85 +513,25 @@ export default function ArtworkDetail() {
                 fontSize: { xs: "1.75rem", sm: "2rem", md: "2.125rem" },
               }}
             >
-              ₱{displayedUnitPrice.toLocaleString()}
+              {hasPriceRange ? "From " : ""}₱{displayedUnitPrice.toLocaleString()}
             </Typography>
-
-            {isProduct && productOptions.length > 0 && (
-              <Box sx={{ mt: 2, mb: 2.5 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  Select Option:{" "}
-                  <Typography component="span" variant="subtitle2" color="primary.main" fontWeight={700}>
-                    {selectedOption?.name}
-                  </Typography>
+            {hasStagePayment && (
+              <Box sx={{ mt: -1.5, mb: 2.5 }}>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  Stage-by-stage payment
                 </Typography>
-                <Stack direction="row" flexWrap="wrap" gap={1.25}>
-                  {productOptions.map((option) => {
-                    const isSelected = option.id === selectedOption?.id;
-                    const optPrice = option.price != null && !isNaN(Number(option.price))
-                      ? Number(option.price)
-                      : Number(artwork.price || 0);
-                    const optStock = option.remaining_stock != null
-                      ? Number(option.remaining_stock)
-                      : Number(option.quantity || 0);
-                    const optOutOfStock = optStock <= 0;
-
-                    return (
-                      <Box
-                        key={option.id}
-                        onClick={() => {
-                          if (!optOutOfStock) {
-                            setSelectedOptionId(option.id);
-                            setSelectedQuantity(1);
-                          }
-                        }}
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1.25,
-                          p: 1,
-                          pr: 1.75,
-                          borderRadius: 2,
-                          border: "2px solid",
-                          borderColor: isSelected ? "primary.main" : "divider",
-                          bgcolor: isSelected ? "action.selected" : "background.paper",
-                          cursor: optOutOfStock ? "not-allowed" : "pointer",
-                          opacity: optOutOfStock ? 0.45 : 1,
-                          transition: "all 0.15s ease",
-                          "&:hover": {
-                            borderColor: optOutOfStock ? "divider" : "primary.light",
-                          },
-                        }}
-                      >
-                        {option.image ? (
-                          <Box
-                            component="img"
-                            src={option.image}
-                            alt={option.name}
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              borderRadius: 1,
-                              objectFit: "cover",
-                              flexShrink: 0,
-                            }}
-                          />
-                        ) : null}
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: isSelected ? 700 : 500, lineHeight: 1.2 }}>
-                            {option.name}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color={isSelected ? "primary.main" : "text.secondary"}
-                            sx={{ fontWeight: 600 }}
-                          >
-                            ₱{optPrice.toLocaleString()} {optOutOfStock ? "· Out of stock" : ""}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    );
+                <Typography variant="body2" color="text.secondary">
+                  Upfront ({upfrontPercentage}%): ₱{upfrontAmount.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
                   })}
-                </Stack>
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  After completion ({100 - upfrontPercentage}%): ₱{remainingAmount.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </Typography>
               </Box>
             )}
 
@@ -534,85 +547,6 @@ export default function ArtworkDetail() {
                   <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} RowComponent={Row} />
                 )}
               </Stack>
-              {isProduct && !isOutOfStock && (
-                <Box sx={{ mt: 2.5, mb: 1, p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        Quantity
-                      </Typography>
-                      {displayedUnitPrice > 0 && selectedQuantity > 1 && (
-                        <Typography variant="caption" color="text.secondary">
-                          Subtotal: ₱{(displayedUnitPrice * selectedQuantity).toLocaleString()}
-                        </Typography>
-                      )}
-                    </Box>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        disabled={addingToCart || selectedQuantity <= 1}
-                        onClick={() => setSelectedQuantity((q) => Math.max(1, q - 1))}
-                        sx={{
-                          minWidth: 32,
-                          width: 32,
-                          height: 32,
-                          p: 0,
-                          borderRadius: 1,
-                          fontWeight: 700,
-                          fontSize: 16,
-                        }}
-                      >
-                        −
-                      </Button>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          minWidth: 32,
-                          textAlign: "center",
-                          fontWeight: 700,
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {selectedQuantity}
-                      </Typography>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        disabled={addingToCart || selectedQuantity >= maxAvailableQuantity}
-                        onClick={() => setSelectedQuantity((q) => Math.min(maxAvailableQuantity, q + 1))}
-                        sx={{
-                          minWidth: 32,
-                          width: 32,
-                          height: 32,
-                          p: 0,
-                          borderRadius: 1,
-                          fontWeight: 700,
-                          fontSize: 16,
-                        }}
-                      >
-                        +
-                      </Button>
-                    </Stack>
-                  </Stack>
-                  {maxAvailableQuantity !== 9999 && (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        display: "block",
-                        textAlign: "right",
-                        mt: 0.75,
-                        fontWeight: 600,
-                        color: maxAvailableQuantity <= 5 ? "warning.main" : "text.secondary",
-                      }}
-                    >
-                      {maxAvailableQuantity <= 5
-                        ? `Only ${maxAvailableQuantity} left in stock`
-                        : `Available stock: ${maxAvailableQuantity} units`}
-                    </Typography>
-                  )}
-                </Box>
-              )}
               {isProduct && isOutOfStock && (
                 <Typography
                   variant="body2"
@@ -632,31 +566,30 @@ export default function ArtworkDetail() {
                   variant="contained"
                   color="primary"
                   fullWidth
-                  disabled={addingToCart || isOutOfStock}
+                  disabled={addingToCart || isRemovingFromCart || (isOutOfStock && !isInCart)}
                   onClick={() => {
-                    if (isProduct && selectedOption) {
-                      const selectionPayload = [{
-                        id: selectedOption.id,
-                        name: selectedOption.name,
-                        image: selectedOption.image || null,
-                        unit_price: displayedUnitPrice,
-                        quantity: selectedQuantity,
-                      }];
-                      handleAddToCart(
-                        artwork.artwork_id || artwork.id,
-                        selectedQuantity,
-                        selectionPayload,
-                      ).catch(() => {});
+                    if (isInCart) {
+                      void handleRemoveFromCart();
+                      return;
+                    }
+                    if (String(artwork.product_type || "").trim().toLowerCase() === "customize") {
+                      setCustomizeDialogOpen(true);
+                      return;
+                    }
+                    if (isProduct && productOptions.length > 0) {
+                      setProductDialogOpen(true);
                       return;
                     }
                     handleAddToCart(
                       artwork.artwork_id || artwork.id,
-                      isProduct ? selectedQuantity : 1,
+                      1,
                     ).catch(() => {});
                   }}
                   startIcon={
-                    addingToCart ? (
+                    addingToCart || isRemovingFromCart ? (
                       <CircularProgress size={20} color="inherit" />
+                    ) : isInCart ? (
+                      <RemoveShoppingCart />
                     ) : (
                       <ShoppingBag />
                     )
@@ -670,18 +603,12 @@ export default function ArtworkDetail() {
                 >
                   {addingToCart
                     ? "Adding to cart..."
-                    : cartMessage || "Add to cart"}
+                    : isRemovingFromCart
+                      ? "Removing..."
+                      : isInCart
+                        ? "Remove from cart"
+                        : cartMessage || "Add to cart"}
                 </Button>
-                {isProduct && productOptions.length > 1 && (
-                  <Button
-                    variant="text"
-                    size="small"
-                    onClick={() => setProductDialogOpen(true)}
-                    sx={{ textTransform: "none", fontSize: 13, fontWeight: 600, py: 0.75 }}
-                  >
-                    Choose multiple options or add custom request
-                  </Button>
-                )}
               </Stack>
             </Box>
           </Box>
@@ -901,6 +828,18 @@ export default function ArtworkDetail() {
             );
             setProductDialogOpen(false);
           }}
+          isSubmitting={addingToCart}
+        />
+        <CustomizeOrderDialog
+          open={customizeDialogOpen}
+          artwork={artwork}
+          onClose={() => setCustomizeDialogOpen(false)}
+          onConfirm={(orderNote) => handleAddToCart(
+            artwork.artwork_id || artwork.id,
+            1,
+            undefined,
+            orderNote,
+          )}
           isSubmitting={addingToCart}
         />
       </Grid>

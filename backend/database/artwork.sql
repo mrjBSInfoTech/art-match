@@ -9,7 +9,12 @@ CREATE TABLE IF NOT EXISTS `artwork` (
     `color_used` VARCHAR(500) NULL,
     `art_size` VARCHAR(100) NULL, 
     `art_type` VARCHAR(50) NOT NULL,
+    `exact_art_type` VARCHAR(100) NULL,
     `product` VARCHAR(50) NULL,
+    `product_type` ENUM('Premade', 'Digital', 'Customize') NOT NULL DEFAULT 'Premade',
+    `payment_mode` ENUM('straight', 'stage_by_stage') NOT NULL DEFAULT 'straight',
+    `upfront_percentage` DECIMAL(5,2) NULL,
+    `product_sample_image` VARCHAR(255) NULL,
     `status` ENUM('Available','Reserved','Sold') NULL DEFAULT 'Available',
     `is_sold` TINYINT(1) NOT NULL DEFAULT 0,
     `date_created` DATE NULL,
@@ -50,3 +55,18 @@ SET @add_product_column = (
 PREPARE add_product_column_statement FROM @add_product_column;
 EXECUTE add_product_column_statement;
 DEALLOCATE PREPARE add_product_column_statement;
+
+SET @add_product_sample_image_column = (
+    SELECT IF(
+        COUNT(*) = 0,
+        'ALTER TABLE `artwork` ADD COLUMN `product_sample_image` VARCHAR(255) NULL AFTER `image`',
+        'DO 0'
+    )
+    FROM `INFORMATION_SCHEMA`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = @current_database
+      AND `TABLE_NAME` = 'artwork'
+      AND `COLUMN_NAME` = 'product_sample_image'
+);
+PREPARE add_product_sample_image_column_statement FROM @add_product_sample_image_column;
+EXECUTE add_product_sample_image_column_statement;
+DEALLOCATE PREPARE add_product_sample_image_column_statement;

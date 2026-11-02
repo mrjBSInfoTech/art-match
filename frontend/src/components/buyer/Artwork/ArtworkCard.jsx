@@ -18,6 +18,7 @@ import { addToCart } from "../../../api/buyer/cartAPI";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
 import ProductSelectionDialog from "./ProductSelectionDialog";
+import CustomizeOrderDialog from "./CustomizeOrderDialog";
 import { getSavedProductOptions } from "../../../utils/productOptions";
 
 export default function ArtworkCard({
@@ -27,10 +28,13 @@ export default function ArtworkCard({
 }) {
   const artworkId = artwork?.id || artwork?.artwork_id;
   const isSoldOut = isArtworkSoldOut(artwork);
+  const isCustomize = String(artwork?.product_type || "").trim().toLowerCase() === "customize";
+  const isProduct = String(artwork?.art_type || "").trim().toLowerCase() === "product";
   const productOptions = getSavedProductOptions(artwork);
   const [isAdding, setIsAdding] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
   useEffect(() => {
     if (!cartMessage) return;
     const timeoutId = setTimeout(() => setCartMessage(""), 1000);
@@ -39,7 +43,11 @@ export default function ArtworkCard({
 
   const handleAddToCart = async () => {
     if (isAdding || isSoldOut) return;
-    if (productOptions.length) {
+    if (isCustomize) {
+      setCustomizeDialogOpen(true);
+      return;
+    }
+    if (isProduct && productOptions.length) {
       setProductDialogOpen(true);
       return;
     }
@@ -67,6 +75,18 @@ export default function ArtworkCard({
         ? onAddToCart(artworkId, totalQuantity, selectedProducts, orderNote)
         : addToCart(artworkId, totalQuantity, selectedProducts, orderNote));
       setProductDialogOpen(false);
+      setCartMessage("Added");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleAddPremadeSelection = async (orderNote) => {
+    setIsAdding(true);
+    try {
+      await (onAddToCart
+        ? onAddToCart(artworkId, 1, undefined, orderNote)
+        : addToCart(artworkId, 1, undefined, orderNote));
       setCartMessage("Added");
     } finally {
       setIsAdding(false);
@@ -183,7 +203,7 @@ export default function ArtworkCard({
                 ? "Sold out"
                 : isAdding
                   ? "Adding..."
-                  : cartMessage || (productOptions.length ? "Choose options" : "Add to cart")}
+                  : cartMessage || (isCustomize ? "Choose an option" : isProduct && productOptions.length ? "Choose products" : "Add to cart")}
             </Button>
           ) : (
             <Button
@@ -203,6 +223,13 @@ export default function ArtworkCard({
       artwork={artwork}
       onClose={() => setProductDialogOpen(false)}
       onConfirm={handleAddSelectedProducts}
+      isSubmitting={isAdding}
+    />
+    <CustomizeOrderDialog
+      open={customizeDialogOpen}
+      artwork={artwork}
+      onClose={() => setCustomizeDialogOpen(false)}
+      onConfirm={handleAddPremadeSelection}
       isSubmitting={isAdding}
     />
     </>

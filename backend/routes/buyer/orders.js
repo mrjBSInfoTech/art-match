@@ -28,6 +28,7 @@ import {
   getProductOptions,
   parseArtworkDetails,
   ProductOptionsError,
+  requiresProductOptionSelection,
   summarizeProductOptionSelections,
 } from "../../utils/productOptions.js";
 
@@ -51,8 +52,7 @@ const query = async (executor, sql, params = []) => {
 
 const normalizeProductCartItem = (item) => {
   const details = parseArtworkDetails(item.artwork_details);
-  const isProductArtwork = String(item.art_type || "").trim().toLowerCase() === "product";
-  if (!isProductArtwork || !getProductOptions(details).length) {
+  if (!requiresProductOptionSelection(item)) {
     item.order_quantity = Number(item.quantity || 1);
     return item;
   }
@@ -505,6 +505,7 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
     normalizeCheckoutVoucherCode(body.voucher_code);
     const items = await query(db.promise(),
       `SELECT a.artwork_id, a.student_id, a.price, a.status, a.is_sold, a.art_type,
+        a.product_type,
         a.artwork_details, ci.quantity, ci.selected_products,
         JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
         ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
@@ -538,7 +539,12 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
     }
     if (items.some((item) => {
       const quantity = Number(item.order_quantity || item.quantity || 1);
-      const availability = getArtworkAvailability(item.stock_available, item.sold_quantity, Number(item.is_sold) === 1);
+      const availability = getArtworkAvailability(
+        item.stock_available,
+        item.sold_quantity,
+        Number(item.is_sold) === 1,
+        item.product_type,
+      );
       return !Number(item.is_verified)
         || String(item.status).toLowerCase() !== "available"
         || availability.isSoldOut
@@ -679,6 +685,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
          a.price,
          a.image,
          a.art_type,
+         a.product_type,
          a.artwork_details,
          ci.quantity,
          ci.selected_products,
@@ -808,6 +815,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           item.stock_available,
           soldQuantities.get(String(item.artwork_id)) || 0,
           Number(item.is_sold) === 1 || String(item.status || "").toLowerCase() === "sold",
+          item.product_type,
         );
         const optionUnavailable = hasUnavailableProductSelection(item, soldOptionQuantities);
         return String(item.status || "").toLowerCase() !== "available"
@@ -1495,6 +1503,7 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
   }
   const items = await query(connection,
     `SELECT oi.artwork_id, oi.quantity, oi.selected_products, a.artwork_details, a.status, a.is_sold,
+       a.product_type,
        EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
          AND LOWER(au.request_status) = 'verified') AS is_verified,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
@@ -1519,6 +1528,7 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
       item.stock_available,
       item.sold_quantity,
       Number(item.is_sold) === 1,
+      item.product_type,
     );
     const hasInsufficientArtworkStock = availability.isSoldOut ||
       (availability.hasStockTracking && availability.remainingStock !== null &&

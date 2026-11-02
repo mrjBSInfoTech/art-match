@@ -14,6 +14,11 @@ export async function compressArtworkImage(sourcePath) {
     const image = sharp(sourcePath, { failOn: "error" }).rotate();
     const metadata = await image.metadata();
 
+    if (!["jpeg", "png", "webp"].includes(metadata.format)) {
+      throw new ArtworkImageProcessingError(
+        "Upload a JPEG, PNG, or WebP image.",
+      );
+    }
     if (!metadata.width || !metadata.height) {
       throw new ArtworkImageProcessingError(
         "Artwork image has invalid dimensions.",

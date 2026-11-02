@@ -79,7 +79,7 @@ export async function reconcilePaidCheckout(
   let requiresRefundReview = false;
   if (activeIds.length) {
     const items = await query(connection,
-      `SELECT oi.artwork_id, oi.quantity, a.status, a.is_sold,
+      `SELECT oi.artwork_id, oi.quantity, a.status, a.is_sold, a.product_type,
          EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
            AND LOWER(au.request_status) = 'verified') AS is_verified,
          JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available
@@ -104,11 +104,16 @@ export async function reconcilePaidCheckout(
       requested.set(String(item.artwork_id), (requested.get(String(item.artwork_id)) || 0) + Number(item.quantity));
     }
     requiresRefundReview = !items.length || items.some((item) => {
-      const availability = getArtworkAvailability(item.stock_available, sold.get(String(item.artwork_id)) || 0, Number(item.is_sold) === 1);
+      const availability = getArtworkAvailability(
+        item.stock_available,
+        sold.get(String(item.artwork_id)) || 0,
+        Number(item.is_sold) === 1,
+        item.product_type,
+      );
       const quantity = requested.get(String(item.artwork_id));
       return !item.artwork_id || !Number(item.is_verified) || String(item.status || "").toLowerCase() !== "available" ||
         !Number.isSafeInteger(quantity) || quantity <= 0 || availability.isSoldOut ||
-        (!availability.hasStockTracking && quantity > 1) ||
+        (!availability.hasStockTracking && !availability.isUnlimited && quantity > 1) ||
         (availability.hasStockTracking && availability.remainingStock < quantity);
     });
     if (requiresRefundReview) {

@@ -22,6 +22,7 @@ const PRODUCT_MATERIALS = [
   "Resin", "Wood", "Ceramic", "Clay", "Stainless steel", "Sterling silver",
   "Brass", "Aluminum", "Copper", "Glass", "Acrylic", "Yarn", "Fabric",
 ];
+const ALL_MATERIALS = [...new Set([...FINE_ART_MATERIALS, ...PRODUCT_MATERIALS])];
 
 export default function ArtworkDetailsFields({
   category,
@@ -30,11 +31,8 @@ export default function ArtworkDetailsFields({
   onChange,
   materialInput,
   onMaterialInputChange,
-  productStockTotal,
-  isProductArtwork = false,
 }) {
   const headingId = useId();
-  const isPhysical = category === "fine_art" || category === "product";
   const formats = ["digital", "digital art"].includes(String(formData.art_type || "").trim().toLowerCase())
     ? ARTWORK_FILE_FORMATS.digital
     : ARTWORK_FILE_FORMATS.photography;
@@ -52,7 +50,11 @@ export default function ArtworkDetailsFields({
       }}
     >
       <Typography id={headingId} component="h3" variant="subtitle2" sx={{ gridColumn: "1 / -1" }}>
-        {category === "fine_art" ? "Care and materials" : category === "product" ? "Stock and materials" : "Digital file details"}
+        {category === "fine_art"
+          ? "Care and materials"
+          : category === "digital"
+            ? "Digital file details"
+            : "Materials and specifications"}
       </Typography>
 
       {category === "fine_art" && (
@@ -71,48 +73,27 @@ export default function ArtworkDetailsFields({
         </Stack>
       )}
 
-      {category === "product" && (
-        <TextField
-          required
-          fullWidth
-          label="Stock available"
-          name="stock_available"
-          type="number"
-          value={isProductArtwork ? productStockTotal : formData.stock_available}
-          onChange={onChange}
-          error={Boolean(errors.stock_available)}
-          helperText={errors.stock_available || (isProductArtwork
-            ? "Calculated from the quantities of all products."
-            : "Whole units available; use 0 for out of stock.")}
-          disabled={isProductArtwork}
-          slotProps={{ htmlInput: { min: 0, step: 1 } }}
-          sx={{ gridColumn: "1 / -1" }}
-        />
-      )}
-
-      {isPhysical && (
-        <Autocomplete
-          multiple
-          freeSolo
-          autoSelect
-          filterSelectedOptions
-          options={category === "fine_art" ? FINE_ART_MATERIALS : PRODUCT_MATERIALS}
-          value={formData.material_composition}
-          inputValue={materialInput}
-          onInputChange={(_event, value) => onMaterialInputChange(value)}
-          onChange={(_event, value) => onChange({ target: { name: "material_composition", value } })}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={category === "fine_art" ? "Material composition" : "Materials and specifications"}
-              error={Boolean(errors.material_composition)}
-              helperText={errors.material_composition || "Add at least one material. Type your own and press Enter, or choose a suggestion."}
-              slotProps={{ htmlInput: { ...params.inputProps, "aria-required": true } }}
-            />
-          )}
-          sx={{ gridColumn: "1 / -1" }}
-        />
-      )}
+      <Autocomplete
+        multiple
+        freeSolo
+        autoSelect
+        filterSelectedOptions
+        options={ALL_MATERIALS}
+        value={formData.material_composition}
+        inputValue={materialInput}
+        onInputChange={(_event, value) => onMaterialInputChange(value)}
+        onChange={(_event, value) => onChange({ target: { name: "material_composition", value } })}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Materials"
+            error={Boolean(errors.material_composition)}
+            helperText={errors.material_composition || "Add at least one material. Type your own and press Enter, or choose a suggestion."}
+            slotProps={{ htmlInput: { ...params.inputProps, "aria-required": true } }}
+          />
+        )}
+        sx={{ gridColumn: "1 / -1" }}
+      />
 
       {category === "digital" && (
         <>

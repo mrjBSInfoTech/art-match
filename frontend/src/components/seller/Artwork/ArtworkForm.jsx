@@ -54,7 +54,11 @@ import {
 const createEmptyArtworkForm = () => ({
   title: "",
   art_type: "",
+  exact_art_type: "",
   product: "",
+  product_type: "Premade",
+  payment_mode: "straight",
+  upfront_percentage: "",
   art_size: "",
   genre: "",
   price: "",
@@ -62,6 +66,9 @@ const createEmptyArtworkForm = () => ({
   care_instructions: "",
   image: "",
   file: null,
+  product_sample_image: "",
+  product_sample_file: null,
+  remove_product_sample: false,
   date_created: "",
   ...getArtworkDetailDefaults(),
   ...getArtworkScanDefaults(),
@@ -117,7 +124,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
   const needsProductChoice = !typeOptions || Boolean(typeOptions.productOptions);
   const showDetails = hasArtType && (!needsProductChoice || Boolean(formData.product));
   const detailCategory = getArtworkDetailCategory(formData.art_type, typeOptions?.product || formData.product);
-  const isProductArtwork = formData.art_type === "product";
+  const isCustomizable = formData.product_type === "Customize";
+  const isProductArtwork = formData.art_type === "product" && !isCustomizable;
   const isManualProductPricing = isProductArtwork && formData.product_price_mode === "manual";
   const productStockTotal = getProductOptionsTotalQuantity(formData.product_options);
   const productStartingPrice = getProductOptionsStartingPrice(formData.product_options);
@@ -169,13 +177,20 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         title: selectedArtwork.title || "",
         art_size: selectedArtwork.art_size || "",
         art_type: selectedArtwork.art_type || "",
+        exact_art_type: selectedArtwork.exact_art_type || "",
         product: getArtworkFormOptions(selectedArtwork.art_type)?.product || selectedArtwork.product || "",
+        product_type: selectedArtwork.product_type || "Premade",
+        payment_mode: selectedArtwork.payment_mode || "straight",
+        upfront_percentage: selectedArtwork.upfront_percentage ?? "",
         genre: selectedArtwork.genre || selectedArtwork.color_used || "",
         price: selectedArtwork.price || "",
         description: selectedArtwork.description || "",
         care_instructions: selectedArtwork.care_instructions || "",
         image: selectedArtwork.image || "",
         file: null,
+        product_sample_image: selectedArtwork.product_sample_image || "",
+        product_sample_file: null,
+        remove_product_sample: false,
         date_created: selectedArtwork.date_created || "",
         ...getArtworkDetailsFromArtwork(selectedArtwork),
         ...(selectedArtwork.art_type === "product"
@@ -207,13 +222,22 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       );
       return {
         ...next,
+        ...(name === "product_type" ? {
+          payment_mode: fieldValue === "Customize" ? prev.payment_mode || "straight" : "straight",
+          upfront_percentage: fieldValue === "Customize" ? prev.upfront_percentage : "",
+          stock_available: fieldValue === "Customize" ? "" : prev.stock_available,
+          remove_product_sample: fieldValue !== "Customize",
+        } : {}),
+        ...(name === "payment_mode" && fieldValue !== "stage_by_stage"
+          ? { upfront_percentage: "" }
+          : {}),
         ...(name === "art_type" ? {
           product_options: fieldValue === "product"
             ? [createEmptyProductOption(), createEmptyProductOption()]
             : [],
           product_price_mode: "shared",
         } : {}),
-        ...(isProductArtwork ? {
+        ...(isProductArtwork && next.product_type !== "Customize" ? {
           stock_available: getProductOptionsTotalQuantity(next.product_options),
         } : {}),
         artwork_details: undefined,
@@ -281,6 +305,12 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setFormData((prev) => ({ ...prev, image: "", file: null }));
       return;
     }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type.toLowerCase())) {
+      setUploadError("Choose a JPEG, PNG, or WebP image.");
+      setImagePreview(null);
+      setFormData((prev) => ({ ...prev, image: "", file: null }));
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -289,6 +319,42 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setUploadError("");
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleSampleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Product sample images must be 2MB or smaller.");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(String(file.type || "").toLowerCase())) {
+      setUploadError("Choose a JPEG, PNG, or WebP product sample image.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((prev) => ({
+        ...prev,
+        product_sample_image: reader.result,
+        product_sample_file: file,
+        remove_product_sample: false,
+      }));
+      setUploadError("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveSampleImage = () => {
+    setFormData((prev) => ({
+      ...prev,
+      product_sample_image: "",
+      product_sample_file: null,
+      remove_product_sample: true,
+    }));
   };
 
   const handleSubmit = async () => {
@@ -300,6 +366,14 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     }
     if (!formData.art_type) {
       setError("Art type is required");
+      return;
+    }
+    if (formData.art_type === "customize" && !formData.exact_art_type.trim()) {
+      setError("Enter the exact art type.");
+      return;
+    }
+    if (!["Premade", "Digital", "Customize"].includes(formData.product_type)) {
+      setError("Choose a product type.");
       return;
     }
     const product = typeOptions?.product || formData.product;
@@ -331,6 +405,26 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setError("Price must be greater than zero");
       return;
     }
+    if (formData.product_type !== "Customize" && !isProductArtwork) {
+      const stock = Number(formData.stock_available);
+      if (!Number.isSafeInteger(stock) || stock < 0) {
+        setError("Stock must be a whole number of 0 or more.");
+        return;
+      }
+    }
+    if (isCustomizable) {
+      if (!["straight", "stage_by_stage"].includes(formData.payment_mode)) {
+        setError("Choose a mode of payment.");
+        return;
+      }
+      if (formData.payment_mode === "stage_by_stage" &&
+          (!/^\d{1,2}(?:\.\d{1,2})?$/.test(String(formData.upfront_percentage).trim()) ||
+            Number(formData.upfront_percentage) < 1 ||
+            Number(formData.upfront_percentage) > 99)) {
+        setError("Upfront percentage must be between 1 and 99.");
+        return;
+      }
+    }
     if (isManualProductPricing && !productStartingPrice) {
       setError("Enter a valid price for each product.");
       return;
@@ -347,9 +441,11 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     }
     const draft = {
       ...formData,
+      ...(isCustomizable ? { stock_available: "" } : {}),
       ...(isProductArtwork ? { stock_available: productStockTotal } : {}),
+      ...(isCustomizable ? { product_options: [] } : {}),
       product,
-      material_composition: ["fine_art", "product"].includes(detailCategory) && materialInput.trim()
+      material_composition: materialInput.trim()
         ? [...formData.material_composition, materialInput.trim()]
         : formData.material_composition,
       ...(selectedArtwork ? {
@@ -375,7 +471,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setIsSubmitting(true);
       const artworkDetails = {
         ...getArtworkDetailsPayload(draft),
-        ...(draft.art_type === "product" ? {
+        ...(draft.art_type === "product" && !isCustomizable ? {
           product_price_mode: draft.product_price_mode,
           product_options: getProductOptionsPayload(
             draft.product_options,
@@ -387,7 +483,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         ...draft,
         ...getArtworkDetailDefaults(),
         ...artworkDetails,
-        ...(draft.art_type === "product" ? { product_options: draft.product_options } : {}),
+        ...(draft.art_type === "product" && !isCustomizable
+          ? { product_options: draft.product_options }
+          : {}),
         artwork_details: artworkDetails,
         ...getArtworkScanDefaults(),
         ...getArtworkScanPayload(draft),
@@ -459,7 +557,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
 
         <Stack spacing={2.5}>
           {/* Art Type Selection */}
-          <FormControl fullWidth>
+          <FormControl fullWidth required>
             <InputLabel>Art Type</InputLabel>
             <Select
               label="Art Type"
@@ -480,6 +578,97 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               ))}
             </Select>
           </FormControl>
+          {formData.art_type === "customize" && (
+            <TextField
+              required
+              fullWidth
+              label="Exact art type"
+              name="exact_art_type"
+              value={formData.exact_art_type}
+              onChange={handleChange}
+              inputProps={{ maxLength: 100 }}
+              helperText="Specify what kind of artwork you are listing."
+            />
+          )}
+          <FormControl fullWidth required>
+            <InputLabel>Product type</InputLabel>
+            <Select
+              label="Product type"
+              name="product_type"
+              value={formData.product_type}
+              onChange={handleChange}
+            >
+              <MenuItem value="Premade">Premade</MenuItem>
+              <MenuItem value="Digital">Digital</MenuItem>
+              <MenuItem value="Customize">Customize</MenuItem>
+            </Select>
+          </FormControl>
+          {isCustomizable && (
+            <>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
+                  Product sample (optional)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  Show buyers a reference image of the customized product. JPEG, PNG, or WebP up to 2MB.
+                </Typography>
+                {formData.product_sample_image && (
+                  <ArtworkImage
+                    image={formData.product_sample_image}
+                    alt="Product sample preview"
+                    sx={{
+                      width: "100%",
+                      maxHeight: 220,
+                      objectFit: "contain",
+                      borderRadius: 1,
+                      mb: 1.5,
+                    }}
+                  />
+                )}
+                <Stack direction="row" spacing={1}>
+                  <Button variant="outlined" component="label" fullWidth>
+                    {formData.product_sample_image ? "Replace sample image" : "Choose sample image"}
+                    <input
+                      hidden
+                      accept="image/jpeg,image/png,image/webp"
+                      type="file"
+                      onChange={handleSampleFileChange}
+                    />
+                  </Button>
+                  {formData.product_sample_image && (
+                    <Button variant="text" color="error" onClick={handleRemoveSampleImage}>
+                      Remove
+                    </Button>
+                  )}
+                </Stack>
+              </Box>
+              <FormControl fullWidth required>
+                <InputLabel>Mode of payment</InputLabel>
+                <Select
+                  label="Mode of payment"
+                  name="payment_mode"
+                  value={formData.payment_mode}
+                  onChange={handleChange}
+                >
+                  <MenuItem value="straight">Straight payment</MenuItem>
+                  <MenuItem value="stage_by_stage">Stage-by-stage payment</MenuItem>
+                </Select>
+              </FormControl>
+              {formData.payment_mode === "stage_by_stage" && (
+                <TextField
+                  required
+                  fullWidth
+                  label="Upfront percentage"
+                  name="upfront_percentage"
+                  type="number"
+                  value={formData.upfront_percentage}
+                  onChange={handleChange}
+                  helperText="Enter a percentage from 1 to 99. The remaining percentage is calculated automatically."
+                  slotProps={{ htmlInput: { min: 1, max: 99, step: 0.01 } }}
+                />
+              )}
+            </>
+          )}
           {!hasArtType && (
             <Typography variant="body2" color="text.secondary">
               Choose an art type to see its size and style fields.
@@ -523,7 +712,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             Choose file
             <input
               hidden
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               type="file"
               onChange={handleFileChange}
             />
@@ -548,6 +737,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             }}
           >
             <TextField
+              required
               label="Artwork title"
               name="title"
               value={formData.title}
@@ -558,13 +748,14 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
 
             {/* Mixed media can be either flat artwork or a physical object. */}
             {hasArtType && needsProductChoice && (
-              <FormControl fullWidth sx={{ gridColumn: "1 / -1" }}>
-                <InputLabel>Product Type</InputLabel>
+              <FormControl fullWidth required sx={{ gridColumn: "1 / -1" }}>
+                <InputLabel>Product subtype</InputLabel>
                 <Select
-                  label="Product Type"
+                  label="Product subtype"
                   name="product"
                   value={formData.product}
                   onChange={handleChange}
+                  required
                 >
                   {productOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
@@ -573,7 +764,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               </FormControl>
             )}
 
-            {formData.art_type === "product" && (
+            {isProductArtwork && (
               <ProductOptionsFields
                 options={formData.product_options}
                 priceMode={formData.product_price_mode}
@@ -595,10 +786,29 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               />
             )}
 
+            {showDetails && !isCustomizable && (
+              <TextField
+                required
+                fullWidth
+                label="Stock available"
+                name="stock_available"
+                type="number"
+                value={isProductArtwork ? productStockTotal : formData.stock_available}
+                onChange={handleChange}
+                disabled={isProductArtwork}
+                error={Boolean(detailErrors.stock_available)}
+                helperText={isProductArtwork
+                  ? "Calculated from the quantities of all product options."
+                  : detailErrors.stock_available || "Enter a whole number of available units."}
+                slotProps={{ htmlInput: { min: 0, step: 1 } }}
+              />
+            )}
+
             {showDetails && (
               <TextField
                 label={typeOptions?.sizeLabel || (formData.product === "3d_object" ? "Object dimensions" : "Artwork dimensions")}
                 helperText={typeOptions?.sizeHint || (formData.product === "3d_object" ? "Width x height x depth, including units" : "Width x height, including units")}
+                required
                 name="art_size"
                 value={formData.art_size}
                 onChange={handleChange}
@@ -612,6 +822,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                 <Select
                   label="Style"
                   name="genre"
+                  required
                   value={formData.genre}
                   onChange={handleChange}
                 >
@@ -627,15 +838,13 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               </FormControl>
             )}
 
-            {showDetails && detailCategory && (
+            {showDetails && (
               <ArtworkDetailsFields
                 category={detailCategory}
                 formData={formData}
                 errors={detailErrors}
                 onChange={handleChange}
                 materialInput={materialInput}
-                isProductArtwork={isProductArtwork}
-                productStockTotal={productStockTotal}
                 onMaterialInputChange={(value) => {
                   setMaterialInput(value);
                   setDetailErrors((prev) => {
@@ -667,6 +876,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             )}
 
             <TextField
+              required
               label="Price"
               sx={{ gridColumn: "1 / -1" }}
               name="price"
@@ -682,6 +892,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             />
 
             <TextField
+              required
               label="Description"
               name="description"
               value={formData.description}

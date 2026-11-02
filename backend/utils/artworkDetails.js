@@ -3,6 +3,11 @@ import { normalizeProductDetails, ProductOptionsError } from "./productOptions.j
 const DIGITAL_FORMATS = new Set(["PNG", "JPEG", "WEBP", "TIFF", "SVG", "PDF", "PSD"]);
 const PHOTO_FORMATS = new Set(["JPEG", "PNG", "WEBP", "TIFF", "RAW"]);
 const COLOR_PROFILES = new Set(["sRGB", "Adobe RGB", "Display P3", "ProPhoto RGB", "CMYK"]);
+const PRODUCT_TYPES = new Map([
+  ["premade", "Premade"],
+  ["digital", "Digital"],
+  ["customize", "Customize"],
+]);
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
 
@@ -12,6 +17,72 @@ export class ArtworkDetailsValidationError extends Error {
     this.name = "ArtworkDetailsValidationError";
     this.status = 400;
   }
+}
+
+export function normalizeArtworkProductSettings(body, currentArtwork = null) {
+  const rawType = body.product_type ?? currentArtwork?.product_type;
+  const productType = PRODUCT_TYPES.get(String(rawType).trim().toLowerCase());
+  if (!productType) {
+    throw new ArtworkDetailsValidationError("Choose a valid product type.");
+  }
+  const existingType = String(currentArtwork?.product_type || "").trim().toLowerCase();
+  const rawMode = body.payment_mode
+    ?? (existingType === productType.toLowerCase() ? currentArtwork?.payment_mode : undefined);
+  if (productType === "Customize" && rawMode == null) {
+    throw new ArtworkDetailsValidationError("Choose a mode of payment.");
+  }
+  const paymentMode = rawMode == null && productType !== "Customize"
+    ? "straight"
+    : String(rawMode).trim().toLowerCase();
+  if (productType === "Customize") {
+    if (!["straight", "stage_by_stage"].includes(paymentMode)) {
+      throw new ArtworkDetailsValidationError("Choose a valid mode of payment.");
+    }
+    if (paymentMode === "stage_by_stage") {
+      const rawPercentage = String(body.upfront_percentage ?? currentArtwork?.upfront_percentage ?? "").trim();
+      if (!/^(?:\d{1,2})(?:\.\d{1,2})?$/.test(rawPercentage)
+          || Number(rawPercentage) < 1
+          || Number(rawPercentage) > 99) {
+        throw new ArtworkDetailsValidationError("Upfront percentage must be between 1 and 99.");
+      }
+      return { productType, paymentMode, upfrontPercentage: Number(rawPercentage) };
+    }
+    if (body.upfront_percentage != null && String(body.upfront_percentage).trim() !== "") {
+      throw new ArtworkDetailsValidationError("Straight payment cannot include an upfront percentage.");
+    }
+    return { productType, paymentMode, upfrontPercentage: null };
+  }
+  if (paymentMode !== "straight") {
+    throw new ArtworkDetailsValidationError("Premade and Digital artwork use straight payment.");
+  }
+  if (body.upfront_percentage != null && String(body.upfront_percentage).trim() !== "") {
+    throw new ArtworkDetailsValidationError("Only customizable artwork can have an upfront percentage.");
+  }
+  return { productType, paymentMode: "straight", upfrontPercentage: null };
+}
+
+export function normalizeExactArtworkType(artType, value) {
+  const isCustomArtType = normalize(artType) === "customize";
+  if (!isCustomArtType) {
+    if (value != null && String(value).trim()) {
+      throw new ArtworkDetailsValidationError(
+        "Exact art type can only be provided for Customize.",
+      );
+    }
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new ArtworkDetailsValidationError("Enter the exact art type.");
+  }
+  const exactType = value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .trim();
+  if (!exactType || exactType.length > 100) {
+    throw new ArtworkDetailsValidationError(
+      "Exact art type must contain 1 to 100 characters.",
+    );
+  }
+  return exactType;
 }
 
 export function getArtworkDetailsCategory(artType, product) {
@@ -79,24 +150,36 @@ function integerValue(value, minimum, label) {
 
 // Project only the active category's fields; seller-supplied materials do not
 // replace the separately scanned mediums or features.
-export function validateArtworkDetails(rawDetails, artType, product) {
+export function validateArtworkDetails(rawDetails, artType, product, productType = "Premade") {
   const details = readObject(rawDetails);
   const category = getArtworkDetailsCategory(artType, product);
+  const isCustomizable = normalize(productType) === "customize";
+  if (isCustomizable && (
+    Object.hasOwn(details, "stock_available")
+    || Object.hasOwn(details, "product_options")
+  )) {
+    throw new ArtworkDetailsValidationError(
+      "Customizable artwork cannot include stock or product option quantities.",
+    );
+  }
+  const commonDetails = { material_composition: materialTags(details.material_composition) };
+  if (!isCustomizable && !(category === "product" && normalize(artType) === "product")) {
+    commonDetails.stock_available = integerValue(details.stock_available, 0, "Stock available");
+  }
   if (category === "fine_art") {
     return {
       is_fragile: booleanFlag(details, "is_fragile", "Fragility"),
       humidity_sensitive: booleanFlag(details, "humidity_sensitive", "Humidity sensitivity"),
       light_sensitive: booleanFlag(details, "light_sensitive", "Light sensitivity"),
-      material_composition: materialTags(details.material_composition),
+      ...commonDetails,
     };
   }
   if (category === "product") {
-    const materialComposition = materialTags(details.material_composition);
     if (normalize(artType) !== "product") {
-      return {
-        stock_available: integerValue(details.stock_available, 0, "Stock available"),
-        material_composition: materialComposition,
-      };
+      return commonDetails;
+    }
+    if (isCustomizable) {
+      return commonDetails;
     }
     let options;
     try {
@@ -119,7 +202,7 @@ export function validateArtworkDetails(rawDetails, artType, product) {
     }
     return {
       stock_available: stockAvailable,
-      material_composition: materialComposition,
+      ...commonDetails,
       product_price_mode: options.product_price_mode,
       product_options: options.product_options,
     };
@@ -141,26 +224,31 @@ export function validateArtworkDetails(rawDetails, artType, product) {
       throw new ArtworkDetailsValidationError("Choose a supported color profile.");
     }
     return {
+      ...commonDetails,
       resolution_width: integerValue(details.resolution_width, 1, "Resolution width"),
       resolution_height: integerValue(details.resolution_height, 1, "Resolution height"),
       file_format: format,
       color_profile: profile,
     };
   }
-  return null;
+  return commonDetails;
 }
 
-export function resolveArtworkDetails({ rawDetails, artType, product, currentArtwork = null }) {
-  if (rawDetails !== undefined) {
-    return validateArtworkDetails(rawDetails, artType, product);
+export function resolveArtworkDetails({
+  rawDetails,
+  artType,
+  product,
+  productType = "Premade",
+  currentArtwork = null,
+}) {
+  let details = rawDetails;
+  if (details === undefined && currentArtwork
+      && normalize(currentArtwork.art_type) === normalize(artType)
+      && normalize(currentArtwork.product) === normalize(product)) {
+    details = currentArtwork.artwork_details;
   }
-  if (
-    !currentArtwork
-    || normalize(currentArtwork.art_type) !== normalize(artType)
-    || normalize(currentArtwork.product) !== normalize(product)
-  ) {
-    return null;
+  if (details === undefined || details === null) {
+    throw new ArtworkDetailsValidationError("Artwork materials and stock details are required.");
   }
-  const existing = currentArtwork.artwork_details;
-  return typeof existing === "string" ? JSON.parse(existing) : existing ?? null;
+  return validateArtworkDetails(details, artType, product, productType);
 }

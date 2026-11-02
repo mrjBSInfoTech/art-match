@@ -12,6 +12,8 @@ import {
 } from "../../utils/compressArtworkImage.js";
 import {
   ArtworkDetailsValidationError,
+  normalizeExactArtworkType,
+  normalizeArtworkProductSettings,
   resolveArtworkDetails,
 } from "../../utils/artworkDetails.js";
 import {
@@ -126,17 +128,43 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024, files: 102, fields: 150, parts: 260 },
+});
+
+function cleanArtworkText(value, label, { required = false, maxLength = Infinity } = {}) {
+  if (typeof value !== "string") {
+    if (required) throw new ArtworkDetailsValidationError(`${label} is required.`);
+    return "";
+  }
+  const cleaned = value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
+  if (required && !cleaned) throw new ArtworkDetailsValidationError(`${label} is required.`);
+  if (cleaned.length > maxLength) {
+    throw new ArtworkDetailsValidationError(`${label} must be ${maxLength} characters or fewer.`);
+  }
+  return cleaned;
+}
+
+function validArtworkPrice(value) {
+  const price = typeof value === "string" && value.trim() ? Number(value) : value;
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0 || price > 9999999999.99) {
+    throw new ArtworkDetailsValidationError("Price must be a positive number.");
+  }
+  return price;
+}
 
 const uploadArtworkFiles = (req, res, next) => {
   upload.fields([
     { name: "file", maxCount: 1 },
+    { name: "product_sample_file", maxCount: 1 },
     { name: "product_option_images", maxCount: 100 },
   ])(req, res, (error) => {
     if (error) {
       return res.status(400).json({ error: error.message });
     }
     req.file = req.files?.file?.[0] || null;
+    req.productSampleFile = req.files?.product_sample_file?.[0] || null;
     return next();
   });
 };
@@ -210,6 +238,20 @@ async function uploadProductOptionImages(assignments) {
   return uploadedImages;
 }
 
+async function uploadProductSampleImage(file) {
+  const absolutePath = path.join(uploadDir, file.filename);
+  const compressed = await compressArtworkImage(absolutePath);
+  const imageName = `${path.parse(file.filename).name}.webp`;
+  try {
+    await writeDerivatives(compressed, baseNameOf(imageName));
+    removeTemporaryUpload(file);
+    return imageName;
+  } catch (error) {
+    await removeDerivatives(baseNameOf(imageName));
+    throw error;
+  }
+}
+
 // Get artworks for the current user
 router.get("/", authenticateSeller, (req, res) => {
   res.set("Cache-Control", "no-store");
@@ -231,7 +273,12 @@ router.get("/", authenticateSeller, (req, res) => {
         a.color_used,
         a.art_size,
         a.art_type,
+        a.exact_art_type,
         a.product,
+        a.product_type,
+        a.payment_mode,
+        a.upfront_percentage,
+        a.product_sample_image,
         a.artwork_details,
         au.request_status,
         au.request_date,
@@ -288,7 +335,12 @@ router.get("/:id", authenticateSeller, (req, res) => {
         a.color_used,
         a.art_size,
         a.art_type,
+        a.exact_art_type,
         a.product,
+        a.product_type,
+        a.payment_mode,
+        a.upfront_percentage,
+        a.product_sample_image,
         a.artwork_details,
         au.request_status,
         au.request_date,
@@ -330,6 +382,7 @@ router.post(
   uploadArtworkFiles,
   async (req, res) => {
     const uploadedProductImageNames = [];
+    let productSampleImageName = null;
     try {
       if (!req.file) {
         removeRequestUploads(req);
@@ -366,17 +419,26 @@ router.post(
     */
       }
 
-      const {
-        title,
-        art_size,
-        art_type,
-        product,
-        genre,
-        price,
-        description,
-        care_instructions,
-        date_posted,
-      } = req.body;
+      const title = cleanArtworkText(req.body.title, "Title", { required: true, maxLength: 255 });
+      const art_size = cleanArtworkText(req.body.art_size, "Art size", { required: true, maxLength: 100 });
+      const art_type = cleanArtworkText(req.body.art_type, "Art type", { required: true, maxLength: 50 });
+      const exact_art_type = normalizeExactArtworkType(art_type, req.body.exact_art_type);
+      const product = cleanArtworkText(req.body.product, "Product subtype", { required: true, maxLength: 50 });
+      const genre = cleanArtworkText(req.body.genre, "Style", { required: true, maxLength: 100 });
+      const price = validArtworkPrice(req.body.price);
+      const description = cleanArtworkText(req.body.description, "Description", { required: true, maxLength: 10000 });
+      const care_instructions = cleanArtworkText(req.body.care_instructions, "How to handle", { maxLength: 10000 });
+      const { productType, paymentMode, upfrontPercentage } =
+        normalizeArtworkProductSettings(req.body);
+      if (req.productSampleFile && productType !== "Customize") {
+        throw new ArtworkDetailsValidationError(
+          "Product sample images are only allowed for customizable artwork.",
+        );
+      }
+      if (productType === "Customize" && Object.hasOwn(req.body, "stock_available")) {
+        throw new ArtworkDetailsValidationError("Customizable artwork cannot include stock.");
+      }
+      const { date_posted } = req.body;
       const createdAt =
         date_posted || new Date().toISOString().slice(0, 19).replace("T", " ");
 
@@ -395,6 +457,7 @@ router.post(
         rawDetails: req.body.artwork_details,
         artType: art_type,
         product,
+        productType,
       });
       const productImageAssignments = getProductOptionImageAssignments(req, artworkDetails);
       const scanOverrides = parseArtworkScanOverrides(req.body, art_type, product);
@@ -409,6 +472,9 @@ router.post(
       }, scanOverrides);
 
       const imageName = `${path.parse(req.file.filename).name}.webp`;
+      if (req.productSampleFile) {
+        productSampleImageName = await uploadProductSampleImage(req.productSampleFile);
+      }
 
       const b2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
 
@@ -427,6 +493,9 @@ router.post(
         console.log("Artwork uploaded to B2:", b2Key);
       } catch (b2Error) {
         await removeDerivatives(baseNameOf(imageName));
+        if (productSampleImageName) {
+          await removeDerivatives(baseNameOf(productSampleImageName));
+        }
         console.error("B2 artwork upload failed:", b2Error.message);
         removeRequestUploads(req);
 
@@ -437,8 +506,8 @@ router.post(
       uploadedProductImageNames.push(...await uploadProductOptionImages(productImageAssignments));
       const sql = `
       INSERT INTO artwork
-      (student_id, title, art_size, art_type, product, artwork_details, genre, color_used, price, description, care_instructions, image, date_created)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (student_id, title, art_size, art_type, exact_art_type, product, product_type, payment_mode, upfront_percentage, product_sample_image, artwork_details, genre, color_used, price, description, care_instructions, image, date_created)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
       db.query(
@@ -448,7 +517,12 @@ router.post(
           title.trim(),
           art_size.trim(),
           art_type.trim(),
+          exact_art_type,
           product.trim(),
+          productType,
+          paymentMode,
+          upfrontPercentage,
+          productSampleImageName,
           artworkDetails === null ? null : JSON.stringify(artworkDetails),
           genre.trim(),
           detectedColors,
@@ -464,6 +538,9 @@ router.post(
             await Promise.all(uploadedProductImageNames.map((image) =>
               removeDerivatives(baseNameOf(image)),
             ));
+            if (productSampleImageName) {
+              await removeDerivatives(baseNameOf(productSampleImageName));
+            }
             return res.status(500).json({ error: err.message });
           }
 
@@ -480,12 +557,13 @@ router.post(
               await Promise.all(uploadedProductImageNames.map((image) =>
                 removeDerivatives(baseNameOf(image)),
               ));
+              if (productSampleImageName) {
+                await removeDerivatives(baseNameOf(productSampleImageName));
+              }
               return res.status(500).json({ error: uploadErr.message });
             }
 
-            if (fs.existsSync(absoluteImagePath)) {
-              fs.unlinkSync(absoluteImagePath);
-            }
+            removeRequestUploads(req);
             const respond = async () => {
               await logSellerAudit(req.user, {
                 action: "CREATE_ARTWORK",
@@ -528,12 +606,18 @@ router.post(
         await Promise.all(uploadedProductImageNames.map((image) =>
           removeDerivatives(baseNameOf(image)),
         ));
+        if (productSampleImageName) {
+          await removeDerivatives(baseNameOf(productSampleImageName));
+        }
         return res.status(400).json({ error: error.message });
       }
       removeRequestUploads(req);
       await Promise.all(uploadedProductImageNames.map((image) =>
         removeDerivatives(baseNameOf(image)),
       ));
+      if (productSampleImageName) {
+        await removeDerivatives(baseNameOf(productSampleImageName));
+      }
       console.error("Error creating artwork:", error);
       res.status(500).json({ error: "Failed to process artwork submission." });
     }
@@ -580,20 +664,10 @@ router.put(
   async (req, res) => {
     const { id } = req.params;
     const uploadedProductImageNames = [];
+    let newProductSampleImageName = null;
+    let artworkUpdateCommitted = false;
 
     const studentId = req.user?.student_id || req.user?.id;
-
-    const {
-      title,
-      art_size,
-      art_type,
-      product,
-      genre,
-      price,
-      description,
-    care_instructions,
-    color_used,
-    } = req.body;
 
     if (!studentId) {
       removeRequestUploads(req);
@@ -602,23 +676,27 @@ router.put(
       });
     }
 
-    if (!title || !art_size || !art_type || !product || !genre || !price || !description) {
-      removeRequestUploads(req);
-      return res.status(400).json({
-        error: "Please fill all required fields.",
-      });
-    }
-
     const temporaryImagePath = req.file
       ? path.join(uploadDir, req.file.filename)
       : null;
 
     try {
+      const title = cleanArtworkText(req.body.title, "Title", { required: true, maxLength: 255 });
+      const art_size = cleanArtworkText(req.body.art_size, "Art size", { required: true, maxLength: 100 });
+      const art_type = cleanArtworkText(req.body.art_type, "Art type", { required: true, maxLength: 50 });
+      const exact_art_type = normalizeExactArtworkType(art_type, req.body.exact_art_type);
+      const product = cleanArtworkText(req.body.product, "Product subtype", { required: true, maxLength: 50 });
+      const genre = cleanArtworkText(req.body.genre, "Style", { required: true, maxLength: 100 });
+      const price = validArtworkPrice(req.body.price);
+      const description = cleanArtworkText(req.body.description, "Description", { required: true, maxLength: 10000 });
+      const care_instructions = cleanArtworkText(req.body.care_instructions, "How to handle", { maxLength: 10000 });
+      const color_used = cleanArtworkText(req.body.color_used, "Colors", { maxLength: 500 });
       const requestedScanOverrides = parseArtworkScanOverrides(req.body, art_type, product);
       // Get current artwork/image.
       const currentArtwork = await new Promise((resolve, reject) => {
         db.query(
-          `SELECT image, art_type, product, artwork_details, color_used
+          `SELECT image, product_sample_image, art_type, exact_art_type, product, product_type, payment_mode,
+                  upfront_percentage, artwork_details, color_used
                FROM artwork
                WHERE artwork_id = ?
                  AND student_id = ?`,
@@ -641,10 +719,21 @@ router.put(
         });
       }
 
+      const { productType, paymentMode, upfrontPercentage } =
+        normalizeArtworkProductSettings(req.body, currentArtwork);
+      if (req.productSampleFile && productType !== "Customize") {
+        throw new ArtworkDetailsValidationError(
+          "Product sample images are only allowed for customizable artwork.",
+        );
+      }
+      if (productType === "Customize" && Object.hasOwn(req.body, "stock_available")) {
+        throw new ArtworkDetailsValidationError("Customizable artwork cannot include stock.");
+      }
       const artworkDetails = resolveArtworkDetails({
         rawDetails: req.body.artwork_details,
         artType: art_type,
         product,
+        productType,
         currentArtwork,
       });
       const productImageAssignments = getProductOptionImageAssignments(req, artworkDetails);
@@ -654,6 +743,17 @@ router.put(
       const scanOverrides = resolveArtworkScanUpdate(
         requestedScanOverrides, art_type, product, currentArtwork,
       );
+
+      let productSampleImageName = currentArtwork.product_sample_image || null;
+      if (req.productSampleFile) {
+        newProductSampleImageName = await uploadProductSampleImage(req.productSampleFile);
+        productSampleImageName = newProductSampleImageName;
+      } else if (
+        productType !== "Customize" ||
+        String(req.body.remove_product_sample || "") === "1"
+      ) {
+        productSampleImageName = null;
+      }
 
       let imageName = null;
 
@@ -685,14 +785,19 @@ router.put(
           title = ?,
           art_size = ?,
           art_type = ?,
+          exact_art_type = ?,
           product = ?,
+          product_type = ?,
+          payment_mode = ?,
+          upfront_percentage = ?,
           artwork_details = ?,
           genre = ?,
           color_used = ?,
           price = ?,
           description = ?,
           care_instructions = ?,
-          image = COALESCE(?, image)
+          image = COALESCE(?, image),
+          product_sample_image = ?
         WHERE artwork_id = ?
           AND student_id = ?
       `;
@@ -704,7 +809,11 @@ router.put(
             title.trim(),
             art_size.trim(),
             art_type.trim(),
+            exact_art_type,
             product.trim(),
+            productType,
+            paymentMode,
+            upfrontPercentage,
             artworkDetails === null ? null : JSON.stringify(artworkDetails),
             genre.trim(),
             typeof color_used === "string" ? color_used.trim() : currentArtwork.color_used ?? "",
@@ -712,6 +821,7 @@ router.put(
             description.trim(),
             (care_instructions || "").trim(),
             imageName,
+            productSampleImageName,
             id,
             studentId,
           ],
@@ -725,6 +835,7 @@ router.put(
           },
         );
       });
+      artworkUpdateCommitted = true;
 
       const scanFields = Object.keys(scanOverrides);
       if (scanFields.length > 0) {
@@ -782,6 +893,12 @@ router.put(
           console.warn("Could not delete old B2 image:", deleteError.message);
         }
       }
+      if (
+        currentArtwork.product_sample_image &&
+        currentArtwork.product_sample_image !== productSampleImageName
+      ) {
+        await removeDerivatives(baseNameOf(currentArtwork.product_sample_image));
+      }
       const retainedProductImages = new Set(getProductOptions(artworkDetails)
         .map((option) => option.image)
         .filter(Boolean));
@@ -818,6 +935,9 @@ router.put(
       await Promise.all(uploadedProductImageNames.map((image) =>
         removeDerivatives(baseNameOf(image)),
       ));
+      if (newProductSampleImageName && !artworkUpdateCommitted) {
+        await removeDerivatives(baseNameOf(newProductSampleImageName));
+      }
 
       return res.status(validationError ? 400 : 500).json({
         error: validationError
@@ -843,7 +963,7 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
   try {
     const artwork = await new Promise((resolve, reject) => {
       db.query(
-        `SELECT image, artwork_details
+        `SELECT image, product_sample_image, artwork_details
                FROM artwork
                WHERE artwork_id = ?
                  AND student_id = ?`,
@@ -917,6 +1037,9 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
     await Promise.all(getProductOptions(artwork.artwork_details)
       .filter((option) => option.image)
       .map((option) => removeDerivatives(baseNameOf(option.image))));
+    if (artwork.product_sample_image) {
+      await removeDerivatives(baseNameOf(artwork.product_sample_image));
+    }
 
     await logSellerAudit(req.user, {
       action: "DELETE_ARTWORK",

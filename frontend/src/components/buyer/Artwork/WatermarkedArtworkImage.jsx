@@ -39,12 +39,15 @@ export default function WatermarkedArtworkImage({
   sx,
   useBuyerIdentity = true,
   fallbackSrc = "",
+  onLoadError,
   // "web" (1600 px) for detail views, "thumb" (400 px) for grids.
   variant = "web",
   hideWhenBlurred = false,
   ...imageProps
 }) {
   const imageRef = useRef(null);
+  const onLoadErrorRef = useRef(onLoadError);
+  onLoadErrorRef.current = onLoadError;
   const [shouldLoad, setShouldLoad] = useState(false);
   const [src, setSrc] = useState("");
   const { blurSx } = useArtworkBlurOnAway({ enabled: hideWhenBlurred });
@@ -84,6 +87,7 @@ export default function WatermarkedArtworkImage({
       filename = getArtworkFilename(image);
     } catch (error) {
       console.error("Unable to load watermarked artwork:", error);
+      onLoadErrorRef.current?.(error);
       setSrc(fallbackSrc);
       return undefined;
     }
@@ -101,6 +105,7 @@ export default function WatermarkedArtworkImage({
       .catch((error) => {
         if (active && error.name !== "AbortError") {
           console.error("Unable to load watermarked artwork:", error);
+          onLoadErrorRef.current?.(error);
           setSrc(fallbackSrc || "");
         }
       });

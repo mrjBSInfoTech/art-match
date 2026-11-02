@@ -33,6 +33,16 @@ test("artwork without stock tracking becomes sold out after purchase", () => {
   assert.equal(getArtworkAvailability(null, 1).isSoldOut, true);
 });
 
+test("customizable artwork stays available for repeat orders unless explicitly sold", () => {
+  assert.deepEqual(getArtworkAvailability(null, 20, false, "Customize"), {
+    hasStockTracking: false,
+    remainingStock: null,
+    isSoldOut: false,
+    isUnlimited: true,
+  });
+  assert.equal(getArtworkAvailability(null, 20, true, "Customize").isSoldOut, true);
+});
+
 test("legacy sold marker overrides available stock", () => {
   assert.equal(getArtworkAvailability(5, 0, true).isSoldOut, true);
 });
@@ -62,6 +72,7 @@ test("all stock SQL uses the same payment-aware sale condition", () => {
   assert.ok(getArtworkSoldQuantitySql().includes(condition));
   assert.ok(getArtworkSoldOutSql().includes(condition));
   assert.match(getArtworkSoldOutSql(), /stock_available/);
+  assert.match(getArtworkSoldOutSql(), /product_type/);
 });
 
 test("SQL helpers reject invalid aliases rather than interpolating input", () => {

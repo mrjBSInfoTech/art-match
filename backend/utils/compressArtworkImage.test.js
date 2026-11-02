@@ -52,3 +52,10 @@ test("rejects files that cannot be processed as artwork images", async () => {
     ArtworkImageProcessingError,
   );
 });
+
+test("rejects SVG regardless of the upload's declared content type", async () => {
+  const svg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
+  );
+  await assert.rejects(compressArtworkImage(svg), /Upload a JPEG, PNG, or WebP image/);
+});
