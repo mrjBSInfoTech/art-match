@@ -235,6 +235,28 @@ export default function OrderDetailsDialog({
                         Note: {item.orderNote}
                       </Typography>
                     )}
+                    {item.review?.sellerResponse && (
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1.25,
+                          borderRadius: 1.5,
+                          bgcolor: "action.hover",
+                          borderLeft: "3px solid",
+                          borderColor: "primary.main",
+                        }}
+                      >
+                        <Typography variant="caption" fontWeight={700} display="block">
+                          Seller response
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ mt: 0.25, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                        >
+                          {item.review.sellerResponse}
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                   <Typography variant="body2" fontWeight={700} sx={{ flexShrink: 0 }}>
                     {formatCurrency(item.lineTotal ?? Number(item.price) * Number(item.qty || 1))}
@@ -486,4 +508,3 @@ export default function OrderDetailsDialog({
     </Dialog>
   );
 }
-

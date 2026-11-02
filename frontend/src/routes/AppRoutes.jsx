@@ -48,6 +48,7 @@ import SellerMessages from "../pages/seller/Messages";
 import SellerNotifications from "../pages/seller/Notifications";
 import SellerOrder from "../pages/seller/Order";
 import SellerInventory from "../pages/seller/Inventory";
+import SellerReviews from "../pages/seller/Reviews";
 import SellerProfile from "../pages/seller/Profile";
 import SellerSettings from "../pages/seller/Settings";
 import SellerLogin from "../pages/seller/Login";
@@ -246,6 +247,7 @@ export default function AppRoutes() {
                 <Route path="orders" element={<Navigate to="manage" replace />} />
                 <Route path="orders/manage" element={<SellerOrder />} />
                 <Route path="orders/inventory" element={<SellerInventory />} />
+                <Route path="orders/reviews" element={<SellerReviews />} />
                 <Route path="inventory" element={<SellerInventory />} />
                 <Route
                   path="marketing"

@@ -66,7 +66,8 @@ router.get("/seller/:id/reviews", (req, res) => {
 
   res.set("Cache-Control", "no-store");
   db.query(
-    `SELECT r.review_id AS id, r.rating, r.comment, r.created_at,
+    `SELECT r.review_id AS id, r.rating, r.comment,
+            r.seller_response, r.seller_response_at, r.created_at,
             CONCAT(c.first_name, ' ', c.last_name) AS reviewer_name,
             COALESCE(oi.title, a.title) AS artwork_title,
             COALESCE(oi.image, a.image) AS artwork_image

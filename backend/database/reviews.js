@@ -8,6 +8,8 @@ export const reviewTableSql = `
     artwork_id INT NULL,
     rating TINYINT UNSIGNED NOT NULL,
     comment TEXT NULL,
+    seller_response TEXT NULL,
+    seller_response_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_artwork_reviews_order
       FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE,
@@ -50,6 +52,13 @@ export async function ensureArtworkReviewSchema(query, logger = console) {
   const comment = columns.find((column) => column.Field === "comment");
   if (comment && (comment.Type.toLowerCase() !== "text" || comment.Null !== "YES")) {
     await query("ALTER TABLE artwork_reviews MODIFY COLUMN comment TEXT NULL");
+  }
+  const existingColumns = new Set(columns.map((column) => column.Field));
+  if (!existingColumns.has("seller_response")) {
+    await query("ALTER TABLE artwork_reviews ADD COLUMN seller_response TEXT NULL AFTER comment");
+  }
+  if (!existingColumns.has("seller_response_at")) {
+    await query("ALTER TABLE artwork_reviews ADD COLUMN seller_response_at DATETIME NULL AFTER seller_response");
   }
   const createdAt = columns.find((column) => column.Field === "created_at");
   if (createdAt && !createdAt.Type.toLowerCase().startsWith("datetime")) {

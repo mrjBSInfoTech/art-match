@@ -6,7 +6,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
   Slide,
   Stack,
   TextField,
@@ -15,7 +14,6 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import { SHIPMENT_COURIERS, getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -36,7 +34,6 @@ export default function OrderTrack({
   open,
   fulfillmentTarget,
   statusError,
-  setStatusError,
   courier,
   onCourierChange,
   trackingNumber,
@@ -48,7 +45,6 @@ export default function OrderTrack({
   onSubmit,
 }) {
   const theme = useTheme();
-  const selectedCourier = getShipmentCourier(courier);
 
   return (
     <Dialog
@@ -102,56 +98,40 @@ export default function OrderTrack({
           {statusError && <Alert severity="error">{statusError}</Alert>}
 
           <Typography variant="body2" color="text.secondary">
-            Choose the courier and add its tracking information. The buyer will use these
-            details to track the delivery.
+            Add the courier name and tracking details. The buyer will use these details to
+            track the delivery.
           </Typography>
 
           <TextField
-            select
             label="Courier"
             required
             value={courier}
             onChange={(event) => onCourierChange(event.target.value)}
+            inputProps={{ maxLength: 50 }}
             disabled={saving}
             fullWidth
-          >
-            {SHIPMENT_COURIERS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
+          />
 
-          {selectedCourier?.trackingNumberLabel && (
-            <TextField
-              label={selectedCourier.trackingNumberLabel}
-              required
-              value={trackingNumber}
-              onChange={(event) => setTrackingNumber(event.target.value)}
-              inputProps={{ maxLength: 100 }}
-              disabled={saving}
-              fullWidth
-            />
-          )}
+          <TextField
+            label="Tracking Number or ID (optional)"
+            value={trackingNumber}
+            onChange={(event) => setTrackingNumber(event.target.value)}
+            inputProps={{ maxLength: 100 }}
+            disabled={saving}
+            fullWidth
+          />
 
-          {selectedCourier && (
-            <TextField
-              label={selectedCourier.trackingUrl ? "Tracking Link" : "Tracking / Share Link"}
-              placeholder={selectedCourier.trackingUrl ? undefined : "https://share.lalamove.com/..."}
-              required
-              value={trackingUrl}
-              onChange={(event) => setTrackingUrl(event.target.value)}
-              inputProps={{ maxLength: 2048 }}
-              InputProps={{ readOnly: Boolean(selectedCourier.trackingUrl) }}
-              helperText={
-                selectedCourier.trackingUrl
-                  ? "Official courier tracking page. The buyer can enter the tracking number / ID there."
-                  : "Open the booked Lalamove delivery, use Share, and paste the generated tracking/share link here."
-              }
-              disabled={saving}
-              fullWidth
-            />
-          )}
+          <TextField
+            label="Tracking Link"
+            placeholder="https://"
+            required
+            value={trackingUrl}
+            onChange={(event) => setTrackingUrl(event.target.value)}
+            inputProps={{ maxLength: 2048 }}
+            helperText="Enter the secure tracking page or delivery-share link."
+            disabled={saving}
+            fullWidth
+          />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -164,9 +144,8 @@ export default function OrderTrack({
           onClick={onSubmit}
           disabled={
             saving ||
-            !selectedCourier ||
-            !trackingUrl.trim() ||
-            (Boolean(selectedCourier.trackingNumberLabel) && !trackingNumber.trim())
+            !courier.trim() ||
+            !trackingUrl.trim()
           }
           sx={{ color: "#fff", textTransform: "none" }}
         >

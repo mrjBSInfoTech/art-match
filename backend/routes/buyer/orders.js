@@ -227,6 +227,10 @@ const groupOrderRows = (rows) => {
 
               comment: row.review_comment,
 
+              sellerResponse: row.review_seller_response,
+
+              sellerResponseAt: row.review_seller_response_at,
+
               createdAt: row.review_created_at,
             }
           : null,
@@ -295,6 +299,8 @@ const ordersSql = `
     r.review_id,
     r.rating AS review_rating,
     r.comment AS review_comment,
+    r.seller_response AS review_seller_response,
+    r.seller_response_at AS review_seller_response_at,
     r.created_at AS review_created_at,
 
     c.certificate_id,

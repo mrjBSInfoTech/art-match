@@ -1208,7 +1208,15 @@ export default function Messages({ embedded = false }) {
                   </Typography>
                 ) : (
                   supportMessages.map((message) => (
-                    <Box key={message.id}>
+                    <Box
+                      key={message.id}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems:
+                          message.sender === "buyer" ? "flex-end" : "flex-start",
+                      }}
+                    >
                       {message.sender === "admin" && (
                         <Typography
                           variant="caption"

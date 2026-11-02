@@ -88,7 +88,7 @@ test("number-based couriers trim alphanumeric IDs and use trusted official pages
 });
 
 test("shipment validation rejects unsupported couriers and unsafe submitted URLs", () => {
-  for (const courier of ["", "unsupportedCourier", "LBC Express", "toString", "__proto__", null, ["lbc"]]) {
+  for (const courier of ["", "   ", "A".repeat(51), "LBC\nExpress", null, ["lbc"]]) {
     assert.throws(() => normalizeShipmentTracking({ courier, trackingNumber: "ABC123", trackingUrl: "https://www.lbcexpress.com/track/" }));
   }
   for (const courier of ["lalamove", "lbc", "jnt", "ninjavan"]) {
@@ -99,6 +99,27 @@ test("shipment validation rejects unsupported couriers and unsafe submitted URLs
   for (const trackingUrl of ["https://lalamove.com.example.com/test", "https://example.com/lalamove.com", "https://evil-lalamove.com/test"]) {
     assert.throws(() => normalizeShipmentTracking({ courier: "lalamove", trackingUrl }), /Lalamove/);
   }
+});
+
+test("custom courier names use the seller-provided secure tracking URL", () => {
+  assert.deepEqual(normalizeShipmentTracking({
+    courier: "  FedEx  ",
+    trackingNumber: "  FX-123  ",
+    trackingUrl: " https://tracking.example/FX-123 ",
+  }), {
+    courier: "FedEx",
+    trackingNumber: "FX-123",
+    trackingUrl: "https://tracking.example/FX-123",
+  });
+  assert.deepEqual(normalizeShipmentTracking({
+    courier: "Local courier",
+    trackingNumber: "",
+    trackingUrl: "https://tracking.example/order",
+  }), {
+    courier: "Local courier",
+    trackingNumber: null,
+    trackingUrl: "https://tracking.example/order",
+  });
 });
 
 test("shows the tracking link only on the shipped notification", () => {

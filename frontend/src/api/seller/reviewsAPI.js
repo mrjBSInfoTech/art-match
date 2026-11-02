@@ -16,3 +16,12 @@ export const fetchSellerReviews = async () => {
     throw new Error(error.response?.data?.message || "Unable to load buyer reviews");
   }
 };
+
+export const saveSellerReviewResponse = async (reviewId, response) => {
+  try {
+    const result = await api.put(`/${reviewId}/response`, { response });
+    return result.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Unable to save review response");
+  }
+};

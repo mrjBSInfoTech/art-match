@@ -285,6 +285,45 @@ function ArtworkReviewsContent({ artworkId }) {
                   </Stack>
                   <Rating value={Number(review.rating)} readOnly size="small" aria-label={`${review.rating} out of 5 stars`} />
                   {review.comment?.trim() && <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{review.comment}</Typography>}
+                  {review.seller_response?.trim() && (
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: "action.hover",
+                        borderLeft: "3px solid",
+                        borderColor: "primary.main",
+                      }}
+                    >
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        justifyContent="space-between"
+                        gap={0.5}
+                      >
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          Seller response
+                        </Typography>
+                        {review.seller_response_at && (
+                          <Typography
+                            component="time"
+                            dateTime={new Date(review.seller_response_at).toISOString()}
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {new Date(review.seller_response_at).toLocaleString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </Typography>
+                        )}
+                      </Stack>
+                      <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                        {review.seller_response}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               );
             })}

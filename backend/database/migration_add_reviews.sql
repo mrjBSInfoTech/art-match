@@ -45,6 +45,26 @@ CREATE TABLE IF NOT EXISTS artwork_reviews (
 ) ENGINE=InnoDB;
 
 ALTER TABLE artwork_reviews MODIFY COLUMN comment TEXT NULL;
+SET @reviews_response_exists = (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'artwork_reviews' AND COLUMN_NAME = 'seller_response'
+);
+SET @reviews_response_migration = IF(@reviews_response_exists = 0,
+  'ALTER TABLE artwork_reviews ADD COLUMN seller_response TEXT NULL AFTER comment', 'SELECT 1');
+PREPARE reviews_statement FROM @reviews_response_migration;
+EXECUTE reviews_statement;
+DEALLOCATE PREPARE reviews_statement;
+
+SET @reviews_response_date_exists = (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'artwork_reviews' AND COLUMN_NAME = 'seller_response_at'
+);
+SET @reviews_response_date_migration = IF(@reviews_response_date_exists = 0,
+  'ALTER TABLE artwork_reviews ADD COLUMN seller_response_at DATETIME NULL AFTER seller_response', 'SELECT 1');
+PREPARE reviews_statement FROM @reviews_response_date_migration;
+EXECUTE reviews_statement;
+DEALLOCATE PREPARE reviews_statement;
+
 SET @reviews_order_type = (
   SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'artwork_reviews' AND COLUMN_NAME = 'order_id'

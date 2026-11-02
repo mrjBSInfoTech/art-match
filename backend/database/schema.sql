@@ -267,6 +267,8 @@ CREATE TABLE IF NOT EXISTS artwork_reviews (
   artwork_id INT NULL,
   rating TINYINT UNSIGNED NOT NULL,
   comment TEXT NULL,
+  seller_response TEXT NULL,
+  seller_response_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_artwork_reviews_order
     FOREIGN KEY (order_id) REFERENCES marketplace_order (order_id) ON DELETE CASCADE,

@@ -53,7 +53,8 @@ router.get("/artwork/:artworkId", async (req, res) => {
     `, [artworkId]);
     const summary = getArtworkRatingSummary(aggregates[0] || {});
     const rows = await query(`
-      SELECT r.review_id, r.rating, r.comment, r.created_at,
+      SELECT r.review_id, r.rating, r.comment, r.seller_response,
+        r.seller_response_at, r.created_at,
         COALESCE(NULLIF(TRIM(CONCAT_WS(' ', c.first_name, c.last_name)), ''),
                  NULLIF(TRIM(o.buyer_name), ''), 'Buyer') AS reviewer_name
       FROM artwork_reviews r
@@ -66,6 +67,8 @@ router.get("/artwork/:artworkId", async (req, res) => {
       artwork_id: artworkId, summary,
       reviews: rows.map((row) => ({
         id: row.review_id, rating: Number(row.rating), comment: row.comment || null,
+        seller_response: row.seller_response || null,
+        seller_response_at: row.seller_response_at || null,
         reviewer_name: row.reviewer_name, created_at: row.created_at,
       })),
       pagination: { page, limit, total: summary.total_reviews, pages: Math.ceil(summary.total_reviews / limit) },

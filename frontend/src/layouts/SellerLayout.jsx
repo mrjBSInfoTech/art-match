@@ -23,6 +23,7 @@ import {
   fetchSellerNotifications,
   markSellerNotificationsRead,
 } from "../api/seller/messageAPI";
+import { fetchSellerReviews } from "../api/seller/reviewsAPI";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Stack,
@@ -43,6 +44,7 @@ import SidebarNavigationHeader from "./SidebarNavigationHeader";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import SettingsIcon from "@mui/icons-material/Settings";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
@@ -53,7 +55,6 @@ import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
@@ -94,6 +95,7 @@ function SellerLayoutContent() {
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [sellerReviewCount, setSellerReviewCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
@@ -153,6 +155,28 @@ function SellerLayoutContent() {
     loadBadgeCounts();
     const intervalId = window.setInterval(loadBadgeCounts, 5000);
     return () => window.clearInterval(intervalId);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    let active = true;
+    if (!isAuthenticated("seller")) {
+      setSellerReviewCount(0);
+      return () => {
+        active = false;
+      };
+    }
+
+    fetchSellerReviews()
+      .then((reviews) => {
+        if (active) setSellerReviewCount(Array.isArray(reviews) ? reviews.length : 0);
+      })
+      .catch((error) => {
+        console.error("Unable to load seller review count:", error);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [location.pathname]);
 
   // Simulated router (for Toolpad)
@@ -235,6 +259,21 @@ function SellerLayoutContent() {
           icon: <Inventory2OutlinedIcon />,
           pattern: "/seller/orders/inventory",
         },
+        {
+          segment: "reviews",
+          title: "Review and Ratings",
+          icon: (
+            <Badge
+              badgeContent={sellerReviewCount}
+              color="error"
+              invisible={sellerReviewCount === 0}
+              max={99}
+            >
+              <RateReviewOutlinedIcon />
+            </Badge>
+          ),
+          pattern: "/seller/orders/reviews",
+        },
       ],
     },
     {
@@ -248,21 +287,6 @@ function SellerLayoutContent() {
       title: "Settlement and Payout",
       icon: <AccountBalanceWalletOutlinedIcon />,
       pattern: "/seller/settlement-payout",
-    },
-    {
-      segment: "messages",
-      title: "Chat",
-      icon: (
-        <Badge
-          badgeContent={unreadMessageCount}
-          color="error"
-          invisible={unreadMessageCount === 0}
-          max={99}
-        >
-          <ChatBubbleOutlineIcon />
-        </Badge>
-      ),
-      pattern: "/seller/messages",
     },
     {
       segment: "customer-service",

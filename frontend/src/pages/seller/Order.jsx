@@ -34,7 +34,6 @@ import OrderTrack from "../../components/seller/Order/OrderTrack";
 import OrderReceived from "../../components/seller/Order/OrderReceived";
 import OrderReceipt from "../../components/seller/Order/OrderReceipt";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
-import { getShipmentCourier } from "../../utils/shipmentCouriers.js";
 import { getSecureTrackingUrl } from "../../utils/trackingUrl.js";
 
 const orderStatuses = [
@@ -285,10 +284,9 @@ export default function SellerOrder() {
       }
       setStatusError("");
       setParcelPhotos([]);
-      const shipmentCourier = getShipmentCourier(order?.courier);
-      setCourier(shipmentCourier?.value || "");
+      setCourier(order?.courier || "");
       setTrackingNumber(order?.trackingNumber || "");
-      setTrackingUrl(shipmentCourier?.trackingUrl || order?.trackingUrl || "");
+      setTrackingUrl(order?.trackingUrl || "");
       setHandlingInstructions(order?.handlingInstructions || []);
       setSelectedOrder(null);
       setFulfillmentTarget({ orderId, status: nextStatus, order });
@@ -304,14 +302,6 @@ export default function SellerOrder() {
       return;
     }
     await saveOrderStatus(orderId, nextStatus);
-  };
-
-  const changeCourier = (value) => {
-    if (value === courier) return;
-    setCourier(value);
-    setTrackingNumber("");
-    setTrackingUrl(getShipmentCourier(value)?.trackingUrl || "");
-    setStatusError("");
   };
 
   const submitFulfillmentUpdate = async () => {
@@ -334,29 +324,31 @@ export default function SellerOrder() {
         formData.append("delivery_notes", deliveryNotes.trim());
       }
     } else {
-      const shipmentCourier = getShipmentCourier(courier);
-      if (!shipmentCourier) {
-        setStatusError("Choose a courier before marking this order as shipped.");
-        return;
-      }
-      const submittedTrackingNumber = trackingNumber.trim();
-      const hasTrackingControl = [...trackingNumber].some((character) => {
+      const submittedCourier = courier.trim();
+      const hasCourierControl = [...submittedCourier].some((character) => {
         const code = character.charCodeAt(0);
         return code < 32 || (code >= 127 && code <= 159);
       });
-      if (shipmentCourier.trackingNumberLabel && (
-        !submittedTrackingNumber || submittedTrackingNumber.length > 100 || hasTrackingControl
-      )) {
-        setStatusError(`Enter a valid ${shipmentCourier.trackingNumberLabel} (up to 100 characters, without control characters).`);
+      if (!submittedCourier || submittedCourier.length > 50 || hasCourierControl) {
+        setStatusError("Enter a courier name up to 50 characters without control characters.");
         return;
       }
-      const submittedTrackingUrl = getSecureTrackingUrl(shipmentCourier.trackingUrl || trackingUrl.trim());
+      const submittedTrackingNumber = trackingNumber.trim();
+      const hasTrackingControl = [...submittedTrackingNumber].some((character) => {
+        const code = character.charCodeAt(0);
+        return code < 32 || (code >= 127 && code <= 159);
+      });
+      if (submittedTrackingNumber.length > 100 || hasTrackingControl) {
+        setStatusError("Enter a tracking number or ID up to 100 characters without control characters.");
+        return;
+      }
+      const submittedTrackingUrl = getSecureTrackingUrl(trackingUrl.trim());
       if (!submittedTrackingUrl) {
         setStatusError("Add a valid secure HTTPS tracking / share link before marking this order as shipped.");
         return;
       }
-      formData.append("courier", shipmentCourier.value);
-      formData.append("tracking_number", shipmentCourier.trackingNumberLabel ? submittedTrackingNumber : "");
+      formData.append("courier", submittedCourier);
+      formData.append("tracking_number", submittedTrackingNumber);
       formData.append("tracking_url", submittedTrackingUrl);
     }
 
@@ -720,9 +712,8 @@ export default function SellerOrder() {
         open={Boolean(fulfillmentTarget && fulfillmentTarget.status === "Shipped")}
         fulfillmentTarget={fulfillmentTarget}
         statusError={statusError}
-        setStatusError={setStatusError}
         courier={courier}
-        onCourierChange={changeCourier}
+        onCourierChange={setCourier}
         trackingNumber={trackingNumber}
         setTrackingNumber={setTrackingNumber}
         trackingUrl={trackingUrl}

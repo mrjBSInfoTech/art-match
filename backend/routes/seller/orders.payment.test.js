@@ -283,8 +283,9 @@ for (const [courier, page] of [
 
 test("invalid direct courier requests roll back without changing the order", async () => {
   const invalid = [
-    { courier: "unsupportedCourier", tracking_number: "123", tracking_url: "https://www.lbcexpress.com/track/" },
-    { courier: "lbc", tracking_number: "", tracking_url: "https://www.lbcexpress.com/track/" },
+    { courier: "", tracking_number: "123", tracking_url: "https://www.lbcexpress.com/track/" },
+    { courier: "A".repeat(51), tracking_number: "123", tracking_url: "https://www.lbcexpress.com/track/" },
+    { courier: "lbc", tracking_number: "A".repeat(101), tracking_url: "https://www.lbcexpress.com/track/" },
     { courier: "lalamove", tracking_url: "" },
     { courier: "jnt", tracking_number: "123", tracking_url: "javascript:alert(1)" },
     { courier: "ninjavan", tracking_number: "NV\n123", tracking_url: "https://www.ninjavan.co/en-ph/tracking/" },
