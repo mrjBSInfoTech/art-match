@@ -6,9 +6,9 @@ import {
   Avatar,
   Box,
   Button,
-  CircularProgress,
   Container,
   IconButton,
+  Skeleton,
   Stack,
   Typography,
   useTheme,
@@ -82,14 +82,24 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
         overflow: "hidden",
         border: "1px solid",
         borderColor: "divider",
-        borderRadius: 1.5,
+        borderRadius: 2,
         backgroundColor: "background.paper",
         transition: "transform 180ms ease, box-shadow 180ms ease",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: darkMode
-            ? "0 8px 24px rgba(0, 0, 0, 0.42)"
-            : "0 8px 20px rgba(68, 41, 15, 0.07)",
+        "&:focus-within": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
+        },
+        "@media (hover: hover)": {
+          "&:hover": {
+            transform: "translateY(-2px)",
+            boxShadow: darkMode
+              ? "0 8px 24px rgba(0, 0, 0, 0.42)"
+              : "0 8px 20px rgba(68, 41, 15, 0.07)",
+          },
+        },
+        "@media (prefers-reduced-motion: reduce)": {
+          transition: "none",
         },
       }}
     >
@@ -102,7 +112,7 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           position: "relative",
           display: "flex",
           width: "100%",
-          aspectRatio: "1.35 / 1",
+          aspectRatio: "1.2 / 1",
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
@@ -142,12 +152,12 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
             left: 7,
             maxWidth: "calc(100% - 52px)",
             overflow: "hidden",
-            px: 0.8,
-            py: 0.25,
-            borderRadius: 0.5,
+            px: 1,
+            py: 0.5,
+            borderRadius: 999,
             backgroundColor: soldOut ? "text.secondary" : "error.main",
             color: "#fff",
-            fontSize: 9,
+            fontSize: 11,
             fontWeight: 800,
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -157,31 +167,39 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
         </Typography>
       </Box>
 
-      <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
+      <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
         <Stack
           direction="row"
-          alignItems="center"
+          alignItems="flex-start"
           justifyContent="space-between"
-          gap={0.5}
+          gap={1}
         >
           <Typography
             component="button"
+            type="button"
             onClick={() => onOpen(artworkId)}
             title={artwork.title || "Untitled artwork"}
             sx={{
               minWidth: 0,
-              overflow: "hidden",
               border: 0,
               p: 0,
               background: "none",
               color: "text.primary",
               font: "inherit",
-              fontSize: 12,
+              fontSize: { xs: 14, sm: 15 },
               fontWeight: 800,
+              lineHeight: 1.35,
               textAlign: "left",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
+              overflow: "hidden",
               cursor: "pointer",
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 3,
+              },
             }}
           >
             {artwork.title || "Untitled artwork"}
@@ -189,7 +207,7 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           {Number.isFinite(rating) && rating > 0 && (
             <Typography
               variant="caption"
-              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 9 }}
+              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 11 }}
             >
               ★ {rating.toFixed(2)}{Number.isFinite(ratingCount) && ratingCount > 0 ? ` (${ratingCount})` : ""}
             </Typography>
@@ -199,7 +217,7 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           variant="caption"
           display="block"
           noWrap
-          sx={{ mt: 0.25, color: "text.secondary", fontSize: 10 }}
+          sx={{ mt: 0.75, color: "text.secondary", fontSize: 12 }}
         >
           {[artwork.artist || "Independent Artist", artwork.genre]
             .filter(Boolean)
@@ -209,10 +227,10 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           direction="row"
           alignItems="center"
           justifyContent="space-between"
-          sx={{ mt: 0.5 }}
+          sx={{ mt: 1, pt: 0.5 }}
         >
           <Typography
-            sx={{ color: "error.main", fontSize: 13, fontWeight: 800 }}
+            sx={{ color: "error.main", fontSize: 16, fontWeight: 800 }}
             noWrap
           >
             ₱{Number(artwork.price || 0).toLocaleString()}
@@ -222,11 +240,11 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
               isFavorite ? "Remove from favorites" : "Add to favorites"
             }
             title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            size="small"
             onClick={() => onToggleFavorite(artworkId)}
             sx={{
-              width: 28,
-              height: 28,
+              width: 44,
+              height: 44,
+              flexShrink: 0,
               color: isFavorite ? "error.main" : "text.primary",
               backgroundColor: darkMode ? "#1e293b" : "#fff2dc",
               "&:hover": {
@@ -235,9 +253,9 @@ function GalleryArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
             }}
           >
             {isFavorite ? (
-              <FavoriteIcon sx={{ fontSize: 15 }} />
+              <FavoriteIcon />
             ) : (
-              <FavoriteBorderIcon sx={{ fontSize: 15 }} />
+              <FavoriteBorderIcon />
             )}
           </IconButton>
         </Stack>
@@ -323,6 +341,10 @@ export default function Gallery() {
 
   const openArtwork = (artworkId) =>
     navigate(`/buyer/artwork/view/${artworkId}`);
+  const totalArtworkCount = artists.reduce(
+    (total, artist) => total + artist.artworks.length,
+    0,
+  );
 
   if (loadError && !loading) {
     return <ConnectionErrorPanel title="Gallery unavailable" />;
@@ -333,23 +355,31 @@ export default function Gallery() {
       sx={{
         minHeight: "100vh",
         backgroundColor: darkMode ? "background.default" : "#fffaf2",
-        py: { xs: 3, md: 5 },
+        py: { xs: 2.5, md: 4 },
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Gallery</title>
       </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 4 } }}>
-        <Stack spacing={{ xs: 2, md: 2.5 }}>
+        <Stack spacing={{ xs: 2.5, md: 3 }}>
           <Box
             sx={{
               display: "flex",
-              alignItems: "end",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "flex-start", sm: "flex-end" },
               justifyContent: "space-between",
               gap: 2,
+              p: { xs: 2, sm: 3, md: 4 },
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: { xs: 2, sm: 3 },
+              background: darkMode
+                ? "linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96))"
+                : "linear-gradient(135deg, #fff4e6, #fffaf2 68%)",
             }}
           >
-            <Box>
+            <Box sx={{ minWidth: 0 }}>
               <Typography
                 variant="overline"
                 sx={{
@@ -362,19 +392,35 @@ export default function Gallery() {
               </Typography>
               <Typography
                 variant="h4"
+                component="h1"
                 sx={{
                   color: "text.primary",
-                  fontWeight: 800,
+                  fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
+                  fontWeight: 900,
                   lineHeight: 1.1,
                 }}
               >
                 The Gallery
               </Typography>
+              <Typography
+                sx={{
+                  maxWidth: 640,
+                  mt: 1,
+                  color: "text.secondary",
+                  fontSize: { xs: 14, sm: 16 },
+                  lineHeight: 1.6,
+                }}
+              >
+                Discover the artists behind the work and explore selected pieces from their collections.
+              </Typography>
             </Box>
             <Button
+              variant="contained"
               onClick={() => navigate("/buyer/shop")}
               sx={{
-                color: "text.primary",
+                minHeight: 44,
+                px: 2.25,
+                borderRadius: 999,
                 textTransform: "none",
                 fontWeight: 700,
                 whiteSpace: "nowrap",
@@ -384,19 +430,114 @@ export default function Gallery() {
             </Button>
           </Box>
 
+          {!loading && !loadError && (
+            <Stack
+              direction="row"
+              flexWrap="wrap"
+              gap={1}
+              aria-live="polite"
+            >
+              <Box
+                sx={{
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: 999,
+                  backgroundColor: "background.paper",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  color: "text.secondary",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {artists.length} {artists.length === 1 ? "artist" : "artists"}
+              </Box>
+              <Box
+                sx={{
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: 999,
+                  backgroundColor: "background.paper",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  color: "text.secondary",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {totalArtworkCount} {totalArtworkCount === 1 ? "artwork" : "artworks"}
+              </Box>
+            </Stack>
+          )}
+
           {loading && (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-              <CircularProgress />
+            <Box
+              aria-label="Loading gallery"
+              aria-busy="true"
+              sx={{ display: "grid", gap: 2 }}
+            >
+              {Array.from({ length: 3 }, (_, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "minmax(230px, 0.82fr) minmax(0, 3fr)",
+                    },
+                    gap: 2,
+                  }}
+                >
+                  <Skeleton variant="rounded" height={220} />
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "repeat(2, minmax(0, 1fr))",
+                        sm: "repeat(3, minmax(0, 1fr))",
+                      },
+                      gap: 1.5,
+                    }}
+                  >
+                    {Array.from({ length: 3 }, (_, cardIndex) => (
+                      <Skeleton
+                        key={cardIndex}
+                        variant="rounded"
+                        sx={{ aspectRatio: "0.95 / 1" }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              ))}
             </Box>
           )}
           {error && <Alert severity="error">{error}</Alert>}
           {!loading && !loadError && artists.length === 0 && (
-            <Typography
-              color="text.secondary"
-              sx={{ py: 6, textAlign: "center" }}
+            <Box
+              sx={{
+                px: 2,
+                py: { xs: 5, sm: 7 },
+                border: "1px dashed",
+                borderColor: "divider",
+                borderRadius: 2,
+                backgroundColor: "background.paper",
+                textAlign: "center",
+              }}
             >
-              No artworks are available in the gallery yet.
-            </Typography>
+              <Typography component="h2" sx={{ fontSize: 20, fontWeight: 800 }}>
+                The gallery is waiting for its first artworks
+              </Typography>
+              <Typography sx={{ mt: 0.75, color: "text.secondary" }}>
+                Browse the shop to explore all currently available pieces.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate("/buyer/shop")}
+                sx={{ minHeight: 44, mt: 2 }}
+              >
+                Browse the shop
+              </Button>
+            </Box>
           )}
 
           {!loading &&
@@ -408,7 +549,7 @@ export default function Gallery() {
                   display: "grid",
                   gridTemplateColumns: {
                     xs: "1fr",
-                    md: "minmax(205px, 0.82fr) minmax(0, 3fr)",
+                    md: "minmax(230px, 0.82fr) minmax(0, 3fr)",
                   },
                   gap: { xs: 1.5, md: 1.75 },
                   alignItems: "stretch",
@@ -417,10 +558,10 @@ export default function Gallery() {
                 <Box
                   sx={{
                     minWidth: 0,
-                    p: { xs: 1.7, sm: 2 },
+                    p: { xs: 2, sm: 2.5 },
                     border: "1px solid",
                     borderColor: "divider",
-                    borderRadius: 1.75,
+                    borderRadius: 2,
                     backgroundColor: darkMode ? "background.paper" : "#fff2dc",
                     display: "flex",
                     flexDirection: "column",
@@ -431,9 +572,9 @@ export default function Gallery() {
                     src={profileImageUrl(artist.profileImage)}
                     alt={artist.name}
                     sx={{
-                      width: 42,
-                      height: 42,
-                      mb: 1,
+                      width: 64,
+                      height: 64,
+                      mb: 1.5,
                       border: "1px solid",
                       borderColor: "divider",
                       backgroundColor: darkMode ? "#1e293b" : "#fff8ec",
@@ -443,7 +584,7 @@ export default function Gallery() {
                   <Typography
                     sx={{
                       color: "text.primary",
-                      fontSize: 14,
+                      fontSize: { xs: 17, sm: 18 },
                       fontWeight: 800,
                       lineHeight: 1.25,
                     }}
@@ -454,7 +595,7 @@ export default function Gallery() {
                     sx={{
                       mt: 0.35,
                       color: "error.main",
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: 600,
                     }}
                   >
@@ -463,10 +604,10 @@ export default function Gallery() {
                   <Typography
                     variant="body2"
                     sx={{
-                      mt: 1,
+                      mt: 1.5,
                       color: "text.secondary",
-                      fontSize: 10,
-                      lineHeight: 1.5,
+                      fontSize: 13,
+                      lineHeight: 1.6,
                       display: "-webkit-box",
                       WebkitLineClamp: 3,
                       WebkitBoxOrient: "vertical",
@@ -483,13 +624,13 @@ export default function Gallery() {
                   >
                     <Typography
                       variant="caption"
-                      sx={{ color: "text.secondary", fontSize: 9 }}
+                      sx={{ color: "text.secondary", fontSize: 12 }}
                     >
                       {artist.artworks.length} works
                     </Typography>
                     <Typography
                       variant="caption"
-                      sx={{ color: "text.secondary", fontSize: 9 }}
+                      sx={{ color: "text.secondary", fontSize: 12 }}
                     >
                       ★ 4.8
                     </Typography>
@@ -499,12 +640,12 @@ export default function Gallery() {
                     onClick={() => navigate(`/buyer/seller/${artist.id}`)}
                     sx={{
                       mt: 1,
-                      minHeight: 29,
+                      minHeight: 44,
                       px: 1.5,
                       borderColor: "text.primary",
                       borderRadius: 999,
                       color: "text.primary",
-                      fontSize: 10,
+                      fontSize: 13,
                       fontWeight: 700,
                       textTransform: "none",
                       "&:hover": {
@@ -524,7 +665,7 @@ export default function Gallery() {
                       xs: "repeat(2, minmax(0, 1fr))",
                       sm: "repeat(3, minmax(0, 1fr))",
                     },
-                    gap: { xs: 1, sm: 1.5 },
+                    gap: { xs: 1.5, sm: 2 },
                     minWidth: 0,
                   }}
                 >

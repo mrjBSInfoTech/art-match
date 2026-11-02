@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Chip,
+  CircularProgress,
   Divider,
   Stack,
   Typography,
@@ -42,62 +43,68 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
         display: "flex",
         flexDirection: "column",
         minWidth: 0,
-        minHeight: { xs: 0, sm: 340 },
+        height: "100%",
         p: { xs: 2, sm: 2.5 },
-        borderRadius: 2.5,
+        borderRadius: 3,
         backgroundColor: "background.paper",
-        borderColor: "rgba(35, 31, 28, 0.12)",
-        boxShadow: "0 2px 8px rgba(35, 31, 28, 0.04)",
-        transition: "transform 180ms ease, box-shadow 180ms ease",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          boxShadow: "0 10px 24px rgba(35, 31, 28, 0.12)",
+        borderColor: "divider",
+        boxShadow: "0 2px 12px rgba(35, 31, 28, 0.06)",
+        transition: "box-shadow 180ms ease, border-color 180ms ease",
+        "&:focus-within": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
+        },
+        "@media (prefers-reduced-motion: reduce)": {
+          transition: "none",
+        },
+        "@media (hover: hover)": {
+          "&:hover": {
+            borderColor: "text.disabled",
+            boxShadow: "0 10px 28px rgba(35, 31, 28, 0.12)",
+            transform: "translateY(-3px)",
+          },
         },
       }}
     >
-      <Stack direction="row" spacing={1.5} alignItems="center">
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
         <Avatar
           src={artist.image || "http://localhost:5000/uploads/seller/profile.jpg"}
           alt={artist.name}
-          sx={{ width: 52, height: 52, border: "2px solid #f2eee8" }}
+          sx={{
+            width: 60,
+            height: 60,
+            flexShrink: 0,
+            border: "2px solid",
+            borderColor: "divider",
+          }}
         />
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
-            sx={{ fontSize: "1rem", fontWeight: 800, lineHeight: 1.2 }}
-            noWrap
+            component="h3"
+            sx={{
+              fontSize: { xs: "1rem", sm: "1.1rem" },
+              fontWeight: 800,
+              lineHeight: 1.25,
+              overflowWrap: "anywhere",
+            }}
           >
             {artist.name}
           </Typography>
           <Typography
-            sx={{ color: "text.secondary", fontSize: "0.72rem", mt: 0.45 }}
-            noWrap
+            sx={{ color: "text.secondary", fontSize: "0.82rem", mt: 0.45 }}
           >
-            {artist.artistName} · {artist.department}
+            {[artist.artistName, artist.department].filter(Boolean).join(" · ")}
           </Typography>
         </Box>
-        <Typography
-          sx={{
-            alignSelf: "flex-start",
-            px: 1,
-            py: 0.4,
-            borderRadius: 1,
-            color: "#d91f3d",
-            backgroundColor: "#fff0f1",
-            fontSize: "0.66rem",
-            fontWeight: 800,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {tags[0]}
-        </Typography>
       </Stack>
 
       <Typography
         sx={{
           color: "text.secondary",
-          fontSize: "0.8rem",
+          fontSize: "0.9rem",
           lineHeight: 1.5,
-          minHeight: 60,
+          minHeight: 62,
           mt: 1.75,
           display: "-webkit-box",
           WebkitBoxOrient: "vertical",
@@ -111,7 +118,7 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
       <Typography
         sx={{
           color: "text.secondary",
-          fontSize: "0.62rem",
+          fontSize: "0.75rem",
           fontWeight: 800,
           letterSpacing: "0.07em",
           textTransform: "uppercase",
@@ -119,14 +126,14 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
           mb: 0.75,
         }}
       >
-        Exhibition studies
+        Selected works
       </Typography>
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 0.75,
-          mt: 1.25,
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 1,
+          mt: 1,
         }}
       >
         {artist.artworks.map((artwork) => (
@@ -134,8 +141,9 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
             key={artwork.artwork_id || artwork.id || artwork.image}
             sx={{
               width: "100%",
-              height: { xs: 82, sm: 112 },
-              borderRadius: 0.8,
+              aspectRatio: "1 / 1",
+              minWidth: 0,
+              borderRadius: 1.5,
               overflow: "hidden",
               background: "linear-gradient(135deg, #eee9e3 0%, #f8f5f1 100%)",
             }}
@@ -161,8 +169,9 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
             <Box
               key={`placeholder-${index}`}
               sx={{
-                height: { xs: 82, sm: 112 },
-                borderRadius: 0.8,
+                aspectRatio: "1 / 1",
+                minWidth: 0,
+                borderRadius: 1.5,
                 background: "linear-gradient(135deg, #eee9e3 0%, #f8f5f1 100%)",
               }}
             />
@@ -171,8 +180,10 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
       </Box>
       <Stack
         direction="row"
-        spacing={0.6}
-        sx={{ minHeight: 20, overflow: "hidden", mt: 0.9 }}
+        spacing={0.75}
+        useFlexGap
+        flexWrap="wrap"
+        sx={{ minHeight: 28, mt: 1 }}
       >
         {tags.map((tag) => (
           <Chip
@@ -184,7 +195,7 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
               color: colors.muted,
               borderRadius: 999,
               fontWeight: 600,
-              fontSize: "0.62rem",
+              fontSize: "0.75rem",
               border: `1px solid ${colors.chipBorder}`,
             }}
           />
@@ -192,38 +203,53 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
       </Stack>
 
       <Divider sx={{ my: 1.5, borderColor: "rgba(35, 31, 28, 0.1)" }} />
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Typography sx={{ color: "text.secondary", fontSize: "0.72rem" }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        flexWrap="wrap"
+        gap={1}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+          <Typography sx={{ color: "text.secondary", fontSize: "0.82rem" }}>
             {artist.works} works
           </Typography>
           <Typography
-            sx={{ color: "#e22847", fontSize: "0.72rem", fontWeight: 800 }}
+            sx={{ color: "error.main", fontSize: "0.82rem", fontWeight: 800 }}
           >
             {formatArtistRating(artist.averageRating)} <span style={{ color: "#f3a51d" }}>★</span>
           </Typography>
         </Stack>
-        <Typography sx={{ color: "text.secondary", fontSize: "0.72rem" }}>
+        <Typography sx={{ color: "text.secondary", fontSize: "0.82rem" }}>
           {followerCount} {followerCount === 1 ? "follower" : "followers"}
         </Typography>
       </Stack>
 
-      <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
         <Button
           variant="outlined"
           aria-label={`${artist.isFollowing ? "Unfollow" : "Follow"} ${artist.name}`}
+          aria-busy={artist.followPending || undefined}
           disabled={artist.followPending || !onToggleFollow}
           onClick={() => onToggleFollow?.(artist)}
           sx={{
+            minHeight: 44,
             minWidth: 0,
             px: 1.25,
-            borderColor: "#d8d0c8",
+            flex: { xs: "0 0 auto", sm: "0 0 auto" },
+            borderColor: "divider",
             color: "text.secondary",
-            fontSize: "0.72rem",
+            fontSize: "0.82rem",
           }}
         >
-          <FavoriteBorderIcon sx={{ fontSize: 16, mr: 0.35 }} />
-          {artist.isFollowing ? "Following" : "Follow"}
+          {artist.followPending ? (
+            <CircularProgress size={18} aria-label="Updating follow status" />
+          ) : (
+            <>
+              <FavoriteBorderIcon sx={{ fontSize: 18, mr: 0.5 }} />
+              {artist.isFollowing ? "Following" : "Follow"}
+            </>
+          )}
         </Button>
         <Button
           fullWidth
@@ -233,8 +259,9 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
           sx={{
             backgroundColor: "#1d2433",
             color: "#fff",
-            fontSize: "0.78rem",
+            fontSize: "0.9rem",
             fontWeight: 800,
+            minHeight: 44,
             "&:hover": { backgroundColor: "#313b4e" },
           }}
         >

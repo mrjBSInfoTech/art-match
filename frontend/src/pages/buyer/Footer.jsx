@@ -91,54 +91,84 @@ const Footer = () => {
         mt: 0,
         backgroundColor: theme.palette.background.footer,
         color: footerText,
+        borderTop: "3px solid",
+        borderColor: theme.palette.error.main,
       }}
     >
       <Container
         maxWidth="xl"
-        sx={{ px: { xs: 3, sm: 5, lg: 7 }, py: { xs: 5, md: 7 } }}
+        sx={{ px: { xs: 2, sm: 4, lg: 6 }, py: { xs: 4, md: 6 } }}
       >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={{ xs: 4, sm: 5, lg: 10 }}
-          sx={{ justifyContent: "space-between" }}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "minmax(0, 1fr) minmax(0, 1.5fr)",
+              lg: "minmax(260px, 0.9fr) minmax(0, 2fr)",
+            },
+            gap: { xs: 4, sm: 4, lg: 8 },
+          }}
         >
-          <Box sx={{ maxWidth: 330, flex: "1 1 30%" }}>
+          <Box sx={{ maxWidth: 390, minWidth: 0 }}>
             <Stack
               direction="row"
               alignItems="center"
-              spacing={0.75}
-              sx={{ mb: 2 }}
+              spacing={1}
+              sx={{ mb: 1.5 }}
             >
               <Box
                 component="img"
                 src={logo}
                 alt={content.brandName}
-                sx={{ width: 23, height: 30, objectFit: "contain" }}
+                sx={{ width: 32, height: 38, objectFit: "contain" }}
               />
               <Typography
-                sx={{ color: footerText, fontWeight: 800, fontSize: 16 }}
+                sx={{
+                  color: footerText,
+                  fontWeight: 900,
+                  fontSize: { xs: 17, sm: 18 },
+                  letterSpacing: "-0.02em",
+                }}
               >
                 {content.brandName}
               </Typography>
             </Stack>
             <Typography
               variant="body2"
-              sx={{ color: footerText, lineHeight: 1.5, maxWidth: 310 }}
+              sx={{
+                color: footerText,
+                lineHeight: 1.7,
+                maxWidth: 360,
+                fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                opacity: 0.9,
+              }}
             >
               {content.description}
             </Typography>
           </Box>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={{ xs: 3, sm: 7, lg: 12 }}
-            sx={{ flex: "1 1 55%" }}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: { xs: 2.5, sm: 2, lg: 4 },
+              minWidth: 0,
+            }}
           >
             {content.columns.map((column, index) => (
-              <Stack spacing={1.25} sx={{ minWidth: 120 }} key={`${column.title}-${index}`}>
+              <Stack spacing={0.5} sx={{ minWidth: 0 }} key={`${column.title}-${index}`}>
                 <Typography
-                  variant="subtitle2"
-                  sx={{ color: footerText, fontWeight: 800, mb: 0.5 }}
+                  variant="subtitle1"
+                  sx={{
+                    color: footerText,
+                    fontWeight: 800,
+                    mb: 0.5,
+                    fontSize: { xs: 14, sm: 15 },
+                  }}
                 >
                   {column.title}
                 </Typography>
@@ -153,36 +183,52 @@ const Footer = () => {
                 ))}
               </Stack>
             ))}
-          </Stack>
-        </Stack>
+          </Box>
+        </Box>
 
         <Divider
-          sx={{ my: { xs: 4, md: 5 }, borderColor: "rgba(255,247,242,0.65)" }}
+          sx={{ my: { xs: 3, md: 4 }, borderColor: "rgba(255,247,242,0.3)" }}
         />
 
         <Stack
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", sm: "center" }}
-          spacing={2}
+          spacing={{ xs: 1.5, sm: 2 }}
         >
-          <Typography variant="caption" sx={{ color: "white" }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "white",
+              fontSize: { xs: 12, sm: 13 },
+              lineHeight: 1.6,
+              opacity: 0.9,
+            }}
+          >
             {content.copyright.replaceAll("{year}", String(new Date().getFullYear()))}
           </Typography>
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={0.75}>
             {content.socials.map((social, index) => {
               const SocialIcon = socialIcons[social.platform];
               if (!SocialIcon) return null;
               return (
                 <IconButton
                   key={`${social.platform}-${index}`}
-                  size="small"
                   aria-label={social.platform}
                   component={social.url ? "a" : "button"}
                   href={social.url || undefined}
                   target={social.url ? "_blank" : undefined}
                   rel={social.url ? "noopener noreferrer" : undefined}
-                  sx={{ color: footerText }}
+                  sx={{
+                    color: footerText,
+                    width: 44,
+                    height: 44,
+                    border: "1px solid rgba(255,247,242,0.25)",
+                    "&:hover": {
+                      backgroundColor: "rgba(255,247,242,0.12)",
+                      borderColor: "rgba(255,247,242,0.6)",
+                    },
+                  }}
                 >
                   <SocialIcon fontSize="small" />
                 </IconButton>
@@ -208,9 +254,18 @@ const FooterLink = ({ to, children, color }) => {
       sx={{
         color,
         textDecoration: "none",
-        display: "block",
+        display: "flex",
+        alignItems: "center",
+        minHeight: 44,
         opacity: 0.86,
-        "&:hover": { opacity: 1 },
+        fontSize: { xs: "0.85rem", sm: "0.9rem" },
+        lineHeight: 1.4,
+        "&:hover": { opacity: 1, textDecoration: "underline" },
+        "&:focus-visible": {
+          outline: "2px solid currentColor",
+          outlineOffset: 2,
+          borderRadius: 1,
+        },
       }}
     >
       {children}

@@ -7,6 +7,7 @@ import {
   Button,
   FormControl,
   InputAdornment,
+  InputLabel,
   MenuItem,
   Paper,
   Select,
@@ -122,7 +123,12 @@ export default function SellerOrder() {
       setLoading(true);
       const response = await fetchSellerOrders();
       if (!mountedRef.current) return;
-      const placedOrders = Array.isArray(response) ? response.filter(isPlacedOrder) : [];
+      if (!Array.isArray(response)) {
+        throw new Error("The orders response was not in the expected format.");
+      }
+      const placedOrders = response.filter(
+        (order) => order && isPlacedOrder(order),
+      );
       setOrders(placedOrders);
       setSelectedOrder((current) => current
         ? placedOrders.find((order) => order.orderId === current.orderId) || null
@@ -166,10 +172,11 @@ export default function SellerOrder() {
     return orders.filter((order) => {
       const matchesStatus =
         selectedStatus === "All" || order.status === selectedStatus;
-      const searchableText = `${order.id} ${order.customer} ${order.items
-        .map((item) => item.title)
+      const items = Array.isArray(order.items) ? order.items : [];
+      const searchableText = `${order.id || ""} ${order.customer || ""} ${items
+        .map((item) => item?.title || "")
         .join(" ")}`.toLowerCase();
-      const matchesSearch = searchableText.includes(searchTerm.toLowerCase());
+      const matchesSearch = searchableText.includes(searchTerm.trim().toLowerCase());
       return matchesStatus && matchesSearch;
     });
   }, [orders, searchTerm, selectedStatus]);
@@ -187,6 +194,7 @@ export default function SellerOrder() {
       shipped,
     };
   }, [orders]);
+  const hasFilters = selectedStatus !== "All" || searchTerm.trim() !== "";
 
   const saveOrderStatus = async (orderId, nextStatus, payload = {}) => {
     if (savingOrderRef.current) return false;
@@ -407,30 +415,6 @@ export default function SellerOrder() {
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1} sx={{ width: { xs: "100%", md: "auto" } }}>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshOutlinedIcon />}
-              disabled={loading || savingOrderId !== null || savingFulfillment}
-              onClick={loadOrders}
-            >
-              Refresh
-            </Button>
-            <Button
-              variant="contained"
-              color="error"
-              sx={{
-                width: { xs: "100%", sm: 150 },
-                height: { xs: 35, sm: 45 },
-                minWidth: { xs: 45, sm: 50 },
-                fontSize: { xs: 12, sm: 16 },
-                padding: 0,
-              }}
-              onClick={() => { setSelectedStatus("All"); setSearchTerm(""); }}
-            >
-              Reset filters
-            </Button>
-          </Stack>
         </Box>
 
         <Box
@@ -565,9 +549,12 @@ export default function SellerOrder() {
             <TextField
               variant="outlined"
               placeholder="Search by order, customer, or artwork..."
+              inputProps={{ "aria-label": "Search orders" }}
               size="small"
               sx={{
-                width: { xs: "100%", lg: 320 },
+                flex: { xs: "1 1 100%", lg: "1 1 320px" },
+                width: { xs: "100%", lg: "auto" },
+                minWidth: 0,
                 "& .MuiOutlinedInput-root": {
                   color: theme.palette.text.primary,
                   backgroundColor: theme.palette.background.default,
@@ -598,12 +585,16 @@ export default function SellerOrder() {
                 alignItems: "center",
                 gap: 1,
                 flexWrap: "wrap",
+                width: { xs: "100%", lg: "auto" },
               }}
             >
               <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 160 } }}>
+                <InputLabel id="seller-order-status-label">Status</InputLabel>
                 <Select
+                  labelId="seller-order-status-label"
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
+                  label="Status"
                   sx={{
                     fontSize: 12,
                     color: theme.palette.text.primary,
@@ -620,8 +611,35 @@ export default function SellerOrder() {
                   ))}
                 </Select>
               </FormControl>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshOutlinedIcon />}
+                disabled={loading || savingOrderId !== null || savingFulfillment}
+                onClick={loadOrders}
+                sx={{ minHeight: 44, flex: { xs: 1, sm: "0 0 auto" } }}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="text"
+                sx={{ minHeight: 44, px: 2, flex: { xs: 1, sm: "0 0 auto" } }}
+                disabled={!hasFilters}
+                onClick={() => { setSelectedStatus("All"); setSearchTerm(""); }}
+              >
+                Reset filters
+              </Button>
             </Box>
           </Box>
+          {!loading && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              aria-live="polite"
+              sx={{ display: "block", mt: 1.5 }}
+            >
+              {filteredOrders.length} of {orders.length} orders
+            </Typography>
+          )}
         </Paper>
 
         <Stack spacing={2}>

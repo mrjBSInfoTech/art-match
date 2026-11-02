@@ -721,8 +721,9 @@ function SellerLayoutContent() {
           },
 
           "& .MuiListItemButton-root": {
-            marginTop: "5px",
-            marginBottom: "5px",
+            minHeight: 48,
+            marginTop: "4px",
+            marginBottom: "4px",
           },
         }}
       >
@@ -743,7 +744,7 @@ function SellerLayoutContent() {
 
 export default function SellerLayout() {
   return (
-    <ThemeModeProvider storageKey="artmatch-ui-theme-seller">
+    <ThemeModeProvider storageKey="artmatch-ui-theme-seller" variant="panel">
       <SellerLayoutContent />
     </ThemeModeProvider>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useParams, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -14,9 +14,11 @@ import {
   Grid,
   IconButton,
   Paper,
+  Skeleton,
   Slide,
   Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -266,10 +268,15 @@ export default function ArtworkDetail() {
 
   if (loading) {
     return (
-      <Container sx={{ py: 8 }}>
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-          <CircularProgress />
-        </Box>
+      <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+        <Grid container spacing={{ xs: 2, md: 4 }}>
+          <Grid size={{ xs: 12, md: 7 }}>
+            <Skeleton variant="rounded" sx={{ aspectRatio: { xs: "1 / 1", md: "4 / 5" }, maxHeight: 760 }} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Skeleton variant="rounded" height={430} />
+          </Grid>
+        </Grid>
       </Container>
     );
   }
@@ -412,8 +419,8 @@ export default function ArtworkDetail() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
-      <Grid container spacing={{ xs: 4, md: 6 }} alignItems="stretch">
+    <Container maxWidth="xl" sx={{ py: { xs: 2.5, sm: 4, md: 6 }, px: { xs: 2, sm: 3, lg: 5 } }}>
+    <Grid container spacing={{ xs: 2.5, md: 4 }} alignItems="flex-start">
         <Grid size={{ xs: 12, md: 7 }}>
           <WatermarkedArtworkImage
             image={artwork.image || imageUrl}
@@ -422,14 +429,22 @@ export default function ArtworkDetail() {
             fallbackSrc={unavailableImageSrc}
             hideWhenBlurred
             sx={{
-              width: { xs: "100%", md: 600 },
-              height: { xs: 460, sm: 620, md: 730 },
+              width: "100%",
+              height: { xs: "min(72vh, 560px)", sm: "min(78vh, 700px)", md: "min(82vh, 760px)" },
               maxWidth: "100%",
               mx: "auto",
-              borderRadius: 3,
-              objectFit: "cover",
+              borderRadius: { xs: 2, md: 3 },
+              border: "1px solid",
+              borderColor: "divider",
+              backgroundColor: "action.hover",
+              objectFit: "contain",
               display: "block",
               cursor: "zoom-in",
+              "&:focus-visible": {
+                outline: "3px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 3,
+              },
             }}
             onClick={() => setImageViewerOpen(true)}
             role="button"
@@ -441,14 +456,23 @@ export default function ArtworkDetail() {
             }}
           />
           {String(artwork.product_type || "").trim().toLowerCase() === "customize" && (
-            <Box sx={{ mt: 3 }}>
+            <Box
+              sx={{
+                mt: 2,
+                p: { xs: 1.5, sm: 2 },
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                backgroundColor: "background.paper",
+              }}
+            >
               <WatermarkedArtworkImage
                 image={artwork.product_sample_image || artwork.image || imageUrl}
                 alt={`${artwork.title} product sample`}
                 variant="web"
                 sx={{
                   width: "100%",
-                  maxHeight: 420,
+                  maxHeight: { xs: 280, sm: 380 },
                   borderRadius: 2,
                   objectFit: "contain",
                   display: "block",
@@ -463,11 +487,17 @@ export default function ArtworkDetail() {
           <Box
             sx={{
               width: "100%",
-              maxWidth: 520,
+              maxWidth: 600,
               mx: { xs: "auto", md: 0 },
+              p: { xs: 2, sm: 2.5, md: 3 },
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: { xs: 2, md: 3 },
+              backgroundColor: "background.paper",
+              boxShadow: { xs: 0, md: 1 },
             }}
           >
-            <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Chip
                 label={artwork.genre}
                 size="small"
@@ -485,18 +515,49 @@ export default function ArtworkDetail() {
               variant="h3"
               fontWeight={800}
               sx={{
-                mt: 3,
+                mt: 2,
                 mb: 1,
-                wordSpacing: "0.12em",
                 lineHeight: 1.1,
-                fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
+                fontSize: { xs: "2rem", sm: "2.5rem", md: "2.8rem" },
                 overflowWrap: "anywhere",
               }}
             >
               {artwork.title}
             </Typography>
             <Typography variant="subtitle2" color="text.secondary">
-              By {artwork.artist || "Unknown artist"}
+              By{" "}
+              <Tooltip
+                arrow
+                placement="top"
+                title={
+                  <Box sx={{ maxWidth: 280, py: 0.25 }}>
+                    <Typography variant="subtitle2" fontWeight={700} color="inherit">
+                      {artwork.shop_name || artwork.artist || "Unknown artist"}
+                    </Typography>
+                    <Typography variant="body2" color="inherit" sx={{ mt: 0.5 }}>
+                      {artwork.shop_description?.trim()
+                        || [artwork.course, artwork.year_level].filter(Boolean).join(" · ")
+                        || "View this artist’s profile to learn more about their work."}
+                    </Typography>
+                  </Box>
+                }
+              >
+                <Box
+                  component={RouterLink}
+                  to={`/buyer/seller/${encodeURIComponent(artwork.student_id)}`}
+                  sx={{
+                    color: "inherit",
+                    minHeight: 32,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    "&:hover": { color: "primary.main", textDecoration: "underline" },
+                  }}
+                >
+                  {artwork.shop_name || artwork.artist || "Unknown artist"}
+                </Box>
+              </Tooltip>
             </Typography>
             {artwork.art_type === "customize" && artwork.exact_art_type && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -507,10 +568,10 @@ export default function ArtworkDetail() {
             <Typography
               variant="h4"
               sx={{
-                mt: 2.5,
-                mb: 2.5,
+                mt: 2,
+                mb: 2,
                 fontWeight: 700,
-                fontSize: { xs: "1.75rem", sm: "2rem", md: "2.125rem" },
+                fontSize: { xs: "1.8rem", sm: "2rem", md: "2.2rem" },
               }}
             >
               {hasPriceRange ? "From " : ""}₱{displayedUnitPrice.toLocaleString()}
@@ -535,7 +596,7 @@ export default function ArtworkDetail() {
               </Box>
             )}
 
-            <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+            <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2.5 }}>
               <Stack spacing={1.5}>
                 <Row
                   label="Medium"
@@ -595,8 +656,9 @@ export default function ArtworkDetail() {
                     )
                   }
                   sx={{
+                    minHeight: 48,
                     py: 1.5,
-                    borderRadius: 2,
+                    borderRadius: 999,
                     textTransform: "none",
                     fontWeight: 600,
                   }}
@@ -618,8 +680,8 @@ export default function ArtworkDetail() {
             variant="outlined"
             sx={{
               mt: 0,
-              p: 3,
-              borderRadius: 3,
+              p: { xs: 2, sm: 3 },
+              borderRadius: { xs: 2, md: 3 },
               borderColor: "divider",
               backgroundColor: "background.paper",
             }}
@@ -642,7 +704,7 @@ export default function ArtworkDetail() {
                 <Typography
                   variant="body2"
                   color="text.primary"
-                  sx={{ mt: 0.5, lineHeight: 1.6 }}
+                  sx={{ mt: 0.75, fontSize: { xs: "0.95rem", sm: "1rem" }, lineHeight: 1.75, whiteSpace: "pre-line" }}
                 >
                   {artwork.description || "No description provided."}
                 </Typography>
@@ -664,7 +726,7 @@ export default function ArtworkDetail() {
                 <Typography
                   variant="body2"
                   color="text.primary"
-                  sx={{ mt: 0.5, lineHeight: 1.6, whiteSpace: "pre-line" }}
+                  sx={{ mt: 0.75, fontSize: { xs: "0.95rem", sm: "1rem" }, lineHeight: 1.75, whiteSpace: "pre-line" }}
                 >
                   {artwork.care_instructions?.trim()
                     ? artwork.care_instructions
@@ -906,7 +968,7 @@ export default function ArtworkDetail() {
         <Box
           component="section"
           aria-labelledby="similar-artworks-title"
-          sx={{ mt: 10 }}
+          sx={{ mt: { xs: 5, md: 7 } }}
         >
           <Typography
             id="similar-artworks-title"
@@ -969,11 +1031,25 @@ function Row({ label, value }) {
       alignItems="center"
       columnGap={{ xs: 2, sm: 3 }}
     >
-      <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ flexShrink: 0, fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
+      >
         {label}
       </Typography>
 
-      <Typography component="div" variant="body2" fontWeight={500} sx={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>
+      <Typography
+        component="div"
+        variant="body2"
+        fontWeight={600}
+        sx={{
+          textAlign: "right",
+          minWidth: 0,
+          overflowWrap: "anywhere",
+          fontSize: { xs: "0.85rem", sm: "0.9rem" },
+        }}
+      >
         {value || "-"}
       </Typography>
     </Stack>

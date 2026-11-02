@@ -4,10 +4,11 @@ import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
+  Button,
   ButtonBase,
-  CircularProgress,
   Container,
   IconButton,
+  Skeleton,
   Stack,
   Typography,
   useTheme,
@@ -82,14 +83,24 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
         overflow: "hidden",
         border: "1px solid",
         borderColor: "divider",
-        borderRadius: 1.5,
+        borderRadius: 2,
         backgroundColor: "background.paper",
-        transition: "transform 180ms ease, box-shadow 180ms ease",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: darkMode
-            ? "0 8px 24px rgba(0, 0, 0, 0.42)"
-            : "0 8px 20px rgba(68, 41, 15, 0.07)",
+        transition: "border-color 180ms ease, box-shadow 180ms ease",
+        "&:focus-within": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: 2,
+        },
+        "@media (hover: hover)": {
+          "&:hover": {
+            transform: "translateY(-2px)",
+            boxShadow: darkMode
+              ? "0 8px 24px rgba(0, 0, 0, 0.42)"
+              : "0 8px 20px rgba(68, 41, 15, 0.07)",
+          },
+        },
+        "@media (prefers-reduced-motion: reduce)": {
+          transition: "none",
         },
       }}
     >
@@ -102,7 +113,7 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           position: "relative",
           display: "flex",
           width: "100%",
-          aspectRatio: "1.35 / 1",
+          aspectRatio: "1.25 / 1",
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
@@ -143,12 +154,12 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
             left: 7,
             maxWidth: "calc(100% - 52px)",
             overflow: "hidden",
-            px: 0.8,
-            py: 0.25,
-            borderRadius: 0.5,
+            px: 1,
+            py: 0.5,
+            borderRadius: 999,
             backgroundColor: soldOut ? "text.secondary" : "error.main",
             color: "#fff",
-            fontSize: 9,
+            fontSize: 11,
             fontWeight: 800,
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -158,31 +169,46 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
         </Typography>
       </Box>
 
-      <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
+      <Box
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          display: "flex",
+          flex: 1,
+          flexDirection: "column",
+        }}
+      >
         <Stack
           direction="row"
-          alignItems="center"
+          alignItems="flex-start"
           justifyContent="space-between"
-          gap={0.5}
+          gap={1}
         >
           <Typography
             component="button"
+            type="button"
             onClick={() => onOpen(artwork)}
             title={artwork.title || "Untitled artwork"}
             sx={{
               minWidth: 0,
-              overflow: "hidden",
               border: 0,
               p: 0,
               background: "none",
               color: "text.primary",
               font: "inherit",
-              fontSize: 12,
+              fontSize: { xs: 15, sm: 16 },
               fontWeight: 800,
+              lineHeight: 1.35,
               textAlign: "left",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
+              overflow: "hidden",
               cursor: "pointer",
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 3,
+              },
             }}
           >
             {artwork.title || "Untitled artwork"}
@@ -190,7 +216,7 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           {Number.isFinite(rating) && rating > 0 && (
             <Typography
               variant="caption"
-              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 9 }}
+              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 11 }}
             >
               ★ {rating.toFixed(2)}{Number.isFinite(ratingCount) && ratingCount > 0 ? ` (${ratingCount})` : ""}
             </Typography>
@@ -200,7 +226,7 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           variant="caption"
           display="block"
           noWrap
-          sx={{ mt: 0.25, color: "text.secondary", fontSize: 10 }}
+          sx={{ mt: 0.75, color: "text.secondary", fontSize: 12 }}
         >
           {[artwork.artist || "Independent Artist", artwork.genre]
             .filter(Boolean)
@@ -210,10 +236,10 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
           direction="row"
           alignItems="center"
           justifyContent="space-between"
-          sx={{ mt: 0.5 }}
+          sx={{ mt: "auto", pt: 1.5 }}
         >
           <Typography
-            sx={{ color: "error.main", fontSize: 13, fontWeight: 800 }}
+            sx={{ color: "error.main", fontSize: 17, fontWeight: 800 }}
             noWrap
           >
             ₱{Number(artwork.price || 0).toLocaleString()}
@@ -223,11 +249,11 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
               isFavorite ? "Remove from favorites" : "Add to favorites"
             }
             title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            size="small"
             onClick={() => onToggleFavorite(artwork.artwork_id || artwork.id)}
             sx={{
-              width: 28,
-              height: 28,
+              width: 44,
+              height: 44,
+              flexShrink: 0,
               color: isFavorite ? "error.main" : "text.primary",
               backgroundColor: darkMode ? "#1e293b" : "#fff2dc",
               "&:hover": {
@@ -236,9 +262,9 @@ function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
             }}
           >
             {isFavorite ? (
-              <FavoriteIcon sx={{ fontSize: 15 }} />
+              <FavoriteIcon />
             ) : (
-              <FavoriteBorderIcon sx={{ fontSize: 15 }} />
+              <FavoriteBorderIcon />
             )}
           </IconButton>
         </Stack>
@@ -363,6 +389,22 @@ export default function Shop() {
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
+  const pageTitle = recommendationsOnly
+    ? "Recommended for you"
+    : selectedGenre
+      ? `${genre} artwork`
+      : searchQuery
+        ? "Search results"
+        : "Shop artwork";
+  const collectionLabel = recommendationsOnly
+    ? "Recommended artworks"
+    : selectedGenre
+      ? `Shop / ${genre}`
+      : searchQuery
+        ? `Results for \u201c${searchLabel}\u201d`
+        : hasCategoryFilters
+          ? "Filtered artworks"
+          : "All artworks";
 
   useEffect(() => {
     setPage(1);
@@ -388,14 +430,66 @@ export default function Shop() {
       </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
+          component="header"
+          sx={{
+            mb: { xs: 2.5, md: 3.5 },
+            p: { xs: 2, sm: 3, md: 4 },
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: { xs: 2, sm: 3 },
+            background: darkMode
+              ? "linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96))"
+              : "linear-gradient(135deg, #fff4e6, #fffaf2 68%)",
+          }}
+        >
+          <Typography
+            component="p"
+            sx={{
+              mb: 0.75,
+              color: "error.main",
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}
+          >
+            ArtMatch collection
+          </Typography>
+          <Typography
+            component="h1"
+            sx={{
+              color: "text.primary",
+              fontSize: { xs: "1.8rem", sm: "2.3rem", md: "2.75rem" },
+              fontWeight: 900,
+              lineHeight: 1.12,
+            }}
+          >
+            {pageTitle}
+          </Typography>
+          <Typography
+            sx={{
+              maxWidth: 620,
+              mt: 1,
+              color: "text.secondary",
+              fontSize: { xs: 14, sm: 16 },
+              lineHeight: 1.6,
+            }}
+          >
+            {recommendationsOnly
+              ? "A selection of original works chosen for you."
+              : "Explore original artwork and creative work from the CAFA artist community."}
+          </Typography>
+        </Box>
+
+        <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
               xs: "repeat(2, minmax(0, 1fr))",
-              md: "repeat(4, minmax(0, 1fr))",
+              sm: "repeat(4, minmax(0, 1fr))",
             },
             gap: { xs: 1, sm: 1.5 },
-            mb: { xs: 2.5, md: 4 },
+            mb: { xs: 3, md: 4 },
           }}
         >
           {shortcuts.map(({ title, description, icon, path }) => (
@@ -404,16 +498,21 @@ export default function Shop() {
               onClick={() => navigate(path)}
               sx={{
                 minWidth: 0,
-                minHeight: { xs: 68, sm: 76 },
+                minHeight: { xs: 72, sm: 76 },
                 display: "flex",
                 justifyContent: "flex-start",
                 gap: { xs: 1, sm: 1.5 },
                 px: { xs: 1, sm: 1.5 },
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 1.5,
+                borderRadius: 2,
                 backgroundColor: "background.paper",
                 textAlign: "left",
+                "&:focus-visible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.main",
+                  outlineOffset: 2,
+                },
                 "&:hover": {
                   backgroundColor: darkMode ? "#1e293b" : "#fff6e8",
                   borderColor: darkMode ? "#475569" : "#e8cda6",
@@ -422,8 +521,8 @@ export default function Shop() {
             >
               <Box
                 sx={{
-                  width: 32,
-                  height: 32,
+                  width: 36,
+                  height: 36,
                   flexShrink: 0,
                   display: "grid",
                   placeItems: "center",
@@ -434,13 +533,13 @@ export default function Shop() {
                   color: "error.main",
                 }}
               >
-                {createElement(icon, { sx: { fontSize: 17 } })}
+                {createElement(icon, { sx: { fontSize: 20 } })}
               </Box>
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography
                   sx={{
                     color: "text.primary",
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 800,
                     lineHeight: 1.2,
                   }}
@@ -454,8 +553,8 @@ export default function Shop() {
                     display: "-webkit-box",
                     overflow: "hidden",
                     color: "text.secondary",
-                    fontSize: 9,
-                    lineHeight: 1.25,
+                    fontSize: 11,
+                    lineHeight: 1.35,
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
                   }}
@@ -473,45 +572,105 @@ export default function Shop() {
           ))}
         </Box>
 
-        {(recommendationsOnly || selectedGenre || searchQuery || hasPriceFilter || hasCategoryFilters) && (
-          <Typography
-            sx={{
-              mb: 1.5,
-              color: "text.primary",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-          >
-            {recommendationsOnly ? "Recommended for You" : selectedGenre
-              ? `Shop / ${genre}`
-              : searchQuery ? `Search results for \u201c${searchLabel}\u201d` : hasCategoryFilters ? "Filtered artworks" : "All artworks"}
-            {hasPriceFilter && ` - ${formatPriceRange([minimumPrice, maximumPrice])}`}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          alignItems={{ xs: "flex-start", sm: "flex-end" }}
+          justifyContent="space-between"
+          gap={1}
+          sx={{ mb: 2 }}
+        >
+          <Box>
             <Typography
-              component="span"
+              component="h2"
               sx={{
-                ml: 1,
-                color: "text.secondary",
-                fontSize: 11,
-                fontWeight: 400,
+                color: "text.primary",
+                fontSize: { xs: 20, sm: 24 },
+                fontWeight: 800,
               }}
             >
-              {visibleArtworks.length} artworks
+              Explore artworks
             </Typography>
-          </Typography>
-        )}
+            <Typography sx={{ mt: 0.25, color: "text.secondary", fontSize: 13 }}>
+              {collectionLabel}
+              {hasPriceFilter && ` · ${formatPriceRange([minimumPrice, maximumPrice])}`}
+            </Typography>
+          </Box>
+          {!loading && !loadError && (
+            <Typography
+              aria-live="polite"
+              sx={{
+                color: "text.secondary",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {visibleArtworks.length} {visibleArtworks.length === 1 ? "artwork" : "artworks"}
+            </Typography>
+          )}
+        </Stack>
 
         {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
+          <Box
+            aria-label="Loading artworks"
+            aria-busy="true"
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: { xs: 1.5, sm: 2 },
+            }}
+          >
+            {Array.from({ length: PAGE_SIZE }, (_, index) => (
+              <Box
+                key={index}
+                sx={{
+                  overflow: "hidden",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  backgroundColor: "background.paper",
+                }}
+              >
+                <Skeleton variant="rectangular" sx={{ aspectRatio: "1.25 / 1" }} />
+                <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
+                  <Skeleton width="72%" height={26} />
+                  <Skeleton width="52%" height={20} sx={{ mt: 0.5 }} />
+                  <Skeleton width="38%" height={28} sx={{ mt: 1 }} />
+                </Box>
+              </Box>
+            ))}
           </Box>
         )}
-        {error && <Alert severity="error">{error}</Alert>}
+        {error && <Alert severity="error" role="status">{error}</Alert>}
         {!loading && !loadError && !error && visibleArtworks.length === 0 && (
-          <Typography
-            sx={{ py: 8, color: "text.secondary", textAlign: "center" }}
+          <Box
+            sx={{
+              px: 2,
+              py: { xs: 5, sm: 7 },
+              border: "1px dashed",
+              borderColor: "divider",
+              borderRadius: 2,
+              textAlign: "center",
+              backgroundColor: "background.paper",
+            }}
           >
-            No artworks found.
-          </Typography>
+            <Typography component="h3" sx={{ fontSize: 20, fontWeight: 800 }}>
+              No artworks found
+            </Typography>
+            <Typography sx={{ mt: 0.75, color: "text.secondary" }}>
+              Try a different search or browse the full collection.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => navigate("/buyer/shop")}
+              sx={{ minHeight: 44, mt: 2 }}
+            >
+              Browse all artworks
+            </Button>
+          </Box>
         )}
 
         {!loading && !loadError && !error && visibleArtworks.length > 0 && (

@@ -312,11 +312,13 @@ export default function Artwork() {
   };
 
   const normalizeStatus = (artwork) =>
-    String(artwork.request_status || artwork.status || "").toLowerCase();
+    String(artwork.request_status || artwork.status || "Unverified")
+      .trim()
+      .toLowerCase();
 
   const totalPending = artworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
-    return s === "pending" || s === "pending";
+    return s === "unverified";
   }).length;
 
   const totalVerified = artworks.filter((artwork) => {

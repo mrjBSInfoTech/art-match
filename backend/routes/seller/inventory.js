@@ -40,7 +40,10 @@ function getInventoryProductOptions(details) {
 
 function serializeInventoryProduct(row, soldOptionQuantities = new Map()) {
   const details = readArtworkDetails(row.artwork_details);
-  const recordedStock = parseStockQuantity(details.stock_available);
+  const rawStock = details.stock_available;
+  const recordedStock = rawStock === undefined || rawStock === null
+    ? 0
+    : parseStockQuantity(rawStock);
   const soldQuantity = Number.isSafeInteger(Number(row.sold_quantity))
     ? Math.max(0, Number(row.sold_quantity))
     : 0;
@@ -56,6 +59,7 @@ function serializeInventoryProduct(row, soldOptionQuantities = new Map()) {
     price: row.price,
     image: row.image,
     art_type: row.art_type,
+    product_type: row.product_type,
     product: row.product,
     artwork_details: details,
     stock_quantity: recordedStock === null
@@ -101,12 +105,13 @@ router.get("/", authenticateSeller, async (req, res) => {
          a.price,
          a.image,
          a.art_type,
+         a.product_type,
          a.product,
          a.artwork_details,
          ${getArtworkSoldQuantitySql("a")} AS sold_quantity
        FROM artwork a
        WHERE a.student_id = ?
-         AND LOWER(TRIM(a.art_type)) = 'product'
+         AND LOWER(TRIM(COALESCE(a.product_type, ''))) <> 'customize'
        ORDER BY a.artwork_id DESC`,
       [sellerId],
     );
@@ -129,7 +134,7 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
   }
 
   if (!Number.isInteger(artworkId) || artworkId <= 0) {
-    return res.status(400).json({ message: "A valid product is required" });
+    return res.status(400).json({ message: "A valid artwork is required" });
   }
 
   if (!adjustment) {
@@ -145,13 +150,14 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
       a.price,
       a.image,
       a.art_type,
+      a.product_type,
       a.product,
       a.artwork_details,
       ${getArtworkSoldQuantitySql("a")} AS sold_quantity
     FROM artwork a
     WHERE a.artwork_id = ?
       AND a.student_id = ?
-      AND LOWER(TRIM(a.art_type)) = 'product'
+      AND LOWER(TRIM(COALESCE(a.product_type, ''))) <> 'customize'
     LIMIT 1
   `;
 
@@ -170,19 +176,22 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
     if (!product) {
       await connection.rollback();
       transactionOpen = false;
-      return res.status(404).json({ message: "Product inventory was not found" });
+      return res.status(404).json({ message: "Artwork inventory was not found" });
     }
 
     const soldQuantity = Number.isSafeInteger(Number(product.sold_quantity))
       ? Math.max(0, Number(product.sold_quantity))
       : 0;
     const details = readArtworkDetails(product.artwork_details);
-    const recordedStock = parseStockQuantity(details.stock_available);
+    const rawStock = details.stock_available;
+    const recordedStock = rawStock === undefined || rawStock === null
+      ? 0
+      : parseStockQuantity(rawStock);
     if (recordedStock === null) {
       await connection.rollback();
       transactionOpen = false;
       return res.status(409).json({
-        message: "This product has an invalid stock value. Refresh inventory and try again.",
+        message: "This artwork has an invalid stock value. Refresh inventory and try again.",
       });
     }
     if (getInventoryProductOptions(details).length > 0) {
@@ -213,14 +222,14 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
        SET artwork_details = ?
        WHERE artwork_id = ?
          AND student_id = ?
-         AND LOWER(TRIM(art_type)) = 'product'`,
+         AND LOWER(TRIM(COALESCE(product_type, ''))) <> 'customize'`,
       [JSON.stringify(details), artworkId, sellerId],
     );
 
     if (!result.affectedRows) {
       await connection.rollback();
       transactionOpen = false;
-      return res.status(404).json({ message: "Product inventory was not found" });
+      return res.status(404).json({ message: "Artwork inventory was not found" });
     }
 
     await connection.commit();
@@ -228,7 +237,7 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
 
     await logSellerAudit(req.user, {
       action: "UPDATE_PRODUCT_STOCK",
-      information: `Stock for product ID ${artworkId} (${product.title}) was ${adjustment.direction === "add" ? "increased" : "reduced"} by ${adjustment.quantity}.`,
+      information: `Stock for artwork ID ${artworkId} (${product.title}) was ${adjustment.direction === "add" ? "increased" : "reduced"} by ${adjustment.quantity}.`,
     });
 
     return res.json({
@@ -279,10 +288,11 @@ router.patch("/:artworkId/options/stock", authenticateSeller, async (req, res) =
     transactionOpen = true;
     const [rows] = await connection.query(
       `SELECT a.artwork_id, a.title, a.price, a.image, a.art_type, a.product,
-        a.artwork_details, ${getArtworkSoldQuantitySql("a")} AS sold_quantity
+        a.product_type, a.artwork_details, ${getArtworkSoldQuantitySql("a")} AS sold_quantity
        FROM artwork a
        WHERE a.artwork_id = ? AND a.student_id = ?
          AND LOWER(TRIM(a.art_type)) = 'product'
+         AND LOWER(TRIM(COALESCE(a.product_type, ''))) <> 'customize'
        LIMIT 1 FOR UPDATE`,
       [artworkId, sellerId],
     );
@@ -347,7 +357,8 @@ router.patch("/:artworkId/options/stock", authenticateSeller, async (req, res) =
     const [result] = await connection.query(
       `UPDATE artwork SET artwork_details = ?
        WHERE artwork_id = ? AND student_id = ?
-         AND LOWER(TRIM(art_type)) = 'product'`,
+         AND LOWER(TRIM(art_type)) = 'product'
+         AND LOWER(TRIM(COALESCE(product_type, ''))) <> 'customize'`,
       [JSON.stringify(details), artworkId, sellerId],
     );
     if (!result.affectedRows) {

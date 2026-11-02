@@ -1,6 +1,17 @@
 import { useState, useEffect, createElement } from "react";
 import { Helmet } from "react-helmet-async";
-import { Alert, Box, Card, CardContent, Paper, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import {
   Area,
   AreaChart,
@@ -27,25 +38,28 @@ const formatCurrency = (value) =>
 
 export default function Dashboard() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [artworks, setArtworks] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [artworkError, setArtworkError] = useState("");
   const [salesLoading, setSalesLoading] = useState(true);
   const [salesError, setSalesError] = useState("");
 
   const loadArtworks = async () => {
     try {
       setLoading(true);
+      setArtworkError("");
       const response = await fetchArtworks();
       if (response && Array.isArray(response)) {
         setArtworks(response);
       } else if (response && response.data && Array.isArray(response.data)) {
         setArtworks(response.data);
       } else {
-        setArtworks([]);
+        throw new Error("No artwork data was returned.");
       }
-    } catch {
-      setArtworks([]);
+    } catch (error) {
+      setArtworkError(error.message || "Unable to load your artworks.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +102,47 @@ export default function Dashboard() {
         </Typography>
       </Box>
 
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ mt: 2, alignItems: { sm: "center" } }}
+      >
+        <Button
+          variant="contained"
+          onClick={() => navigate("/seller/artwork")}
+          sx={{ minHeight: 44 }}
+        >
+          Manage artwork
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() => navigate("/seller/orders/manage")}
+          sx={{ minHeight: 44 }}
+        >
+          View orders
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() => navigate("/seller/orders/inventory")}
+          sx={{ minHeight: 44 }}
+        >
+          Manage inventory
+        </Button>
+      </Stack>
+
+      {artworkError && (
+        <Alert
+          severity="error"
+          sx={{ mt: 2 }}
+          action={
+            <Button color="inherit" onClick={loadArtworks} disabled={loading}>
+              Retry
+            </Button>
+          }
+        >
+          {artworkError}
+        </Alert>
+      )}
       {salesError && <Alert severity="error" sx={{ mt: 2 }}>{salesError}</Alert>}
 
       <Box
@@ -179,7 +234,13 @@ export default function Dashboard() {
                       lineHeight: 1,
                     }}
                   >
-                    {value}
+                    {loading && label === "TOTAL ARTWORKS" ? (
+                      <Skeleton width={72} />
+                    ) : salesLoading && label !== "TOTAL ARTWORKS" ? (
+                      <Skeleton width={96} />
+                    ) : (
+                      value
+                    )}
                   </Typography>
                   <Typography
                     sx={{
@@ -239,37 +300,49 @@ export default function Dashboard() {
           Monthly sales performance
         </Typography>
 
-        <Box sx={{ width: "100%", height: 320 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={salesData}>
-              <defs>
-                <linearGradient
-                  id="dashboardSalesFill"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor="#b73636" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#b73636" stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => [formatCurrency(value), "Sales"]}
-              />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke="#b73636"
-                strokeWidth={3}
-                fill="url(#dashboardSalesFill)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Box>
+        {salesLoading ? (
+          <Skeleton variant="rounded" height={320} />
+        ) : salesError ? (
+          <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
+            Sales data is unavailable. Try refreshing the page.
+          </Typography>
+        ) : !salesData.some(({ sales: monthSales }) => Number(monthSales) > 0) ? (
+          <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
+            No sales recorded in the last 12 months yet.
+          </Typography>
+        ) : (
+          <Box sx={{ width: "100%", height: 320 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={salesData}>
+                <defs>
+                  <linearGradient
+                    id="dashboardSalesFill"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor="#b73636" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#b73636" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value) => [formatCurrency(value), "Sales"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#b73636"
+                  strokeWidth={3}
+                  fill="url(#dashboardSalesFill)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Box>
+        )}
       </Paper>
     </Box>
   );

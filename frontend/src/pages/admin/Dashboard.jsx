@@ -66,7 +66,8 @@ export default function Dashboard() {
   const [artworks, setArtworks] = useState([]);
   const [students, setStudents] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [artworksLoading, setArtworksLoading] = useState(true);
+  const [logsLoading, setLogsLoading] = useState(true);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [logsErrorMessage, setLogsErrorMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -92,7 +93,7 @@ export default function Dashboard() {
   // Fetch all artworks from API
   const loadArtworks = async () => {
     try {
-      setLoading(true);
+      setArtworksLoading(true);
       setArtworkErrorMessage("");
       const response = await fetchArtworks();
       if (response && Array.isArray(response)) {
@@ -107,7 +108,7 @@ export default function Dashboard() {
       setArtworks([]);
       setArtworkErrorMessage("Failed to load artworks: " + err.message);
     } finally {
-      setLoading(false);
+      setArtworksLoading(false);
     }
   };
   useEffect(() => {
@@ -131,7 +132,7 @@ export default function Dashboard() {
   // Fetch all logs from API
   const loadLogs = async () => {
     try {
-      setLoading(true);
+      setLogsLoading(true);
       setLogsErrorMessage("");
       const response = await fetchAuditLogs();
       if (response && Array.isArray(response)) {
@@ -146,7 +147,7 @@ export default function Dashboard() {
       setLogs([]);
       setLogsErrorMessage("Failed to load logs: " + err.message);
     } finally {
-      setLoading(false);
+      setLogsLoading(false);
     }
   };
   useEffect(() => {
@@ -906,7 +907,16 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`?${Number(value).toLocaleString()}`, "Paid artwork sales"]} />
+              <Tooltip
+                formatter={(value) => [
+                  new Intl.NumberFormat("en-PH", {
+                    style: "currency",
+                    currency: "PHP",
+                    maximumFractionDigits: 2,
+                  }).format(Number(value)),
+                  "Paid artwork sales",
+                ]}
+              />
               <Line
                 type="monotone"
                 dataKey="sales"
@@ -970,7 +980,15 @@ export default function Dashboard() {
             </Button>
           </Box>
           <Stack spacing={1}>
-            {pendingArtworks.length > 0 ? (
+            {artworksLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                <CircularProgress size={24} aria-label="Loading pending artworks" />
+              </Box>
+            ) : artworkErrorMessage ? (
+              <Typography color="error" variant="body2" sx={{ py: 2 }}>
+                Pending artworks could not be loaded.
+              </Typography>
+            ) : pendingArtworks.length > 0 ? (
               pendingArtworks.map((artwork) => (
                 <Box
                   key={artwork.artwork_id || artwork.id || artwork.title}
@@ -1096,7 +1114,15 @@ export default function Dashboard() {
             </Button>
           </Box>
           <Stack spacing={1}>
-            {recentActivity.length > 0 ? (
+            {logsLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                <CircularProgress size={24} aria-label="Loading recent activity" />
+              </Box>
+            ) : logsErrorMessage ? (
+              <Typography color="error" variant="body2" sx={{ py: 2 }}>
+                Recent activity could not be loaded.
+              </Typography>
+            ) : recentActivity.length > 0 ? (
               recentActivity.map((log, index) => (
                 <Box
                   key={log.id || log.log_id || `${log.datetime}-${index}`}

@@ -11,6 +11,7 @@ import {
   Grid,
   Paper,
   Rating,
+  Skeleton,
   Stack,
   Tab,
   Tabs,
@@ -291,14 +292,25 @@ export default function SellerProfile() {
       <Container
         maxWidth="lg"
         sx={{
-          py: 8,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: 300,
+          py: { xs: 3, md: 5 },
         }}
       >
-        <CircularProgress />
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 300px" },
+            gap: 3,
+          }}
+        >
+          <Skeleton variant="rounded" height={260} />
+          <Skeleton variant="rounded" height={260} />
+        </Box>
+        <Skeleton variant="rounded" height={48} sx={{ mt: 3 }} />
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }, gap: 2, mt: 2 }}>
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} variant="rounded" height={280} />
+          ))}
+        </Box>
       </Container>
     );
   }
@@ -359,7 +371,7 @@ export default function SellerProfile() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Seller Profile</title>
       </Helmet>
-      <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
           sx={{
             display: "flex",
@@ -374,15 +386,17 @@ export default function SellerProfile() {
               sx={{
                 background: colors.card,
                 border: `1px solid ${colors.border}`,
-                borderRadius: 4,
-                p: { xs: 2, sm: 2.5, md: 3 },
+                borderRadius: { xs: 3, md: 4 },
+                p: { xs: 2.5, sm: 3, md: 3.5 },
                 display: "flex",
                 flexDirection: { xs: "column", sm: "row" },
                 alignItems: { xs: "center", sm: "flex-start" },
                 textAlign: { xs: "center", sm: "left" },
                 gap: { xs: 2.5, sm: 3 },
-                minHeight: 200,
-                boxShadow: "none",
+                minHeight: 220,
+                boxShadow: isDark
+                  ? "0 16px 40px rgba(0, 0, 0, 0.18)"
+                  : "0 16px 40px rgba(68, 41, 15, 0.06)",
               }}
             >
               <Box
@@ -390,8 +404,8 @@ export default function SellerProfile() {
                 src={selectedSeller.image}
                 alt={selectedSeller.name}
                 sx={{
-                  width: { xs: 110, sm: 130, md: 140 },
-                  height: { xs: 110, sm: 130, md: 140 },
+                  width: { xs: 112, sm: 144, md: 156 },
+                  height: { xs: 112, sm: 144, md: 156 },
                   borderRadius: "50%",
                   objectFit: "cover",
                   border: `2px solid ${colors.border}`,
@@ -414,7 +428,7 @@ export default function SellerProfile() {
                       letterSpacing: "-0.05em",
                       lineHeight: 1.1,
                       color: colors.text,
-                      fontSize: { xs: "1.75rem", sm: "2.1rem", md: "2.5rem" },
+                      fontSize: { xs: "1.9rem", sm: "2.3rem", md: "2.8rem" },
                       wordBreak: "break-word",
                     }}
                   >
@@ -484,9 +498,10 @@ export default function SellerProfile() {
                   sx={{
                     color: colors.muted,
                     maxWidth: 620,
-                    lineHeight: 1.6,
+                    lineHeight: 1.7,
                     mb: 2,
                     mx: { xs: "auto", sm: 0 },
+                    fontSize: { xs: "0.95rem", sm: "1rem" },
                   }}
                 >
                   {selectedSeller.bio ||
@@ -535,10 +550,13 @@ export default function SellerProfile() {
                   }
                   sx={{
                     mt: 2,
+                    minHeight: 44,
                     textTransform: "none",
                     fontWeight: 700,
                     color: "#fff",
                     width: { xs: "100%", sm: "auto" },
+                    px: 2.5,
+                    borderRadius: 999,
                   }}
                 >
                   Message Artist
@@ -553,7 +571,7 @@ export default function SellerProfile() {
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2.5,
+                  p: { xs: 2, sm: 2.5 },
                   borderRadius: 3,
                   background: colors.sideCard,
                   border: `1px solid ${colors.border}`,
@@ -570,7 +588,7 @@ export default function SellerProfile() {
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2.5,
+                  p: { xs: 2, sm: 2.5 },
                   borderRadius: 3,
                   background: colors.sideCard,
                   border: `1px solid ${colors.border}`,
@@ -625,7 +643,12 @@ export default function SellerProfile() {
             sx={{
               mt: 4,
               borderBottom: `1px solid ${colors.border}`,
-              "& .MuiTab-root": { color: colors.muted },
+              "& .MuiTab-root": {
+                color: colors.muted,
+                minHeight: 52,
+                px: { xs: 1.5, sm: 2.5 },
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              },
               "& .MuiTab-root.Mui-selected": { color: colors.accent },
               "& .MuiTabs-indicator": { backgroundColor: colors.accent },
             }}
@@ -645,7 +668,25 @@ export default function SellerProfile() {
                 }}
                 aria-label="Filter artworks by availability"
                 size="small"
-                sx={{ mt: 2.5, flexWrap: "wrap" }}
+                sx={{
+                  mt: 2.5,
+                  flexWrap: "wrap",
+                  gap: 0.75,
+                  "& .MuiToggleButton-root": {
+                    minHeight: 44,
+                    px: { xs: 1.25, sm: 2 },
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 999,
+                    color: colors.muted,
+                    fontSize: { xs: "0.75rem", sm: "0.85rem" },
+                    "&.Mui-selected": {
+                      color: "#fff",
+                      backgroundColor: colors.accent,
+                      borderColor: colors.accent,
+                      "&:hover": { backgroundColor: colors.accent },
+                    },
+                  },
+                }}
               >
                 <ToggleButton value="all">All ({sellerArtworks.length})</ToggleButton>
                 <ToggleButton value="available">
@@ -657,14 +698,14 @@ export default function SellerProfile() {
               </ToggleButtonGroup>
               <Grid
                 container
-                spacing={2.5}
+                spacing={{ xs: 2, md: 2.5 }}
                 sx={{ mt: 0.5, alignItems: "stretch" }}
               >
               {displayedArtworks.length === 0 ? (
                 <Grid size={12}>
                   <Paper
                     sx={{
-                      p: 4,
+                      p: { xs: 2.5, sm: 4 },
                       borderRadius: 3,
                       textAlign: "center",
                       border: `1px solid ${colors.border}`,
@@ -709,7 +750,7 @@ export default function SellerProfile() {
               elevation={0}
               sx={{
                 mt: 2.5,
-                p: { xs: 2, md: 3 },
+                p: { xs: 2.5, md: 3.5 },
                 border: `1px solid ${colors.border}`,
                 borderRadius: 3,
                 bgcolor: colors.cardAlt,

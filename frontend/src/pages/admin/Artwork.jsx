@@ -43,7 +43,7 @@ export default function Artwork() {
   const [pendingStatusFilter, setPendingStatusFilter] = useState("pending");
   const statusFilter = isVerifiedSection ? "approved" : pendingStatusFilter;
   const [sortOption, setSortOption] = useState("newest");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -220,10 +220,11 @@ export default function Artwork() {
             borderRadius: 1.5,
             color: theme.palette.text.secondary,
             fontSize: 12,
+            minHeight: 44,
             backgroundColor: theme.palette.background.paper,
           }}
         >
-          {statusCount} artworks shown
+          <span aria-live="polite">{statusCount} artworks shown</span>
         </Box>
       </Box>
 
@@ -248,6 +249,7 @@ export default function Artwork() {
           <TextField
             variant="outlined"
             placeholder="Search artworks..."
+            inputProps={{ "aria-label": "Search artworks" }}
             size="small"
             sx={{
               width: { xs: "100%", lg: 255 },
@@ -300,6 +302,8 @@ export default function Artwork() {
                   "& .MuiToggleButton-root": {
                     px: 1,
                     py: 0.5,
+                    minHeight: 44,
+                    minWidth: { xs: 90, sm: 100 },
                     fontSize: 11,
                     color: theme.palette.text.secondary,
                     borderColor: theme.palette.divider,
@@ -315,7 +319,7 @@ export default function Artwork() {
                 <ToggleButton value="rejected">Rejected</ToggleButton>
               </ToggleButtonGroup>
             )}
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 90 } }}>
+            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 130 } }}>
               <Select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}

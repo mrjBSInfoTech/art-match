@@ -251,6 +251,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
                     to="/buyer/shop"
                     endIcon={<ArrowForwardIcon />}
                     sx={{
+                      minHeight: 44,
                       borderRadius: 99999,
                       color: "#fff",
                       backgroundColor: theme.palette.error.main,
@@ -267,6 +268,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
                     to="/buyer/gallery"
                     endIcon={<ArrowForwardIcon />}
                     sx={{
+                      minHeight: 44,
                       borderRadius: 99999,
                       color: "text.primary",
                       borderColor: "text.primary",
@@ -292,9 +294,43 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
                     border: "1px solid",
                     borderColor: "divider",
                     aspectRatio: "4 / 5",
-                    backgroundColor: "#e0e0e0",
+                    backgroundColor:
+                      theme.palette.mode === "light"
+                        ? "#f5e8dc"
+                        : theme.palette.background.default,
+                    backgroundImage: heroArtwork?.image
+                      ? "none"
+                      : theme.palette.mode === "light"
+                        ? "linear-gradient(145deg, #f8dfc7, #f2c8bc 48%, #e5d7ee)"
+                        : "linear-gradient(145deg, #334155, #475569 48%, #312e81)",
                   }}
                 >
+                  {!heroArtwork?.image && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "grid",
+                        placeContent: "center",
+                        justifyItems: "center",
+                        color: theme.palette.text.primary,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: 14, md: 17 },
+                          fontWeight: 800,
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        CAFA
+                      </Typography>
+                      <Typography sx={{ mt: 0.5, fontSize: 13 }}>
+                        Original art, fresh perspectives
+                      </Typography>
+                    </Box>
+                  )}
                   <WatermarkedArtworkImage
                     image={heroArtwork?.image}
                     alt={heroArtwork?.title || "Featured artwork"}

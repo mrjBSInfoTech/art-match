@@ -778,8 +778,9 @@ function AdminLayoutContent() {
           },
 
           "& .MuiListItemButton-root": {
-            marginTop: "5px",
-            marginBottom: "5px",
+            minHeight: 48,
+            marginTop: "4px",
+            marginBottom: "4px",
           },
         }}
       >
@@ -806,7 +807,7 @@ function AdminLayoutContent() {
 
 export default function AdminLayout() {
   return (
-    <ThemeModeProvider storageKey="artmatch-ui-theme-admin">
+    <ThemeModeProvider storageKey="artmatch-ui-theme-admin" variant="panel">
       <AdminLayoutContent />
     </ThemeModeProvider>
   );

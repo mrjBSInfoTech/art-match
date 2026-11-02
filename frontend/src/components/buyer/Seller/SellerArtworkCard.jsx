@@ -76,17 +76,17 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
         <SellerArtworkImage artwork={artwork} background={colors.card} />
       </Box>
 
-      <CardContent sx={{ p: 2.25, flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <Typography
           variant="h6"
-          sx={{ fontWeight: 800, mb: 0.5, overflowWrap: "anywhere" }}
+          sx={{ fontSize: { xs: "1.05rem", sm: "1.15rem" }, fontWeight: 800, mb: 0.5, overflowWrap: "anywhere" }}
         >
           {artwork.title}
         </Typography>
         <Typography
           variant="body2"
           color="text.secondary"
-          sx={{ mb: 1.5, overflowWrap: "anywhere" }}
+          sx={{ mb: 1.5, fontSize: "0.9rem", overflowWrap: "anywhere" }}
         >
           {artistName}
           {artwork.genre ? ` · ${artwork.genre}` : ""}
@@ -95,7 +95,7 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ mb: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+            sx={{ mb: 1.5, fontSize: "0.9rem", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
           >
             {artwork.description}
           </Typography>

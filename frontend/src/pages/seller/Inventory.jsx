@@ -174,9 +174,9 @@ export default function Inventory() {
 
   const summaryCards = [
     {
-      label: "TOTAL PRODUCTS",
+      label: "TOTAL ARTWORK",
       value: loading ? "..." : productCount,
-      caption: "Your total products",
+      caption: "Your total artworks",
       icon: ColorLensRoundedIcon,
       tint: "rgba(244, 114, 182, 0.15)",
       accent: "primary.main",
@@ -248,7 +248,7 @@ export default function Inventory() {
               fontSize: 13,
             }}
           >
-            Manage the stock available for your product listings.
+            Manage the stock available for your artwork listings.
           </Typography>
         </Box>
         <Button
@@ -267,7 +267,7 @@ export default function Inventory() {
             fontWeight: 700,
           }}
         >
-          Add Product
+          Add artwork
         </Button>
       </Box>
 
@@ -403,7 +403,7 @@ export default function Inventory() {
           aria-live="polite"
           sx={{ display: "block", mb: 1.5 }}
         >
-          <strong>{filteredProducts.length}</strong> products shown
+          <strong>{filteredProducts.length}</strong> artworks shown
         </Typography>
         <Box
           sx={{
@@ -418,7 +418,7 @@ export default function Inventory() {
         >
           <TextField
             variant="outlined"
-            placeholder="Search products..."
+            placeholder="Search artworks..."
             size="small"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
@@ -440,7 +440,7 @@ export default function Inventory() {
                 </InputAdornment>
               ),
             }}
-            inputProps={{ "aria-label": "Search products" }}
+            inputProps={{ "aria-label": "Search artworks" }}
           />
           <Box
             sx={{

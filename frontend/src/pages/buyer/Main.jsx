@@ -42,6 +42,7 @@ import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 
 const getProfileFallback = () =>
   "http://localhost:5000/uploads/seller/profile.jpg";
@@ -411,8 +412,8 @@ export default function Main() {
       {/* Styles */}
       <Box
         sx={{
-          px: { xs: 2, sm: 5, lg: 6 },
-          py: 2,
+          px: { xs: 2, sm: 4, lg: 6 },
+          py: { xs: 1.5, sm: 2 },
           overflowX: "auto",
           backgroundColor: warmSurface,
           borderBottom: `1px solid ${theme.palette.divider}`,
@@ -440,7 +441,7 @@ export default function Main() {
               }
               sx={{
                 flexShrink: 0,
-                minHeight: 34,
+                minHeight: 44,
                 px: 2,
                 py: 0.5,
                 borderRadius: 999,
@@ -466,8 +467,8 @@ export default function Main() {
       {!artworksLoading && !artworkErrorMessage && (
         <Box
           sx={{
-            px: { xs: 3, sm: 5, lg: 7 },
-            py: { xs: 5, md: 7 },
+            px: { xs: 2, sm: 4, lg: 6 },
+            py: { xs: 4, md: 6 },
             backgroundColor: warmSurface,
           }}
         >
@@ -481,7 +482,7 @@ export default function Main() {
                 md: "repeat(4,1fr)",
                 lg: "repeat(4,1fr)",
               },
-              gap: 3,
+              gap: { xs: 2, md: 2.5 },
             }}
           >
             {artworks.slice(0, 4).map((artwork) => (
@@ -499,8 +500,8 @@ export default function Main() {
       {Boolean(isAuthenticated("buyer")) && !artworksLoading && !artworkErrorMessage && (
         <Box
           sx={{
-            px: { xs: 3, sm: 5, lg: 7 },
-            py: { xs: 5, md: 7 },
+            px: { xs: 2, sm: 4, lg: 6 },
+            py: { xs: 4, md: 6 },
             backgroundColor: warmSurface,
           }}
         >
@@ -525,7 +526,7 @@ export default function Main() {
                 md: "repeat(4,1fr)",
                 lg: "repeat(4,1fr)",
               },
-              gap: 3,
+              gap: { xs: 2, md: 2.5 },
             }}
           >
             {followedArtworks.map((artwork) => (
@@ -542,7 +543,7 @@ export default function Main() {
       {/* Buyer guarantees */}
       <Box
         sx={{
-          px: { xs: 3, sm: 5, lg: 7 },
+          px: { xs: 2, sm: 4, lg: 6 },
           py: { xs: 3, md: 4 },
           backgroundColor: theme.palette.background.public,
           borderTop: `1px solid ${theme.palette.divider}`,
@@ -607,8 +608,8 @@ export default function Main() {
       {/* Popular artists */}
       <Box
         sx={{
-          px: { xs: 3, sm: 5, lg: 7 },
-          py: { xs: 5, md: 7 },
+          px: { xs: 2, sm: 4, lg: 6 },
+          py: { xs: 4, md: 6 },
           backgroundColor: theme.palette.background.public,
         }}
       >
@@ -632,7 +633,7 @@ export default function Main() {
             </Typography>
             <Typography
               variant="h4"
-              sx={{ mt: 1, fontSize: { xs: 25, md: 31 }, fontWeight: 800 }}
+              sx={{ mt: 1, fontSize: { xs: 23, sm: 27, md: 31 }, fontWeight: 800, lineHeight: 1.2 }}
             >
               Top Listed Artists This Month
             </Typography>
@@ -659,7 +660,7 @@ export default function Main() {
             },
             gap: { xs: 3, md: 5 },
             alignItems: "center",
-            p: { xs: 2, sm: 3 },
+            p: { xs: 1.5, sm: 3 },
             mb: 3,
             border: `1px solid ${theme.palette.divider}`,
             borderRadius: 3,
@@ -672,18 +673,40 @@ export default function Main() {
           <Box
             sx={{
               position: "relative",
-              height: { xs: 220, md: 240 },
+              height: { xs: 220, md: 280 },
               borderRadius: 2,
               backgroundImage:
                 !featuredArtist?.featuredArtwork?.image && featuredArtist?.image
                   ? `url(${featuredArtist.image})`
-                  : "none",
+                  : !featuredArtist?.featuredArtwork?.image && !featuredArtist?.image
+                    ? theme.palette.mode === "light"
+                      ? "linear-gradient(135deg, #f8dfc7, #f2c8bc 48%, #e5d7ee)"
+                      : "linear-gradient(135deg, #334155, #475569 48%, #312e81)"
+                    : "none",
               backgroundSize: "cover",
               backgroundPosition: "center",
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: theme.shadows[2],
+              backgroundColor: theme.palette.background.default,
             }}
           >
+            {!featuredArtist?.featuredArtwork?.image && !featuredArtist?.image && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "grid",
+                  placeContent: "center",
+                  justifyItems: "center",
+                  color: theme.palette.text.primary,
+                }}
+              >
+                <ImageOutlinedIcon sx={{ fontSize: 44, opacity: 0.65 }} />
+                <Typography sx={{ mt: 1, fontWeight: 700 }}>
+                  Featured studio work
+                </Typography>
+              </Box>
+            )}
             <WatermarkedArtworkImage
               image={
                 featuredArtist?.featuredArtwork?.image || artworks[0]?.image
@@ -765,6 +788,7 @@ export default function Main() {
               endIcon={<ArrowForwardIcon />}
               sx={{
                 mt: 2,
+                minHeight: 44,
                 borderRadius: 999,
                 backgroundColor: theme.palette.text.primary,
                 color: theme.palette.background.paper,
@@ -790,8 +814,8 @@ export default function Main() {
                 alignItems: "center",
                 gap: 1.5,
                 minWidth: 0,
-                px: 2,
-                py: 1.25,
+                px: { xs: 1.5, sm: 2 },
+                py: 1.5,
                 border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
                 backgroundColor: theme.palette.background.paper,
@@ -802,8 +826,8 @@ export default function Main() {
                 src={artist.image}
                 alt={artist.name}
                 sx={{
-                  width: 48,
-                  height: 48,
+                  width: 56,
+                  height: 56,
                   flexShrink: 0,
                   borderRadius: "50%",
                   objectFit: "cover",
@@ -842,11 +866,12 @@ export default function Main() {
                 onClick={() => navigate(`/buyer/seller/${artist.student_id}`)}
                 sx={{
                   flexShrink: 0,
-                  minWidth: 70,
+                  minWidth: 76,
+                  minHeight: 44,
                   borderRadius: 999,
                   borderColor: theme.palette.text.primary,
                   color: theme.palette.text.primary,
-                  fontSize: 11,
+                  fontSize: 13,
                 }}
               >
                 Open
@@ -865,8 +890,8 @@ export default function Main() {
               overflow: "hidden",
               mt: { xs: 0, md: -1 },
               backgroundColor: warmSurface,
-              px: { xs: 7, sm: 10 },
-              p: 4,
+              px: { xs: 2, sm: 4, lg: 6 },
+              py: { xs: 4, md: 6 },
             }}
             id="featured"
           >
@@ -892,7 +917,7 @@ export default function Main() {
                   md: "repeat(4,1fr)",
                   lg: "repeat(4,1fr)",
                 },
-                gap: 3,
+                gap: { xs: 2, md: 2.5 },
               }}
             >
               {artworks.slice(0, 12).map((artwork) => (
@@ -910,8 +935,8 @@ export default function Main() {
       {(recommendationsLoading || recommendedArtworks.length > 0) && (
         <Box
           sx={{
-            px: { xs: 7, sm: 10 },
-            p: 4,
+            px: { xs: 2, sm: 4, lg: 6 },
+            py: { xs: 4, md: 6 },
             width: "100%",
             overflow: "hidden",
             mt: { xs: 0, md: -1 },
@@ -967,7 +992,7 @@ export default function Main() {
                   md: "repeat(4, 1fr)",
                 },
 
-                gap: 3,
+                gap: { xs: 2, md: 2.5 },
               }}
             >
               {recommendedArtworks.map((artwork) => (
@@ -1008,20 +1033,27 @@ export default function Main() {
 function SectionHeader({ title, to }) {
   return (
     <Stack
-      direction="row"
-      sx={{ alignItems: "flex-end", justifyContent: "space-between", mb: 3 }}
+      direction={{ xs: "column", sm: "row" }}
+      gap={1}
+      sx={{
+        alignItems: { xs: "flex-start", sm: "flex-end" },
+        justifyContent: "space-between",
+        mb: 3,
+      }}
     >
       <Box>
         <Typography
           variant="h4"
           sx={{
             mt: 0.5,
+            maxWidth: 760,
             fontSize: {
-              xs: 22,
+              xs: 21,
               sm: 26,
               md: 30,
             },
             fontWeight: 800,
+            lineHeight: 1.2,
           }}
         >
           {title}
@@ -1037,7 +1069,10 @@ function SectionHeader({ title, to }) {
             fontSize: { xs: 10, sm: 14, md: 16 },
             fontWeight: 600,
             maxWidth: 200,
-            p: 0,
+            minHeight: 44,
+            px: 1.5,
+            py: 0.5,
+            flexShrink: 0,
           }}
         >
           View all

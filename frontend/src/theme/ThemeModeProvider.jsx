@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { CssBaseline, ThemeProvider as MuiThemeProvider } from "@mui/material";
 import { lightTheme, darkTheme } from "./customTheme";
+import { createPanelTheme } from "./panelTheme";
 
 const ThemeModeContext = createContext(null);
 
@@ -21,16 +22,24 @@ export function getInitialThemeMode(storageKey = THEME_STORAGE_KEY) {
     : "light";
 }
 
-export function ThemeModeProvider({ children, storageKey = THEME_STORAGE_KEY }) {
+export function ThemeModeProvider({
+  children,
+  storageKey = THEME_STORAGE_KEY,
+  variant = "default",
+}) {
   const [mode, setMode] = useState(() => getInitialThemeMode(storageKey));
 
   useEffect(() => {
     localStorage.setItem(storageKey, mode);
   }, [mode, storageKey]);
 
-  const theme = useMemo(
+  const baseTheme = useMemo(
     () => (mode === "dark" ? darkTheme : lightTheme),
     [mode],
+  );
+  const theme = useMemo(
+    () => variant === "panel" ? createPanelTheme(baseTheme) : baseTheme,
+    [baseTheme, variant],
   );
 
   return (

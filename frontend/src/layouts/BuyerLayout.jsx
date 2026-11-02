@@ -470,38 +470,60 @@ function BuyerLayoutContent({ children }) {
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
           borderBottom: `1px solid ${theme.palette.divider}`,
+          boxShadow:
+            mode === "dark"
+              ? "0 8px 24px rgba(0, 0, 0, 0.18)"
+              : "0 8px 24px rgba(54, 35, 18, 0.06)",
         }}
         elevation={0}
       >
         <Box
           sx={{
-            display: { xs: "none", sm: "flex" },
-            minHeight: 36,
+            display: "flex",
+            minHeight: { xs: 40, sm: 38 },
             alignItems: "center",
             justifyContent: "space-between",
-            px: { sm: 3, lg: 5 },
+            gap: 1.5,
+            px: { xs: 1.5, sm: 3, lg: 5 },
             backgroundColor: theme.palette.background.footer,
             color: "white",
-            fontSize: 13,
+            fontSize: { xs: 11, sm: 13 },
           }}
         >
           <Typography
             variant="caption"
-            sx={{ color: "inherit", fontSize: "inherit" }}
+            sx={{
+              minWidth: 0,
+              color: "inherit",
+              fontSize: "inherit",
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
           >
             {promotionHeader.message}
           </Typography>
           <Button
-            size="small"
             onClick={() => navigate(promotionHeader.button_url)}
             sx={{
+              minHeight: 40,
+              px: { xs: 0.5, sm: 1 },
+              flexShrink: 0,
               color: "inherit",
               textTransform: "none",
               fontSize: "inherit",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
             }}
           >
-            {promotionHeader.button_label}{" "}
-            <span aria-hidden="true" style={{ marginLeft: 10 }}>
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              {promotionHeader.button_label}
+            </Box>
+            <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+              Explore
+            </Box>
+            <span aria-hidden="true" style={{ marginLeft: 6 }}>
               ›
             </span>
           </Button>
@@ -514,9 +536,10 @@ function BuyerLayoutContent({ children }) {
             justifyContent: "space-between",
             gap: { xs: 1, lg: 2 },
             flexWrap: "wrap",
-            py: { xs: 1, lg: 0 },
-            minHeight: { xs: 64, lg: 68 },
+            py: { xs: 0.75, lg: 0 },
+            minHeight: { xs: 64, lg: 72 },
             px: { xs: 2, sm: 4, lg: 6 },
+            borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
           <Box
@@ -530,18 +553,26 @@ function BuyerLayoutContent({ children }) {
               gap: 1,
               flexShrink: 0,
               justifySelf: "start",
-              p: 0,
+              minHeight: 44,
+              px: 0.5,
+              py: 0,
               border: 0,
+              borderRadius: 2,
               background: "transparent",
               color: "inherit",
               font: "inherit",
               textAlign: "left",
               cursor: "pointer",
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 2,
+              },
             }}
           >
             <Box
               sx={{
-                width: { xs: 38, sm: 42 },
+                width: { xs: 36, sm: 40 },
                 height: { xs: 42, sm: 46 },
                 display: "flex",
                 justifyContent: "center",
@@ -553,8 +584,8 @@ function BuyerLayoutContent({ children }) {
                 src={logo}
                 alt=""
                 style={{
-                  width: "34px",
-                  height: "42px",
+                  width: "32px",
+                  height: "40px",
                   objectFit: "contain",
                   display: "block",
                 }}
@@ -566,8 +597,10 @@ function BuyerLayoutContent({ children }) {
               sx={{
                 fontWeight: "bold",
                 color: theme.palette.text.primary,
-                display: { xs: "none", lg: "block" },
+                display: { xs: "block", lg: "block" },
+                fontSize: { xs: 13, sm: 15, lg: 18 },
                 letterSpacing: "-0.02em",
+                whiteSpace: "nowrap",
               }}
             >
               RED{" "}
@@ -604,8 +637,12 @@ function BuyerLayoutContent({ children }) {
                 boxSizing: "border-box",
                 backgroundColor: theme.palette.background.default,
                 border: `1px solid ${theme.palette.divider}`,
-                borderRadius: "24px",
+                borderRadius: 999,
                 px: 1.5,
+                minHeight: 44,
+                boxShadow: mode === "dark"
+                  ? "inset 0 1px 3px rgba(0,0,0,0.2)"
+                  : "inset 0 1px 3px rgba(54,35,18,0.05)",
               }}
             >
               <InputBase
@@ -625,8 +662,7 @@ function BuyerLayoutContent({ children }) {
               <IconButton
                 type="submit"
                 aria-label="Submit search"
-                size="small"
-                sx={{ p: 1, flexShrink: 0 }}
+                sx={{ width: 40, height: 40, flexShrink: 0 }}
               >
                 <SearchIcon />
               </IconButton>
@@ -643,14 +679,14 @@ function BuyerLayoutContent({ children }) {
             }}
           >
             <IconButton
-              sx={{ color: theme.palette.text.primary }}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
               aria-label="Favorites"
               onClick={() => navigate("/buyer/favorites")}
             >
               <FavoriteBorderIcon />
             </IconButton>
             <IconButton
-              sx={{ color: theme.palette.text.primary }}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
               onClick={() => navigate("/buyer/notifications")}
               aria-label="View notifications"
             >
@@ -664,7 +700,7 @@ function BuyerLayoutContent({ children }) {
               </Badge>
             </IconButton>
             <IconButton
-              sx={{ color: theme.palette.text.primary }}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
               onClick={() => {
                 navigate("/buyer/cart");
               }}
@@ -682,7 +718,7 @@ function BuyerLayoutContent({ children }) {
               aria-controls={open ? "account-menu" : undefined}
               aria-haspopup="true"
               aria-expanded={open ? "true" : undefined}
-              sx={{ color: theme.palette.text.primary, ml: 1 }}
+              sx={{ color: theme.palette.text.primary, ml: 1, width: 44, height: 44 }}
               onClick={loggedIn ? handleClick : () => navigate("/buyer/login")}
             >
               <AccountCircleIcon />
@@ -931,14 +967,14 @@ function BuyerLayoutContent({ children }) {
               aria-label={searchOpen ? "Hide search" : "Show search"}
               aria-expanded={searchOpen}
               aria-controls="buyer-header-search"
-              sx={{ display: { xs: "inline-flex", md: "none" }, color: theme.palette.text.primary }}
+              sx={{ display: { xs: "inline-flex", md: "none" }, color: theme.palette.text.primary, width: 44, height: 44 }}
             >
               <SearchIcon />
             </IconButton>
             <IconButton
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Open navigation menu"
-              sx={{ color: theme.palette.text.primary }}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
             >
               <MenuIcon />
             </IconButton>
@@ -951,12 +987,11 @@ function BuyerLayoutContent({ children }) {
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: { xs: 0.5, sm: 2 },
-            minHeight: { xs: "auto", sm: 48 },
-            px: { xs: 1, sm: 3, lg: 6 },
-            py: { xs: 0.75, sm: 0 },
-            borderTop: `1px solid ${theme.palette.divider}`,
+            justifyContent: { xs: "space-between", sm: "space-between" },
+            gap: { xs: 1, sm: 2 },
+            minHeight: { xs: "auto", sm: 52 },
+            px: { xs: 1.5, sm: 3, lg: 6 },
+            py: { xs: 0.75, sm: 0.5 },
           }}
         >
           <Box
@@ -964,9 +999,10 @@ function BuyerLayoutContent({ children }) {
               display: "flex",
               alignItems: "center",
               justifyContent: { xs: "space-between", sm: "flex-start" },
-              gap: { xs: 0.5, sm: 2, md: 3 },
-              width: { xs: "100%", sm: "auto" },
-              flexWrap: "wrap",
+              gap: { xs: 0.5, sm: 1.5, md: 2.5 },
+              width: { xs: "100%", sm: "max-content" },
+              flexShrink: { sm: 0 },
+              flexWrap: "nowrap",
             }}
           >
             <Button
@@ -977,10 +1013,13 @@ function BuyerLayoutContent({ children }) {
               sx={{
                 color: "inherit",
                 minWidth: 0,
+                minHeight: 44,
                 textTransform: "none",
                 fontWeight: 500,
-                px: { xs: 0.75, sm: 1 },
+                px: { xs: 1, sm: 1.25 },
+                borderRadius: 999,
                 fontSize: { xs: 12, sm: 14 },
+                whiteSpace: "nowrap",
               }}
             >
               All Categories
@@ -989,9 +1028,12 @@ function BuyerLayoutContent({ children }) {
               onClick={() => navigate("/buyer/shop")}
               sx={{
                 color: "inherit",
+                minHeight: 44,
                 textTransform: "none",
-                px: { xs: 0.75, sm: 1 },
+                px: { xs: 1, sm: 1.25 },
+                borderRadius: 999,
                 fontSize: { xs: 12, sm: 14 },
+                whiteSpace: "nowrap",
               }}
             >
               Shop
@@ -1000,9 +1042,12 @@ function BuyerLayoutContent({ children }) {
               onClick={() => navigate("/buyer/artist")}
               sx={{
                 color: "inherit",
+                minHeight: 44,
                 textTransform: "none",
-                px: { xs: 0.75, sm: 1 },
+                px: { xs: 1, sm: 1.25 },
+                borderRadius: 999,
                 fontSize: { xs: 12, sm: 14 },
+                whiteSpace: "nowrap",
               }}
             >
               Artist
@@ -1011,9 +1056,12 @@ function BuyerLayoutContent({ children }) {
               onClick={() => navigate("/buyer/gallery")}
               sx={{
                 color: "inherit",
+                minHeight: 44,
                 textTransform: "none",
-                px: { xs: 0.75, sm: 1 },
+                px: { xs: 1, sm: 1.25 },
+                borderRadius: 999,
                 fontSize: { xs: 12, sm: 14 },
+                whiteSpace: "nowrap",
               }}
             >
               Gallery
@@ -1023,17 +1071,21 @@ function BuyerLayoutContent({ children }) {
             sx={{
               display: "flex",
               justifyContent: { xs: "space-between", sm: "flex-end" },
-              gap: { xs: 0.5, sm: 2, md: 3 },
-              width: { xs: "100%", sm: "auto" },
+              gap: { xs: 0.5, sm: 1.5, md: 2.5 },
+              width: { xs: "100%", sm: "max-content" },
+              flexShrink: { sm: 0 },
             }}
           >
             <Button
               onClick={() => navigate("/buyer/about")}
               sx={{
                 color: "inherit",
+                minHeight: 44,
                 textTransform: "none",
-                px: { xs: 0.75, sm: 1 },
+                px: { xs: 1, sm: 1.25 },
+                borderRadius: 999,
                 fontSize: { xs: 12, sm: 14 },
+                whiteSpace: "nowrap",
               }}
             >
               About Us
@@ -1042,9 +1094,12 @@ function BuyerLayoutContent({ children }) {
               onClick={() => navigate("/buyer/help-support")}
               sx={{
                 color: "inherit",
+                minHeight: 44,
                 textTransform: "none",
-                px: { xs: 0.75, sm: 1 },
+                px: { xs: 1, sm: 1.25 },
+                borderRadius: 999,
                 fontSize: { xs: 12, sm: 14 },
+                whiteSpace: "nowrap",
               }}
             >
               Help Support

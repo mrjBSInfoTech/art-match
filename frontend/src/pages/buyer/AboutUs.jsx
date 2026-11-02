@@ -1,7 +1,6 @@
 import { createElement, useEffect, useState } from "react";
 import {
   Box,
-  CircularProgress,
   Container,
   Divider,
   Grid,
@@ -11,6 +10,7 @@ import {
   ListItemIcon,
   ListItemText,
   Paper,
+  Skeleton,
   Typography,
 } from "@mui/material";
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
@@ -41,7 +41,7 @@ const navigationItems = [
 ];
 
 const sectionTitleSx = {
-  fontSize: { xs: "1rem", md: "1.05rem" },
+  fontSize: { xs: "1.2rem", md: "1.35rem" },
   fontWeight: 800,
   letterSpacing: "-0.02em",
 };
@@ -52,17 +52,17 @@ function InfoCard({ title, children }) {
       elevation={0}
       sx={{
         height: "100%",
-        p: { xs: 1.75, md: 2 },
+        p: { xs: 2, md: 2.5 },
         border: "1px solid",
         borderColor: "divider",
-        borderRadius: 1,
+        borderRadius: 2,
         backgroundColor: "background.paper",
       }}
     >
-      <Typography variant="subtitle2" sx={{ fontSize: "0.9rem", fontWeight: 800, mb: 0.65 }}>
+      <Typography variant="subtitle2" sx={{ fontSize: "1rem", fontWeight: 800, mb: 0.8 }}>
         {title}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.82rem", lineHeight: 1.6 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.95rem", lineHeight: 1.7 }}>
         {children}
       </Typography>
     </Paper>
@@ -112,7 +112,20 @@ export default function AboutUs() {
   };
 
   if (loading) {
-    return <Box sx={{ minHeight: 320, display: "grid", placeItems: "center", backgroundColor: canvas }}><CircularProgress /></Box>;
+    return (
+      <Box sx={{ minHeight: "70vh", backgroundColor: canvas, py: { xs: 2, md: 4 } }}>
+        <Container maxWidth="lg">
+          <Skeleton variant="rounded" height={150} />
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "250px minmax(0, 1fr)" }, gap: 2, mt: 2 }}>
+            <Skeleton variant="rounded" height={360} />
+            <Box>
+              <Skeleton variant="rounded" height={190} />
+              <Skeleton variant="rounded" height={240} sx={{ mt: 2 }} />
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+    );
   }
 
   if (error || !content) {
@@ -126,42 +139,70 @@ export default function AboutUs() {
 
   return (
     <Box sx={{ minHeight: "100%", backgroundColor: canvas }}>
-      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 }, px: { xs: 1.5, md: 4 } }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: { xs: 0, md: 2.5 }, maxWidth: 1080, mx: "auto" }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 }, px: { xs: 2, sm: 3, lg: 5 } }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: "flex-start",
+            gap: { xs: 1.5, md: 2.5 },
+            maxWidth: 1280,
+            mx: "auto",
+          }}
+        >
           <Paper
             component="nav"
             aria-label="About page sections"
             elevation={0}
             sx={{
-              display: { xs: "none", md: "block" },
-              position: "sticky",
-              top: 24,
-              flex: "0 0 205px",
-              p: 1.1,
+              display: "block",
+              position: { xs: "relative", md: "sticky" },
+              top: { md: 24 },
+              flex: { md: "0 0 240px" },
+              width: { xs: "100%", md: 240 },
+              minWidth: 0,
+              p: { xs: 1, md: 1.5 },
               border: "1px solid",
               borderColor: "divider",
-              borderRadius: 1.25,
+              borderRadius: 2,
+              overflow: { xs: "hidden", md: "visible" },
               backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fafafa",
             }}
           >
             <Typography
               variant="overline"
-              sx={{ display: "block", px: 1.1, pt: 0.65, color: "text.secondary", fontSize: "0.65rem", fontWeight: 800, letterSpacing: 0.8 }}
+              sx={{ display: { xs: "none", md: "block" }, px: 1.1, pt: 0.65, color: "text.secondary", fontSize: "0.72rem", fontWeight: 800, letterSpacing: 0.8 }}
             >
               About the academy
             </Typography>
-            <List dense disablePadding sx={{ mt: 0.5 }}>
+            <List
+              dense
+              disablePadding
+              sx={{
+                mt: { xs: 0, md: 0.75 },
+                display: { xs: "flex", md: "block" },
+                gap: { xs: 0.75, md: 0 },
+                overflowX: { xs: "auto", md: "visible" },
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": { height: 4 },
+              }}
+            >
               {navigationItems.map(({ label, icon, href, active }) => (
-                <ListItem key={label} disablePadding sx={{ mb: 0.25 }}>
+                <ListItem
+                  key={label}
+                  disablePadding
+                  sx={{ mb: { md: 0.5 }, flex: { xs: "0 0 auto", md: "initial" } }}
+                >
                   <ListItemButton
                     component="a"
                     href={href}
                     selected={active}
                     sx={{
-                      minHeight: 38,
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 0.75,
+                      minHeight: 44,
+                      width: { xs: "max-content", md: "100%" },
+                      px: { xs: 1.5, md: 1.25 },
+                      py: 0.75,
+                      borderRadius: 1.25,
                       "&.Mui-selected": {
                         color: "#fff",
                         backgroundColor: accent,
@@ -169,10 +210,10 @@ export default function AboutUs() {
                       },
                     }}
                   >
-                    {createElement(icon, { sx: { mr: 0.8, fontSize: 16 } })}
+                    {createElement(icon, { sx: { mr: 1, fontSize: 18 } })}
                     <ListItemText
                       primary={label}
-                      primaryTypographyProps={{ fontSize: "0.78rem", fontWeight: active ? 700 : 500, lineHeight: 1.25 }}
+                      primaryTypographyProps={{ fontSize: "0.85rem", fontWeight: active ? 700 : 500, lineHeight: 1.25, whiteSpace: "nowrap" }}
                     />
                   </ListItemButton>
                 </ListItem>
@@ -185,29 +226,53 @@ export default function AboutUs() {
             id="about-us"
             sx={{
               width: "100%",
-              maxWidth: 820,
+              maxWidth: 960,
               mx: { xs: "auto", md: 0 },
-              p: { xs: 2, sm: 3, md: 3.25 },
+              p: { xs: 2, sm: 3, md: 4 },
               border: "1px solid",
               borderColor: "divider",
-              borderRadius: 1.25,
+              borderRadius: { xs: 2, md: 3 },
               backgroundColor: "background.paper",
             }}
           >
-          <Typography component="h1" sx={{ fontSize: { xs: "1.25rem", md: "1.65rem" }, fontWeight: 800, letterSpacing: "-0.035em" }}>
-            {content.collegeName}
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: "0.85rem", lineHeight: 1.55 }}>
-            {content.tagline}
-          </Typography>
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem", lineHeight: 1.65 }}>
-            {content.introduction}
-          </Typography>
+          <Box
+            sx={{
+              p: { xs: 2, sm: 2.5, md: 3 },
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              background: theme.palette.mode === "dark"
+                ? "linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96))"
+                : "linear-gradient(135deg, #fff4e6, #fffaf2 68%)",
+            }}
+          >
+            <Typography
+              sx={{
+                mb: 0.75,
+                color: accent,
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+              }}
+            >
+              About the academy
+            </Typography>
+            <Typography component="h1" sx={{ fontSize: { xs: "1.7rem", sm: "2rem", md: "2.4rem" }, fontWeight: 900, letterSpacing: "-0.035em", lineHeight: 1.15 }}>
+              {content.collegeName}
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: { xs: "0.95rem", md: "1.05rem" }, lineHeight: 1.6 }}>
+              {content.tagline}
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: "0.95rem", md: "1rem" }, lineHeight: 1.75 }}>
+              {content.introduction}
+            </Typography>
+          </Box>
 
-          <Box component="section" id="vision-mission" sx={{ mt: 2.5, scrollMarginTop: 24 }}>
+          <Box component="section" id="vision-mission" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
             <Typography sx={sectionTitleSx}>Vision &amp; Mission</Typography>
-            <Grid container spacing={1.25} sx={{ mt: 0.4 }}>
+            <Grid container spacing={2} sx={{ mt: 0.4 }}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <InfoCard title="Vision">
                   {content.vision}
@@ -221,9 +286,9 @@ export default function AboutUs() {
             </Grid>
           </Box>
 
-          <Box component="section" id="goals-objectives" sx={{ mt: 2.5, scrollMarginTop: 24 }}>
+          <Box component="section" id="goals-objectives" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
             <Typography sx={sectionTitleSx}>Goals</Typography>
-            <Grid container spacing={1} sx={{ mt: 0.4 }}>
+            <Grid container spacing={1.5} sx={{ mt: 0.4 }}>
               {content.goals.map((goal, index) => (
                 <Grid size={{ xs: 12, md: 6 }} key={`${index}-${goal}`}>
                   <Paper
@@ -232,53 +297,53 @@ export default function AboutUs() {
                       display: "flex",
                       gap: 1.5,
                       alignItems: "flex-start",
-                      p: 1.5,
+                      p: 2,
                       height: "100%",
                       border: "1px solid",
                       borderColor: "divider",
-                      borderRadius: 0.8,
+                      borderRadius: 1.5,
                       backgroundColor: "background.default",
                     }}
                   >
-                    <Typography sx={{ color: accent, fontWeight: 800, fontSize: "0.8rem" }}>{index + 1}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8rem", lineHeight: 1.5 }}>{goal}</Typography>
+                    <Typography sx={{ color: accent, fontWeight: 800, fontSize: "0.9rem" }}>{index + 1}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.92rem", lineHeight: 1.6 }}>{goal}</Typography>
                   </Paper>
                 </Grid>
               ))}
             </Grid>
           </Box>
 
-          <Box component="section" id="objectives" sx={{ mt: 2.5, scrollMarginTop: 24 }}>
+          <Box component="section" id="objectives" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
             <Typography sx={sectionTitleSx}>Objectives</Typography>
             <List dense disablePadding sx={{ mt: 0.5 }}>
               {content.objectives.map((objective, index) => (
-                <ListItem key={`${index}-${objective}`} disableGutters sx={{ alignItems: "flex-start", py: 0.45 }}>
-                  <ListItemIcon sx={{ minWidth: 32, mt: 0.1 }}>
-                    <CheckCircleOutlineRoundedIcon sx={{ color: theme.palette.success.main, fontSize: 17 }} />
+                <ListItem key={`${index}-${objective}`} disableGutters sx={{ alignItems: "flex-start", py: 0.75 }}>
+                  <ListItemIcon sx={{ minWidth: 36, mt: 0.1 }}>
+                    <CheckCircleOutlineRoundedIcon sx={{ color: theme.palette.success.main, fontSize: 20 }} />
                   </ListItemIcon>
                   <ListItemText
                     primary={objective}
-                    primaryTypographyProps={{ variant: "body2", color: "text.secondary", fontSize: "0.8rem", lineHeight: 1.55 }}
+                    primaryTypographyProps={{ variant: "body2", color: "text.secondary", fontSize: "0.92rem", lineHeight: 1.65 }}
                   />
                 </ListItem>
               ))}
             </List>
           </Box>
 
-          <Box component="section" id="history" sx={{ mt: 2.5, scrollMarginTop: 24 }}>
+          <Box component="section" id="history" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
             <Typography sx={sectionTitleSx}>Brief History or Background</Typography>
-            <Paper elevation={0} sx={{ mt: 1, p: { xs: 1.75, md: 2 }, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+            <Paper elevation={0} sx={{ mt: 1.25, p: { xs: 2, md: 2.5 }, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
               {content.history.split(/\n{2,}/).map((paragraph, index) => (
-                <Typography key={`${index}-${paragraph}`} variant="body2" color="text.secondary" sx={{ mt: index ? 1 : 0, fontSize: "0.82rem", lineHeight: 1.65 }}>
+                <Typography key={`${index}-${paragraph}`} variant="body2" color="text.secondary" sx={{ mt: index ? 1.25 : 0, fontSize: "0.95rem", lineHeight: 1.75 }}>
                   {paragraph}
                 </Typography>
               ))}
             </Paper>
           </Box>
 
-          <Box component="section" id="academic-offerings" sx={{ mt: 2.5, scrollMarginTop: 24 }}>
+          <Box component="section" id="academic-offerings" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
             <Typography sx={sectionTitleSx}>Academic Offerings</Typography>
-            <Grid container spacing={1} sx={{ mt: 0.4 }}>
+            <Grid container spacing={1.5} sx={{ mt: 0.4 }}>
               {content.offerings.map(({ title, description }, index) => (
                 <Grid size={{ xs: 12, sm: 6 }} key={`${index}-${title}`}>
                   <InfoCard title={title}>{description}</InfoCard>
@@ -287,9 +352,9 @@ export default function AboutUs() {
             </Grid>
           </Box>
 
-          <Box component="section" id="contact-details" sx={{ mt: 2.5, scrollMarginTop: 24 }}>
+          <Box component="section" id="contact-details" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
             <Typography sx={sectionTitleSx}>Contact Details</Typography>
-            <Grid container spacing={1} sx={{ mt: 0.4 }}>
+            <Grid container spacing={1.5} sx={{ mt: 0.4 }}>
               {content.contacts.map(({ label, value }, index) => (
                 <Grid size={{ xs: 12, sm: 6 }} key={`${index}-${label}`}>
                   <Paper
@@ -298,18 +363,18 @@ export default function AboutUs() {
                       display: "flex",
                       alignItems: "center",
                       gap: 1.1,
-                      p: 1.4,
+                      p: 1.75,
                       border: "1px solid",
                       borderColor: "divider",
-                      borderRadius: 0.8,
+                      borderRadius: 1.5,
                     }}
                   >
-                    {createElement(contactIcon(label), { sx: { color: accent, fontSize: 18 } })}
+                    {createElement(contactIcon(label), { sx: { color: accent, fontSize: 21, flexShrink: 0 } })}
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.68rem", fontWeight: 700 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.75rem", fontWeight: 700 }}>
                         {label}
                       </Typography>
-                      <Typography variant="body2" sx={{ fontSize: "0.78rem", fontWeight: 700, overflowWrap: "anywhere" }}>{value}</Typography>
+                      <Typography variant="body2" sx={{ fontSize: "0.9rem", fontWeight: 700, overflowWrap: "anywhere" }}>{value}</Typography>
                     </Box>
                   </Paper>
                 </Grid>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -44,15 +44,23 @@ const Login = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const requestedPath = location.state?.from;
+  const postLoginPath =
+    requestedPath &&
+    typeof requestedPath.pathname === "string" &&
+    requestedPath.pathname.startsWith("/seller/")
+      ? `${requestedPath.pathname}${requestedPath.search || ""}${requestedPath.hash || ""}`
+      : "/seller/dashboard";
 
   useEffect(() => {
     const sellerToken = isAuthenticated("seller");
     if (sellerToken) {
-      navigate("/seller/dashboard", { replace: true });
+      navigate(postLoginPath, { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, postLoginPath]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -137,7 +145,7 @@ const Login = () => {
       localStorage.setItem("seller_profile_image", data.profile_image || "");
 
       showSnackbar("Login successful!", "success");
-      navigate("/seller/dashboard", { replace: true });
+      navigate(postLoginPath, { replace: true });
     } catch (error) {
       showSnackbar(`Login failed: ${error.message}`, "error");
     }
