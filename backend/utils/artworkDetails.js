@@ -121,6 +121,11 @@ export function validateArtworkDetails(rawDetails, artType, product, productType
   const details = readObject(rawDetails);
   const category = getArtworkDetailsCategory(artType, product);
   const isCustomizable = normalize(productType) === "customize";
+  const isPremade = normalize(productType) === "premade";
+  const hasStockable = Object.hasOwn(details, "stockable") && details.stockable !== undefined;
+  const stockable = hasStockable
+    ? booleanFlag(details, "stockable", "Stockable")
+    : true;
   if (isCustomizable && (
     Object.hasOwn(details, "stock_available")
     || Object.hasOwn(details, "product_options")
@@ -129,8 +134,11 @@ export function validateArtworkDetails(rawDetails, artType, product, productType
       "Customizable artwork cannot include stock or product option quantities.",
     );
   }
-  const commonDetails = { material_composition: materialTags(details.material_composition) };
-  if (!isCustomizable && !(category === "product" && normalize(artType) === "product")) {
+  const commonDetails = {
+    material_composition: materialTags(details.material_composition),
+    ...(isPremade && hasStockable ? { stockable } : {}),
+  };
+  if (!isCustomizable && !(category === "product" && normalize(artType) === "product") && stockable) {
     commonDetails.stock_available = integerValue(details.stock_available, 0, "Stock available");
   }
   if (category === "fine_art") {
@@ -168,8 +176,8 @@ export function validateArtworkDetails(rawDetails, artType, product, productType
       throw new ArtworkDetailsValidationError("Combined product quantity is too large.");
     }
     return {
-      stock_available: stockAvailable,
       ...commonDetails,
+      stock_available: stockAvailable,
       product_price_mode: options.product_price_mode,
       product_options: options.product_options,
     };

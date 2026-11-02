@@ -34,12 +34,47 @@ function readArtworkDetails(rawDetails) {
   }
 }
 
+function isLegacyNonStockable(details = {}) {
+  if (details.stockable === undefined || details.stockable === null) return true;
+  if (typeof details.stockable === "string") {
+    return ["false", "0"].includes(details.stockable.trim().toLowerCase());
+  }
+  return details.stockable === false || details.stockable === 0;
+}
+
+function normalizeLegacyStockableDetails(details = {}) {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return {};
+  }
+  const normalized = { ...details };
+  if (Object.hasOwn(normalized, "stockable") && normalized.stockable !== undefined && normalized.stockable !== null) {
+    return normalized;
+  }
+  normalized.stockable = false;
+  return normalized;
+}
+
+async function syncLegacyNonStockableRows(executor, sellerId, rows = []) {
+  const legacyRows = rows.filter((row) => {
+    const details = readArtworkDetails(row.artwork_details);
+    return isLegacyNonStockable(details);
+  });
+
+  for (const row of legacyRows) {
+    const details = normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details));
+    await executor.query(
+      "UPDATE artwork SET artwork_details = ? WHERE artwork_id = ? AND student_id = ?",
+      [JSON.stringify(details), row.artwork_id, sellerId],
+    );
+  }
+}
+
 function getInventoryProductOptions(details) {
   return Array.isArray(details.product_options) ? details.product_options : [];
 }
 
 function serializeInventoryProduct(row, soldOptionQuantities = new Map()) {
-  const details = readArtworkDetails(row.artwork_details);
+  const details = normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details));
   const rawStock = details.stock_available;
   const recordedStock = rawStock === undefined || rawStock === null
     ? 0
@@ -115,9 +150,29 @@ router.get("/", authenticateSeller, async (req, res) => {
        ORDER BY a.artwork_id DESC`,
       [sellerId],
     );
+    await syncLegacyNonStockableRows(db.promise(), sellerId, rows);
+    const visibleRows = rows.filter((row) => {
+      const details = normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details));
+      if (
+        details.stockable === false ||
+        String(details.stockable).toLowerCase() === "false" ||
+        details.stockable === 0 ||
+        details.stockable === "0"
+      ) {
+        return false;
+      }
+      const prodType = String(row.product_type || "").trim().toLowerCase();
+      if (prodType === "digital" || prodType === "customize") {
+        return false;
+      }
+      return true;
+    });
     const soldOptionQuantities = await loadOptionSoldQuantities(db.promise(), sellerId);
     res.set("Cache-Control", "no-store");
-    return res.json(rows.map((row) => serializeInventoryProduct(row, soldOptionQuantities)));
+    return res.json(visibleRows.map((row) => serializeInventoryProduct({
+      ...row,
+      artwork_details: normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details)),
+    }, soldOptionQuantities)));
   } catch (error) {
     console.error("Seller inventory query error:", error);
     return res.status(500).json({ message: "Unable to load inventory" });
@@ -183,6 +238,18 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
       ? Math.max(0, Number(product.sold_quantity))
       : 0;
     const details = readArtworkDetails(product.artwork_details);
+    if (
+      details.stockable === false ||
+      String(details.stockable).toLowerCase() === "false" ||
+      details.stockable === 0 ||
+      details.stockable === "0"
+    ) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(400).json({
+        message: "This artwork is marked as non-stockable and is not available in inventory.",
+      });
+    }
     const rawStock = details.stock_available;
     const recordedStock = rawStock === undefined || rawStock === null
       ? 0
@@ -304,6 +371,18 @@ router.patch("/:artworkId/options/stock", authenticateSeller, async (req, res) =
     }
 
     const details = readArtworkDetails(product.artwork_details);
+    if (
+      details.stockable === false ||
+      String(details.stockable).toLowerCase() === "false" ||
+      details.stockable === 0 ||
+      details.stockable === "0"
+    ) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.status(400).json({
+        message: "This artwork is marked as non-stockable and is not available in inventory.",
+      });
+    }
     const options = getInventoryProductOptions(details);
     const option = options.find((item) => item.id === optionId);
     if (!option) {

@@ -145,6 +145,11 @@ function ArtworkInfo({
   const colors = artwork
     ? toColorList(artwork.color_used || artwork.colors_used)
     : [];
+  const productOptions = Array.isArray(artwork?.product_options)
+    ? artwork.product_options
+    : Array.isArray(artwork?.artwork_details?.product_options)
+      ? artwork.artwork_details.product_options
+      : [];
   const requestStatus = String(artwork?.request_status || artwork?.status || "Unverified").trim().toLowerCase();
   const statusShade = theme.palette.mode === "dark" ? "light" : "dark";
   const statusColor = ["verified", "approved"].includes(requestStatus)
@@ -381,6 +386,65 @@ function ArtworkInfo({
                   {formatList(artwork.mediums_used || artwork.mediums, "No scan results available")}
                 </Typography>
               </Box>
+              {artwork?.art_type === "product" && productOptions.length > 0 && (
+                <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                  <Typography sx={detailLabelSx}>Product Details</Typography>
+                  <Stack spacing={1.25} sx={{ mt: 0.5 }}>
+                    {productOptions.map((option, index) => (
+                      <Box
+                        key={option.id || `${option.name || "product"}-${index}`}
+                        sx={{
+                          p: 1.5,
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: 2,
+                          backgroundColor: theme.palette.background.paper,
+                        }}
+                      >
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: option.image ? "84px minmax(0, 1fr)" : "1fr" }, gap: 1.25 }}>
+                          {option.image && (
+                            <ArtworkImage
+                              image={option.image}
+                              alt={option.name || `Product ${index + 1}`}
+                              sx={{ width: { xs: "100%", sm: 84 }, height: 84, objectFit: "cover", borderRadius: 1.5 }}
+                            />
+                          )}
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ ...detailValueSx, fontSize: 13 }}>
+                              {option.name || `Product ${index + 1}`}
+                            </Typography>
+                            <Typography sx={{ ...detailValueSx, mt: 0.5, color: theme.palette.text.secondary }}>
+                              {option.description || "No description provided."}
+                            </Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 0.75 }}>
+                              {option.quantity !== undefined && option.quantity !== null && (
+                                <Chip
+                                  size="small"
+                                  label={`Qty: ${Number(option.quantity).toLocaleString()}`}
+                                  sx={{ fontWeight: 700 }}
+                                />
+                              )}
+                              {option.stock_quantity !== undefined && option.stock_quantity !== null && (
+                                <Chip
+                                  size="small"
+                                  label={`Stock: ${Number(option.stock_quantity).toLocaleString()}`}
+                                  sx={{ fontWeight: 700 }}
+                                />
+                              )}
+                              {option.price !== undefined && option.price !== null && (
+                                <Chip
+                                  size="small"
+                                  label={new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(option.price))}
+                                  sx={{ fontWeight: 700 }}
+                                />
+                              )}
+                            </Stack>
+                          </Box>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
               <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
                 <Typography sx={detailLabelSx}>Posted</Typography>
                 <Typography sx={detailValueSx}>

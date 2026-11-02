@@ -39,6 +39,7 @@ import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import { fetchStudents } from "../../api/admin/studentAPI";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 import { buildProgramDistribution } from "../../utils/adminDashboard";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import Export from "../../components/admin/Dashboard/Export";
@@ -242,6 +243,15 @@ export default function Dashboard() {
     }
   };
 
+  if (statisticsError || artworkErrorMessage || logsErrorMessage) {
+    return (
+      <ConnectionErrorPanel
+        title="Dashboard unavailable"
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+
   const salesData = statistics?.monthlySales || [];
   const programData = buildProgramDistribution(students, artworks);
   const artworkDistributionCount = programData.reduce(
@@ -340,10 +350,7 @@ export default function Dashboard() {
           Export Data
         </Button>
       </Box>
-      {statisticsError && <Alert severity="error" sx={{ mt: 2 }}>{statisticsError}</Alert>}
-      {artworkErrorMessage && <Alert severity="warning" sx={{ mt: 2 }}>{artworkErrorMessage}</Alert>}
       {studentsError && <Alert severity="warning" sx={{ mt: 2 }}>{studentsError}</Alert>}
-      {logsErrorMessage && <Alert severity="warning" sx={{ mt: 2 }}>{logsErrorMessage}</Alert>}
       <Box
         sx={{
           mt: 3,
@@ -1181,11 +1188,8 @@ export default function Dashboard() {
         onExportExcel={exportLogsExcel}
       />
       {/* Snackbar Notification */}
-      {/* //For Future Use 
       <Snackbar
         open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
         autoHideDuration={3000}
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -1194,11 +1198,28 @@ export default function Dashboard() {
         <Alert
           onClose={closeSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            width: "100%",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
             backgroundColor: getSeverityColor(snackbarSeverity),
             color: "#fff",
+            alignItems: "center",
             "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
               color: "#fff",
             },
           }}
@@ -1206,7 +1227,6 @@ export default function Dashboard() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
-    */}
     </Box>
   );
 }

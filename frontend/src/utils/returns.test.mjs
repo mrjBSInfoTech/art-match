@@ -53,6 +53,8 @@ function returnComponent(name, initialProps, api = {}) {
       navigator: { clipboard: { writeText: async () => {} } },
       require(specifier) {
         if (specifier === "react") return react;
+        if (specifier === "react-router-dom") return { useNavigate: () => () => {}, Link: "Link" };
+        if (specifier.includes("OrderTrack")) return (props) => ({ type: "OrderTrack", props });
         if (specifier === "@mui/material" || specifier === "@mui/material/styles") {
           return new Proxy({
             useTheme: () => ({ palette: { mode: "light" } }),
@@ -64,7 +66,7 @@ function returnComponent(name, initialProps, api = {}) {
           });
         }
         if (specifier.includes("/api/")) return api;
-        if (specifier.startsWith(".") || specifier.includes("OrderTrack") || specifier.includes("shipmentCouriers") || specifier.includes("trackingUrl")) {
+        if (specifier.startsWith("./") || specifier.includes("OrderTrack") || specifier.includes("shipmentCouriers") || specifier.includes("trackingUrl")) {
           const base = resolve(dirname(filename), specifier);
           if (existsSync(base)) return loadComponent(base);
           if (existsSync(`${base}.jsx`)) return loadComponent(`${base}.jsx`);

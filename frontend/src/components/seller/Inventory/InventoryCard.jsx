@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import ArtworkImage from "../../common/ArtworkImage";
-import ProductInventoryDialog from "./ProductInventoryDialog";
+import InventoryStock from "./InventoryStock";
 import {
   MAX_STOCK_QUANTITY,
   getStockStatus,
@@ -195,7 +195,7 @@ export default function InventoryCard({
         )}
       </CardContent>
       {hasProductOptions && (
-        <ProductInventoryDialog
+        <InventoryStock
           open={detailsOpen}
           product={product}
           onClose={() => setDetailsOpen(false)}

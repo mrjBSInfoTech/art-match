@@ -245,3 +245,36 @@ test("exact art type is required and bounded only for Customize", () => {
     /only be provided for Customize/,
   );
 });
+
+test("premade artwork with stockable false skips stock_available and saves stockable false", () => {
+  const result = validateArtworkDetails({
+    is_fragile: false,
+    humidity_sensitive: false,
+    light_sensitive: false,
+    material_composition: ["Canvas", "Oil"],
+    stockable: false,
+  }, "Painting", "painting", "Premade");
+  assert.deepEqual(result, {
+    is_fragile: false,
+    humidity_sensitive: false,
+    light_sensitive: false,
+    material_composition: ["Canvas", "Oil"],
+    stockable: false,
+  });
+  assert.equal(result.stock_available, undefined);
+
+  const resolved = resolveArtworkDetails({
+    rawDetails: {
+      is_fragile: false,
+      humidity_sensitive: false,
+      light_sensitive: false,
+      material_composition: ["Canvas"],
+      stockable: false,
+    },
+    artType: "Painting",
+    product: "painting",
+    productType: "Premade",
+  });
+  assert.equal(resolved.stockable, false);
+  assert.equal(resolved.stock_available, undefined);
+});

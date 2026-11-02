@@ -1,5 +1,10 @@
 import axios from "axios";
-import { getArtworkDetailDefaults, getArtworkDetailsErrors, getArtworkDetailsPayload } from "../../utils/artworkDetails.js";
+import {
+  getArtworkDetailDefaults,
+  getArtworkDetailsErrors,
+  getArtworkDetailsPayload,
+  isArtworkStockable,
+} from "../../utils/artworkDetails.js";
 import { getArtworkScanErrors, getArtworkScanPayload } from "../../utils/artworkScanAttributes.js";
 import {
   getProductOptionsErrors,
@@ -39,7 +44,8 @@ function optionalArtworkDetails(artworkData) {
   const hasDetails = explicitDetails || hasMaterials
     || ["stock_available", "resolution_width", "resolution_height", "file_format", "color_profile"]
       .some((field) => hasValue(artworkData[field]))
-    || ["is_fragile", "humidity_sensitive", "light_sensitive"].some((field) => artworkData[field] === true);
+    || ["is_fragile", "humidity_sensitive", "light_sensitive"].some((field) => artworkData[field] === true)
+    || Object.hasOwn(artworkData, "stockable");
   if (!hasDetails) return null;
 
   let details = {};
@@ -56,9 +62,11 @@ function optionalArtworkDetails(artworkData) {
       throw new Error("Artwork details must be an object.");
     }
   }
+  const isStockable = isArtworkStockable(artworkData.stockable) && isArtworkStockable(details.stockable);
   const data = {
     ...getArtworkDetailDefaults(), ...artworkData, ...details,
     art_type: artworkData.art_type, product: artworkData.product,
+    ...(!isStockable ? { stockable: false, stock_available: "" } : {}),
   };
   const error = Object.values(getArtworkDetailsErrors(data))[0];
   if (error) throw new Error(error);

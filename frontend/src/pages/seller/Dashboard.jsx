@@ -25,6 +25,7 @@ import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { fetchSellerOrders } from "../../api/seller/orderAPI";
 import { getSellerSalesData } from "../../utils/sellerSales";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
@@ -80,6 +81,15 @@ export default function Dashboard() {
   const sales = getSellerSalesData(orders);
   const salesData = sales.monthlySales;
 
+  if (artworkError || salesError) {
+    return (
+      <ConnectionErrorPanel
+        title={artworkError ? "Dashboard unavailable" : "Sales data unavailable"}
+        onRetry={artworkError ? loadArtworks : () => window.location.reload()}
+      />
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -110,7 +120,7 @@ export default function Dashboard() {
         <Button
           variant="contained"
           onClick={() => navigate("/seller/artwork")}
-          sx={{ minHeight: 44 }}
+          sx={{ minHeight: 44, color: "#fff" }}
         >
           Manage artwork
         </Button>
@@ -129,21 +139,6 @@ export default function Dashboard() {
           Manage inventory
         </Button>
       </Stack>
-
-      {artworkError && (
-        <Alert
-          severity="error"
-          sx={{ mt: 2 }}
-          action={
-            <Button color="inherit" onClick={loadArtworks} disabled={loading}>
-              Retry
-            </Button>
-          }
-        >
-          {artworkError}
-        </Alert>
-      )}
-      {salesError && <Alert severity="error" sx={{ mt: 2 }}>{salesError}</Alert>}
 
       <Box
         sx={{

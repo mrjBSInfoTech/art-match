@@ -5,12 +5,14 @@ import {
   DialogContent,
   DialogActions,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Select,
   MenuItem,
   TextField,
   Button,
   Slide,
+  Switch,
   Alert,
   Box,
   Typography,
@@ -30,6 +32,7 @@ import {
   getArtworkDetailsErrors,
   getArtworkDetailsFromArtwork,
   getArtworkDetailsPayload,
+  isArtworkStockable,
 } from "../../../utils/artworkDetails";
 import {
   getArtworkScanDefaults,
@@ -50,6 +53,21 @@ import {
   getProductOptionsStartingPrice,
   getProductOptionsTotalQuantity,
 } from "../../../utils/productOptions";
+
+const STYLE_OPTIONS = [
+  "Abstract",
+  "Realism",
+  "Surrealism",
+  "Impressionism",
+  "Portrait",
+  "Landscape",
+  "Still Life",
+  "Photography",
+  "Digital Art",
+  "Sculpture",
+  "Minimalism",
+  "Pop Art",
+];
 
 const createEmptyArtworkForm = () => ({
   title: "",
@@ -123,6 +141,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
   const showDetails = hasArtType && (!needsProductChoice || Boolean(formData.product));
   const detailCategory = getArtworkDetailCategory(formData.art_type, typeOptions?.product || formData.product);
   const isCustomizable = formData.product_type === "Customize";
+  const isPremadeProductType = formData.product_type === "Premade";
+  const isStockable = isArtworkStockable(formData.stockable);
   const isProductArtwork = formData.art_type === "product" && !isCustomizable;
   const isManualProductPricing = isProductArtwork && formData.product_price_mode === "manual";
   const productStockTotal = getProductOptionsTotalQuantity(formData.product_options);
@@ -219,8 +239,12 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       return {
         ...next,
         ...(name === "product_type" ? {
-          stock_available: fieldValue === "Customize" ? "" : prev.stock_available,
+          stock_available: fieldValue === "Customize" || fieldValue === "Digital" ? "" : prev.stock_available,
+          stockable: fieldValue === "Premade" ? isArtworkStockable(prev.stockable) : true,
           remove_product_sample: fieldValue !== "Customize",
+        } : {}),
+        ...(name === "stockable" && !fieldValue ? {
+          stock_available: "",
         } : {}),
         ...(name === "art_type" ? {
           product_options: fieldValue === "product"
@@ -244,6 +268,9 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setDetailErrors((prev) => {
         const next = { ...prev };
         delete next[name];
+        if (name === "stockable" && !fieldValue) {
+          delete next.stock_available;
+        }
         return next;
       });
     }
@@ -396,7 +423,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setError("Price must be greater than zero");
       return;
     }
-    if (formData.product_type !== "Customize" && !isProductArtwork) {
+    if (isPremadeProductType && !isProductArtwork && isStockable) {
       const stock = Number(formData.stock_available);
       if (!Number.isSafeInteger(stock) || stock < 0) {
         setError("Stock must be a whole number of 0 or more.");
@@ -419,7 +446,8 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     }
     const draft = {
       ...formData,
-      ...(isCustomizable ? { stock_available: "" } : {}),
+      ...(isCustomizable || !isStockable || formData.product_type === "Digital" ? { stock_available: "" } : {}),
+      ...(!isStockable ? { stockable: false } : {}),
       ...(isProductArtwork ? { stock_available: productStockTotal } : {}),
       ...(isCustomizable ? { product_options: [] } : {}),
       product,
@@ -461,6 +489,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         ...draft,
         ...getArtworkDetailDefaults(),
         ...artworkDetails,
+        ...(!isStockable ? { stock_available: "", stockable: false } : {}),
         ...(draft.art_type === "product" && !isCustomizable
           ? { product_options: draft.product_options }
           : {}),
@@ -739,7 +768,33 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
               />
             )}
 
-            {showDetails && !isCustomizable && (
+            {showDetails && isPremadeProductType && (
+              <Box sx={{ gridColumn: "1 / -1", border: `1px solid ${theme.palette.divider}`, borderRadius: 2, p: 1.5 }}>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      checked={isStockable}
+                      onChange={(event) => handleChange({
+                        target: {
+                          name: "stockable",
+                          type: "checkbox",
+                          checked: event.target.checked,
+                        },
+                      })}
+                    />
+                  )}
+                  label="Stockable"
+                  sx={{ m: 0 }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  {isStockable
+                    ? "This item will appear in the inventory list."
+                    : "This item will stay out of the inventory list."}
+                </Typography>
+              </Box>
+            )}
+
+            {showDetails && !isCustomizable && isPremadeProductType && isStockable && (
               <TextField
                 required
                 fullWidth
@@ -770,23 +825,23 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
             )}
 
             {showDetails && (
-               <FormControl fullWidth>
-                <InputLabel>Style</InputLabel>
+              <FormControl fullWidth sx={{ gridColumn: "1 / -1" }}>
+                <InputLabel id="artwork-style-label">Style</InputLabel>
                 <Select
+                  labelId="artwork-style-label"
                   label="Style"
                   name="genre"
-                  required
-                  value={formData.genre}
-                  onChange={handleChange}
+                  value={formData.genre || ""}
+                  onChange={(event) => handleChange({ target: { name: "genre", value: event.target.value } })}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
                 >
-                  {formData.genre && !ART_STYLES.includes(formData.genre) && (
+                  <MenuItem value=""><em>Select a style</em></MenuItem>
+                  {STYLE_OPTIONS.map((style) => (
+                    <MenuItem key={style} value={style}>{style}</MenuItem>
+                  ))}
+                  {formData.genre && !STYLE_OPTIONS.includes(formData.genre) && (
                     <MenuItem value={formData.genre}>{formData.genre}</MenuItem>
                   )}
-                  {ART_STYLES.map((style) => (
-                    <MenuItem key={style} value={style}>
-                      {style}
-                    </MenuItem>
-                  ))}
                 </Select>
               </FormControl>
             )}

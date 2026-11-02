@@ -78,9 +78,26 @@ export default function Inventory() {
     loadInventory();
   }, [loadInventory]);
 
+  const stockableProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const detailsStockable = product.artwork_details?.stockable;
+        const productType = String(product.product_type || "").trim().toLowerCase();
+        const isLegacyNonStockable =
+          detailsStockable === undefined ||
+          detailsStockable === null ||
+          String(detailsStockable).toLowerCase() === "false" ||
+          detailsStockable === false ||
+          detailsStockable === "0" ||
+          detailsStockable === 0;
+        return !isLegacyNonStockable && productType !== "digital" && productType !== "customize";
+      }),
+    [products],
+  );
+
   const filteredProducts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const filtered = products.filter((product) => {
+    const filtered = stockableProducts.filter((product) => {
       const matchesSearch =
         !query ||
         [product.title, product.product].some((value) =>
@@ -114,18 +131,18 @@ export default function Inventory() {
       }
       return String(left.title || "").localeCompare(String(right.title || ""));
     });
-  }, [products, searchQuery, stockFilter, sortOption]);
+  }, [stockableProducts, searchQuery, stockFilter, sortOption]);
 
   // Matches the dashboard's direct count pattern: data is loaded once, then
   // the displayed totals are derived from that current list.
-  const productCount = products.length;
-  const inStockCount = products.filter(
+  const productCount = stockableProducts.length;
+  const inStockCount = stockableProducts.filter(
     (product) => getStockStatus(product.stock_quantity) === "in-stock",
   ).length;
-  const lowStockCount = products.filter(
+  const lowStockCount = stockableProducts.filter(
     (product) => getStockStatus(product.stock_quantity) === "low-stock",
   ).length;
-  const outOfStockCount = products.filter(
+  const outOfStockCount = stockableProducts.filter(
     (product) => getStockStatus(product.stock_quantity) === "out-of-stock",
   ).length;
 
@@ -550,10 +567,41 @@ export default function Inventory() {
       >
         <Alert
           severity={snackbar.severity}
+          variant="filled"
           onClose={() =>
             setSnackbar((current) => ({ ...current, open: false }))
           }
-          sx={{ width: "100%" }}
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor:
+              snackbar.severity === "error"
+                ? theme.palette.error.main
+                : snackbar.severity === "warning"
+                  ? theme.palette.warning.main
+                  : snackbar.severity === "info"
+                    ? theme.palette.info.main
+                    : theme.palette.success.main,
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
         >
           {snackbar.message}
         </Alert>

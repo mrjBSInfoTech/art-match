@@ -54,6 +54,12 @@ const isProductItem = (item) => {
   return productValues.includes(artType) || productValues.includes(product);
 };
 
+const isCustomizableArtwork = (item) => {
+  const productType = String(item?.product_type || item?.productType || "").trim().toLowerCase();
+  const artType = String(item?.art_type || "").trim().toLowerCase();
+  return productType === "customize" || artType === "customize";
+};
+
 const getRemainingStock = (item) => {
   const rawStock = item?.stock_available;
   if (rawStock === null || rawStock === undefined || String(rawStock).trim() === "") {
@@ -569,6 +575,13 @@ export default function Checkout() {
   const multiStorefront = storefrontGroups.length > 1;
   const selectionIncomplete = selectedArtworkIds !== null &&
     (!selectedArtworkIds.length || selectedArtworkIds.length !== cartItems.length);
+  const hasCustomizableItems = cartItems.some(isCustomizableArtwork);
+
+  useEffect(() => {
+    if (hasCustomizableItems && deliveryMethod === "pickup") {
+      setDeliveryMethod("door_to_door");
+    }
+  }, [deliveryMethod, hasCustomizableItems]);
 
   const isDoorToDoor = deliveryMethod === "door_to_door";
 
@@ -935,16 +948,24 @@ export default function Checkout() {
                     onSelect={setDeliveryMethod}
                     disabled={loading}
                   />
-                  <DeliveryOptionCard
-                    value="pickup"
-                    title="Meet-up Delivery"
-                    subtitle="Personally meet with the seller to receive your order at a mutually agreed location (No shipping fee)"
-                    icon={<StorefrontOutlinedIcon color="error" />}
-                    selectedValue={deliveryMethod}
-                    onSelect={setDeliveryMethod}
-                    disabled={loading}
-                  />
+                  {!hasCustomizableItems && (
+                    <DeliveryOptionCard
+                      value="pickup"
+                      title="Meet-up Delivery"
+                      subtitle="Personally meet with the seller to receive your order at a mutually agreed location (No shipping fee)"
+                      icon={<StorefrontOutlinedIcon color="error" />}
+                      selectedValue={deliveryMethod}
+                      onSelect={setDeliveryMethod}
+                      disabled={loading}
+                    />
+                  )}
                 </Stack>
+
+                {hasCustomizableItems && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+                    Customizable artwork orders require door-to-door delivery.
+                  </Typography>
+                )}
 
                 {isDoorToDoor ? (
                   <>

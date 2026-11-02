@@ -234,6 +234,7 @@ export default function Orders() {
             borderBottom: "1px solid",
             borderColor: "divider",
             backgroundColor: "transparent",
+            borderRadius: 0,
           }}
         >
           <Tabs
@@ -245,20 +246,25 @@ export default function Orders() {
             textColor="inherit"
             aria-label="Order status filter tabs"
             sx={{
-              minHeight: 48,
+              minHeight: 52,
+              "& .MuiTabs-flexContainer": {
+                gap: { xs: 0.5, sm: 1 },
+              },
               "& .MuiTabs-indicator": {
                 backgroundColor: "error.main",
                 height: 3,
-                borderRadius: "3px 3px 0 0",
+                borderRadius: "999px",
               },
               "& .MuiTab-root": {
                 textTransform: "none",
                 fontWeight: 600,
                 fontSize: { xs: 13, sm: 14 },
-                minWidth: { xs: "auto", sm: 90 },
-                px: { xs: 1.5, sm: 2 },
-                py: 1,
+                minWidth: { xs: "auto", sm: 86 },
+                px: { xs: 1.1, sm: 1.5 },
+                py: 1.25,
+                minHeight: 52,
                 color: "text.secondary",
+                letterSpacing: "0.01em",
                 "&.Mui-selected": {
                   color: "error.main",
                   fontWeight: 800,
@@ -289,9 +295,10 @@ export default function Orders() {
                             fontSize: "0.72rem",
                             fontWeight: 700,
                             px: 0.5,
-                            backgroundColor: isSelected ? "error.main" : "action.selected",
+                            backgroundColor: isSelected ? "error.main" : "#e5e7eb",
                             color: isSelected ? "#fff" : "text.secondary",
-                            "& .MuiChip-label": { px: 0.6 },
+                            border: isSelected ? "none" : "1px solid transparent",
+                            "& .MuiChip-label": { px: 0.7 },
                           }}
                         />
                       )}

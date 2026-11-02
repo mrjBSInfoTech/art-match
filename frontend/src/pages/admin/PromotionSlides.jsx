@@ -15,6 +15,7 @@ import {
   FormControlLabel,
   IconButton,
   MenuItem,
+  Slide,
   Snackbar,
   Stack,
   Switch,
@@ -59,6 +60,23 @@ const hasPermission = (permission) => {
   return ["1", "true"].includes(
     String(localStorage.getItem(`admin_${permission}`) || "").toLowerCase(),
   );
+};
+
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
+
+const getSeverityColor = (severity) => {
+  switch (severity) {
+    case "error":
+      return "#d32f2f";
+    case "warning":
+      return "#ed6c02";
+    case "info":
+      return "#0288d1";
+    default:
+      return "#2e7d32";
+  }
 };
 
 export default function PromotionSlides() {
@@ -869,11 +887,36 @@ export default function PromotionSlides() {
         autoHideDuration={3500}
         onClose={() => setNotice("")}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
       >
         <Alert
           severity={noticeSeverity}
           variant="filled"
           onClose={() => setNotice("")}
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor: getSeverityColor(noticeSeverity),
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
         >
           {notice}
         </Alert>

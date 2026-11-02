@@ -261,15 +261,20 @@ export default function Main() {
     };
   }, []);
 
+  const availableArtworks = useMemo(
+    () => artworks.filter((artwork) => Number(artwork.is_sold_out) !== 1),
+    [artworks],
+  );
+
   const followedArtworks = useMemo(() => {
     const followedIds = new Set(followedArtists);
-    return artworks
+    return availableArtworks
       .filter((artwork) => followedIds.has(String(artwork.student_id)))
       .sort((a, b) =>
         (Date.parse(b.date_created) || 0) - (Date.parse(a.date_created) || 0) ||
         Number(b.artwork_id || b.id) - Number(a.artwork_id || a.id))
       .slice(0, 4);
-  }, [artworks, followedArtists]);
+  }, [availableArtworks, followedArtists]);
 
   useEffect(() => {
     let refreshTimer;
@@ -294,8 +299,13 @@ export default function Main() {
 
   const genres = artGenres;
   const popularArtists = useMemo(
-    () => buildArtistSummaries(artworks),
-    [artworks],
+    () => buildArtistSummaries(availableArtworks),
+    [availableArtworks],
+  );
+
+  const visibleRecommendedArtworks = useMemo(
+    () => recommendedArtworks.filter((artwork) => Number(artwork.is_sold_out) !== 1),
+    [recommendedArtworks],
   );
   const featuredArtist = popularArtists[0];
   const galleryArtists = popularArtists.slice(1, 9);
@@ -408,7 +418,7 @@ export default function Main() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Main</title>
       </Helmet>
-      <UpcomingEventsSlider heroArtwork={artworks[0]} />
+      <UpcomingEventsSlider heroArtwork={availableArtworks[0]} />
       {/* Styles */}
       <Box
         sx={{
@@ -485,7 +495,7 @@ export default function Main() {
               gap: { xs: 2, md: 2.5 },
             }}
           >
-            {artworks.slice(0, 4).map((artwork) => (
+            {availableArtworks.slice(0, 4).map((artwork) => (
               <ArtworkCard
                 onAddToCart={handleAddToCart}
                 key={artwork.artwork_id || artwork.id}
@@ -709,11 +719,11 @@ export default function Main() {
             )}
             <WatermarkedArtworkImage
               image={
-                featuredArtist?.featuredArtwork?.image || artworks[0]?.image
+                featuredArtist?.featuredArtwork?.image || availableArtworks[0]?.image
               }
               alt={
                 featuredArtist?.featuredArtwork?.title ||
-                artworks[0]?.title ||
+                availableArtworks[0]?.title ||
                 "Featured artwork"
               }
               variant="web"
@@ -920,7 +930,7 @@ export default function Main() {
                 gap: { xs: 2, md: 2.5 },
               }}
             >
-              {artworks.slice(0, 12).map((artwork) => (
+              {availableArtworks.slice(0, 12).map((artwork) => (
                 <ArtworkCard
                   onAddToCart={handleAddToCart}
                   key={artwork.artwork_id || artwork.id}
@@ -932,7 +942,7 @@ export default function Main() {
         </>
       )}
       {/* Recommended Artworks */}
-      {(recommendationsLoading || recommendedArtworks.length > 0) && (
+      {(recommendationsLoading || visibleRecommendedArtworks.length > 0) && (
         <Box
           sx={{
             px: { xs: 2, sm: 4, lg: 6 },
@@ -995,7 +1005,7 @@ export default function Main() {
                 gap: { xs: 2, md: 2.5 },
               }}
             >
-              {recommendedArtworks.map((artwork) => (
+              {visibleRecommendedArtworks.map((artwork) => (
                 <ArtworkCard
                   onAddToCart={handleAddToCart}
                   key={artwork.artwork_id || artwork.id}
@@ -1016,11 +1026,30 @@ export default function Main() {
         <Alert
           onClose={closeSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            width: "100%",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
             backgroundColor: getSeverityColor(snackbarSeverity),
             color: "#fff",
-            "& .MuiAlert-icon": { color: "#fff" },
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
           }}
         >
           {snackbarMessage}

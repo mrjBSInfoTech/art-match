@@ -13,6 +13,19 @@ const parseBoolean = value => {
 export function getPayoutHoldPolicy(env = process.env) {
   const selectedProvider = String(env.PAYOUT_PROVIDER || "paymongo").trim().toLowerCase();
   const production = String(env.NODE_ENV || "").trim().toLowerCase() === "production";
+
+  const rawHoldDays = env.PAYOUT_HOLD_DAYS;
+  const hasHoldDays = rawHoldDays !== undefined && rawHoldDays !== null && String(rawHoldDays).trim() !== "";
+  const explicitHoldDays = hasHoldDays ? Number(rawHoldDays) : null;
+  const liveImmediate = !production && parseBoolean(env.PAYMONGO_LIVE_PAYOUT_IMMEDIATE);
+
+  if (!production && Number.isInteger(explicitHoldDays) && explicitHoldDays >= 0) {
+    return { holdDays: explicitHoldDays, immediateTestPayouts: explicitHoldDays === 0 };
+  }
+  if (liveImmediate) {
+    return { holdDays: 0, immediateTestPayouts: true };
+  }
+
   const rawFlag = env.PAYMONGO_TEST_PAYOUT_IMMEDIATE;
   const hasExplicitFlag = rawFlag !== undefined && rawFlag !== null && String(rawFlag).trim() !== "";
   const explicitImmediate = hasExplicitFlag && parseBoolean(rawFlag);
@@ -112,12 +125,11 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
     const shipping = payoutToCentavos(order.shipping_fee);
     const total = payoutToCentavos(order.total_amount, { allowZero: false });
     result.grossAmountCentavos = gross;
-    // Current ArtMatch policy charges no shipping or commission and attributes
-    // no gateway fee. Unexpected historical policies need explicit review,
-    // not a guessed partial-refund fee allocation.
+    // Current ArtMatch policy charges no shipping or commission. Gateway processing
+    // fees are attributed to the seller payment split.
     if (Number(split.seller_id) !== Number(order.seller_id) || split.currency !== "PHP" ||
         gross !== total || total !== safeAdd(subtotal, shipping) ||
-        gross !== safeAdd(safeAdd(net, commission), fee) || shipping || commission || fee) {
+        gross !== safeAdd(safeAdd(net, commission), fee) || shipping || commission || fee < 0 || fee > gross) {
       return finish("Held", "Order accounting requires administrator review.");
     }
     const itemMap = new Map();

@@ -24,6 +24,7 @@ import {
   verifySellerPayoutRefund,
 } from "../../api/admin/payoutAPI";
 import PayoutForm from "../../components/admin/Payout/PayoutForm";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
 import {
@@ -127,6 +128,16 @@ export default function AdminPayout() {
     setLoading(true);
     setRefresh((value) => value + 1);
   };
+
+  if (error) {
+    return (
+      <ConnectionErrorPanel
+        title="Seller payouts unavailable"
+        onRetry={reload}
+      />
+    );
+  }
+
   const closeReview = () => {
     if (!actionInFlight.current) {
       setSelected(null);
@@ -242,7 +253,6 @@ export default function AdminPayout() {
         </Button>
       </Stack>
       <Stack spacing={2.5} sx={{ mt: 3 }}>
-        {error && <Alert severity="error">{error}</Alert>}
         {loading && (
           <Stack alignItems="center" sx={{ py: 3 }}>
             <CircularProgress aria-label="Loading payout review" />
@@ -361,8 +371,6 @@ export default function AdminPayout() {
       />
       <Snackbar
         open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
         autoHideDuration={3000}
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -371,11 +379,30 @@ export default function AdminPayout() {
         <Alert
           onClose={closeSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            width: "100%",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
             backgroundColor: getSeverityColor(snackbarSeverity),
             color: "#fff",
-            "& .MuiAlert-icon": { color: "#fff" },
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
           }}
         >
           {snackbarMessage}

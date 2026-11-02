@@ -319,7 +319,10 @@ export default function Shop() {
         }
         const list = recommendationsOnly ? response?.recommendations || []
           : Array.isArray(response) ? response : response?.data || [];
-        if (active) setArtworks(list);
+        const availableList = (Array.isArray(list) ? list : []).filter(
+          (artwork) => Number(artwork.is_sold_out) !== 1,
+        );
+        if (active) setArtworks(availableList);
       } catch (loadError) {
         if (active) setLoadError(loadError.message || "Failed to load artworks.");
       } finally {

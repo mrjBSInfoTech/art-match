@@ -36,6 +36,7 @@ export function getArtworkDetailDefaults() {
     light_sensitive: false,
     material_composition: [],
     stock_available: "",
+    stockable: true,
     resolution_width: "",
     resolution_height: "",
     file_format: "",
@@ -66,13 +67,28 @@ function integerValue(value) {
 const booleanValue = (value) => value === true || value === 1 || value === "true" || value === "1";
 const trimmedString = (value) => typeof value === "string" ? value.trim() : "";
 
+export function isArtworkStockable(value) {
+  if (value === undefined || value === null || value === "") return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "false" || normalized === "0") return false;
+    if (normalized === "true" || normalized === "1") return true;
+    return true;
+  }
+  if (typeof value === "number") return value !== 0;
+  return value !== false;
+}
+
 export function getArtworkDetailsPayload(formData) {
   const category = getArtworkDetailCategory(formData.art_type, formData.product);
   const isCustomizable = String(formData.product_type || "").trim().toLowerCase() === "customize";
+  const isPremade = String(formData.product_type || "").trim().toLowerCase() === "premade";
+  const isStockable = isArtworkStockable(formData.stockable);
   const materials = materialTags(formData.material_composition);
   const commonDetails = {
     material_composition: materials,
-    ...(!isCustomizable ? {
+    ...(isPremade ? { stockable: isStockable } : {}),
+    ...(!isCustomizable && isPremade && isStockable ? {
       stock_available: integerValue(formData.stock_available) ?? formData.stock_available ?? "",
     } : {}),
   };
@@ -128,6 +144,8 @@ export function getArtworkDetailsErrors(formData) {
   const category = getArtworkDetailCategory(formData.art_type, formData.product);
   const errors = {};
   const tags = materialTags(formData.material_composition);
+  const isPremade = normalized(formData.product_type) === "premade";
+  const isStockable = isArtworkStockable(formData.stockable);
   if (!tags.length) errors.material_composition = "Add at least one material or composition.";
   else if (tags.length > 10) errors.material_composition = "Add no more than 10 materials.";
   else if (tags.some((tag) => tag.length > 100)) {
@@ -141,7 +159,9 @@ export function getArtworkDetailsErrors(formData) {
     }
   }
   if (normalized(formData.product_type) !== "customize"
-      && normalized(formData.art_type) !== "product") {
+      && normalized(formData.art_type) !== "product"
+      && isPremade
+      && isStockable) {
     const stock = integerValue(formData.stock_available);
     if (stock === null || stock < 0) {
       errors.stock_available = "Enter stock as a whole number of 0 or more.";

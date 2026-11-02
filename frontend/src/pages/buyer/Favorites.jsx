@@ -256,8 +256,11 @@ export default function BuyerFavorites() {
   };
 
   const visibleArtworks = useMemo(() => {
-    if (selectedTab === "All hearts") return artworks;
-    return artworks.filter(
+    const availableArtworks = artworks.filter(
+      (artwork) => Number(artwork.is_sold_out) !== 1,
+    );
+    if (selectedTab === "All hearts") return availableArtworks;
+    return availableArtworks.filter(
       (artwork) => normalizeArtType(artwork.art_type) === normalizeArtType(selectedTab),
     );
   }, [artworks, selectedTab]);

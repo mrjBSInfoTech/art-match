@@ -527,8 +527,6 @@ export default function Student() {
       {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
         autoHideDuration={3000}
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -537,11 +535,28 @@ export default function Student() {
         <Alert
           onClose={closeSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            width: "100%",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
             backgroundColor: getSeverityColor(snackbarSeverity),
             color: "#fff",
+            alignItems: "center",
             "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
               color: "#fff",
             },
           }}

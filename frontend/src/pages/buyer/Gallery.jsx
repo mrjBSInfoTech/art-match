@@ -33,6 +33,8 @@ const groupArtworksByArtist = (artworks) => {
   const artists = new Map();
 
   artworks.forEach((artwork) => {
+    if (Number(artwork.is_sold_out) === 1) return;
+
     const artistName =
       [artwork.first_name, artwork.last_name].filter(Boolean).join(" ") ||
       artwork.artist ||
@@ -285,7 +287,10 @@ export default function Gallery() {
         const artworks = Array.isArray(response)
           ? response
           : response?.data || [];
-        if (active) setArtists(groupArtworksByArtist(artworks));
+        const availableArtworks = artworks.filter(
+          (artwork) => Number(artwork.is_sold_out) !== 1,
+        );
+        if (active) setArtists(groupArtworksByArtist(availableArtworks));
       } catch (loadError) {
         if (active)
           setLoadError(loadError.message || "Failed to load the gallery.");

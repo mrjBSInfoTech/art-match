@@ -193,14 +193,18 @@ export default function OrderGrid({
         return (
           <Grid size={{ xs: 12 }} key={order.orderId}>
             <Paper
-              variant="outlined"
+              elevation={0}
               sx={{
                 p: { xs: 2, sm: 2.5 },
-                borderRadius: 2.5,
+                borderRadius: 3,
                 color: colors.text,
                 backgroundColor: colors.card,
-                borderColor: colors.divider,
-                boxShadow: isDark ? "0 8px 24px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.04)",
+                border: `1px solid ${colors.divider}`,
+                boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.18)" : "0 8px 24px rgba(15,23,42,0.06)",
+                transition: "box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease",
+                "&:hover": {
+                  boxShadow: isDark ? "0 14px 38px rgba(0,0,0,0.22)" : "0 10px 30px rgba(15,23,42,0.08)",
+                },
               }}
             >
               <Stack

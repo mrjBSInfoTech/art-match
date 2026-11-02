@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { fetchPayoutAccount, fetchPayoutInstitutions, savePayoutAccount } from "../../../api/seller/payoutAPI";
+import { verifyPassword } from "../../../api/seller/sellerAPI";
+import PayoutConfim from "./PayoutConfim";
 import { payoutErrorMessage } from "./payoutDisplay";
 
 const institutionKey = (institution) => `${institution.provider}:${institution.code}`;
@@ -14,6 +16,8 @@ export default function PayoutAccount({ onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState(null);
   const [institution, setInstitution] = useState("");
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -51,24 +55,45 @@ export default function PayoutAccount({ onSaved }) {
   const save = async (event) => {
     event.preventDefault();
     if (saving || !selectedInstitution || !accountName.trim() || !accountNumber.trim()) return;
+    setPendingPayload({
+      institutionCode: selectedInstitution.code,
+      provider: selectedInstitution.provider,
+      accountName: accountName.trim(),
+      accountNumber: accountNumber.trim(),
+    });
+    setPasswordDialogOpen(true);
+  };
+
+  const handlePasswordConfirm = async (password) => {
+    if (!pendingPayload) {
+      throw new Error("Payout account details were not provided.");
+    }
+
     setSaving(true);
     setError("");
     setSuccess("");
+
     try {
-      const result = await savePayoutAccount({ institutionCode: selectedInstitution.code, provider: selectedInstitution.provider,
-        accountName: accountName.trim(), accountNumber: accountNumber.trim() });
+      await verifyPassword(password);
+      const result = await savePayoutAccount(pendingPayload);
       setAccount(result.account);
       if (result.capability) setCapability(result.capability);
       setAccountNumber("");
       setEditing(false);
+      setPasswordDialogOpen(false);
+      setPendingPayload(null);
       setSuccess("Payout destination saved. Account ownership has not been verified.");
       onSaved?.();
     } catch (saveError) {
       setError(payoutErrorMessage(saveError, "Unable to save payout destination."));
-    } finally { setSaving(false); }
+      throw saveError;
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
+  return <>
+  <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
     <Stack spacing={2}>
       <Box><Typography variant="h6" fontWeight={700}>Payout destination</Typography>
         <Typography variant="body2" color="text.secondary">Receive earnings in a supported bank or e-wallet account. You do not need your own PayMongo merchant account.</Typography></Box>
@@ -96,5 +121,16 @@ export default function PayoutAccount({ onSaved }) {
           </Stack>}
       </>}
     </Stack>
-  </Paper>;
+  </Paper>
+  <PayoutConfim
+    open={passwordDialogOpen}
+    handleClose={() => {
+      setPasswordDialogOpen(false);
+      setPendingPayload(null);
+      setSaving(false);
+    }}
+    onSubmit={handlePasswordConfirm}
+    submitting={saving}
+  />
+  </>;
 }

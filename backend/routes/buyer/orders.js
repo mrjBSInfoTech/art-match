@@ -19,7 +19,7 @@ import {
 } from "../../utils/recommendationInteractions.js";
 import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 import { getCommissionRate } from "../../database/paymentSplits.js";
-import { buildPaymentSplit, validateSplits } from "../../utils/paymentSplit.js";
+import { buildPaymentSplit, calculateProcessingFee, validateSplits } from "../../utils/paymentSplit.js";
 import { attachOrderReturns } from "../../utils/returns.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
@@ -1167,8 +1167,11 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
      * derived so the payout is fixed at order time and cannot drift with a
      * later price change. Rows start as Held and are released on payment.
      */
+    const paymentTotal = createdOrders.reduce((sum, created) => sum + created.total, 0);
+    const processingFee = isPayMongo ? calculateProcessingFee(paymentTotal) : 0;
     const { splits, totals: splitTotals } = buildPaymentSplit(createdOrders, {
       commissionRate: getCommissionRate(),
+      processingFee,
     });
 
     const splitProblems = validateSplits(

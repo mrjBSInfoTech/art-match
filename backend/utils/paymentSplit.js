@@ -1,3 +1,31 @@
+const parseBoolean = (value) => {
+  if (value === undefined || value === null) return false;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+};
+
+export const calculateProcessingFee = (totalPesos, env = process.env) => {
+  const enabled = parseBoolean(env.PAYMONGO_PROCESSING_FEE_ENABLED);
+  if (!enabled) return 0;
+
+  const total = Number(totalPesos);
+  if (!Number.isFinite(total) || total <= 0) return 0;
+
+  const percentRaw = env.PAYMONGO_PROCESSING_FEE_PERCENT;
+  const percent = percentRaw !== undefined && percentRaw !== null && String(percentRaw).trim() !== ""
+    ? Number(percentRaw)
+    : 2;
+
+  const flatRaw = env.PAYMONGO_PROCESSING_FEE_FLAT_PESOS;
+  const flatPesos = flatRaw !== undefined && flatRaw !== null && String(flatRaw).trim() !== ""
+    ? Number(flatRaw)
+    : 15;
+
+  const feeCentavos = Math.round(total * 100 * (percent / 100)) + Math.round(flatPesos * 100);
+  const totalCentavos = Math.round(total * 100);
+  const cappedFeeCentavos = Math.min(feeCentavos, totalCentavos);
+  return Number((cappedFeeCentavos / 100).toFixed(2));
+};
+
 /*
  * Splitting one buyer payment across several seller orders.
  *

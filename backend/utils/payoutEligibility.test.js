@@ -83,6 +83,20 @@ test("the existing immediate flag also supports explicit demo mode, but never pr
     { holdDays: 4, immediateTestPayouts: false });
 });
 
+test("experimental overrides allow immediate holding time even with live keys during development", () => {
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYOUT_HOLD_DAYS: "0", NODE_ENV: "development" }),
+    { holdDays: 0, immediateTestPayouts: true });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYMONGO_LIVE_PAYOUT_IMMEDIATE: "true", NODE_ENV: "development" }),
+    { holdDays: 0, immediateTestPayouts: true });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYOUT_HOLD_DAYS: "2", NODE_ENV: "development" }),
+    { holdDays: 2, immediateTestPayouts: false });
+  // Production never allows experimental overrides
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYOUT_HOLD_DAYS: "0", NODE_ENV: "production" }),
+    { holdDays: 4, immediateTestPayouts: false });
+  assert.deepEqual(getPayoutHoldPolicy({ PAYMONGO_SECRET_KEY: "sk_live_fixture", PAYMONGO_LIVE_PAYOUT_IMMEDIATE: "true", NODE_ENV: "production" }),
+    { holdDays: 4, immediateTestPayouts: false });
+});
+
 test("immediate TEST eligibility uses database delivery time and retains payment, delivery and refund holds", async (t) => {
   const previous = { key: process.env.PAYMONGO_SECRET_KEY, flag: process.env.PAYMONGO_TEST_PAYOUT_IMMEDIATE };
   t.after(() => {

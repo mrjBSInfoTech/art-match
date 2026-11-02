@@ -46,6 +46,8 @@ const buildArtistSummaries = (artworks = [], engagementByArtist = new Map()) => 
   const grouped = new Map();
 
   artworks.forEach((artwork) => {
+    if (Number(artwork.is_sold_out) === 1) return;
+
     const studentId = artwork.student_id;
     if (!studentId) return;
 

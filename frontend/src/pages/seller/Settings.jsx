@@ -665,8 +665,6 @@ export default function Settings() {
 
       <Snackbar
         open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
         autoHideDuration={2500}
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -675,16 +673,35 @@ export default function Settings() {
         <Alert
           onClose={closeSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            width: "100%",
-            color: "#fff",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
             backgroundColor:
               snackbarSeverity === "error"
-                ? "error.light"
-                : snackbarSeverity === "info"
-                  ? "info.light"
-                  : "success.light",
+                ? theme.palette.error.main
+                : snackbarSeverity === "warning"
+                  ? theme.palette.warning.main
+                  : snackbarSeverity === "info"
+                    ? theme.palette.info.main
+                    : theme.palette.success.main,
+            color: "#fff",
+            alignItems: "center",
             "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
               color: "#fff",
             },
           }}

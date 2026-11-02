@@ -21,11 +21,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
+import { useTheme } from "@mui/material/styles";
 import SellerStorefront from "./Storefront";
 import {
   createSellerPromotionSlide,
@@ -37,6 +33,12 @@ import {
   updateSellerPromotionSlide,
   withdrawSellerPromotionSlideRequest,
 } from "../../api/seller/promotionSlideAPI";
+// Icons
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
 
 const emptyForm = { title: "", description: "", button_label: "", button_url: "", file: null };
 const emptyHeaderForm = {
@@ -63,6 +65,7 @@ const statusDetails = (slide) => {
 };
 
 export default function Marketing() {
+  const theme = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const activeTab = ["slides", "header", "store-profile"].includes(requestedTab)
@@ -595,8 +598,43 @@ export default function Marketing() {
       </Dialog>
         </>
       )}
-      <Snackbar open={Boolean(notice)} autoHideDuration={4000} onClose={() => setNotice("")}>
-        <Alert severity="info" variant="filled" onClose={() => setNotice("")}>{notice}</Alert>
+      <Snackbar
+        open={Boolean(notice)}
+        autoHideDuration={4000}
+        onClose={() => setNotice("")}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          severity="info"
+          variant="filled"
+          onClose={() => setNotice("")}
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor: theme.palette.info.main,
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
+        >
+          {notice}
+        </Alert>
       </Snackbar>
     </Box>
   );

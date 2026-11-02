@@ -21,6 +21,7 @@ test("premade artwork payload includes materials and stock", () => {
     humidity_sensitive: false,
     light_sensitive: false,
     material_composition: ["Canvas"],
+    stockable: true,
     stock_available: 4,
   });
   assert.deepEqual(getArtworkDetailsErrors(formData), {});
@@ -38,6 +39,29 @@ test("customizable artwork omits stock and does not validate it", () => {
     material_composition: ["Wood"],
   });
   assert.deepEqual(getArtworkDetailsErrors(formData), {});
+});
+
+test("premade non-stockable items keep the stockable flag but skip stock validation", () => {
+  const formData = {
+    art_type: "painting",
+    product: "painting",
+    product_type: "Premade",
+    is_fragile: false,
+    humidity_sensitive: false,
+    light_sensitive: false,
+    stockable: false,
+    material_composition: ["Canvas"],
+    stock_available: "",
+  };
+  assert.deepEqual(getArtworkDetailsPayload(formData), {
+    is_fragile: false,
+    humidity_sensitive: false,
+    light_sensitive: false,
+    material_composition: ["Canvas"],
+    stockable: false,
+  });
+  const errors = getArtworkDetailsErrors(formData);
+  assert.equal(errors.stock_available, undefined);
 });
 
 test("premade stock must be a nonnegative whole number", () => {

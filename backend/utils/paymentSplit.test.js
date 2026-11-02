@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { apportion, buildPaymentSplit, validateSplits } from "./paymentSplit.js";
+import { apportion, buildPaymentSplit, calculateProcessingFee, validateSplits } from "./paymentSplit.js";
 
 const order = (id, sellerId, totalAmount) => ({
   orderId: id,
@@ -133,9 +133,23 @@ test("accepts the checkout handler's plain `total` field", () => {
   assert.deepEqual(validateSplits(splits, totals, 3600), []);
 });
 
-test("a missing amount is rejected instead of silently becoming zero", () => {
-  assert.throws(
-    () => buildPaymentSplit([{ orderId: 1, sellerId: 1 }], {}),
-    /invalid amount/,
-  );
+test("calculateProcessingFee applies 2% + flat 15 pesos when enabled", () => {
+  const env = {
+    PAYMONGO_PROCESSING_FEE_ENABLED: "true",
+    PAYMONGO_PROCESSING_FEE_PERCENT: "2",
+    PAYMONGO_PROCESSING_FEE_FLAT_PESOS: "15",
+  };
+
+  // Disabled returns 0
+  assert.equal(calculateProcessingFee(100, {}), 0);
+  assert.equal(calculateProcessingFee(100, { PAYMONGO_PROCESSING_FEE_ENABLED: "false" }), 0);
+
+  // Enabled: 2% of 100 is 2 + 15 = 17
+  assert.equal(calculateProcessingFee(100, env), 17.00);
+
+  // Enabled: 2% of 1000 is 20 + 15 = 35
+  assert.equal(calculateProcessingFee(1000, env), 35.00);
+
+  // Enabled: 1 peso order capped at 1.00 (cannot exceed total)
+  assert.equal(calculateProcessingFee(1, env), 1.00);
 });

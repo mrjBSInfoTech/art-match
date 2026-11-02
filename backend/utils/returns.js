@@ -4,6 +4,7 @@ import { publishReturnUpdated } from "./chatEvents.js";
 import { createPayMongoRefund, retrievePayoutRefund } from "./paymongoPayouts.js";
 import { refreshSellerPayoutEligibility } from "./payoutEligibility.js";
 import { revokeCertificateAccessForReturn } from "./certificates.js";
+import { calculateProcessingFee } from "./paymentSplit.js";
 
 export const RETURN_REASONS = Object.freeze([
   "Damaged artwork", "Wrong artwork received", "Artwork not as described",
@@ -433,10 +434,24 @@ export async function processOrderReturnRefund(role, actorId, returnId, { strict
   if (target.payment_status === "Refunded") {
     return (await listReturnRequests(executor, role, accountId, { requestId }))[0];
   }
-  const amountCentavos = Number(target.returned_centavos);
-  if (!Number.isSafeInteger(amountCentavos) || amountCentavos <= 0) {
+  const grossReturnedCentavos = Number(target.returned_centavos);
+  if (!Number.isSafeInteger(grossReturnedCentavos) || grossReturnedCentavos <= 0) {
     if (strict) fail(409, "Invalid return refund amount.");
     return (await listReturnRequests(executor, role, accountId, { requestId }))[0];
+  }
+
+  // Deduct non-refundable payment processing fee (2% + ₱15.00)
+  const nonRefundableFeePesos = calculateProcessingFee(grossReturnedCentavos / 100);
+  const nonRefundableFeeCentavos = Math.round(nonRefundableFeePesos * 100);
+  let amountCentavos = Math.max(0, grossReturnedCentavos - nonRefundableFeeCentavos);
+
+  if (amountCentavos <= 0) {
+    if (grossReturnedCentavos >= 100) {
+      amountCentavos = 100; // PayMongo requires at least ₱1.00 for a refund
+    } else {
+      if (strict) fail(409, "The return refund amount is zero after deducting non-refundable processing fees.");
+      return (await listReturnRequests(executor, role, accountId, { requestId }))[0];
+    }
   }
 
   let providerRefund = null;
@@ -479,7 +494,8 @@ export async function processOrderReturnRefund(role, actorId, returnId, { strict
         [target.order_id],
       );
       const totalOrderCentavos = Math.round(Number(target.total_amount) * 100);
-      if (Number(totals[0]?.refunded_centavos || 0) >= totalOrderCentavos) {
+      const allItemsReturned = grossReturnedCentavos >= totalOrderCentavos;
+      if (Number(totals[0]?.refunded_centavos || 0) >= totalOrderCentavos || allItemsReturned) {
         await query(connection,
           "UPDATE marketplace_order SET payment_status = 'Refunded' WHERE order_id = ? AND payment_method = 'paymongo'",
           [target.order_id],

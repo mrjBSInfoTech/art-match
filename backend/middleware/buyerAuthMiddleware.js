@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { getAccountAccess } from "../database/accountAccess.js";
+import { clearAuthCookieOptions } from "../utils/authCookies.js";
 
 export const authenticateBuyer = (req, res, next) => {
   const token =
@@ -20,7 +21,8 @@ export const authenticateBuyer = (req, res, next) => {
     { algorithms: ["HS256"] },
     (err, user) => {
       if (err) {
-        return res.status(403).json({ message: "Invalid or expired token." });
+        res.clearCookie("buyer_token", clearAuthCookieOptions());
+        return res.status(401).json({ message: "Invalid or expired token." });
       }
 
       const normalizedRole = String(user.role || "").trim().toLowerCase().replace(/[\s_-]+/g, "");

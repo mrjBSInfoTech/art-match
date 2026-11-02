@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import { Link as RouterLink, useParams, useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -46,9 +47,11 @@ import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { isAuthenticated } from "../../../utils/auth";
 
-const unavailableImageSrc = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="100%" height="100%" fill="#e2e8f0"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#64748b" font-family="sans-serif" font-size="24">Image unavailable</text></svg>',
-);
+const unavailableImageSrc =
+  "data:image/svg+xml;charset=utf-8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="100%" height="100%" fill="#e2e8f0"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#64748b" font-family="sans-serif" font-size="24">Image unavailable</text></svg>',
+  );
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -143,8 +146,7 @@ export default function ArtworkDetail() {
     const loadRecentlyViewed = async () => {
       try {
         const customerId =
-          isAuthenticated("buyer") &&
-          localStorage.getItem("buyer_customer_id");
+          isAuthenticated("buyer") && localStorage.getItem("buyer_customer_id");
         const viewer = customerId
           ? `buyer-${customerId}`
           : `guest-${getRecommendationSessionId()}`;
@@ -271,7 +273,10 @@ export default function ArtworkDetail() {
       <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
         <Grid container spacing={{ xs: 2, md: 4 }}>
           <Grid size={{ xs: 12, md: 7 }}>
-            <Skeleton variant="rounded" sx={{ aspectRatio: { xs: "1 / 1", md: "4 / 5" }, maxHeight: 760 }} />
+            <Skeleton
+              variant="rounded"
+              sx={{ aspectRatio: { xs: "1 / 1", md: "4 / 5" }, maxHeight: 760 }}
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 5 }}>
             <Skeleton variant="rounded" height={430} />
@@ -304,12 +309,16 @@ export default function ArtworkDetail() {
       : artwork.image
     : "https://via.placeholder.com/600x800?text=No+Image";
   const isSoldOut = isArtworkSoldOut(artwork);
-  const isProduct = String(artwork?.art_type || "").trim().toLowerCase() === "product";
+  const isProduct =
+    String(artwork?.art_type || "")
+      .trim()
+      .toLowerCase() === "product";
   const productPriceMode = (() => {
     try {
-      const details = typeof artwork.artwork_details === "string"
-        ? JSON.parse(artwork.artwork_details)
-        : artwork.artwork_details;
+      const details =
+        typeof artwork.artwork_details === "string"
+          ? JSON.parse(artwork.artwork_details)
+          : artwork.artwork_details;
       return details?.product_price_mode || "shared";
     } catch {
       return "shared";
@@ -318,25 +327,42 @@ export default function ArtworkDetail() {
   const optionPrices = productOptions
     .map((option) => Number(option.price))
     .filter((price) => Number.isFinite(price) && price > 0);
-  const displayedUnitPrice = isProduct && productPriceMode === "manual" && optionPrices.length
-    ? Math.min(...optionPrices)
-    : Number(artwork.price || 0);
-  const hasPriceRange = isProduct && productPriceMode === "manual"
-    && optionPrices.some((price) => price !== displayedUnitPrice);
-  const isOutOfStock = isSoldOut || (
-    isProduct && productOptions.length > 0
-    && productOptions.every(
-      (option) => Number(option.remaining_stock ?? option.quantity ?? 0) <= 0,
-    )
+  const displayedUnitPrice =
+    isProduct && productPriceMode === "manual" && optionPrices.length
+      ? Math.min(...optionPrices)
+      : Number(artwork.price || 0);
+  const hasPriceRange =
+    isProduct &&
+    productPriceMode === "manual" &&
+    optionPrices.some((price) => price !== displayedUnitPrice);
+  const isOutOfStock =
+    isSoldOut ||
+    (isProduct &&
+      productOptions.length > 0 &&
+      productOptions.every(
+        (option) => Number(option.remaining_stock ?? option.quantity ?? 0) <= 0,
+      ));
+  const detailCategory = getArtworkDetailCategory(
+    artwork.art_type,
+    artwork.product,
   );
-  const detailCategory = getArtworkDetailCategory(artwork.art_type, artwork.product);
 
   const similarArtworks = getSimilarArtworks(artwork, artworks);
 
-  const handleAddToCart = async (artworkId, quantity = 1, selectedProducts = undefined, orderNote = undefined) => {
+  const handleAddToCart = async (
+    artworkId,
+    quantity = 1,
+    selectedProducts = undefined,
+    orderNote = undefined,
+  ) => {
     try {
       setAddingToCart(true);
-      const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
+      const result = await addToCart(
+        artworkId,
+        quantity,
+        selectedProducts,
+        orderNote,
+      );
       setIsInCart(true);
       setCartMessage("Added to cart");
       showSnackbar(result?.message || "Artwork added to cart", "success");
@@ -349,11 +375,7 @@ export default function ArtworkDetail() {
         );
       }
       setCartMessage(
-        error.status === 409
-          ? soldOut
-            ? "Sold out"
-            : "Already in cart"
-          : "",
+        error.status === 409 ? (soldOut ? "Sold out" : "Already in cart") : "",
       );
       showSnackbar(
         error.message || "Unable to add artwork to cart",
@@ -374,7 +396,10 @@ export default function ArtworkDetail() {
       setCartMessage("Removed from cart");
       showSnackbar("Artwork removed from cart", "success");
     } catch (error) {
-      showSnackbar(error.message || "Unable to remove artwork from cart", "error");
+      showSnackbar(
+        error.message || "Unable to remove artwork from cart",
+        "error",
+      );
     } finally {
       setIsRemovingFromCart(false);
     }
@@ -406,8 +431,14 @@ export default function ArtworkDetail() {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2.5, sm: 4, md: 6 }, px: { xs: 2, sm: 3, lg: 5 } }}>
-    <Grid container spacing={{ xs: 2.5, md: 4 }} alignItems="flex-start">
+    <Container
+      maxWidth="xl"
+      sx={{ py: { xs: 2.5, sm: 4, md: 6 }, px: { xs: 2, sm: 3, lg: 5 } }}
+    >
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Details</title>
+      </Helmet>
+      <Grid container spacing={{ xs: 2.5, md: 4 }} alignItems="flex-start">
         <Grid size={{ xs: 12, md: 7 }}>
           <WatermarkedArtworkImage
             image={artwork.image || imageUrl}
@@ -417,7 +448,11 @@ export default function ArtworkDetail() {
             hideWhenBlurred
             sx={{
               width: "100%",
-              height: { xs: "min(72vh, 560px)", sm: "min(78vh, 700px)", md: "min(82vh, 760px)" },
+              height: {
+                xs: "min(72vh, 560px)",
+                sm: "min(78vh, 700px)",
+                md: "min(82vh, 760px)",
+              },
               maxWidth: "100%",
               mx: "auto",
               borderRadius: { xs: 2, md: 3 },
@@ -442,7 +477,9 @@ export default function ArtworkDetail() {
               }
             }}
           />
-          {String(artwork.product_type || "").trim().toLowerCase() === "customize" && (
+          {String(artwork.product_type || "")
+            .trim()
+            .toLowerCase() === "customize" && (
             <Box
               sx={{
                 mt: 2,
@@ -454,7 +491,9 @@ export default function ArtworkDetail() {
               }}
             >
               <WatermarkedArtworkImage
-                image={artwork.product_sample_image || artwork.image || imageUrl}
+                image={
+                  artwork.product_sample_image || artwork.image || imageUrl
+                }
                 alt={`${artwork.title} product sample`}
                 variant="web"
                 sx={{
@@ -495,7 +534,10 @@ export default function ArtworkDetail() {
                 label={isOutOfStock ? "Sold out" : "Available"}
                 size="small"
                 color={isOutOfStock ? "default" : "success"}
-                sx={{ fontWeight: "bold", color: isOutOfStock ? undefined : "#fff" }}
+                sx={{
+                  fontWeight: "bold",
+                  color: isOutOfStock ? undefined : "#fff",
+                }}
               />
             </Stack>
             <Typography
@@ -518,13 +560,23 @@ export default function ArtworkDetail() {
                 placement="top"
                 title={
                   <Box sx={{ maxWidth: 280, py: 0.25 }}>
-                    <Typography variant="subtitle2" fontWeight={700} color="inherit">
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      color="inherit"
+                    >
                       {artwork.shop_name || artwork.artist || "Unknown artist"}
                     </Typography>
-                    <Typography variant="body2" color="inherit" sx={{ mt: 0.5 }}>
-                      {artwork.shop_description?.trim()
-                        || [artwork.course, artwork.year_level].filter(Boolean).join(" · ")
-                        || "View this artist’s profile to learn more about their work."}
+                    <Typography
+                      variant="body2"
+                      color="inherit"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {artwork.shop_description?.trim() ||
+                        [artwork.course, artwork.year_level]
+                          .filter(Boolean)
+                          .join(" · ") ||
+                        "View this artist’s profile to learn more about their work."}
                     </Typography>
                   </Box>
                 }
@@ -539,7 +591,10 @@ export default function ArtworkDetail() {
                     alignItems: "center",
                     fontWeight: 700,
                     textDecoration: "none",
-                    "&:hover": { color: "primary.main", textDecoration: "underline" },
+                    "&:hover": {
+                      color: "primary.main",
+                      textDecoration: "underline",
+                    },
                   }}
                 >
                   {artwork.shop_name || artwork.artist || "Unknown artist"}
@@ -547,7 +602,11 @@ export default function ArtworkDetail() {
               </Tooltip>
             </Typography>
             {artwork.art_type === "customize" && artwork.exact_art_type && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
+              >
                 Art type: {artwork.exact_art_type}
               </Typography>
             )}
@@ -561,9 +620,12 @@ export default function ArtworkDetail() {
                 fontSize: { xs: "1.8rem", sm: "2rem", md: "2.2rem" },
               }}
             >
-              {hasPriceRange ? "From " : ""}₱{displayedUnitPrice.toLocaleString()}
+              {hasPriceRange ? "From " : ""}₱
+              {displayedUnitPrice.toLocaleString()}
             </Typography>
-            <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2.5 }}>
+            <Box
+              sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2.5 }}
+            >
               <Stack spacing={1.5}>
                 <Row
                   label="Medium"
@@ -572,7 +634,11 @@ export default function ArtworkDetail() {
                 <Row label="Size" value={artwork.art_size || "Unknown"} />
                 <Row label="Style" value={artwork.genre || "Unknown"} />
                 {detailCategory && (
-                  <ArtworkAdditionalDetails artwork={artwork} category={detailCategory} RowComponent={Row} />
+                  <ArtworkAdditionalDetails
+                    artwork={artwork}
+                    category={detailCategory}
+                    RowComponent={Row}
+                  />
                 )}
               </Stack>
               {isProduct && isOutOfStock && (
@@ -594,7 +660,11 @@ export default function ArtworkDetail() {
                   variant="contained"
                   color="primary"
                   fullWidth
-                  disabled={addingToCart || isRemovingFromCart || (isOutOfStock && !isInCart)}
+                  disabled={
+                    addingToCart ||
+                    isRemovingFromCart ||
+                    (isOutOfStock && !isInCart)
+                  }
                   onClick={() => {
                     if (isInCart) {
                       void handleRemoveFromCart();
@@ -664,7 +734,12 @@ export default function ArtworkDetail() {
                 <Typography
                   variant="body2"
                   color="text.primary"
-                  sx={{ mt: 0.75, fontSize: { xs: "0.95rem", sm: "1rem" }, lineHeight: 1.75, whiteSpace: "pre-line" }}
+                  sx={{
+                    mt: 0.75,
+                    fontSize: { xs: "0.95rem", sm: "1rem" },
+                    lineHeight: 1.75,
+                    whiteSpace: "pre-line",
+                  }}
                 >
                   {artwork.description || "No description provided."}
                 </Typography>
@@ -686,7 +761,12 @@ export default function ArtworkDetail() {
                 <Typography
                   variant="body2"
                   color="text.primary"
-                  sx={{ mt: 0.75, fontSize: { xs: "0.95rem", sm: "1rem" }, lineHeight: 1.75, whiteSpace: "pre-line" }}
+                  sx={{
+                    mt: 0.75,
+                    fontSize: { xs: "0.95rem", sm: "1rem" },
+                    lineHeight: 1.75,
+                    whiteSpace: "pre-line",
+                  }}
                 >
                   {artwork.care_instructions?.trim()
                     ? artwork.care_instructions
@@ -855,14 +935,20 @@ export default function ArtworkDetail() {
         <CustomizeOrderDialog
           open={customizeDialogOpen}
           artwork={artwork}
-          isCustomizable={String(artwork?.product_type || "").trim().toLowerCase() === "customize"}
+          isCustomizable={
+            String(artwork?.product_type || "")
+              .trim()
+              .toLowerCase() === "customize"
+          }
           onClose={() => setCustomizeDialogOpen(false)}
-          onConfirm={(orderNote) => handleAddToCart(
-            artwork.artwork_id || artwork.id,
-            1,
-            undefined,
-            orderNote,
-          )}
+          onConfirm={(orderNote) =>
+            handleAddToCart(
+              artwork.artwork_id || artwork.id,
+              1,
+              undefined,
+              orderNote,
+            )
+          }
           isSubmitting={addingToCart}
         />
       </Grid>
@@ -960,8 +1046,6 @@ export default function ArtworkDetail() {
       {/* Snackbar Notification */}
       <Snackbar
         open={snackbarOpen}
-        severity={snackbarSeverity}
-        variant="filled"
         autoHideDuration={3000}
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
@@ -970,11 +1054,30 @@ export default function ArtworkDetail() {
         <Alert
           onClose={closeSnackbar}
           severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            width: "100%",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
             backgroundColor: getSeverityColor(snackbarSeverity),
             color: "#fff",
-            "& .MuiAlert-icon": { color: "#fff" },
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
           }}
         >
           {snackbarMessage}

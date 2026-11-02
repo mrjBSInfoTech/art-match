@@ -8,20 +8,25 @@ axios.defaults.withCredentials = true;
 axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";
 
 const handleSessionExpiration = (error) => {
-  if (error.response?.status === 401) {
+  const status = error.response?.status;
+  if (status === 401 || status === 403) {
     const url = error.config?.url || "";
+    const pathname = window.location.pathname || "";
+
     // Do not clear state or redirect on login/register attempt failures
     if (url.includes("/login") || url.includes("/register")) {
       return Promise.reject(error);
     }
-    if (url.includes("admin") && !window.location.pathname.startsWith("/admin/login")) {
+
+    if (url.includes("admin") && !pathname.startsWith("/admin/login")) {
       clearAuthData("admin");
       window.location.assign("/admin/login");
-    } else if (url.includes("seller") && !window.location.pathname.startsWith("/seller/login")) {
+    } else if (url.includes("seller") && !pathname.startsWith("/seller/login")) {
       clearAuthData("seller");
       window.location.assign("/seller/login");
-    } else if (url.includes("buyer")) {
+    } else if (url.includes("buyer") && !pathname.startsWith("/buyer/login")) {
       clearAuthData("buyer");
+      window.location.assign("/buyer/login");
     }
   }
   return Promise.reject(error);

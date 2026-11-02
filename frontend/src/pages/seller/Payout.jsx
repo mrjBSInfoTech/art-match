@@ -10,8 +10,10 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import PayoutAccount from "../../components/seller/Payout/PayoutAccount";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
@@ -22,6 +24,20 @@ function SlideTransition(props) {
 }
 
 export default function SellerPayout() {
+  const theme = useTheme();
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "error":
+        return theme.palette.error.main;
+      case "warning":
+        return theme.palette.warning.main;
+      case "info":
+        return theme.palette.info.main;
+      default:
+        return theme.palette.success.main;
+    }
+  };
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -57,6 +73,15 @@ export default function SellerPayout() {
     setRefresh((value) => value + 1);
   };
 
+  if (error) {
+    return (
+      <ConnectionErrorPanel
+        title="Payouts unavailable"
+        onRetry={reload}
+      />
+    );
+  }
+
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Helmet>
@@ -90,7 +115,6 @@ export default function SellerPayout() {
             reload();
           }}
         />
-        {error && <Alert severity="error">{error}</Alert>}
         {loading && (
           <Stack alignItems="center" sx={{ py: 3 }}>
             <CircularProgress aria-label="Loading seller earnings" />
@@ -120,20 +144,43 @@ export default function SellerPayout() {
       </Stack>
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={6000}
+        autoHideDuration={3000}
         onClose={(_, reason) => {
           if (reason !== "clickaway") {
             setSnackbarOpen(false);
           }
         }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         TransitionComponent={SlideTransition}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
           severity={snackbarSeverity}
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
         >
           {snackbarMessage}
         </Alert>

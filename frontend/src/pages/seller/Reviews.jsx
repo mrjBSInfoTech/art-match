@@ -11,12 +11,14 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
+  Paper,
   Rating,
   Select,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   fetchSellerReviews,
   saveSellerReviewResponse,
@@ -227,6 +229,7 @@ function SellerReviewCard({ review, onResponseSaved }) {
 }
 
 export default function SellerReviews() {
+  const theme = useTheme();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -299,21 +302,36 @@ export default function SellerReviews() {
     );
   };
 
+  const totalNeedResponse = reviews.filter((review) => !review.sellerResponse).length;
+
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Stack
         direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
         alignItems={{ xs: "flex-start", sm: "center" }}
-        spacing={1}
+        gap={2}
         sx={{ mb: 3 }}
       >
         <Box>
-          <Typography component="h1" variant="h4" fontWeight={700}>
-            Review and Ratings
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Reviews & Ratings
           </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Buyer feedback for your artwork
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Buyer feedback for your artwork and seller experience.
           </Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" aria-live="polite">
@@ -343,6 +361,78 @@ export default function SellerReviews() {
         </Alert>
       )}
 
+      {!error && !loading && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+            gap: 2,
+            mb: 2.5,
+          }}
+        >
+          {[
+            {
+              label: "TOTAL REVIEWS",
+              value: reviews.length,
+              caption: "Customer feedback received",
+            },
+            {
+              label: "AVERAGE RATING",
+              value: reviews.length ? averageRating.toFixed(1) : "—",
+              caption: "Across visible reviews",
+            },
+            {
+              label: "NEED RESPONSE",
+              value: totalNeedResponse,
+              caption: "Awaiting seller reply",
+            },
+          ].map((item) => (
+            <Card
+              key={item.label}
+              sx={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2.5,
+                boxShadow: "none",
+              }}
+            >
+              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                <Typography
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 1,
+                  }}
+                >
+                  {item.label}
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    color: theme.palette.text.primary,
+                    fontSize: 30,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                  }}
+                >
+                  {item.value}
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 1,
+                    color: theme.palette.text.secondary,
+                    fontSize: 12,
+                  }}
+                >
+                  {item.caption}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      )}
+
       {loading ? (
         <Box role="status" aria-label="Loading reviews" sx={{ display: "grid", placeItems: "center", py: 6 }}>
           <CircularProgress size={32} />
@@ -350,7 +440,17 @@ export default function SellerReviews() {
       ) : !error && (
         <>
           {reviews.length > 0 && (
-            <Autocomplete
+            <Paper
+              variant="outlined"
+              sx={{
+                p: { xs: 2, md: 2.5 },
+                borderRadius: 2.5,
+                backgroundColor: theme.palette.background.paper,
+                borderColor: theme.palette.divider,
+                mb: 2.5,
+              }}
+            >
+              <Autocomplete
                 fullWidth
                 id="seller-review-artwork-filter"
                 options={artworkOptions}
@@ -386,12 +486,20 @@ export default function SellerReviews() {
                     helperText="Search by artwork title, then select to filter reviews."
                   />
                 )}
-                sx={{ mb: 2.5 }}
-            />
+              />
+            </Paper>
           )}
 
-          <Card variant="outlined" sx={{ borderRadius: 3, mb: 3 }}>
-            <CardContent>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2, md: 2.5 },
+              borderRadius: 2.5,
+              backgroundColor: theme.palette.background.paper,
+              borderColor: theme.palette.divider,
+            }}
+          >
+            <Box sx={{ mb: 2.5 }}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 alignItems={{ xs: "flex-start", sm: "center" }}
@@ -415,43 +523,41 @@ export default function SellerReviews() {
                   {visibleReviews.length === 1 ? "rating" : "ratings"}
                 </Typography>
               </Stack>
-            </CardContent>
-          </Card>
+            </Box>
 
-          {visibleReviews.length === 0 ? (
-            <Card variant="outlined" sx={{ borderRadius: 3 }}>
-              <CardContent sx={{ py: 5, textAlign: "center" }}>
+            {visibleReviews.length === 0 ? (
+              <Box sx={{ py: 5, textAlign: "center" }}>
                 <Typography variant="h6" fontWeight={600}>
                   No reviews yet
                 </Typography>
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                   Ratings and comments for your artwork will appear here.
                 </Typography>
-              </CardContent>
-            </Card>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  md: "repeat(2, minmax(0, 1fr))",
-                  xl: "repeat(3, minmax(0, 1fr))",
-                },
-                gap: { xs: 1.5, sm: 2 },
-                alignItems: "stretch",
-              }}
-            >
-              {visibleReviews.map((review) => (
-                <Box key={review.id} sx={{ minWidth: 0 }}>
-                  <SellerReviewCard
-                    review={review}
-                    onResponseSaved={handleResponseSaved}
-                  />
-                </Box>
-              ))}
-            </Box>
-          )}
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "minmax(0, 1fr)",
+                    md: "repeat(2, minmax(0, 1fr))",
+                    xl: "repeat(3, minmax(0, 1fr))",
+                  },
+                  gap: { xs: 1.5, sm: 2 },
+                  alignItems: "stretch",
+                }}
+              >
+                {visibleReviews.map((review) => (
+                  <Box key={review.id} sx={{ minWidth: 0 }}>
+                    <SellerReviewCard
+                      review={review}
+                      onResponseSaved={handleResponseSaved}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Paper>
         </>
       )}
     </Box>
