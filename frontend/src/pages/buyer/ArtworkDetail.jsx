@@ -44,6 +44,7 @@ import { getArtworkDetailCategory } from "../../utils/artworkDetails";
 import { isArtworkSoldOut } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
+import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { isAuthenticated } from "../../../utils/auth";
 
@@ -354,6 +355,7 @@ export default function ArtworkDetail() {
     quantity = 1,
     selectedProducts = undefined,
     orderNote = undefined,
+    targetArtwork = artwork,
   ) => {
     try {
       setAddingToCart(true);
@@ -365,7 +367,30 @@ export default function ArtworkDetail() {
       );
       setIsInCart(true);
       setCartMessage("Added to cart");
-      showSnackbar(result?.message || "Artwork added to cart", "success");
+      let chatNotice = "";
+      let chatSeverity = "success";
+      if (typeof orderNote === "string" && orderNote.trim()) {
+        try {
+          const { previewFailed } = await sendOrderNoteToSeller({
+            artwork: targetArtwork,
+            artworkId,
+            quantity,
+            selectedProducts,
+            orderNote,
+          });
+          if (previewFailed) {
+            chatNotice = " The order note was sent to the seller, but its preview could not be attached.";
+            chatSeverity = "warning";
+          } else {
+            chatNotice = " The order note and product preview were sent to the seller chat.";
+          }
+        } catch (chatError) {
+          console.error("Unable to send order note to seller chat:", chatError);
+          chatNotice = ` The note was saved in your cart but could not be sent to seller chat: ${chatError.message}`;
+          chatSeverity = "warning";
+        }
+      }
+      showSnackbar(`${result?.message || "Artwork added to cart"}${chatNotice}`, chatSeverity);
       return result;
     } catch (error) {
       const soldOut = error.status === 409 && /sold out/i.test(error.message);

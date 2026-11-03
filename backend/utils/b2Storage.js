@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 
 dotenv.config();
@@ -95,6 +96,23 @@ export const getFromB2 =
       }),
     );
   };
+
+export const listB2Objects = async function* (prefix) {
+  let continuationToken;
+  do {
+    const result = await getB2Client().send(
+      new ListObjectsV2Command({
+        Bucket: process.env.B2_BUCKET,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+    for (const object of result.Contents || []) {
+      if (object.Key && object.Key !== prefix) yield object;
+    }
+    continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+  } while (continuationToken);
+};
 
 export const deleteFromB2 =
   async (key) => {

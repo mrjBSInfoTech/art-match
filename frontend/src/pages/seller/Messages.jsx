@@ -121,6 +121,8 @@ export default function Messages() {
   const [attachedPreview, setAttachedPreview] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [recoveryVersion, setRecoveryVersion] = useState(0);
+  const [recoveryStatus, setRecoveryStatus] = useState("");
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [, setNotifications] = useState([]);
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
@@ -147,6 +149,7 @@ export default function Messages() {
   const publicKeyJwkRef = useRef("");
   const recoveryBackupRef = useRef(null);
   const recoveryStorageKeyRef = useRef("");
+  const pendingRecoveryRef = useRef(false);
   const previewPublicKeysRef = useRef(new Map());
   const decryptedPreviewCacheRef = useRef(new Map());
   const messagesContainerRef = useRef(null);
@@ -223,6 +226,7 @@ export default function Messages() {
           privateKeyRef.current = keyPair.privateKey;
           publicKeyJwkRef.current = keyPair.publicKeyJwk;
           await registerSellerChatKey(keyPair.publicKeyJwk);
+          pendingRecoveryRef.current = true;
         }
         const backup = await encryptChatKeyBackup(
           {
@@ -243,9 +247,16 @@ export default function Messages() {
         publicKeyJwkRef.current = keyPair.publicKeyJwk;
         await registerSellerChatKey(keyPair.publicKeyJwk);
       }
+      const restoredExistingKey = pinDialogMode !== "create";
       setRecoveryMode("");
       setPinDialogMode("");
       setEncryptionReady(true);
+      if (restoredExistingKey) {
+        decryptedPreviewCacheRef.current.clear();
+        lastMessageIdsRef.current = null;
+        previewPublicKeysRef.current.clear();
+        setRecoveryVersion((version) => version + 1);
+      }
     } catch (err) {
       setRecoveryError(
         err.message
@@ -256,6 +267,17 @@ export default function Messages() {
     } finally {
       setRecoveryBusy(false);
     }
+  };
+
+  const handleRecoverMessages = () => {
+    if (!recoveryBackupRef.current) {
+      setRecoveryError("No recovery backup is saved for this account.");
+      return;
+    }
+    setRecoveryError("");
+    setRecoveryStatus("");
+    setChatUnlockRequested(true);
+    setPinDialogMode("restore");
   };
 
   const handleRecoveryReset = async () => {
@@ -552,6 +574,7 @@ export default function Messages() {
                 sender: msg.sender_type,
                 text: decrypted.text,
                 image: decrypted.image,
+                attachmentError: decrypted.attachmentError,
                 mediaType: msg.media_type || "",
                 time: formatMessageTime(msg.date_created),
               };
@@ -563,10 +586,24 @@ export default function Messages() {
                 image: null,
                 mediaType: "",
                 time: formatMessageTime(msg.date_created),
+                decryptionFailed: Boolean(msg.encryption_iv),
+                canRecover: Boolean(msg.encryption_iv && recoveryBackupRef.current),
+                recoveryUnavailable: Boolean(msg.encryption_iv && !recoveryBackupRef.current),
               };
             }
           }),
         );
+        if (pendingRecoveryRef.current) {
+          const undecryptedCount = decryptedMessages.filter(
+            (message) => message.decryptionFailed,
+          ).length;
+          setRecoveryStatus(
+            undecryptedCount
+              ? `The passkey was accepted, but ${undecryptedCount} encrypted message${undecryptedCount === 1 ? "" : "s"} still could not be decrypted. This backup may not match the key used for this conversation.`
+              : "The chat key was restored and the messages in this conversation are readable.",
+          );
+          pendingRecoveryRef.current = false;
+        }
         const messageIds = decryptedMessages.map((message) => message.id).join(",");
         if (messageIds !== lastMessageIdsRef.current) {
           const container = messagesContainerRef.current;
@@ -614,7 +651,7 @@ export default function Messages() {
     return () => {
       if (loadMessagesRef.current === loadMessages) loadMessagesRef.current = null;
     };
-  }, [selectedConversationId, encryptionReady]);
+  }, [selectedConversationId, encryptionReady, recoveryVersion, activeChat?.other_id]);
 
   const normalizeConversationPreview = (value, chat) => {
     const text = String(value ?? "").trim();
@@ -831,6 +868,11 @@ export default function Messages() {
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+        </Alert>
+      )}
+      {recoveryStatus && (
+        <Alert severity={recoveryStatus.startsWith("The passkey was accepted") ? "warning" : "success"} sx={{ mb: 2 }}>
+          {recoveryStatus}
         </Alert>
       )}
 
@@ -1063,7 +1105,12 @@ export default function Messages() {
                 </Typography>
               ) : (
                 messages.map((message) => (
-                  <MessageCard key={message.id} message={message} onViewMedia={setSelectedMedia} />
+                  <MessageCard
+                    key={message.id}
+                    message={message}
+                    onViewMedia={setSelectedMedia}
+                    onRecover={handleRecoverMessages}
+                  />
                 ))
               )}
             </Box>

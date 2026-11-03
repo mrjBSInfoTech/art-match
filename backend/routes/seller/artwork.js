@@ -22,7 +22,13 @@ import {
   parseArtworkScanOverrides,
   resolveArtworkScanUpdate,
 } from "../../utils/artworkScanAttributes.js";
-import { baseNameOf, removeDerivatives, writeDerivatives } from "../../utils/artworkStorage.js";
+import {
+  baseNameOf,
+  removeArtworkSource,
+  removeDerivatives,
+  writeArtworkSource,
+  writeDerivatives,
+} from "../../utils/artworkStorage.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { getProductOptions } from "../../utils/productOptions.js";
 
@@ -383,6 +389,8 @@ router.post(
   async (req, res) => {
     const uploadedProductImageNames = [];
     let productSampleImageName = null;
+    let artworkImageName = null;
+    let artworkRecordCreated = false;
     try {
       if (!req.file) {
         removeRequestUploads(req);
@@ -471,36 +479,32 @@ router.post(
         mediums_used: detectedMediums,
       }, scanOverrides);
 
-      const imageName = `${path.parse(req.file.filename).name}.webp`;
+      artworkImageName = `${path.parse(req.file.filename).name}.webp`;
       if (req.productSampleFile) {
         productSampleImageName = await uploadProductSampleImage(req.productSampleFile);
       }
 
-      const b2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
-
       try {
-        await uploadToB2({
-          key: b2Key,
-          body: compressedImage,
-          contentType: "image/webp",
-        });
-
+        await writeArtworkSource(compressedImage, artworkImageName);
         // Public browsers only ever receive the small derived files. They are
         // generated from the processed image, so the published copy carries no
         // camera/GPS metadata and is capped at 1600 px (web) / 400 px (thumb).
-        await writeDerivatives(compressedImage, baseNameOf(imageName));
+        await writeDerivatives(compressedImage, baseNameOf(artworkImageName));
 
-        console.log("Artwork uploaded to B2:", b2Key);
-      } catch (b2Error) {
-        await removeDerivatives(baseNameOf(imageName));
+        console.log("Artwork image stored:", artworkImageName);
+      } catch (storageError) {
+        await removeArtworkSource(artworkImageName).catch((cleanupError) =>
+          console.warn("Could not clean up artwork source:", cleanupError.message),
+        );
+        await removeDerivatives(baseNameOf(artworkImageName));
         if (productSampleImageName) {
           await removeDerivatives(baseNameOf(productSampleImageName));
         }
-        console.error("B2 artwork upload failed:", b2Error.message);
+        console.error("Artwork image storage failed:", storageError.message);
         removeRequestUploads(req);
 
         return res.status(502).json({
-          error: "Artwork image could not be uploaded to cloud storage.",
+          error: "Artwork image could not be saved.",
         });
       }
       uploadedProductImageNames.push(...await uploadProductOptionImages(productImageAssignments));
@@ -529,12 +533,16 @@ router.post(
           price,
           description.trim(),
           (care_instructions || "").trim(),
-          imageName,
+          artworkImageName,
           createdAt,
         ],
         async (err, result) => {
           if (err) {
             console.error("DB Error:", err);
+            await removeArtworkSource(artworkImageName).catch((cleanupError) =>
+              console.warn("Could not clean up artwork source:", cleanupError.message),
+            );
+            await removeDerivatives(baseNameOf(artworkImageName));
             await Promise.all(uploadedProductImageNames.map((image) =>
               removeDerivatives(baseNameOf(image)),
             ));
@@ -545,6 +553,7 @@ router.post(
           }
 
           const artworkId = result.insertId;
+          artworkRecordCreated = true;
 
           const artUploadSql = `
           INSERT INTO artupload (artwork_id, request_status, request_date)
@@ -611,6 +620,12 @@ router.post(
         }
         return res.status(400).json({ error: error.message });
       }
+      if (artworkImageName && !artworkRecordCreated) {
+        await removeArtworkSource(artworkImageName).catch((cleanupError) =>
+          console.warn("Could not clean up artwork source:", cleanupError.message),
+        );
+        await removeDerivatives(baseNameOf(artworkImageName));
+      }
       removeRequestUploads(req);
       await Promise.all(uploadedProductImageNames.map((image) =>
         removeDerivatives(baseNameOf(image)),
@@ -666,6 +681,7 @@ router.put(
     const uploadedProductImageNames = [];
     let newProductSampleImageName = null;
     let artworkUpdateCommitted = false;
+    let imageName = null;
 
     const studentId = req.user?.student_id || req.user?.id;
 
@@ -755,27 +771,16 @@ router.put(
         productSampleImageName = null;
       }
 
-      let imageName = null;
-
       // If seller selected a new image,
-      // upload it to B2 first.
+      // store it before updating the database.
       if (req.file) {
         const compressedImage = await compressArtworkImage(temporaryImagePath);
         imageName = `${path.parse(req.file.filename).name}.webp`;
 
-        const newB2Key = `app-uploads/seller/uploadArtwork/${imageName}`;
-
-        await uploadToB2({
-          key: newB2Key,
-
-          body: compressedImage,
-
-          contentType: "image/webp",
-        });
-
+        await writeArtworkSource(compressedImage, imageName);
         await writeDerivatives(compressedImage, baseNameOf(imageName));
 
-        console.log("Updated artwork image uploaded to B2:", newB2Key);
+        console.log("Updated artwork image stored:", imageName);
       }
       uploadedProductImageNames.push(...await uploadProductOptionImages(productImageAssignments));
 
@@ -876,22 +881,19 @@ router.put(
         });
       }
 
-      // New image successfully saved
-      // to DB, so remove old B2 image.
+      // New image successfully saved to the database, so remove the old source.
       if (
         req.file &&
         currentArtwork.image &&
         currentArtwork.image !== imageName
       ) {
-        const oldB2Key = `app-uploads/seller/uploadArtwork/${currentArtwork.image}`;
-
         try {
-          await deleteFromB2(oldB2Key);
-
-          console.log("Old artwork image deleted from B2:", oldB2Key);
+          await removeArtworkSource(currentArtwork.image);
+          console.log("Old artwork image removed:", currentArtwork.image);
         } catch (deleteError) {
-          console.warn("Could not delete old B2 image:", deleteError.message);
+          console.warn("Could not remove old artwork image:", deleteError.message);
         }
+        await removeDerivatives(baseNameOf(currentArtwork.image));
       }
       if (
         currentArtwork.product_sample_image &&
@@ -932,6 +934,12 @@ router.put(
       // Clean temporary file
       // even when update fails.
       removeRequestUploads(req);
+      if (req.file && imageName && !artworkUpdateCommitted) {
+        await removeArtworkSource(imageName).catch((cleanupError) =>
+          console.warn("Could not clean up updated artwork source:", cleanupError.message),
+        );
+        await removeDerivatives(baseNameOf(imageName));
+      }
       await Promise.all(uploadedProductImageNames.map((image) =>
         removeDerivatives(baseNameOf(image)),
       ));
@@ -1003,33 +1011,16 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
       );
     });
 
-    // Then remove its cloud image.
+    // Then remove its stored source.
     if (artwork.image) {
-      const b2Key = `app-uploads/seller/uploadArtwork/${artwork.image}`;
-
       try {
-        await deleteFromB2(b2Key);
-
-        console.log("Artwork image deleted from B2:", b2Key);
-      } catch (b2Error) {
-        // DB deletion already succeeded,
-        // so don't fail the whole request.
-        console.warn(
-          "Artwork deleted, but B2 cleanup failed:",
-          b2Error.message,
-        );
+        await removeArtworkSource(artwork.image);
+      } catch (storageError) {
+        console.warn("Artwork deleted, but source cleanup failed:", storageError.message);
       }
     }
 
-    // Also clean an old local copy
-    // if one happens to exist.
     if (artwork.image) {
-      const localPath = path.join(uploadDir, artwork.image);
-
-      if (fs.existsSync(localPath)) {
-        fs.unlinkSync(localPath);
-      }
-
       // Remove the published low-res derivatives too, so a deleted artwork
       // cannot still be fetched by URL.
       await removeDerivatives(baseNameOf(artwork.image));

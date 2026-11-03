@@ -33,6 +33,33 @@ export const saveAccountExpirationDate = async (date) => {
   }
 };
 
+export const downloadSystemBackup = async () => {
+  try {
+    const response = await api.get("/backup", {
+      responseType: "blob",
+      timeout: 0,
+    });
+    const disposition = response.headers["content-disposition"] || "";
+    const filename = disposition.match(/filename="([^"]+)"/i)?.[1]
+      || `artmatch-system-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+    return { blob: response.data, filename };
+  } catch (error) {
+    const responseData = error.response?.data;
+    if (responseData instanceof Blob) {
+      try {
+        const payload = JSON.parse(await responseData.text());
+        throw new Error(payload.message || "Unable to download the system backup.");
+      } catch (parseError) {
+        if (parseError instanceof SyntaxError) {
+          throw new Error(error.message || "Unable to download the system backup.");
+        }
+        throw parseError;
+      }
+    }
+    throwApiError(error);
+  }
+};
+
 export const fetchPromotionHeroEnabled = async () => {
   try {
     const response = await api.get("/promotion-hero");

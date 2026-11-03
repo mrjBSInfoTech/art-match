@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createChatKeyPair,
+  decryptChatMessage,
+  encryptChatMessage,
   encryptChatKeyBackup,
   restoreChatKeyPair,
 } from "./chatEncryption.js";
@@ -34,6 +36,89 @@ test("chat recovery backup restores an E2EE key only with its six-digit PIN", as
     assert.equal(restoredPrivate.d, originalPrivate.d);
     assert.equal(values.has(storageKey), true);
   } finally {
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+});
+
+test("a restored chat key decrypts messages encrypted before recovery", async () => {
+  const previousStorage = globalThis.localStorage;
+  const values = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+
+  try {
+    const sender = await createChatKeyPair("test_sender_key_pair");
+    const recipient = await createChatKeyPair("test_recipient_key_pair");
+    const backup = await encryptChatKeyBackup(recipient, "391704");
+    const encrypted = await encryptChatMessage({
+      privateKey: sender.privateKey,
+      recipientPublicKeyJwk: recipient.publicKeyJwk,
+      text: "Message sent before restoring the key.",
+    });
+
+    values.delete("test_recipient_key_pair");
+    const restored = await restoreChatKeyPair(
+      "test_recipient_key_pair",
+      backup,
+      "391704",
+    );
+    const decrypted = await decryptChatMessage({
+      privateKey: restored.privateKey,
+      keyAgreementPublicKey: sender.publicKeyJwk,
+      message: {
+        message_data: encrypted.encryptedText,
+        encryption_iv: encrypted.encryptionIv,
+      },
+    });
+
+    assert.equal(decrypted.text, "Message sent before restoring the key.");
+  } finally {
+    if (previousStorage === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previousStorage;
+  }
+});
+
+test("encrypted message text remains readable when its attachment cannot be opened", async () => {
+  const previousStorage = globalThis.localStorage;
+  const values = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  const sender = await createChatKeyPair("test_sender_key_pair");
+  const recipient = await createChatKeyPair("test_recipient_key_pair");
+  const encrypted = await encryptChatMessage({
+    privateKey: sender.privateKey,
+    recipientPublicKeyJwk: recipient.publicKeyJwk,
+    text: "Please customize this artwork.",
+  });
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("attachment unavailable", { status: 404 });
+
+  try {
+    const message = await decryptChatMessage({
+      privateKey: recipient.privateKey,
+      keyAgreementPublicKey: sender.publicKeyJwk,
+      attachmentUrl: "http://localhost/missing-attachment",
+      message: {
+        message_data: encrypted.encryptedText,
+        encryption_iv: encrypted.encryptionIv,
+        image: "http://localhost/missing-attachment",
+        attachment_iv: "AAAAAAAAAAAAAAAA",
+        media_type: "image/webp",
+      },
+    });
+
+    assert.equal(message.text, "Please customize this artwork.");
+    assert.equal(message.image, null);
+    assert.match(message.attachmentError, /attachment could not be opened/i);
+  } finally {
+    globalThis.fetch = previousFetch;
     if (previousStorage === undefined) delete globalThis.localStorage;
     else globalThis.localStorage = previousStorage;
   }

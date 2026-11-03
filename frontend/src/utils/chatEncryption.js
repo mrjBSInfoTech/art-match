@@ -204,20 +204,27 @@ export const decryptChatMessage = async ({ privateKey, message, attachmentUrl, k
   );
 
   let image = null;
+  let attachmentError = "";
   if (message.image && message.attachment_iv && attachmentUrl) {
-    const response = await fetch(attachmentUrl);
-    if (!response.ok) throw new Error("Unable to load encrypted attachment");
-    const encryptedAttachment = await response.arrayBuffer();
-    const decryptedAttachment = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: base64ToBytes(message.attachment_iv) },
-      encryptionKey,
-      encryptedAttachment,
-    );
-    image = URL.createObjectURL(new Blob([decryptedAttachment], { type: message.media_type || "application/octet-stream" }));
+    try {
+      const response = await fetch(attachmentUrl);
+      if (!response.ok) throw new Error("Unable to load encrypted attachment");
+      const encryptedAttachment = await response.arrayBuffer();
+      const decryptedAttachment = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: base64ToBytes(message.attachment_iv) },
+        encryptionKey,
+        encryptedAttachment,
+      );
+      image = URL.createObjectURL(new Blob([decryptedAttachment], { type: message.media_type || "application/octet-stream" }));
+    } catch (error) {
+      console.error("Unable to decrypt chat attachment:", error);
+      attachmentError = "The message text is available, but its attachment could not be opened.";
+    }
   }
 
   return {
     text: decoder.decode(decryptedText),
     image,
+    attachmentError,
   };
 };

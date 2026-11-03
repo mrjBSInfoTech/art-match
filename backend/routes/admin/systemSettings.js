@@ -1,4 +1,8 @@
 import express from "express";
+import { ZipArchive } from "archiver";
+import path from "node:path";
+import { Readable } from "node:stream";
+import { fileURLToPath } from "node:url";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
@@ -16,6 +20,8 @@ import {
   reviewPromotionHeaderRequest,
 } from "../../database/promotionHeaderRequests.js";
 import { logAudit } from "../../utils/auditLogger.js";
+import { getFromB2, isB2Configured, listB2Objects } from "../../utils/b2Storage.js";
+import { createDatabaseDump } from "../../utils/systemBackup.js";
 
 const router = express.Router();
 
@@ -24,6 +30,27 @@ const MAX_QUESTION_LENGTH = 255;
 const MAX_ANSWER_LENGTH = 5000;
 const MAX_PROMOTION_HEADER_MESSAGE_LENGTH = 200;
 const MAX_PROMOTION_HEADER_BUTTON_LABEL_LENGTH = 60;
+const SYSTEM_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const BACKUP_EXCLUDED_PATHS = [
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/.cache/**",
+  "**/dist/**",
+  "**/coverage/**",
+  "**/.env",
+  "**/.env.*",
+  "**/*.log",
+  "**/*.bak",
+  "**/*.pem",
+  "**/*.key",
+  "**/credentials.json",
+  "**/service-account*.json",
+  "**/secrets/**",
+  "**/PAYMONGO_COMMANDS.txt",
+  "**/customer-accounts.csv",
+  "**/student-updates.csv",
+  "**/verified-student-artworks.csv",
+];
 
 const validatePromotionHeader = (header) => {
   const message =
@@ -239,6 +266,120 @@ router.put(
       if (connection) await connection.rollback().catch(() => {});
       console.error("Unable to update promotion hero setting:", error.code || error.name);
       return res.status(500).json({ message: "Unable to update promotion hero setting." });
+    } finally {
+      connection?.release();
+    }
+  },
+);
+
+router.get(
+  "/backup",
+  authenticateAdmin,
+  requireAdminPermission("can_edit"),
+  async (req, res) => {
+    let connection;
+    try {
+      connection = await new Promise((resolve, reject) => {
+        db.getConnection((error, result) => (error ? reject(error) : resolve(result)));
+      });
+      const [tableRows] = await connection.promise().query("SHOW FULL TABLES");
+      const tables = tableRows.map((row) => {
+        const [name, type] = Object.values(row);
+        return { name, type: String(type).toUpperCase() };
+      });
+      const cloudObjects = [];
+      if (isB2Configured()) {
+        for await (const object of listB2Objects("app-uploads/")) {
+          const key = String(object.Key || "");
+          const normalizedKey = path.posix.normalize(key);
+          if (!normalizedKey.startsWith("app-uploads/") || normalizedKey.includes("../")) {
+            throw new Error("Cloud storage returned an invalid backup path.");
+          }
+          cloudObjects.push(key);
+        }
+      }
+
+      const archive = new ZipArchive({ zlib: { level: 1 } });
+      const archiveName = `artmatch-system-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
+      const backupInfo = [
+        "ArtMatch system backup",
+        `Created: ${new Date().toISOString()}`,
+        `Database: ${process.env.DB_NAME || "configured database"}`,
+        "Includes: application source, local uploads, and database SQL export.",
+        `Cloud uploads: ${isB2Configured() ? `${cloudObjects.length} object(s)` : "not configured"}`,
+        "Credentials, .env files, dependency folders, caches, and logs are excluded.",
+        "",
+        "Restore the SQL export into an empty database, copy the system folder into the application directory,",
+        "restore cloud-storage files to the configured B2 bucket when present, then configure environment variables",
+        "from your own secure source. This archive intentionally does not contain credentials.",
+      ].join("\n");
+
+      archive.glob("**/*", {
+        cwd: SYSTEM_ROOT,
+        dot: true,
+        ignore: BACKUP_EXCLUDED_PATHS,
+      }, { prefix: "system" });
+      archive.append(backupInfo, { name: "BACKUP-README.txt" });
+      archive.append(Readable.from(createDatabaseDump(connection, tables), {
+        objectMode: false,
+        encoding: "utf8",
+      }), {
+        name: "database/backup.sql",
+      });
+      for (const key of cloudObjects) {
+        archive.append(
+          Readable.from((async function* streamCloudObject() {
+            const object = await getFromB2(key);
+            if (!object.Body) throw new Error(`Cloud backup object has no content: ${key}`);
+            for await (const chunk of object.Body) yield chunk;
+          }())),
+          { name: `cloud-storage/${key}` },
+        );
+      }
+
+      res.set({
+        "Cache-Control": "no-store",
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${archiveName}"`,
+        "X-Content-Type-Options": "nosniff",
+      });
+
+      const completed = new Promise((resolve, reject) => {
+        archive.on("error", reject);
+        res.on("finish", resolve);
+        res.on("close", () => {
+          if (!res.writableFinished) reject(new Error("Backup download was interrupted."));
+        });
+      });
+      archive.on("warning", (error) => {
+        console.error("System backup archive warning:", error);
+        archive.emit("error", error);
+      });
+      archive.on("error", (error) => {
+        console.error("System backup archive failed:", error);
+        if (!res.destroyed) res.destroy(error);
+      });
+      archive.pipe(res);
+      void archive.finalize().catch((error) => archive.emit("error", error));
+      await completed;
+
+      try {
+        await logAudit({
+          action: "SYSTEM_BACKUP_DOWNLOADED",
+          actor: req.user.admin_id,
+          role: "Admin",
+          status: "SUCCESS",
+          information: `Downloaded system backup archive (${tables.length} database object(s), ${cloudObjects.length} cloud file(s)).`,
+        });
+      } catch (error) {
+        console.error("Unable to record system backup audit event:", error);
+      }
+    } catch (error) {
+      console.error("System backup creation failed:", error);
+      if (!res.headersSent) {
+        return res.status(500).json({ message: "Unable to create the system backup." });
+      }
+      if (!res.destroyed) res.destroy(error);
     } finally {
       connection?.release();
     }

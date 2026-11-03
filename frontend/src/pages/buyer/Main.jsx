@@ -27,6 +27,7 @@ import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
+import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
@@ -144,10 +145,39 @@ export default function Main() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const handleAddToCart = async (artworkId, quantity = 1, selectedProducts, orderNote) => {
+  const handleAddToCart = async (
+    artworkId,
+    quantity = 1,
+    selectedProducts,
+    orderNote,
+    artwork,
+  ) => {
     try {
       const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
-      showSnackbar(result?.message || "Artwork added to cart", "success");
+      let chatNotice = "";
+      let chatSeverity = "success";
+      if (typeof orderNote === "string" && orderNote.trim()) {
+        try {
+          const { previewFailed } = await sendOrderNoteToSeller({
+            artwork,
+            artworkId,
+            quantity,
+            selectedProducts,
+            orderNote,
+          });
+          if (previewFailed) {
+            chatNotice = " The order note was sent to the seller, but its preview could not be attached.";
+            chatSeverity = "warning";
+          } else {
+            chatNotice = " The order note and product preview were sent to the seller chat.";
+          }
+        } catch (chatError) {
+          console.error("Unable to send order note to seller chat:", chatError);
+          chatNotice = ` The note was saved in your cart but could not be sent to seller chat: ${chatError.message}`;
+          chatSeverity = "warning";
+        }
+      }
+      showSnackbar(`${result?.message || "Artwork added to cart"}${chatNotice}`, chatSeverity);
       return result;
     } catch (error) {
       showSnackbar(

@@ -14,7 +14,11 @@ import {
   saveChatPublicKey,
 } from "../database/chatKeys.js";
 import { addChatEventClient, publishChatMessage } from "../utils/chatEvents.js";
-import { uploadToB2, deleteFromB2 } from "../utils/b2Storage.js";
+import {
+  uploadToB2,
+  deleteFromB2,
+  isB2Configured,
+} from "../utils/b2Storage.js";
 import {
   getPackedNotificationParcelPhotos,
   getShippedNotificationTrackingUrl,
@@ -1056,6 +1060,7 @@ router.post(
     const attachmentIv = req.body.attachment_iv || null;
 
     const temporaryFilePath = req.file?.path || null;
+    let keepLocalAttachment = Boolean(req.file && !isB2Configured());
 
     let uploadedB2Key = null;
 
@@ -1089,7 +1094,7 @@ router.post(
        * to B2 before inserting
        * the message into MySQL.
        */
-      if (req.file) {
+      if (req.file && !keepLocalAttachment) {
         uploadedB2Key = `${CHAT_B2_PREFIX}/${path.basename(req.file.filename)}`;
 
         try {
@@ -1104,10 +1109,8 @@ router.post(
           console.log("Buyer chat attachment uploaded to B2:", uploadedB2Key);
         } catch (b2Error) {
           console.error("Buyer chat B2 upload failed:", b2Error.message);
-
-          return res.status(502).json({
-            message: "Chat attachment could not be uploaded to cloud storage.",
-          });
+          keepLocalAttachment = true;
+          console.warn("Keeping buyer chat attachment in local storage.");
         }
       }
 
@@ -1193,11 +1196,8 @@ router.post(
         message: "Unable to send message",
       });
     } finally {
-      /*
-       * Local chat attachment
-       * is temporary only.
-       */
-      if (temporaryFilePath) {
+      // Keep local attachments when B2 is unavailable; B2-backed copies are temporary.
+      if (temporaryFilePath && !keepLocalAttachment) {
         await fs.promises.unlink(temporaryFilePath).catch(() => {});
       }
     }
@@ -1225,6 +1225,7 @@ router.post(
     const attachmentIv = req.body.attachment_iv || null;
 
     const temporaryFilePath = req.file?.path || null;
+    let keepLocalAttachment = Boolean(req.file && !isB2Configured());
 
     let uploadedB2Key = null;
 
@@ -1253,7 +1254,7 @@ router.post(
 
       const conversationId = await getOrCreateConversation(sellerId, buyerId);
 
-      if (req.file) {
+      if (req.file && !keepLocalAttachment) {
         uploadedB2Key = `${CHAT_B2_PREFIX}/${path.basename(req.file.filename)}`;
 
         try {
@@ -1268,10 +1269,8 @@ router.post(
           console.log("Seller chat attachment uploaded to B2:", uploadedB2Key);
         } catch (b2Error) {
           console.error("Seller chat B2 upload failed:", b2Error.message);
-
-          return res.status(502).json({
-            message: "Chat attachment could not be uploaded to cloud storage.",
-          });
+          keepLocalAttachment = true;
+          console.warn("Keeping seller chat attachment in local storage.");
         }
       }
 
@@ -1352,7 +1351,7 @@ router.post(
         message: "Unable to send message",
       });
     } finally {
-      if (temporaryFilePath) {
+      if (temporaryFilePath && !keepLocalAttachment) {
         await fs.promises.unlink(temporaryFilePath).catch(() => {});
       }
     }

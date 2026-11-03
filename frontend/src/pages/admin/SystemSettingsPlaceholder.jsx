@@ -15,6 +15,7 @@ import { Helmet } from "react-helmet-async";
 import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
 import {
   fetchAccountExpirationDate,
+  downloadSystemBackup,
   saveAccountExpirationDate,
 } from "../../api/admin/systemSettingsAPI";
 
@@ -32,6 +33,9 @@ export default function SystemSettingsPlaceholder({ title }) {
   const [savingExpiration, setSavingExpiration] = useState(false);
   const [expirationError, setExpirationError] = useState("");
   const [expirationNotice, setExpirationNotice] = useState("");
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [backupError, setBackupError] = useState("");
+  const [backupNotice, setBackupNotice] = useState("");
 
   useEffect(() => {
     if (title !== "Mechanicals") return undefined;
@@ -73,6 +77,28 @@ export default function SystemSettingsPlaceholder({ title }) {
       setExpirationError(error.message);
     } finally {
       setSavingExpiration(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    setCreatingBackup(true);
+    setBackupError("");
+    setBackupNotice("");
+    try {
+      const { blob, filename } = await downloadSystemBackup();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setBackupNotice("System backup downloaded.");
+    } catch (error) {
+      setBackupError(error.message || "Unable to download the system backup.");
+    } finally {
+      setCreatingBackup(false);
     }
   };
 
@@ -187,13 +213,30 @@ export default function SystemSettingsPlaceholder({ title }) {
                   Backup
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Backup and restore options will be available here.
+                  Download a ZIP of the application, database, and uploaded files,
+                  including configured cloud storage. Credentials are excluded.
                 </Typography>
               </Box>
-              <Button variant="outlined" disabled sx={{ textTransform: "none" }}>
-                Backup
+              <Button
+                variant="outlined"
+                onClick={handleDownloadBackup}
+                disabled={creatingBackup}
+                startIcon={creatingBackup ? <CircularProgress size={16} /> : <BackupIcon />}
+                sx={{ textTransform: "none" }}
+              >
+                {creatingBackup ? "Preparing..." : "Download backup"}
               </Button>
             </Stack>
+            {backupError && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {backupError}
+              </Alert>
+            )}
+            {backupNotice && (
+              <Alert severity="success" sx={{ mt: 2 }}>
+                {backupNotice}
+              </Alert>
+            )}
           </Paper>
         </Stack>
       )}

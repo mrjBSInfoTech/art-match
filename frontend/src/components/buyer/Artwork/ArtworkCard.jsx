@@ -15,6 +15,7 @@ import {
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { addToCart } from "../../../api/buyer/cartAPI";
+import { sendOrderNoteToSeller } from "../../../utils/orderNoteMessaging";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
 import ProductSelectionDialog from "./ProductSelectionDialog";
@@ -50,12 +51,33 @@ export default function ArtworkCard({
     setCustomizeDialogOpen(true);
   };
 
+  const submitOrder = async (quantity, selectedProducts, orderNote) => {
+    if (onAddToCart) {
+      return onAddToCart(artworkId, quantity, selectedProducts, orderNote, artwork);
+    }
+
+    const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
+    if (typeof orderNote === "string" && orderNote.trim()) {
+      try {
+        await sendOrderNoteToSeller({
+          artwork,
+          artworkId,
+          quantity,
+          selectedProducts,
+          orderNote,
+        });
+      } catch (error) {
+        console.error("Unable to send order note to seller chat:", error);
+        throw new Error(`The item was added to your cart, but the order note could not be sent: ${error.message}`);
+      }
+    }
+    return result;
+  };
+
   const handleAddSelectedProducts = async (selectedProducts, totalQuantity, orderNote) => {
     try {
       setIsAdding(true);
-      await (onAddToCart
-        ? onAddToCart(artworkId, totalQuantity, selectedProducts, orderNote)
-        : addToCart(artworkId, totalQuantity, selectedProducts, orderNote));
+      await submitOrder(totalQuantity, selectedProducts, orderNote);
       setProductDialogOpen(false);
       setCartMessage("Added");
     } finally {
@@ -66,9 +88,7 @@ export default function ArtworkCard({
   const handleAddPremadeSelection = async (orderNote) => {
     setIsAdding(true);
     try {
-      await (onAddToCart
-        ? onAddToCart(artworkId, 1, undefined, orderNote)
-        : addToCart(artworkId, 1, undefined, orderNote));
+      await submitOrder(1, undefined, orderNote);
       setCartMessage("Added");
     } finally {
       setIsAdding(false);

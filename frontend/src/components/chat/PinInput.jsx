@@ -14,6 +14,8 @@ export default function PinInput({
   ariaLabel = "PIN",
 }) {
   const inputsRef = useRef([]);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const digits = Array.from({ length: PIN_LENGTH }, (_, index) => value[index] || "");
 
   const focusInput = (index) => {
@@ -26,6 +28,7 @@ export default function PinInput({
 
   const update = (nextValue, focusIndex) => {
     const clean = nextValue.replace(/\D/g, "").slice(0, PIN_LENGTH);
+    valueRef.current = clean;
     onChange?.(clean);
     if (focusIndex !== undefined) focusInput(focusIndex);
     if (clean.length === PIN_LENGTH && clean !== value) onComplete?.(clean);
@@ -97,8 +100,8 @@ export default function PinInput({
           onPaste={handlePaste}
           onFocus={(event) => {
             // Always type into the first empty box so digits stay in order.
-            if (index > value.length) {
-              focusInput(value.length);
+            if (index > valueRef.current.length) {
+              focusInput(valueRef.current.length);
               return;
             }
             event.target.select();

@@ -1,10 +1,10 @@
-import { Box, IconButton, Paper, Typography } from "@mui/material";
+import { Box, Button, IconButton, Paper, Typography } from "@mui/material";
 import CertificateMessage from "./CertificateMessage.jsx";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 
 const certificateLinkType = "application/vnd.artmatch.certificate-link";
 
-export default function MessageCard({ message: msg, onViewMedia }) {
+export default function MessageCard({ message: msg, onViewMedia, onRecover }) {
   const isMine = msg.sender === "buyer";
   return (
     <Box
@@ -103,6 +103,26 @@ export default function MessageCard({ message: msg, onViewMedia }) {
             sx={{ lineHeight: 1.4, px: msg.image ? 1 : 0 }}
           >
             {msg.text}
+          </Typography>
+        )}
+        {msg.attachmentError && (
+          <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+            {msg.attachmentError}
+          </Typography>
+        )}
+        {msg.canRecover && (
+          <Button
+            size="small"
+            color={isMine ? "inherit" : "primary"}
+            onClick={onRecover}
+            sx={{ mt: 0.5, px: 0.5, textTransform: "none" }}
+          >
+            Recover with six-digit passkey
+          </Button>
+        )}
+        {msg.recoveryUnavailable && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+            No recovery backup is saved for this account.
           </Typography>
         )}
       </Paper>

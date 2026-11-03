@@ -164,6 +164,11 @@ export const resetBuyerChatRecoveryBackup = async () => {
 
 export const fetchSellerChatKey = async (sellerId) => {
   if (!sellerId || sellerId === "undefined" || Number.isNaN(Number(sellerId))) return null;
-  const res = await api.get(`/buyer/keys/${sellerId}`);
-  return res.data?.publicKey || null;
+  try {
+    const res = await api.get(`/buyer/keys/${sellerId}`);
+    return res.data?.publicKey || null;
+  } catch (error) {
+    if (error.response?.status === 404) return null;
+    handleError(error);
+  }
 };

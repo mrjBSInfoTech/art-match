@@ -28,6 +28,48 @@ export const originalFileName = (baseName) => `${baseName}.original.webp`;
 
 export const variantKey = (fileName) => `${B2_PREFIX}/${fileName}`;
 
+const storeArtworkFile = async (body, fileName) => {
+  if (!fileName || path.basename(fileName) !== fileName) {
+    throw new Error("Invalid artwork image filename.");
+  }
+
+  if (isB2Configured()) {
+    await uploadToB2({
+      key: variantKey(fileName),
+      body,
+      contentType: "image/webp",
+    });
+  } else {
+    await fs.promises.mkdir(artworkUploadDir, { recursive: true });
+    await fs.promises.writeFile(path.join(artworkUploadDir, fileName), body);
+  }
+};
+
+export const writeArtworkSource = async (body, fileName) => {
+  await storeArtworkFile(body, fileName);
+  return fileName;
+};
+
+export const removeArtworkSource = async (fileName) => {
+  if (!fileName || path.basename(fileName) !== fileName) {
+    throw new Error("Invalid artwork image filename.");
+  }
+
+  await fs.promises.unlink(path.join(artworkUploadDir, fileName)).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+  });
+
+  if (isB2Configured()) {
+    try {
+      await deleteFromB2(variantKey(fileName));
+    } catch (error) {
+      if (error?.$metadata?.httpStatusCode !== 404 && error?.name !== "NoSuchKey") {
+        throw error;
+      }
+    }
+  }
+};
+
 export const writeDerivatives = async (source, baseName) => {
   const derivatives = await createArtworkDerivatives(source);
   const written = {};
@@ -53,16 +95,7 @@ export const writeDerivatives = async (source, baseName) => {
 
 export const writeOriginal = async (body, baseName) => {
   const fileName = originalFileName(baseName);
-  if (isB2Configured()) {
-    await uploadToB2({
-      key: variantKey(fileName),
-      body,
-      contentType: "image/webp",
-    });
-  } else {
-    await fs.promises.mkdir(artworkUploadDir, { recursive: true });
-    await fs.promises.writeFile(path.join(artworkUploadDir, fileName), body);
-  }
+  await storeArtworkFile(body, fileName);
   return fileName;
 };
 

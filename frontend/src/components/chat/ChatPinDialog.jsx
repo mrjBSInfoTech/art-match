@@ -93,7 +93,7 @@ export default function ChatPinDialog({
               {busy ? <CircularProgress size={24} color="inherit" /> : <LockOutlinedIcon />}
             </Box>
             <Typography variant="h6" component="span" textAlign="center">
-              {isCreate ? "Create your recovery PIN" : "Enter your recovery PIN"}
+              {isCreate ? "Create your recovery PIN" : "Enter your recovery passkey"}
             </Typography>
           </Stack>
         </DialogTitle>
@@ -102,13 +102,13 @@ export default function ChatPinDialog({
             <Typography variant="body2" color="text.secondary" textAlign="center">
               {isCreate
                 ? "Choose a six-digit PIN to protect an encrypted backup of your secure chat key. You will enter it to unlock your chats on another device. It never leaves this device, and it cannot be recovered if you forget it."
-                : "Type the six-digit PIN you created when you set up secure messaging to unlock your chats on this device."}
+                : "Enter the six-digit passkey you created to restore your saved chat key and recover messages."}
             </Typography>
             {(message || error) && (
               <Alert severity="error">{message || error}</Alert>
             )}
             <Typography variant="caption" color="text.secondary" textAlign="center">
-              {isCreate ? "New PIN" : "PIN"}
+              {isCreate ? "New PIN" : "Six-digit passkey"}
             </Typography>
             <PinInput
               value={pin}
@@ -120,7 +120,7 @@ export default function ChatPinDialog({
               disabled={busy}
               error={Boolean(message || error)}
               firstInputRef={pinInputRef}
-              ariaLabel={isCreate ? "New PIN" : "Recovery PIN"}
+              ariaLabel={isCreate ? "New PIN" : "Recovery passkey"}
             />
             {isCreate && (
               <>
@@ -162,7 +162,7 @@ export default function ChatPinDialog({
             disabled={busy || !valid}
             onClick={() => submit()}
           >
-            {busy ? "Please wait..." : isCreate ? "Create PIN" : "Unlock chats"}
+            {busy ? "Please wait..." : isCreate ? "Create PIN" : "Recover messages"}
           </Button>
         </DialogActions>
       </Dialog>
