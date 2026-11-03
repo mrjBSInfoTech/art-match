@@ -246,7 +246,7 @@ export default function Dashboard() {
   if (statisticsError || artworkErrorMessage || logsErrorMessage) {
     return (
       <ConnectionErrorPanel
-        title="Dashboard unavailable"
+        title="Dashboard Unavailable"
         onRetry={() => window.location.reload()}
       />
     );

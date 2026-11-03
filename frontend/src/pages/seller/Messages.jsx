@@ -37,6 +37,7 @@ import MessageMedia from "../../components/seller/Message/MessageMedia";
 import MessageMediaPreview from "../../components/seller/Message/MessageMediaPreview";
 import MessageDelete from "../../components/seller/Message/MessageDelete";
 import MessageBlock from "../../components/seller/Message/MessageBlock";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import { useSearchParams } from "react-router-dom";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
@@ -818,6 +819,21 @@ export default function Messages() {
       setError(err.message || "Unable to send message");
     }
   };
+
+  if (error && !conversations.length && !selectedConversationId) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Messages</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Messages Unavailable"
+          message={error}
+          onRetry={loadConversationList}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

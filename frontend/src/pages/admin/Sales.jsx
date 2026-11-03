@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Box,
@@ -24,6 +24,8 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import { fetchDashboard } from "../../api/admin/dashboardAPI";
 
 const transactions = [
   {
@@ -58,6 +60,20 @@ const formatCurrency = (value) =>
 export default function Sales() {
   const theme = useTheme();
   const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
+
+  const checkConnection = useCallback(async () => {
+    try {
+      setError("");
+      await fetchDashboard();
+    } catch (err) {
+      setError(err.message || "Failed to load sales.");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkConnection();
+  }, [checkConnection]);
   const filteredTransactions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return transactions;
@@ -141,6 +157,21 @@ export default function Sales() {
       background: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
     },
   ];
+
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Sales</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Sales Unavailable"
+          message={error}
+          onRetry={checkConnection}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -20,6 +20,7 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import { useNavigate } from "react-router-dom";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 
 const profileFields = [
@@ -101,11 +102,11 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    getSellerProfile()
+  const fetchProfile = useCallback(() => {
+    setLoading(true);
+    setError("");
+    return getSellerProfile()
       .then((data) => {
-        if (!active) return;
         const nextProfile = Object.fromEntries(
           profileFields.map((field) => [field, data[field] || ""]),
         );
@@ -120,20 +121,31 @@ export default function Profile() {
         setError("");
       })
       .catch((loadError) => {
-        if (active) {
-          setError(
-            `Unable to refresh your account overview: ${loadError.message || "Unknown error"}. Showing saved account details.`,
-          );
-        }
+        setError(loadError.message || "Failed to load profile.");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        setLoading(false);
       });
-
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Account Overview</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Profile Unavailable"
+          message={error}
+          onRetry={fetchProfile}
+        />
+      </Box>
+    );
+  }
 
   const fullName = [
     profile.first_name,

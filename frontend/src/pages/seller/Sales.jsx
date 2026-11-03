@@ -27,7 +27,8 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { createElement, useEffect, useState } from "react";
+import { createElement, useEffect, useState, useCallback } from "react";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import { fetchSellerOrders } from "../../api/seller/orderAPI";
 import { getSellerSalesData } from "../../utils/sellerSales";
 
@@ -43,15 +44,36 @@ export default function Sales() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const loadSales = useCallback(() => {
+    setLoading(true);
+    setError("");
     fetchSellerOrders()
       .then((response) => setOrders(Array.isArray(response) ? response : []))
       .catch((loadError) => setError(loadError.message || "Unable to load sales"))
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    loadSales();
+  }, [loadSales]);
+
   const sales = getSellerSalesData(orders);
   const { monthlySales, bestSellers, recentSales } = sales;
+
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Sales</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Sales Unavailable"
+          message={error}
+          onRetry={loadSales}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: "auto" }}>

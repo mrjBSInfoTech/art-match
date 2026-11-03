@@ -83,10 +83,15 @@ export default function Dashboard() {
 
   if (artworkError || salesError) {
     return (
-      <ConnectionErrorPanel
-        title={artworkError ? "Dashboard unavailable" : "Sales data unavailable"}
-        onRetry={artworkError ? loadArtworks : () => window.location.reload()}
-      />
+      <Box sx={{ minWidth: 0 }}>
+              <Helmet titleTemplate="%s - ArtMatch">
+                <title>Dashboard</title>
+              </Helmet>
+              <ConnectionErrorPanel
+                title="Dashboard Unavailable"
+                onRetry={artworkError ? loadArtworks : () => window.location.reload()}
+              />
+            </Box>
     );
   }
 
@@ -104,10 +109,23 @@ export default function Dashboard() {
       </Helmet>
 
       <Box>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>
+        <Typography
+          sx={{
+            fontSize: { xs: 28, sm: 38 },
+            fontWeight: 800,
+            lineHeight: 1.1,
+            color: theme.palette.text.primary,
+          }}
+        >
           Dashboard
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          sx={{
+            mt: 0.75,
+            color: theme.palette.text.secondary,
+            fontSize: 13,
+          }}
+        >
           Overview of your seller performance and sales activity.
         </Typography>
       </Box>
@@ -171,7 +189,11 @@ export default function Dashboard() {
           },
           {
             label: "TOTAL SALES",
-            value: salesLoading ? "..." : salesError ? "—" : formatCurrency(sales.revenue),
+            value: salesLoading
+              ? "..."
+              : salesError
+                ? "—"
+                : formatCurrency(sales.revenue),
             caption: "Total revenue generated",
             icon: CreditScoreIcon,
             tint: "rgba(59, 130, 246, 0.18)",
@@ -298,11 +320,19 @@ export default function Dashboard() {
         {salesLoading ? (
           <Skeleton variant="rounded" height={320} />
         ) : salesError ? (
-          <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
+          <Typography
+            color="text.secondary"
+            sx={{ py: 6, textAlign: "center" }}
+          >
             Sales data is unavailable. Try refreshing the page.
           </Typography>
-        ) : !salesData.some(({ sales: monthSales }) => Number(monthSales) > 0) ? (
-          <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
+        ) : !salesData.some(
+          ({ sales: monthSales }) => Number(monthSales) > 0,
+        ) ? (
+          <Typography
+            color="text.secondary"
+            sx={{ py: 6, textAlign: "center" }}
+          >
             No sales recorded in the last 12 months yet.
           </Typography>
         ) : (

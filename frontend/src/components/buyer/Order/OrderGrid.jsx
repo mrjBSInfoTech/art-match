@@ -19,7 +19,7 @@ import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
-import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
+import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage.jsx";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 import {

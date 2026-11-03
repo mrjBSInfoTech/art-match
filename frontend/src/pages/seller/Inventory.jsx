@@ -34,6 +34,7 @@ import SellRoundedIcon from "@mui/icons-material/SellRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AddIcon from "@mui/icons-material/Add";
 import InventoryCard from "../../components/seller/Inventory/InventoryCard";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import {
   adjustProductOptionStock,
   adjustInventoryStock,
@@ -223,6 +224,21 @@ export default function Inventory() {
       accent: "error.main",
     },
   ];
+
+  if (errorMessage && !products.length) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Inventory</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Inventory Unavailable"
+          message={errorMessage}
+          onRetry={loadInventory}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

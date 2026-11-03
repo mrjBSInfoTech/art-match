@@ -12,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
@@ -25,6 +26,7 @@ import {
 } from "../../api/seller/certificateAPI.js";
 
 import { createCertificateQr } from "../../utils/certificateQr.js";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 
 const today = () => {
   const date = new Date();
@@ -43,19 +45,24 @@ const makeCertificateId = () => {
 };
 
 const escapeXml = (value) =>
-  String(value ?? "").replace(/[<>&"']/g, (character) => ({
-    "<": "&lt;",
-    ">": "&gt;",
-    "&": "&amp;",
-    '"': "&quot;",
-    "'": "&apos;",
-  })[character]);
+  String(value ?? "").replace(
+    /[<>&"']/g,
+    (character) =>
+      ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&apos;",
+      })[character],
+  );
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Unable to read the template image."));
+    reader.onerror = () =>
+      reject(new Error("Unable to read the template image."));
     reader.readAsDataURL(file);
   });
 
@@ -104,6 +111,7 @@ ${qrData ? `<g id="certificate-verification-qr"><rect x="990" y="597" width="146
 };
 
 export default function CertificateOfAuthenticity() {
+  const theme = useTheme();
   const [qrData, setQrData] = useState("");
   const [artworks, setArtworks] = useState([]);
   const [selectedArtworkId, setSelectedArtworkId] = useState("");
@@ -148,11 +156,15 @@ export default function CertificateOfAuthenticity() {
       const approved = (Array.isArray(artworkData) ? artworkData : []).filter(
         (artwork) =>
           ["verified", "approved"].includes(
-            String(artwork.request_status || artwork.status || "").toLowerCase(),
+            String(
+              artwork.request_status || artwork.status || "",
+            ).toLowerCase(),
           ),
       );
       setArtworks(Array.isArray(artworkData) ? artworkData : []);
-      setSelectedArtworkId(approved.length ? String(approved[0].artwork_id) : "");
+      setSelectedArtworkId(
+        approved.length ? String(approved[0].artwork_id) : "",
+      );
       setArtistName(
         [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
           localStorage.getItem("seller_student_number") ||
@@ -196,21 +208,32 @@ export default function CertificateOfAuthenticity() {
     setPublicationLoading(true);
     setQrData("");
     setPublishedCertificate(null);
-    Promise.all([fetchPublishedCertificate(selectedArtworkId), reserveCertificateIdentity(selectedArtworkId)])
+    Promise.all([
+      fetchPublishedCertificate(selectedArtworkId),
+      reserveCertificateIdentity(selectedArtworkId),
+    ])
       .then(async ([certificate, identity]) => {
         const qr = await createCertificateQr(identity.verificationUrl);
         if (!active) return;
         setQrData(qr);
-        setPublishedCertificate(certificate?.published === false ? null : certificate);
-        if (certificate?.certificateId) setCertificateId(certificate.certificateId);
+        setPublishedCertificate(
+          certificate?.published === false ? null : certificate,
+        );
+        if (certificate?.certificateId)
+          setCertificateId(certificate.certificateId);
       })
       .catch((loadError) => {
-        if (active) setError(loadError.message || "Unable to check certificate publication.");
+        if (active)
+          setError(
+            loadError.message || "Unable to check certificate publication.",
+          );
       })
       .finally(() => {
         if (active) setPublicationLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [selectedArtworkId]);
 
   const handleTemplateChange = async (event) => {
@@ -237,15 +260,17 @@ export default function CertificateOfAuthenticity() {
   };
 
   const downloadCertificate = () => {
-    const svg = publishedCertificate?.svg || createCertificateSvg({
-      artworkTitle,
-      medium,
-      artistName,
-      certificateId,
-      issueDate,
-      templateData,
-      qrData,
-    });
+    const svg =
+      publishedCertificate?.svg ||
+      createCertificateSvg({
+        artworkTitle,
+        medium,
+        artistName,
+        certificateId,
+        issueDate,
+        templateData,
+        qrData,
+      });
     const url = URL.createObjectURL(
       new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
     );
@@ -259,27 +284,41 @@ export default function CertificateOfAuthenticity() {
   };
 
   const publishBuyerCertificate = async () => {
-    if (!selectedArtwork || publishing || publishedCertificate || !qrData || publicationLoading) return;
+    if (
+      !selectedArtwork ||
+      publishing ||
+      publishedCertificate ||
+      !qrData ||
+      publicationLoading
+    )
+      return;
     setPublishing(true);
     setError("");
     setPublishMessage("");
     try {
-      const svg = publishedCertificate?.svg || createCertificateSvg({
-        artworkTitle,
-        medium,
-        artistName,
-        certificateId,
-        issueDate,
-        templateData,
-        qrData,
-      });
+      const svg =
+        publishedCertificate?.svg ||
+        createCertificateSvg({
+          artworkTitle,
+          medium,
+          artistName,
+          certificateId,
+          issueDate,
+          templateData,
+          qrData,
+        });
       const published = await publishCertificate({
         artworkId: selectedArtwork.artwork_id,
         certificateId,
         svg,
       });
-      setPublishedCertificate({ ...published, publishedAt: new Date().toISOString() });
-      setPublishMessage("Published. The certificate QR code will be sent in the buyer's messages immediately upon delivery.");
+      setPublishedCertificate({
+        ...published,
+        publishedAt: new Date().toISOString(),
+      });
+      setPublishMessage(
+        "Published. The certificate QR code will be sent in the buyer's messages immediately upon delivery.",
+      );
     } catch (publishError) {
       setError(publishError.message || "Unable to publish this certificate.");
     } finally {
@@ -287,15 +326,32 @@ export default function CertificateOfAuthenticity() {
     }
   };
 
-  const previewSvg = publishedCertificate?.svg || createCertificateSvg({
-    artworkTitle,
-    medium,
-    artistName: artistName || "Artist name",
-    certificateId,
-    issueDate,
-    templateData,
-    qrData,
-  });
+  const previewSvg =
+    publishedCertificate?.svg ||
+    createCertificateSvg({
+      artworkTitle,
+      medium,
+      artistName: artistName || "Artist name",
+      certificateId,
+      issueDate,
+      templateData,
+      qrData,
+    });
+
+  if (error && !artworks.length) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Certificate of Authenticity</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Certificates Unavailable"
+          message={error}
+          onRetry={loadData}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -306,15 +362,28 @@ export default function CertificateOfAuthenticity() {
         color: (theme) => theme.palette.text.primary,
       }}
     >
-      <Helmet>
-        <title>Certificate of Authenticity | Red Nexus Seller</title>
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Certificate of Authenticity</title>
       </Helmet>
       <Stack spacing={2.5}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
             Certificate of Authenticity
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
             Create a certificate for a platform-approved artwork from your shop.
           </Typography>
         </Box>
@@ -335,9 +404,208 @@ export default function CertificateOfAuthenticity() {
               alignItems: "start",
             }}
           >
+            <Card
+              variant="outlined"
+              sx={{
+                borderRadius: 4,
+                borderColor: "divider",
+                background: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
+                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                boxShadow: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "0 22px 48px rgba(2, 6, 23, 0.28)"
+                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700}>
+                      Certificate details
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Add the information that will appear on your certificate.
+                    </Typography>
+                  </Box>
+                  {approvedArtworks.length === 0 ? (
+                    <Alert severity="info">
+                      Only approved artworks can receive a certificate. Your
+                      approved shop listings will appear here.
+                    </Alert>
+                  ) : (
+                    <TextField
+                      select
+                      fullWidth
+                      label="Choose from your approved artworks"
+                      value={selectedArtworkId}
+                      onChange={(event) =>
+                        setSelectedArtworkId(event.target.value)
+                      }
+                    >
+                      {approvedArtworks.map((artwork) => (
+                        <MenuItem
+                          key={artwork.artwork_id}
+                          value={String(artwork.artwork_id)}
+                        >
+                          {artwork.title}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                  <TextField
+                    fullWidth
+                    label="Artwork title"
+                    value={artworkTitle}
+                    onChange={(event) => setArtworkTitle(event.target.value)}
+                    disabled={!selectedArtwork}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Medium or materials"
+                    value={medium}
+                    onChange={(event) => setMedium(event.target.value)}
+                    disabled={!selectedArtwork}
+                  />
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <TextField
+                      fullWidth
+                      label="Certificate ID"
+                      value={certificateId}
+                      onChange={(event) => setCertificateId(event.target.value)}
+                    />
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Issue date"
+                      value={issueDate}
+                      onChange={(event) => setIssueDate(event.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Stack>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: "1px dashed",
+                      borderColor: "divider",
+                      borderRadius: 2,
+                      bgcolor: "background.default",
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <ImageOutlinedIcon color="error" />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={700}>
+                          Use your own design
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Upload a PNG, JPG, or WebP template (up to 8 MB).
+                          Certificate details are layered on top.
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Button
+                      component="label"
+                      variant="outlined"
+                      size="small"
+                      fullWidth
+                      sx={{ mt: 1.5 }}
+                    >
+                      {template ? "Change template" : "Upload template"}
+                      <input
+                        hidden
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleTemplateChange}
+                      />
+                    </Button>
+                    {template && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: "block",
+                          mt: 1,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {template.name}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Alert severity="success">
+                    Certificate is issued by {storeName} and identifies the
+                    selected approved artwork.
+                  </Alert>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadOutlinedIcon />}
+                    onClick={downloadCertificate}
+                    disabled={
+                      !selectedArtwork ||
+                      !artworkTitle.trim() ||
+                      !qrData ||
+                      publicationLoading
+                    }
+                    sx={{
+                      bgcolor: "#941b27",
+                      "&:hover": { bgcolor: "#78151f" },
+                      color: "#fff",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Download certificate (SVG)
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<VerifiedOutlinedIcon />}
+                    onClick={publishBuyerCertificate}
+                    disabled={
+                      !selectedArtwork ||
+                      !artworkTitle.trim() ||
+                      !qrData ||
+                      publicationLoading ||
+                      publishing ||
+                      Boolean(publishedCertificate)
+                    }
+                  >
+                    {publicationLoading
+                      ? "Checking publication..."
+                      : publishing
+                        ? "Publishing..."
+                        : publishedCertificate
+                          ? "Published for buyer delivery"
+                          : "Publish for buyer messages"}
+                  </Button>
+                  {publishedCertificate && (
+                    <Alert severity="info">
+                      This certificate is published. Its QR code is sent in the
+                      buyer's messages as soon as the order is delivered and
+                      becomes unavailable when the order return is completed.
+                    </Alert>
+                  )}
+                  {publishMessage && (
+                    <Alert severity="success">{publishMessage}</Alert>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={700}>
+                  Live preview
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Your downloaded certificate will use this layout.
+                </Typography>
+              </Box>
               <Card
                 variant="outlined"
                 sx={{
+                  p: { xs: 1, sm: 2 },
+                  minWidth: 0,
                   borderRadius: 4,
                   borderColor: "divider",
                   background: (theme) =>
@@ -350,201 +618,23 @@ export default function CertificateOfAuthenticity() {
                       : "0 18px 36px rgba(15, 23, 42, 0.08)",
                 }}
               >
-                <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="h6" fontWeight={700}>
-                        Certificate details
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Add the information that will appear on your certificate.
-                      </Typography>
-                    </Box>
-                    {approvedArtworks.length === 0 ? (
-                      <Alert severity="info">
-                        Only approved artworks can receive a certificate. Your approved shop listings will appear here.
-                      </Alert>
-                    ) : (
-                      <TextField
-                        select
-                        fullWidth
-                        label="Choose from your approved artworks"
-                        value={selectedArtworkId}
-                        onChange={(event) =>
-                          setSelectedArtworkId(event.target.value)
-                        }
-                      >
-                        {approvedArtworks.map((artwork) => (
-                          <MenuItem
-                            key={artwork.artwork_id}
-                            value={String(artwork.artwork_id)}
-                          >
-                            {artwork.title}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                    <TextField
-                      fullWidth
-                      label="Artwork title"
-                      value={artworkTitle}
-                      onChange={(event) => setArtworkTitle(event.target.value)}
-                      disabled={!selectedArtwork}
-                    />
-                    <TextField
-                      fullWidth
-                      label="Medium or materials"
-                      value={medium}
-                      onChange={(event) => setMedium(event.target.value)}
-                      disabled={!selectedArtwork}
-                    />
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                      <TextField
-                        fullWidth
-                        label="Certificate ID"
-                        value={certificateId}
-                        onChange={(event) =>
-                          setCertificateId(event.target.value)
-                        }
-                      />
-                      <TextField
-                        fullWidth
-                        type="date"
-                        label="Issue date"
-                        value={issueDate}
-                        onChange={(event) => setIssueDate(event.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    </Stack>
-                    <Box
-                      sx={{
-                        p: 2,
-                        border: "1px dashed",
-                        borderColor: "divider",
-                        borderRadius: 2,
-                        bgcolor: "background.default",
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <ImageOutlinedIcon color="error" />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={700}>
-                            Use your own design
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Upload a PNG, JPG, or WebP template (up to 8 MB). Certificate details are layered on top.
-                          </Typography>
-                        </Box>
-                      </Stack>
-                      <Button
-                        component="label"
-                        variant="outlined"
-                        size="small"
-                        fullWidth
-                        sx={{ mt: 1.5 }}
-                      >
-                        {template ? "Change template" : "Upload template"}
-                        <input
-                          hidden
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          onChange={handleTemplateChange}
-                        />
-                      </Button>
-                      {template && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}
-                        >
-                          {template.name}
-                        </Typography>
-                      )}
-                    </Box>
-                    <Alert severity="success">
-                      Certificate is issued by {storeName} and identifies the selected approved artwork.
-                    </Alert>
-                    <Button
-                      variant="contained"
-                      startIcon={<DownloadOutlinedIcon />}
-                      onClick={downloadCertificate}
-                      disabled={!selectedArtwork || !artworkTitle.trim() || !qrData || publicationLoading}
-                      sx={{
-                        bgcolor: "#941b27",
-                        "&:hover": { bgcolor: "#78151f" },
-                        color:"#fff",
-                        fontWeight:"bold"
-                      }}
-                    >
-                      Download certificate (SVG)
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<VerifiedOutlinedIcon />}
-                      onClick={publishBuyerCertificate}
-                      disabled={!selectedArtwork || !artworkTitle.trim() || !qrData || publicationLoading || publishing || Boolean(publishedCertificate)}
-                    >
-                      {publicationLoading
-                        ? "Checking publication..."
-                        : publishing
-                          ? "Publishing..."
-                          : publishedCertificate
-                            ? "Published for buyer delivery"
-                            : "Publish for buyer messages"}
-                    </Button>
-                    {publishedCertificate && (
-                      <Alert severity="info">
-                        This certificate is published. Its QR code is sent in the buyer's messages as soon as the order is delivered and becomes unavailable when the order return is completed.
-                      </Alert>
-                    )}
-                    {publishMessage && <Alert severity="success">{publishMessage}</Alert>}
-                  </Stack>
-                </CardContent>
-              </Card>
-
-              <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-                <Box>
-                  <Typography variant="h6" fontWeight={700}>
-                    Live preview
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Your downloaded certificate will use this layout.
-                  </Typography>
-                </Box>
-                <Card
-                  variant="outlined"
+                <Box
+                  component="img"
+                  src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(previewSvg)}`}
+                  alt="Certificate of authenticity preview"
                   sx={{
-                    p: { xs: 1, sm: 2 },
-                    minWidth: 0,
-                    borderRadius: 4,
-                    borderColor: "divider",
-                    background: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.86))"
-                        : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 22px 48px rgba(2, 6, 23, 0.28)"
-                        : "0 18px 36px rgba(15, 23, 42, 0.08)",
+                    display: "block",
+                    width: "100%",
+                    height: "auto",
+                    borderRadius: 1,
+                    boxShadow: "0 4px 18px rgba(15,23,42,.12)",
                   }}
-                >
-                  <Box
-                    component="img"
-                    src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(previewSvg)}`}
-                    alt="Certificate of authenticity preview"
-                    sx={{
-                      display: "block",
-                      width: "100%",
-                      height: "auto",
-                      borderRadius: 1,
-                      boxShadow: "0 4px 18px rgba(15,23,42,.12)",
-                    }}
-                  />
-                </Card>
-                <Typography variant="caption" color="text.secondary">
-                  Red Nexus certificate • {storeName}
-                </Typography>
-              </Stack>
+                />
+              </Card>
+              <Typography variant="caption" color="text.secondary">
+                Red Nexus certificate • {storeName}
+              </Typography>
+            </Stack>
           </Box>
         )}
       </Stack>

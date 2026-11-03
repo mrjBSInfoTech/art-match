@@ -26,6 +26,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import { fetchAccountAccess, fetchAccountAccessReport } from "../../api/admin/accountAccessAPI";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -63,8 +64,8 @@ export default function AccountAccess() {
   const loadAccounts = async () => {
     try {
       setLoading(true);
-      setAccounts(await fetchAccountAccess());
       setError("");
+      setAccounts(await fetchAccountAccess());
     } catch (loadError) {
       setError(loadError.message || "Unable to load account access data.");
     } finally {
@@ -145,6 +146,21 @@ export default function AccountAccess() {
       setReportLoading(false);
     }
   };
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Account List</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Account Access Unavailable"
+          message={error}
+          onRetry={loadAccounts}
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -332,10 +348,6 @@ export default function AccountAccess() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : error ? (
-          <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
-            {error}
-          </Typography>
         ) : filteredAccounts.length === 0 ? (
           <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
             No accounts found

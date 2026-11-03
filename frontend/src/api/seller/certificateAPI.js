@@ -9,7 +9,7 @@ const api = axios.create({
 // HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
-  throw new Error(error.response?.data?.message || error.message || "Unable to publish certificate");
+  throw new Error(error.response?.data?.message || error.message || "Unable to process certificate request");
 };
 
 export async function fetchPublishedCertificate(artworkId) {
@@ -21,13 +21,19 @@ export async function fetchPublishedCertificate(artworkId) {
 }
 
 export async function reserveCertificateIdentity(artworkId) {
-  try { return (await api.post(`/${encodeURIComponent(artworkId)}/identity`)).data; }
-  catch (error) { handleError(error); }
+  try {
+    return (await api.post(`/${encodeURIComponent(artworkId)}/identity`)).data;
+  } catch (error) {
+    handleError(error);
+  }
 }
 
 export async function fetchSellerCertificateIdentity(orderItemId) {
-  try { return (await api.get(`/order-items/${encodeURIComponent(orderItemId)}/verification`)).data; }
-  catch (error) { handleError(error); }
+  try {
+    return (await api.get(`/order-items/${encodeURIComponent(orderItemId)}/verification`)).data;
+  } catch (error) {
+    handleError(error);
+  }
 }
 
 export async function publishCertificate({ artworkId, certificateId, svg }) {
@@ -37,6 +43,18 @@ export async function publishCertificate({ artworkId, certificateId, svg }) {
   form.append("certificate_svg", new Blob([svg], { type: "image/svg+xml" }), "certificate.svg");
   try {
     return (await api.post("/", form)).data;
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+export async function searchSellerCertificates({ query = "", excludeSelf = true, signal } = {}) {
+  try {
+    const response = await api.get("/search", {
+      params: { q: query, excludeSelf: String(excludeSelf) },
+      signal,
+    });
+    return response.data;
   } catch (error) {
     handleError(error);
   }

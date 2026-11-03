@@ -615,7 +615,7 @@ function SellerLayoutContent() {
         </Stack>
       </Drawer>
       <MuiDashboardLayout
-        sidebarExpandedWidth={240}
+        sidebarExpandedWidth={285}
         disableCollapsibleSidebar={!isDesktop}
         slotProps={{ header: { branding } }}
         renderPageItem={(item) => {

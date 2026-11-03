@@ -23,6 +23,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import CustomerDelete from "../../components/admin/Customer/CustomerDelete";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -60,8 +61,8 @@ export default function Customer() {
   const loadCustomers = async () => {
     try {
       setLoading(true);
-      setCustomers(await fetchCustomers());
       setCustomerErrorMessage("");
+      setCustomers(await fetchCustomers());
     } catch (err) {
       setCustomerErrorMessage(err.message || "Failed to load customers.");
     } finally {
@@ -155,6 +156,21 @@ export default function Customer() {
       ),
     );
   }, [customers, searchQuery]);
+
+  if (customerErrorMessage) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Customers</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Customers Unavailable"
+          message={customerErrorMessage}
+          onRetry={loadCustomers}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -273,10 +289,6 @@ export default function Customer() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : customerErrorMessage ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>
-            {customerErrorMessage}
-          </Typography>
         ) : filteredCustomers.length === 0 ? (
           <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
             No customer records found.

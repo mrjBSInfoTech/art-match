@@ -132,7 +132,7 @@ export default function AdminPayout() {
   if (error) {
     return (
       <ConnectionErrorPanel
-        title="Seller payouts unavailable"
+        title="Seller Payouts Unavailable"
         onRetry={reload}
       />
     );

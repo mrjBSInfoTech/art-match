@@ -12,8 +12,10 @@ import {
 import { authenticateAdmin } from "../middleware/adminAuthMiddleware.js";
 import { authenticateSeller } from "../middleware/sellerAuthMiddleware.js";
 import { authenticateBuyer } from "../middleware/buyerAuthMiddleware.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
+import db from "../database/db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
+const JWT_SECRET = getJwtSecret();
 
 const createMockRes = () => {
   return {
@@ -286,5 +288,77 @@ test("CORS Preflight Configuration", async (t) => {
     assert.match(headers["access-control-allow-headers"], /cache-control/i);
     assert.match(headers["access-control-allow-headers"], /x-requested-with/i);
     assert.match(headers["access-control-allow-headers"], /x-recommendation-session/i);
+  });
+});
+
+test("JWT Revocation on Password Change & Logout", async (t) => {
+  await t.test("rejects token when password_changed in token does not match DB", async () => {
+    const staleToken = jwt.sign(
+      { admin_id: 99, username: "admin_revoked", role: "admin", password_changed: 1 },
+      JWT_SECRET,
+      { algorithm: "HS256", expiresIn: "1h" },
+    );
+    const req = { cookies: { admin_token: staleToken }, headers: {} };
+    const res = createMockRes();
+    let nextCalled = false;
+
+    const originalQuery = db.query;
+    db.query = (sql, params, cb) => {
+      if (typeof sql === "string" && sql.includes("SELECT password_changed FROM admin")) {
+        return cb(null, [{ password_changed: 2 }]);
+      }
+      return originalQuery.call(db, sql, params, cb);
+    };
+
+    try {
+      await authenticateAdmin(req, res, () => { nextCalled = true; });
+      assert.equal(res.statusCode, 401);
+      assert.equal(nextCalled, false);
+      assert.match(res.body.message, /expired due to a password change or logout/i);
+    } finally {
+      db.query = originalQuery;
+    }
+  });
+
+  await t.test("accepts token when password_changed matches DB", async () => {
+    const validToken = jwt.sign(
+      { admin_id: 99, username: "admin_valid", role: "admin", password_changed: 2 },
+      JWT_SECRET,
+      { algorithm: "HS256", expiresIn: "1h" },
+    );
+    const req = { cookies: { admin_token: validToken }, headers: {} };
+    const res = createMockRes();
+    let nextCalled = false;
+
+    const originalQuery = db.query;
+    db.query = (sql, params, cb) => {
+      if (typeof sql === "string" && sql.includes("SELECT password_changed FROM admin")) {
+        return cb(null, [{ password_changed: 2 }]);
+      }
+      return originalQuery.call(db, sql, params, cb);
+    };
+
+    try {
+      await authenticateAdmin(req, res, () => { nextCalled = true; });
+      assert.equal(nextCalled, true);
+      assert.equal(req.user.admin_id, 99);
+    } finally {
+      db.query = originalQuery;
+    }
+  });
+});
+
+test("Centralized JWT Secret Safety", async (t) => {
+  await t.test("throws error in production when JWT_SECRET is unset or default", () => {
+    const prevEnv = process.env.NODE_ENV;
+    const prevSecret = process.env.JWT_SECRET;
+    try {
+      process.env.NODE_ENV = "production";
+      process.env.JWT_SECRET = "your_secret_key";
+      assert.throws(() => getJwtSecret(), /FATAL: A secure JWT_SECRET/);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+      process.env.JWT_SECRET = prevSecret;
+    }
   });
 });

@@ -11,6 +11,7 @@ import {
   clearAuthCookieOptions,
   authRateLimiter,
 } from "../../utils/authCookies.js";
+import { getJwtSecret } from "../../utils/jwtSecret.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -152,8 +153,8 @@ router.post("/login", authRateLimiter, (req, res) => {
         username: user.username,
         role: "buyer",
       },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "7d", algorithm: "HS256" },
+      getJwtSecret(),
+      { expiresIn: "1d", algorithm: "HS256" },
     );
 
     res.cookie("buyer_token", token, getAuthCookieOptions());
@@ -340,7 +341,7 @@ router.post("/logout", async (req, res) => {
     const token = req.cookies?.buyer_token || req.headers?.authorization?.replace(/^Bearer\s+/i, "");
     if (token) {
       try {
-        const user = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key", { algorithms: ["HS256"] });
+        const user = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
         await logAudit({
           action: "LOGOUT",
           actor: user.username || user.customer_id || "Customer",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -15,6 +15,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import { fetchFaqs, saveFaqs } from "../../api/admin/systemSettingsAPI";
 
 const emptyFaq = () => ({ question: "", answer: "" });
@@ -27,22 +28,22 @@ export default function FaqEdit() {
   const [notice, setNotice] = useState("");
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    fetchFaqs()
-      .then((data) => {
-        if (active) setFaqs(data);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+  const loadFaqs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await fetchFaqs();
+      setFaqs(Array.isArray(data) ? data : []);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load FAQs.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadFaqs();
+  }, [loadFaqs]);
 
   const updateFaq = (index, field, value) => {
     setFaqs((current) =>
@@ -106,6 +107,21 @@ export default function FaqEdit() {
         <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
           <CircularProgress />
         </Box>
+      </Box>
+    );
+  }
+
+  if (error && faqs.length === 0) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>FAQ Edit</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="FAQ Settings Unavailable"
+          message={error}
+          onRetry={loadFaqs}
+        />
       </Box>
     );
   }

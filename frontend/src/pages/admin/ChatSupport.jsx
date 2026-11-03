@@ -27,6 +27,7 @@ import {
   fetchSupportThread,
   sendSupportReply,
 } from "../../api/admin/supportChatAPI";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 
 const POLL_INTERVAL = 5000;
 
@@ -65,11 +66,13 @@ export default function ChatSupport() {
 
   const loadInbox = useCallback(async () => {
     try {
+      setLoadingInbox(true);
+      setError("");
       const rows = await fetchSupportInbox();
       setConversations(rows);
       return rows;
     } catch (loadError) {
-      setError(loadError.message);
+      setError(loadError.message || "Unable to load chat support.");
       return null;
     } finally {
       setLoadingInbox(false);
@@ -100,6 +103,7 @@ export default function ChatSupport() {
       loadInbox();
       if (selectedId) loadThread(selectedId, { silent: true });
     }, POLL_INTERVAL);
+
     return () => window.clearInterval(interval);
   }, [loadInbox, loadThread, selectedId]);
 
@@ -133,6 +137,21 @@ export default function ChatSupport() {
       setSending(false);
     }
   };
+
+  if (error && !conversations.length && !thread) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Chat Support</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Chat Support Unavailable"
+          message={error}
+          onRetry={loadInbox}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

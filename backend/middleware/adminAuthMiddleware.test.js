@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import test from "node:test";
 import { authenticateAdmin } from "./adminAuthMiddleware.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
-const signingSecret = process.env.JWT_SECRET || "your_secret_key";
+const signingSecret = getJwtSecret();
 
 const authenticateClaims = (claims) => {
   const response = {

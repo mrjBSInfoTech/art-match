@@ -23,6 +23,7 @@ import SwapVertIcon from "@mui/icons-material/SwapVert";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
 import ArtworkVerify from "../../components/admin/Artwork/ArtworkVerify";
 import ArtworkReject from "../../components/admin/Artwork/ArtworkReject";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   fetchArtworks,
   verifyArtwork,
@@ -54,13 +55,13 @@ export default function Artwork() {
   const loadArtworks = useCallback(async () => {
     try {
       setLoading(true);
+      setErrorMessage("");
       const apiStatus = statusFilter === "approved" ? "verified" : statusFilter;
       const data = await fetchArtworks(apiStatus);
       setArtworks(Array.isArray(data) ? data : []);
       // Also fetch all artworks to compute totals across statuses
       const all = await fetchArtworks();
       setAllArtworks(Array.isArray(all) ? all : []);
-      setErrorMessage("");
     } catch (err) {
       setArtworks([]);
       setErrorMessage(err.message || "Failed to load artworks");
@@ -167,6 +168,21 @@ export default function Artwork() {
         return "primary.light";
     }
   };
+
+  if (errorMessage) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>{isVerifiedSection ? "Verified Artworks" : "Art Verification"}</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title={isVerifiedSection ? "Verified Artworks Unavailable" : "Art Verification Unavailable"}
+          message={errorMessage}
+          onRetry={loadArtworks}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -359,10 +375,6 @@ export default function Artwork() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : errorMessage ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>
-            {errorMessage}
-          </Typography>
         ) : filteredArtworks.length > 0 ? (
           <ArtworkCard artworks={filteredArtworks} onVerify={setVerificationArtwork} onReject={setRejectionArtwork} />
         ) : (

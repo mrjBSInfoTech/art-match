@@ -1,6 +1,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import db from "../../database/db.js";
+import { getJwtSecret } from "../../utils/jwtSecret.js";
 import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
 import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 import { getArtworkRatingSql, getArtworkRatingSummary, getArtworkRatingSignal } from "../../utils/artworkRatings.js";
@@ -26,7 +27,7 @@ const optionalCustomerId = (req) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || "your_secret_key",
+      getJwtSecret(),
       { algorithms: ["HS256"] },
     );
 

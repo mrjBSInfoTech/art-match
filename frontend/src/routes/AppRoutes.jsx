@@ -47,6 +47,7 @@ import SellerSales from "../pages/seller/Sales";
 import SellerMessages from "../pages/seller/Messages";
 import SellerNotifications from "../pages/seller/Notifications";
 import SellerOrder from "../pages/seller/Order";
+import SellerOrderDetail from "../components/seller/Order/OrderDetail";
 import SellerInventory from "../pages/seller/Inventory";
 import SellerReviews from "../pages/seller/Reviews";
 import SellerProfile from "../pages/seller/Profile";
@@ -57,6 +58,7 @@ import SellerPlaceholder from "../pages/seller/SellerPlaceholder";
 import SellerPayout from "../pages/seller/Payout";
 import SellerVoucher from "../pages/seller/Voucher";
 import SellerCertificateOfAuthenticity from "../pages/seller/CertificateOfAuthenticity";
+import SellerSearchCertificate from "../pages/seller/SearchCertificate";
 import SellerMarketing from "../pages/seller/Marketing";
 import SellerAuditLogs from "../pages/seller/AuditLogs";
 
@@ -81,6 +83,7 @@ import BuyerAccountOverview from "../pages/buyer/AccountOverview";
 import BuyerPaymentMethods from "../pages/buyer/PaymentMethods";
 import BuyerSettings from "../pages/buyer/Settings";
 import BuyerOrder from "../pages/buyer/Order";
+import BuyerOrderDetail from "../pages/buyer/OrderDetail";
 import BuyerPurchases from "../pages/buyer/Purchases";
 import BuyerOrderFinish from "../pages/buyer/OrderFinish";
 import BuyerCertificateView from "../pages/buyer/CertificateView";
@@ -133,6 +136,9 @@ export default function AppRoutes() {
             {/* Protected buyer pages */}
             <Route element={<BuyerRoute />}>
               <Route element={<BuyerLayout />}>
+                <Route path="orders" element={<Navigate to="profile/orders" replace />} />
+                <Route path="orders/:id" element={<BuyerOrderDetail />} />
+                <Route path="orders/view/:id" element={<BuyerOrderDetail />} />
                 <Route path="cart" element={<BuyerCart />} />
                 <Route path="checkout" element={<BuyerCheckout />} />
                 <Route path="favorites" element={<BuyerFavorites />} />
@@ -157,6 +163,8 @@ export default function AppRoutes() {
                   <Route path="addresses" element={<BuyerAddress />} />
                   <Route path="messages" element={<BuyerMessage embedded />} />
                   <Route path="orders" element={<BuyerOrder />} />
+                  <Route path="orders/:id" element={<BuyerOrderDetail />} />
+                  <Route path="orders/view/:id" element={<BuyerOrderDetail />} />
                   <Route path="purchases" element={<BuyerPurchases />} />
                   <Route
                     path="transactions"
@@ -246,6 +254,9 @@ export default function AppRoutes() {
                 <Route path="sales" element={<SellerSales />} />
                 <Route path="orders" element={<Navigate to="manage" replace />} />
                 <Route path="orders/manage" element={<SellerOrder />} />
+                <Route path="orders/manage/:id" element={<SellerOrderDetail />} />
+                <Route path="orders/view/:id" element={<SellerOrderDetail />} />
+                <Route path="orders/:id" element={<SellerOrderDetail />} />
                 <Route path="orders/inventory" element={<SellerInventory />} />
                 <Route path="orders/reviews" element={<SellerReviews />} />
                 <Route path="inventory" element={<SellerInventory />} />
@@ -281,12 +292,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="authenticity/check"
-                  element={
-                    <SellerPlaceholder
-                      title="Check Art Authenticity"
-                      description="Art authenticity checking tools will be available here soon."
-                    />
-                  }
+                  element={<SellerSearchCertificate />}
                 />
                 <Route
                   path="audit-logs"

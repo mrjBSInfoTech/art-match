@@ -20,6 +20,7 @@ import {
   clearAuthCookieOptions,
   authRateLimiter,
 } from "../../utils/authCookies.js";
+import { getJwtSecret } from "../../utils/jwtSecret.js";
 
 const router = express.Router();
 
@@ -294,8 +295,8 @@ router.post("/login", authRateLimiter, (req, res) => {
         student_number: user.student_number,
         role: "seller",
       },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "1h", algorithm: "HS256" },
+      getJwtSecret(),
+      { expiresIn: "3h", algorithm: "HS256" },
     );
 
     res.cookie("seller_token", token, getAuthCookieOptions(1));

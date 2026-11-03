@@ -36,7 +36,7 @@ function loadService({ queryHandler, connectionFactory } = {}) {
     console: { error() {} },
   };
   vm.runInNewContext(
-    `${source}\nglobalThis.service = { publishCertificate, getSellerCertificate, processDueCertificateDeliveries, getBuyerCertificate, getPublicCertificate, certificateWithQr, certificateUrl, reserveCertificateIdentity, getSellerOrderCertificateIdentity, revokeCertificateAccessForReturn };`,
+    `${source}\nglobalThis.service = { publishCertificate, getSellerCertificate, processDueCertificateDeliveries, getBuyerCertificate, getPublicCertificate, certificateWithQr, certificateUrl, reserveCertificateIdentity, getSellerOrderCertificateIdentity, revokeCertificateAccessForReturn, searchCertificates };`,
     context,
   );
   return { service: context.service, calls, events };
@@ -264,4 +264,44 @@ test("revokeCertificateAccessForReturn updates access and delivery records for r
   });
   await current.service.revokeCertificateAccessForReturn(null, 88);
   assert.equal(current.calls.length, 2);
+});
+
+test("searchCertificates queries certificates and excludes current seller by default", async () => {
+  const current = loadService({
+    queryHandler: async (sql, params) => {
+      if (/FROM marketplace_certificate c/.test(sql)) {
+        assert.match(sql, /c\.seller_id != \?/);
+        assert.equal(params[0], 5);
+        assert.equal(params[1], "%Landscape%");
+        return [[
+          {
+            artwork_id: 101,
+            seller_id: 12,
+            certificate_id: "RN-2026-LNDS",
+            certificate_svg: '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"></svg>',
+            published_at: "2026-11-01T10:00:00Z",
+            public_token: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+            artwork_title: "Golden Landscape",
+            artwork_image: "landscape.jpg",
+            genre: "Landscape",
+            art_type: "Oil Painting",
+            price: 5000,
+            first_name: "Jane",
+            last_name: "Smith",
+            profile_image: "jane.jpg",
+            course: "Fine Arts",
+            student_number: "2022-0001",
+          },
+        ]];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  const results = await current.service.searchCertificates(5, { query: "Landscape", excludeSelf: true });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].certificateId, "RN-2026-LNDS");
+  assert.equal(results[0].artwork.title, "Golden Landscape");
+  assert.equal(results[0].artist.name, "Jane Smith");
+  assert.equal(results[0].isOwnCertificate, false);
 });

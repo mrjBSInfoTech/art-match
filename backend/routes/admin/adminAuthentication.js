@@ -9,6 +9,7 @@ import {
   clearAuthCookieOptions,
   authRateLimiter,
 } from "../../utils/authCookies.js";
+import { getJwtSecret } from "../../utils/jwtSecret.js";
 
 const router = express.Router();
 
@@ -110,8 +111,8 @@ router.post("/login", authRateLimiter, (req, res) => {
         created_at: user.created_at,
         updated_at: user.updated_at,
       },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "1h" },
+      getJwtSecret(),
+      { expiresIn: "3h" },
     );
 
     res.cookie("admin_token", token, getAuthCookieOptions());
@@ -146,11 +147,37 @@ router.post("/login", authRateLimiter, (req, res) => {
 
 router.post("/logout", async (req, res) => {
   try {
+    const token =
+      req.cookies?.admin_token ||
+      (req.headers?.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.split(" ")[1]
+        : req.headers?.authorization?.split(" ")[1]);
+
+    let decoded = null;
+    if (token) {
+      try {
+        decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
+      } catch {
+        // Token might already be expired or invalid
+      }
+    }
+
+    const adminId = decoded?.admin_id || req.user?.admin_id;
+    if (adminId && db?.query) {
+      await new Promise((resolve) => {
+        db.query(
+          "UPDATE admin SET password_changed = COALESCE(password_changed, 0) + 1 WHERE admin_id = ?",
+          [adminId],
+          () => resolve(),
+        );
+      });
+    }
+
     res.clearCookie("admin_token", clearAuthCookieOptions());
     await logAudit({
       action: "LOGOUT",
-      actor: req.user?.username || req.user?.admin_id || "Admin",
-      role: req.user?.role || "Admin",
+      actor: decoded?.username || req.user?.username || adminId || "Admin",
+      role: decoded?.role || req.user?.role || "Admin",
       status: "SUCCESS",
       information: "Admin logged out",
     });

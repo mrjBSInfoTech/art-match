@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -23,6 +23,7 @@ import {
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import { fetchAboutContent, saveAboutContent } from "../../api/aboutContentAPI";
 import { fetchFooterContent, saveFooterContent } from "../../api/footerContentAPI";
 
@@ -143,39 +144,28 @@ export default function SystemSetting() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [confirmationPassword, setConfirmationPassword] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    fetchAboutContent()
-      .then((data) => {
-        if (active) setContent(data);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+  const loadContent = useCallback(async () => {
+    setLoading(true);
+    setFooterLoading(true);
+    setError("");
+    try {
+      const [about, footer] = await Promise.all([
+        fetchAboutContent(),
+        fetchFooterContent(),
+      ]);
+      setContent(about);
+      setFooterContent(footer);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load system content.");
+    } finally {
+      setLoading(false);
+      setFooterLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    let active = true;
-    fetchFooterContent()
-      .then((data) => {
-        if (active) setFooterContent(data);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError.message);
-      })
-      .finally(() => {
-        if (active) setFooterLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+    loadContent();
+  }, [loadContent]);
 
   const updateField = (field, value) => {
     setContent((current) => ({ ...current, [field]: value }));
@@ -393,6 +383,21 @@ export default function SystemSetting() {
         <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
           <CircularProgress />
         </Box>
+      </Box>
+    );
+  }
+
+  if (error && !content && !footerContent) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>System Content</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="System Content Unavailable"
+          message={error}
+          onRetry={loadContent}
+        />
       </Box>
     );
   }

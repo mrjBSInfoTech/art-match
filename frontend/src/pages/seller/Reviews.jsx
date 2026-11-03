@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Autocomplete,
   Alert,
@@ -19,6 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import {
   fetchSellerReviews,
   saveSellerReviewResponse,
@@ -236,26 +238,22 @@ export default function SellerReviews() {
   const [refresh, setRefresh] = useState(0);
   const [selectedArtwork, setSelectedArtwork] = useState("all");
 
-  useEffect(() => {
-    let active = true;
-    const loadReviews = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const result = await fetchSellerReviews();
-        if (active) setReviews(Array.isArray(result) ? result : []);
-      } catch (loadError) {
-        if (active) setError(loadError.message || "Unable to load reviews and ratings.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
+  const loadReviews = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await fetchSellerReviews();
+      setReviews(Array.isArray(result) ? result : []);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load reviews and ratings.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
     loadReviews();
-    return () => {
-      active = false;
-    };
-  }, [refresh]);
+  }, [loadReviews, refresh]);
 
   const artworkCategories = Array.from(
     new Map(
@@ -303,6 +301,21 @@ export default function SellerReviews() {
   };
 
   const totalNeedResponse = reviews.filter((review) => !review.sellerResponse).length;
+
+  if (error && !reviews.length) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Reviews & Ratings</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Reviews Unavailable"
+          message={error}
+          onRetry={loadReviews}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>

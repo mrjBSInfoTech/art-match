@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { getAccountAccess } from "../database/accountAccess.js";
 import { clearAuthCookieOptions } from "../utils/authCookies.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 export const authenticateBuyer = (req, res, next) => {
   const token =
@@ -17,11 +18,13 @@ export const authenticateBuyer = (req, res, next) => {
 
   jwt.verify(
     token,
-    process.env.JWT_SECRET || "your_secret_key",
+    getJwtSecret(),
     { algorithms: ["HS256"] },
     (err, user) => {
       if (err) {
-        res.clearCookie("buyer_token", clearAuthCookieOptions());
+        if (typeof res.clearCookie === "function") {
+          res.clearCookie("buyer_token", clearAuthCookieOptions());
+        }
         return res.status(401).json({ message: "Invalid or expired token." });
       }
 

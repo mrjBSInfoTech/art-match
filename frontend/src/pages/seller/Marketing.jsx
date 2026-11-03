@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import SellerStorefront from "./Storefront";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import {
   createSellerPromotionSlide,
   deleteSellerPromotionSlide,
@@ -254,6 +255,24 @@ export default function Marketing() {
     if (slide.review_status !== "accepted") return true;
     return Number(slide.is_currently_published) !== 1;
   };
+
+  if (error || (activeTab === "header" && headerError)) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Marketing</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Promotions Unavailable"
+          message={error || headerError}
+          onRetry={() => {
+            loadSlides();
+            loadHeaderRequests();
+          }}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", minWidth: 0 }}>

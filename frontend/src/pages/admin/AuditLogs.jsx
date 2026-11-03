@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -29,6 +29,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -77,22 +78,23 @@ export default function AuditLogs() {
     }
   };
 
-  useEffect(() => {
-    const loadLogs = async () => {
-      try {
-        setLoading(true);
-        setLogs(await fetchAuditLogs(search, date, period));
-        setVisibleCount(50);
-        setLogsErrorMessage("");
-        setReportError("");
-      } catch (loadError) {
-        setLogsErrorMessage(loadError.message || "Unable to load audit logs.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadLogs();
+  const loadLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLogsErrorMessage("");
+      setReportError("");
+      setLogs(await fetchAuditLogs(search, date, period));
+      setVisibleCount(50);
+    } catch (loadError) {
+      setLogsErrorMessage(loadError.message || "Unable to load audit logs.");
+    } finally {
+      setLoading(false);
+    }
   }, [search, date, period]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const formatAndCapitalize = (data) => {
     if (!data) return "N/A";
@@ -122,6 +124,21 @@ export default function AuditLogs() {
       .filter(Boolean);
     return formatted.length > 0 ? formatted.join(", ") : "N/A";
   };
+
+  if (logsErrorMessage) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Audit Logs</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Audit Logs Unavailable"
+          message={logsErrorMessage}
+          onRetry={loadLogs}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -352,10 +369,6 @@ export default function AuditLogs() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : logsErrorMessage ? (
-          <Typography color="error" sx={{ py: 3, textAlign: "center" }}>
-            {logsErrorMessage}
-          </Typography>
         ) : logs.length === 0 ? (
           <Typography color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
             No audit logs found

@@ -1,5 +1,6 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 /*
  * Artwork image protection: cap how fast anyone can pull images.
@@ -28,7 +29,7 @@ const readAccount = (req) => {
   try {
     const user = jwt.verify(
       token,
-      process.env.JWT_SECRET || "your_secret_key",
+      getJwtSecret(),
     );
     const id = user.customer_id ?? user.student_id ?? user.id;
     return id ? { role: user.customer_id ? "buyer" : "account", id } : null;

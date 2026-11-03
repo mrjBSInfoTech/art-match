@@ -1,6 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { Box, Tab, Tabs } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import PromotionHeader from "./PromotionHeader";
 import PromotionSlides from "./PromotionSlides";
 

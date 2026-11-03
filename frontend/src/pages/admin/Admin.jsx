@@ -21,6 +21,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import AdminCard from "../../components/admin/Admin/AdminCard";
 import AdminForm from "../../components/admin/Admin/AdminForm";
 import AdminDelete from "../../components/admin/Admin/AdminDelete";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   addAdmin,
   deleteAdmin,
@@ -184,6 +185,21 @@ export default function Admin() {
   const canAddAdmin =
     localStorage.getItem("admin_can_add") === "1" ||
     localStorage.getItem("admin_role") === "super admin";
+
+  if (adminErrorMessage) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Admin Accounts</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Admin Accounts Unavailable"
+          message={adminErrorMessage}
+          onRetry={loadAdmins}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -382,10 +398,6 @@ export default function Admin() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : adminErrorMessage ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>
-            {adminErrorMessage}
-          </Typography>
         ) : filteredAdmins.length > 0 ? (
           <AdminCard
             admins={filteredAdmins}

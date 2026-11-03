@@ -395,3 +395,111 @@ export async function revokeCertificateAccessForReturn(executor, returnRequestId
     console.warn("Unable to update certificate delivery record:", error.message);
   }
 }
+
+export async function searchCertificates(currentSellerId, { query: rawQuery = "", excludeSelf = true, limit = 50 } = {}) {
+  const sellerId = positiveId(currentSellerId, "seller");
+  const searchQuery = typeof rawQuery === "string" ? rawQuery.trim() : "";
+  const maxLimit = Math.min(Math.max(1, Number(limit) || 50), 100);
+
+  const filterSql = excludeSelf ? "c.seller_id != ?" : "(c.seller_id != ? OR 1=1)";
+  const params = [sellerId];
+
+  let searchCondition = "";
+  if (searchQuery) {
+    const likePattern = `%${searchQuery}%`;
+    searchCondition = `
+      AND (
+        c.certificate_id LIKE ?
+        OR a.title LIKE ?
+        OR CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) LIKE ?
+        OR s.first_name LIKE ?
+        OR s.last_name LIKE ?
+        OR a.genre LIKE ?
+        OR a.art_type LIKE ?
+        OR i.public_token = ?
+      )
+    `;
+    params.push(
+      likePattern,
+      likePattern,
+      likePattern,
+      likePattern,
+      likePattern,
+      likePattern,
+      likePattern,
+      searchQuery,
+    );
+  }
+
+  params.push(maxLimit);
+
+  const [rows] = await db.promise().query(
+    `SELECT 
+       c.artwork_id,
+       c.seller_id,
+       c.certificate_id,
+       c.certificate_svg,
+       c.published_at,
+       i.public_token,
+       a.title AS artwork_title,
+       a.image AS artwork_image,
+       a.genre,
+       a.art_type,
+       a.price,
+       s.first_name,
+       s.last_name,
+       s.profile_image,
+       s.course,
+       s.student_number
+     FROM marketplace_certificate c
+     JOIN artwork a ON a.artwork_id = c.artwork_id
+     JOIN student s ON s.student_id = c.seller_id
+     LEFT JOIN marketplace_certificate_identity i ON i.artwork_id = c.artwork_id
+     WHERE ${filterSql}
+       ${searchCondition}
+     ORDER BY c.published_at DESC
+     LIMIT ?`,
+    params,
+  );
+
+  return Promise.all(
+    rows.map(async (row) => {
+      let verificationUrl = null;
+      let svg = row.certificate_svg;
+      if (row.public_token) {
+        try {
+          verificationUrl = certificateUrl(row.public_token);
+          svg = await certificateWithQr(row.certificate_svg, verificationUrl);
+        } catch {
+          // Keep existing svg if URL configuration fails
+        }
+      }
+      return {
+        certificateId: row.certificate_id,
+        artworkId: row.artwork_id,
+        publishedAt: row.published_at,
+        verificationUrl,
+        publicToken: row.public_token || null,
+        svg,
+        artwork: {
+          id: row.artwork_id,
+          title: row.artwork_title || "Untitled Artwork",
+          image: row.artwork_image || null,
+          genre: row.genre || null,
+          artType: row.art_type || null,
+          price: row.price || 0,
+        },
+        artist: {
+          id: row.seller_id,
+          name: `${row.first_name || ""} ${row.last_name || ""}`.trim() || "Student Artist",
+          firstName: row.first_name,
+          lastName: row.last_name,
+          profileImage: row.profile_image || null,
+          course: row.course || null,
+          studentNumber: row.student_number || null,
+        },
+        isOwnCertificate: row.seller_id === sellerId,
+      };
+    }),
+  );
+}

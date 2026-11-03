@@ -16,9 +16,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   EmailRounded,
   LockRounded,
+  PersonRounded,
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
@@ -33,8 +35,9 @@ function SlideTransition(props) {
 }
 
 export default function Login() {
-  const [username, setUsername] = useState("student@cafa.edu.cn");
-  const [password, setPassword] = useState("********");
+  const theme = useTheme();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -103,6 +106,20 @@ export default function Login() {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "error":
+        return theme.palette.error.main;
+      case "warning":
+        return theme.palette.warning.main;
+      case "info":
+        return theme.palette.info.main;
+      default:
+        return theme.palette.success.main;
+    }
+  };
+
 
   return (
     <Container
@@ -302,7 +319,7 @@ export default function Login() {
                       mb: 1,
                     }}
                   >
-                    Email Address
+                    Username
                   </Typography>
                   <TextField
                     fullWidth
@@ -310,11 +327,11 @@ export default function Login() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     size="small"
-                    placeholder="student@cafa.edu.cn"
+                    placeholder="Please enter your username"
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <EmailRounded sx={{ color: "#b7b5b1", fontSize: "1.15rem" }} />
+                          <PersonRounded sx={{ color: "#b7b5b1", fontSize: "1.15rem" }} />
                         </InputAdornment>
                       ),
                     }}
@@ -373,7 +390,7 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     size="small"
-                    placeholder="••••••••••••"
+                    placeholder="Please enter your password"
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">

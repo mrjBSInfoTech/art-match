@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Alert,
   Box,
@@ -13,6 +13,7 @@ import { useTheme } from "@mui/material/styles";
 import BackupIcon from "@mui/icons-material/Backup";
 import { Helmet } from "react-helmet-async";
 import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   fetchAccountExpirationDate,
   downloadSystemBackup,
@@ -37,24 +38,23 @@ export default function SystemSettingsPlaceholder({ title }) {
   const [backupError, setBackupError] = useState("");
   const [backupNotice, setBackupNotice] = useState("");
 
-  useEffect(() => {
-    if (title !== "Mechanicals") return undefined;
-
-    let active = true;
-    fetchAccountExpirationDate()
-      .then(({ date }) => {
-        if (active) setExpirationDate(date);
-      })
-      .catch((error) => {
-        if (active) setExpirationError(error.message);
-      })
-      .finally(() => {
-        if (active) setLoadingExpiration(false);
-      });
-    return () => {
-      active = false;
-    };
+  const loadExpiration = useCallback(async () => {
+    if (title !== "Mechanicals") return;
+    try {
+      setLoadingExpiration(true);
+      setExpirationError("");
+      const { date } = await fetchAccountExpirationDate();
+      setExpirationDate(date || "");
+    } catch (error) {
+      setExpirationError(error.message || "Unable to load expiration date.");
+    } finally {
+      setLoadingExpiration(false);
+    }
   }, [title]);
+
+  useEffect(() => {
+    loadExpiration();
+  }, [loadExpiration]);
 
   const handleSaveExpiration = async (event) => {
     event.preventDefault();
@@ -101,6 +101,21 @@ export default function SystemSettingsPlaceholder({ title }) {
       setCreatingBackup(false);
     }
   };
+
+  if (title === "Mechanicals" && expirationError && !expirationDate) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>{title}</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title={`${title} Settings Unavailable`}
+          message={expirationError}
+          onRetry={loadExpiration}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

@@ -34,6 +34,7 @@ import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import VoucherCard from "../../components/seller/Voucher/VoucherCard";
 import VoucherDelete from "../../components/seller/Voucher/VoucherDelete";
 import VoucherForm from "../../components/seller/Voucher/VoucherForm";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import {
   createSellerVoucher,
   deleteSellerVoucher,
@@ -237,6 +238,21 @@ export default function Voucher() {
       setDeleting(false);
     }
   };
+
+  if (error && !vouchers.length) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Vouchers</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Vouchers Unavailable"
+          message={error}
+          onRetry={loadVouchers}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

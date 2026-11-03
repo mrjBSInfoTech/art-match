@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -25,11 +25,13 @@ import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { updateAdmin } from "../../api/admin/adminAPI";
+import { fetchDashboard } from "../../api/admin/dashboardAPI";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive",
@@ -68,12 +70,12 @@ export default function Profile() {
   const [role, setRole] = useState("Administrator");
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
+  const [error, setError] = useState("");
 
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -167,6 +169,34 @@ export default function Profile() {
         return "default"; // Neutral gray
     }
   };
+
+  const checkConnection = useCallback(async () => {
+    try {
+      setError("");
+      await fetchDashboard();
+    } catch (err) {
+      setError(err.message || "Failed to load profile.");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkConnection();
+  }, [checkConnection]);
+
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Admin Profile</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Profile Unavailable"
+          message={error}
+          onRetry={checkConnection}
+        />
+      </Box>
+    );
+  }
 
   function InfoRow({ icon, label, value, onCopy }) {
     return (

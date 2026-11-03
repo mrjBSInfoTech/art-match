@@ -4,9 +4,24 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 
 export default function ConnectionErrorPanel({
   title = "Page temporarily unavailable",
+  message,
+  description: customDescription,
   onRetry = () => window.location.reload(),
 }) {
   const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  const isAuthError =
+    typeof message === "string" &&
+    (message.toLowerCase().includes("token") ||
+      message.toLowerCase().includes("access denied") ||
+      message.toLowerCase().includes("unauthorized") ||
+      message.toLowerCase().includes("session") ||
+      message.toLowerCase().includes("privilege"));
+
+  const displayDescription =
+    customDescription ||
+    (isOffline
+      ? "You appear to be offline. Check your internet connection and try again."
+      : "We couldn't connect to the server. Please check your connection and try again.");
 
   return (
     <Box
@@ -38,19 +53,39 @@ export default function ConnectionErrorPanel({
           {title}
         </Typography>
         <Typography color="text.secondary" variant="body2" sx={{ lineHeight: 1.6 }}>
-          {isOffline
-            ? "You appear to be offline. Check your internet connection and try again."
-            : "We couldn't connect to the server. Please check your connection and try again."}
+          {displayDescription}
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<RefreshRoundedIcon />}
-          color="error"
-          onClick={onRetry}
-          sx={{ mt: 2.5, textTransform: "none", fontWeight: 700, color: "#fff" }}
+        <Box
+          sx={{
+            mt: 2.5,
+            display: "flex",
+            justifyContent: "center",
+            gap: 1.5,
+            flexWrap: "wrap",
+          }}
         >
-          Try again
-        </Button>
+          <Button
+            variant="contained"
+            startIcon={<RefreshRoundedIcon />}
+            color="error"
+            onClick={onRetry}
+            sx={{ textTransform: "none", fontWeight: 700, color: "#fff" }}
+          >
+            Try again
+          </Button>
+          {isAuthError && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => {
+                window.location.href = "/admin/login";
+              }}
+              sx={{ textTransform: "none", fontWeight: 700 }}
+            >
+              Go to login
+            </Button>
+          )}
+        </Box>
       </Paper>
     </Box>
   );

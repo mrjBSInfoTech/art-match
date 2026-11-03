@@ -1,280 +1,352 @@
-import {
-  Box, Button, Chip, Divider, FormControl, FormHelperText,
-  MenuItem, Paper, Select, Stack, Typography,
-} from "@mui/material";
-import { Link } from "react-router-dom";
-import ArrowForwardOutlinedIcon from "@mui/icons-material/ArrowForwardOutlined";
+import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ArtworkImage from "../../common/ArtworkImage";
-import { getPaymentColor, getPaymentLabel } from "../../../utils/orderPayments.js";
-import { formatCurrency, formatOrderDate, statusColorMap } from "./orderPresentation.js";
+import { formatCurrency, formatOrderDate } from "./orderPresentation.js";
+
+const statusPillStyles = {
+  Pending: {
+    bgcolor: "#fffbeb",
+    color: "#d97706",
+    borderColor: "#fde68a",
+  },
+  Confirmed: {
+    bgcolor: "#ecfeff",
+    color: "#0891b2",
+    borderColor: "#a5f3fc",
+  },
+  Packed: {
+    bgcolor: "#faf5ff",
+    color: "#7c3aed",
+    borderColor: "#e9d5ff",
+  },
+  Shipped: {
+    bgcolor: "#eff6ff",
+    color: "#2563eb",
+    borderColor: "#bfdbfe",
+  },
+  Delivered: {
+    bgcolor: "#f0fdf4",
+    color: "#16a34a",
+    borderColor: "#bbf7d0",
+  },
+  Cancelled: {
+    bgcolor: "#fef2f2",
+    color: "#dc2626",
+    borderColor: "#fecaca",
+  },
+};
 
 export default function OrderCard({
   order,
+  onClick,
   onViewDetails,
-  onViewReturn,
-  onStatusChange,
-  nextStatuses = [],
-  statusHint = "",
-  saving = false,
-  updating = false,
 }) {
-  const items = order.items || [];
+  const items = Array.isArray(order.items) ? order.items : [];
+  const primaryItem = items[0] || {};
+  const status = order.status || "Pending";
+  const pillStyle = statusPillStyles[status] || {
+    bgcolor: "#f1f5f9",
+    color: "#475569",
+    borderColor: "#cbd5e1",
+  };
+
+  const handleClick = () => {
+    if (onClick) onClick();
+    else if (onViewDetails) onViewDetails(order);
+  };
+
+  const grossAmount = order.earning?.gross ?? order.total ?? order.subtotal ?? 0;
+  const platformTake = (order.earning?.commission || 0) + (order.earning?.processingFee || 0);
+  const platformTakePercent = order.total && order.total > 0
+    ? Math.round((platformTake / order.total) * 100)
+    : 0;
+  const netPayout = order.earning?.net ?? order.total ?? grossAmount;
+
+  const artistName = order.sellerName || primaryItem.artistName || "Student Artist";
+  const buyerName = order.customer || order.buyerName || "Buyer";
+  const artworkTitle = primaryItem.title
+    ? `${primaryItem.title}${items.length > 1 ? ` (+${items.length - 1} more)` : ""}`
+    : "Untitled artwork";
 
   return (
     <Paper
       component="article"
+      role="button"
+      tabIndex={0}
       elevation={0}
+      onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleClick();
+        }
+      }}
       sx={{
-        borderRadius: 4,
-        overflow: "hidden",
-        minWidth: 0,
+        p: { xs: 2, sm: 2.5 },
+        borderRadius: 3.5,
         border: "1px solid",
         borderColor: "divider",
-        background: "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.98) 100%)",
-        boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
-        transition: "box-shadow 180ms ease, transform 180ms ease",
+        bgcolor: "#ffffff",
+        cursor: "pointer",
+        transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
         "&:hover": {
-          boxShadow: "0 22px 48px rgba(15, 23, 42, 0.12)",
+          boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)",
+          borderColor: "primary.light",
           transform: "translateY(-1px)",
+        },
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: "2px",
         },
       }}
     >
       <Stack
-        direction={{ xs: "column", sm: "row" }}
-        gap={1.5}
-        sx={{
-          px: { xs: 2, sm: 3 },
-          py: 2,
-          background: "linear-gradient(90deg, rgba(15, 23, 42, 0.02), rgba(239, 68, 68, 0.03), rgba(15, 23, 42, 0.02))",
-          justifyContent: "space-between",
-          alignItems: { sm: "center" },
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
+        direction={{ xs: "column", md: "row" }}
+        alignItems={{ xs: "flex-start", md: "center" }}
+        justifyContent="space-between"
+        spacing={2}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 0.12, textTransform: "uppercase", fontWeight: 700 }}>
-            Order
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.35, overflowWrap: "anywhere", lineHeight: 1.2 }}>
-            {order.id}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.35 }}>
-            {formatOrderDate(order.date)}
-          </Typography>
-        </Box>
-
-        <Stack direction="row" gap={0.75} flexWrap="wrap" justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
-          <Chip
-            label={order.status}
-            color={statusColorMap[order.status] || "default"}
-            size="small"
+        {/* Left Side: Thumbnail / Icon + Title + Meta */}
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+          {/* Thumbnail / Package Icon Box */}
+          <Box
             sx={{
-              fontWeight: 800,
-              borderRadius: 1.5,
-              px: 0.5,
-              color: "#fff",
+              width: 58,
+              height: 58,
+              borderRadius: 2.5,
+              bgcolor: "#f8fafc",
+              border: "1px solid",
+              borderColor: "#e2e8f0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              overflow: "hidden",
+              position: "relative",
             }}
-          />
-          <Chip
-            label={order.deliveryMethod === "pickup" ? "Meet-up" : "Door-to-door"}
-            size="small"
-            variant="outlined"
-            color={order.deliveryMethod === "pickup" ? "info" : "default"}
-            sx={{ borderRadius: 1.5, fontWeight: 700 }}
-          />
-          {order.activeReturn && (
-            <Chip
-              label={`Return: ${order.activeReturn.status}`}
-              size="small"
-              color="warning"
-              variant="outlined"
-              sx={{ borderRadius: 1.5, fontWeight: 700 }}
-            />
-          )}
-          <Chip
-            label={getPaymentLabel(order)}
-            color={getPaymentColor(order)}
-            size="small"
-            variant="outlined"
-            sx={{ borderRadius: 1.5, fontWeight: 700 }}
-          />
-        </Stack>
-      </Stack>
-
-      <Box sx={{ px: { xs: 2, sm: 3 }, py: 2.5 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1.5} sx={{ mb: 2 }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.12, fontWeight: 700 }}>
-              Customer
-            </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.4, overflowWrap: "anywhere" }}>
-              {order.customer || "Customer unavailable"}
-            </Typography>
+          >
+            {items.length > 0 ? (
+              items.map((item, idx) => (
+                <ArtworkImage
+                  key={item.id || item.artworkId || idx}
+                  image={item.image}
+                  alt={item.title || "Purchased artwork"}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: idx === 0 ? "block" : "none",
+                  }}
+                />
+              ))
+            ) : (
+              <Inventory2OutlinedIcon sx={{ color: "#ef4444", fontSize: 28 }} />
+            )}
           </Box>
 
-          <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
-            <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.12, fontWeight: 700 }}>
-              Total
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>
-              {formatCurrency(order.total)}
-            </Typography>
-          </Box>
-        </Stack>
-
-        <Stack spacing={2} divider={<Divider flexItem />}>
-          {items.map((item, index) => (
-            <Stack
-              key={item.artworkId || `${order.id}-${index}`}
-              direction="row"
-              spacing={2}
-              sx={{ alignItems: "center", minWidth: 0, py: 0.25 }}
-            >
-              <ArtworkImage
-                image={item.image}
-                alt={item.title || "Purchased artwork"}
-                loading="lazy"
-                sx={{
-                  width: { xs: 76, sm: 92 },
-                  height: { xs: 76, sm: 92 },
-                  flexShrink: 0,
-                  borderRadius: 3,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  bgcolor: "background.default",
-                  objectFit: "cover",
-                  display: "block",
-                  boxShadow: "0 8px 20px rgba(15,23,42,0.08)",
-                }}
-              />
-
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, overflowWrap: "anywhere", lineHeight: 1.3 }}>
-                  {item.title || "Untitled artwork"}
-                </Typography>
-
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Qty {item.qty} · {formatCurrency(item.price)} each
-                </Typography>
-
-                {item.productOptionName && (
-                  <Typography variant="caption" color="primary.main" display="block" sx={{ fontWeight: 700, mt: 0.5 }}>
-                    Option: {item.productOptionName}
-                  </Typography>
-                )}
-
-                {(!item.productOptionName || item.selectedProducts?.length > 1) && item.selectedProducts?.map((product) => (
-                  <Typography key={product.id} variant="caption" color="text.secondary" display="block" sx={{ mt: 0.3 }}>
-                    {product.name} × {product.quantity}
-                  </Typography>
-                ))}
-
-                {item.orderNote && (
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: "pre-wrap", mt: 0.4 }}>
-                    Request: {item.orderNote}
-                  </Typography>
-                )}
-              </Box>
-
+          {/* Details */}
+          <Box sx={{ minWidth: 0 }}>
+            {/* Title & Status Pill */}
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.35 }}>
               <Typography
-                variant="subtitle2"
+                variant="subtitle1"
                 sx={{
                   fontWeight: 800,
-                  flexShrink: 0,
-                  display: { xs: "none", sm: "block" },
-                  fontVariantNumeric: "tabular-nums",
+                  color: "#0f172a",
+                  lineHeight: 1.3,
+                  overflowWrap: "anywhere",
                 }}
               >
-                {formatCurrency(item.lineTotal ?? item.price * item.qty)}
+                {artworkTitle}
+              </Typography>
+              <Chip
+                label={status}
+                size="small"
+                sx={{
+                  height: 22,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: "16px",
+                  bgcolor: pillStyle.bgcolor,
+                  color: pillStyle.color,
+                  border: `1px solid ${pillStyle.borderColor}`,
+                  px: 0.5,
+                }}
+              />
+              {order.activeReturn && (
+                <Chip
+                  label={`Return: ${order.activeReturn.status}`}
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    borderRadius: "16px",
+                    bgcolor: "#fffbeb",
+                    color: "#b45309",
+                    border: "1px solid #fde68a",
+                  }}
+                />
+              )}
+            </Stack>
+
+            {/* Artist & Buyer Subtitle */}
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                fontSize: 13,
+                fontWeight: 500,
+                mb: 0.35,
+              }}
+            >
+              Artist: <strong style={{ color: "#334155" }}>{artistName}</strong> · Buyer: <strong style={{ color: "#334155" }}>{buyerName}</strong>
+            </Typography>
+
+            {/* Date Sold */}
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
+                Date Sold: {formatOrderDate(order.date)}
               </Typography>
             </Stack>
-          ))}
+          </Box>
         </Stack>
 
+        {/* Right Side: 3 Metric Stat Boxes */}
         <Stack
           direction="row"
-          justifyContent="space-between"
+          spacing={1.25}
           alignItems="center"
-          gap={2}
-          sx={{ mt: 2.5, pt: 2, borderTop: "1px solid", borderColor: "divider" }}
+          sx={{
+            width: { xs: "100%", md: "auto" },
+            justifyContent: { xs: "space-between", md: "flex-end" },
+            pt: { xs: 1, md: 0 },
+            borderTop: { xs: "1px solid", md: "none" },
+            borderColor: { xs: "divider", md: "transparent" },
+          }}
         >
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-            {items.length} {items.length === 1 ? "artwork" : "artworks"}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 0.06 }}>
-            Ready for fulfillment
-          </Typography>
-        </Stack>
-      </Box>
-
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        gap={1.5}
-        sx={{
-          px: { xs: 2, sm: 3 },
-          p: 2.5,
-          justifyContent: "space-between",
-          alignItems: { sm: "center" },
-          background: "rgba(15, 23, 42, 0.015)",
-          borderTop: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <FormControl size="small" sx={{ width: { xs: "100%", sm: 290 }, maxWidth: "100%" }}>
-          <Select
-            value={order.status}
-            disabled={saving || !nextStatuses.length}
-            inputProps={{ "aria-label": `Update status for ${order.id}` }}
-            onChange={(event) => onStatusChange(order.orderId, event.target.value)}
+          {/* Price / Gross */}
+          <Box
             sx={{
+              bgcolor: "#f8fafc",
+              border: "1px solid #f1f5f9",
               borderRadius: 2,
-              backgroundColor: "background.paper",
-              ".MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+              px: { xs: 1.5, sm: 2 },
+              py: 1,
+              textAlign: "center",
+              minWidth: { xs: "auto", sm: 105 },
+              flex: { xs: 1, md: "initial" },
             }}
           >
-            {[order.status, ...nextStatuses].map((status) => (
-              <MenuItem key={status} value={status} disabled={status === order.status}>{status}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#94a3b8",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              PRICE / GROSS
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                color: "#0f172a",
+                fontSize: 14,
+                fontVariantNumeric: "tabular-nums",
+                mt: 0.25,
+              }}
+            >
+              {formatCurrency(grossAmount)}
+            </Typography>
+          </Box>
 
-        <Stack direction={{ xs: "column", sm: "row" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
-          {order.activeReturn && (
-            <Button
-              variant="outlined"
-              onClick={() => onViewReturn(order.activeReturn)}
-              sx={{ borderRadius: 2, minHeight: 42, textTransform: "none", fontWeight: 700 }}
-            >
-              View return
-            </Button>
-          )}
-          {order.customerId && (
-            <Button
-              variant="outlined"
-              component={Link}
-              to={`/seller/messages?buyer=${order.customerId}`}
-              sx={{ borderRadius: 2, whiteSpace: "nowrap", minHeight: 42, textTransform: "none", fontWeight: 700 }}
-            >
-              Contact buyer
-            </Button>
-          )}
-          <Button
-            variant="contained"
-            endIcon={<ArrowForwardOutlinedIcon />}
-            onClick={() => onViewDetails(order)}
+          {/* Platform Take */}
+          <Box
             sx={{
+              bgcolor: "#f8fafc",
+              border: "1px solid #f1f5f9",
               borderRadius: 2,
-              whiteSpace: "nowrap",
-              minHeight: 42,
-              textTransform: "none",
-              fontWeight: 800,
-              boxShadow: "none",
-              px: 2,
+              px: { xs: 1.5, sm: 2 },
+              py: 1,
+              textAlign: "center",
+              minWidth: { xs: "auto", sm: 105 },
+              flex: { xs: 1, md: "initial" },
             }}
           >
-            View details
-          </Button>
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#94a3b8",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              PLATFORM TAKE
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                color: "#0f172a",
+                fontSize: 14,
+                fontVariantNumeric: "tabular-nums",
+                mt: 0.25,
+              }}
+            >
+              {formatCurrency(platformTake)} ({platformTakePercent}%)
+            </Typography>
+          </Box>
+
+          {/* Net Payout */}
+          <Box
+            sx={{
+              bgcolor: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              borderRadius: 2,
+              px: { xs: 1.5, sm: 2 },
+              py: 1,
+              textAlign: "center",
+              minWidth: { xs: "auto", sm: 110 },
+              flex: { xs: 1, md: "initial" },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#16a34a",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              NET PAYOUT
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                color: "#10b981",
+                fontSize: 14,
+                fontVariantNumeric: "tabular-nums",
+                mt: 0.25,
+              }}
+            >
+              {formatCurrency(netPayout)}
+            </Typography>
+          </Box>
         </Stack>
       </Stack>
     </Paper>

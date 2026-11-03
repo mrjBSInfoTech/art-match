@@ -40,6 +40,7 @@ import {
   fetchPromotionHeroEnabled,
   savePromotionHeroEnabled,
 } from "../../api/admin/systemSettingsAPI";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 
 const emptySlide = {
   title: "",
@@ -433,13 +434,11 @@ export default function PromotionSlides() {
           <CircularProgress />
         </Box>
       ) : loadError ? (
-        <Alert
-          severity="error"
-          action={<Button onClick={loadSlides}>Retry</Button>}
-          sx={{ mt: 3 }}
-        >
-          {loadError}
-        </Alert>
+        <ConnectionErrorPanel
+          title="Promotion Slides Unavailable"
+          message={loadError}
+          onRetry={loadSlides}
+        />
       ) : (
         <>
           <Box

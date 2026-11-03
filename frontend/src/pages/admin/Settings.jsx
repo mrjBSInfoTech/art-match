@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -32,6 +32,8 @@ import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import { fetchDashboard } from "../../api/admin/dashboardAPI";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -40,11 +42,24 @@ function SlideTransition(props) {
 
 export default function Settings() {
   const theme = useTheme();
-  const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openPasswordForm, setOpenPasswordForm] = useState(false);
+  const [error, setError] = useState("");
+
+  const checkConnection = useCallback(async () => {
+    try {
+      setError("");
+      await fetchDashboard();
+    } catch (err) {
+      setError(err.message || "Failed to load settings.");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkConnection();
+  }, [checkConnection]);
   const [accountInformation, setAccountInformation] = useState({
     username: "",
     first_name: "",
@@ -166,6 +181,21 @@ export default function Settings() {
         return "primary.light"; //
     }
   };
+
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Settings</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Settings Unavailable"
+          message={error}
+          onRetry={checkConnection}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

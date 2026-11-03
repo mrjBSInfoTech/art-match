@@ -73,6 +73,7 @@ import {
   DEFAULT_ARTWORK_VARIANT,
   isArtworkVariant,
 } from "./utils/artworkDerivatives.js";
+import { getJwtSecret } from "./utils/jwtSecret.js";
 import {
   artworkImageRateLimit,
   recordArtworkDenied,
@@ -670,15 +671,67 @@ app.get(
   }),
 );
 
+// =====================================================
+// Seller registration documents (COR) - Authenticated Only
+// =====================================================
+app.get("/uploads/seller/uploadCOR/:filename", (req, res) => {
+  const filename = path.basename(req.params.filename);
+  if (!filename || filename !== req.params.filename) {
+    return res.status(400).json({ message: "Invalid filename." });
+  }
+
+  // Requester must be an authenticated Admin or Seller
+  const token =
+    req.cookies?.admin_token ||
+    req.cookies?.seller_token ||
+    (req.headers?.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.split(" ")[1]
+      : null) ||
+    req.query?.token;
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ message: "Authentication required to view registration documents." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
+    const role = String(decoded.role || "").toLowerCase().replace(/[\s_-]+/g, "");
+    const isAdmin = ["admin", "superadmin", "moderator", "customize"].includes(role);
+    const isSeller = ["seller", "student"].includes(role);
+
+    if (!isAdmin && !isSeller) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+
+    const filePath = path.join(__dirname, "uploads", "seller", "uploadCOR", filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Document not found." });
+    }
+
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    const ext = path.extname(filename).toLowerCase();
+    const contentType = safeUploadContentTypes[ext] || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    return res.sendFile(filePath);
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired session token." });
+  }
+});
+
 // Serve static files with absolute path.
-// The artwork directory is excluded: originals live there and must never be
-// reachable without a signed, rate-limited request.
+// The artwork and COR document directories are excluded from public static access.
 const artworkUploadFolder = path.join(__dirname, "uploads", "seller", "uploadArtwork");
 app.use(
   "/uploads",
   (req, res, next) =>
     req.path.startsWith("/seller/uploadArtwork")
       ? res.status(404).json({ message: "Artwork image not found." })
+      : next(),
+  (req, res, next) =>
+    req.path.startsWith("/seller/uploadCOR")
+      ? res.status(404).json({ message: "Document not found." })
       : next(),
   (req, res, next) =>
     path.extname(req.path).toLowerCase() === ".svg"

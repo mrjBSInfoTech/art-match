@@ -35,6 +35,7 @@ import ArtworkConfirm from "../../components/seller/Artwork/ArtworkConfirm";
 import ArtworkWarning from "../../components/seller/Artwork/ArtworkWarning";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 import { getMissingSellerProfileFields } from "../../utils/sellerProfile";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import {
   fetchArtworks,
   addArtwork,
@@ -355,6 +356,21 @@ export default function Artwork() {
     }
   };
 
+  if (artworkErrorMessage) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Artwork</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Artwork Unavailable"
+          message={artworkErrorMessage}
+          onRetry={loadArtworks}
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -663,10 +679,7 @@ export default function Artwork() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : artworkErrorMessage ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>
-            {artworkErrorMessage}
-          </Typography>
+
         ) : filteredArtworks.length > 0 ? (
           <ArtworkCard
             artworks={filteredArtworks}

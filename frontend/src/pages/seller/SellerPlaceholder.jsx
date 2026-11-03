@@ -1,7 +1,13 @@
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import { Helmet } from "react-helmet-async";
 import { Box, Typography } from "@mui/material";
 
 export default function SellerPlaceholder({ title, description }) {
+  const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (isOffline) {
+    return <ConnectionErrorPanel title={`${title} Unavailable`} />;
+  }
+
   return (
     <>
       <Helmet>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link as RouterLink } from "react-router-dom";
 import {
@@ -25,6 +25,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import { fetchSellerAuditLogs } from "../../api/seller/auditLogsAPI";
 
 const getOrderNumberFromLog = (log) => {
@@ -59,23 +60,18 @@ export default function SellerAuditLogs() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let active = true;
+  const loadLogs = useCallback(() => {
+    setLoading(true);
+    setErrorMessage("");
     fetchSellerAuditLogs()
-      .then((entries) => {
-        if (active) setLogs(entries);
-      })
-      .catch((error) => {
-        if (active) setErrorMessage(error.message || "Unable to load your audit logs.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+      .then((entries) => setLogs(entries))
+      .catch((error) => setErrorMessage(error.message || "Unable to load your audit logs."))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const filteredLogs = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -145,6 +141,21 @@ export default function SellerAuditLogs() {
       return true;
     });
   }, [logs, search, date, period, activityCategory]);
+
+  if (errorMessage && !logs.length) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Activity Log</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Activity Log Unavailable"
+          message={errorMessage}
+          onRetry={loadLogs}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

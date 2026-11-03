@@ -624,7 +624,7 @@ function AdminLayoutContent() {
         </Stack>
       </Drawer>
       <MuiDashboardLayout
-        sidebarExpandedWidth={240}
+        sidebarExpandedWidth={285}
         disableCollapsibleSidebar={!isDesktop}
         slots={{
           header: SidebarNavigationHeader,

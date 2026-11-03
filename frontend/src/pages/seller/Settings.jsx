@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -16,6 +16,7 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ChangePassword from "../../components/seller/Settings/ChangePassword";
 import ChangeInfoProfile from "../../components/seller/Settings/ChangeInfoProfile";
 import ChangeProfileImage from "../../components/seller/Settings/ChangeProfileImage";
@@ -29,11 +30,13 @@ import {
   getMissingSellerProfileFields,
   requiredSellerProfileFields,
 } from "../../utils/sellerProfile";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 // Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
+
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -58,6 +61,7 @@ const courseOptions = [
 ];
 
 export default function Settings() {
+  const theme = useTheme();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -89,82 +93,55 @@ export default function Settings() {
     useState("");
   const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    getSellerProfile()
-      .then((profile) => {
-        if (!active) return;
-        const fields = [
-          "first_name",
-          "middle_name",
-          "last_name",
-          "birthdate",
-          "email",
-          "address",
-          "phone_number",
-          "year_level",
-          "student_number",
-          "course",
-          "cor",
-        ];
-        const nextInformation = Object.fromEntries(
-          fields.map((field) => [
-            field,
-            field === "birthdate"
-              ? normalizeDateInput(profile[field])
-              : String(
-                  field === "course"
-                    ? profile.course ||
-                        localStorage.getItem("seller_course") ||
-                        ""
-                    : profile[field] || "",
-                ),
-          ]),
-        );
-        setAccountInformation(nextInformation);
-        fields.forEach((field) =>
-          localStorage.setItem(`seller_${field}`, nextInformation[field]),
-        );
-        setAccountInformationError("");
-      })
-      .catch((error) => {
-        if (active) {
-          setAccountInformation(
-            Object.fromEntries(
-              [
-                "first_name",
-                "middle_name",
-                "last_name",
-                "birthdate",
-                "email",
-                "address",
-                "phone_number",
-                "year_level",
-                "student_number",
-                "course",
-                "cor",
-              ].map((field) => [
-                field,
-                field === "birthdate"
-                  ? normalizeDateInput(
-                      localStorage.getItem(`seller_${field}`),
-                    )
-                  : localStorage.getItem(`seller_${field}`) || "",
-              ]),
-            ),
-          );
-          setAccountInformationError(
-            `Unable to refresh your account information: ${error.message || "Unknown error"}. Showing saved sign-in details.`,
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoadingAccountInformation(false);
-      });
-    return () => {
-      active = false;
-    };
+  const loadAccountInformation = useCallback(async () => {
+    setLoadingAccountInformation(true);
+    setAccountInformationError("");
+    try {
+      const profile = await getSellerProfile();
+      const fields = [
+        "first_name",
+        "middle_name",
+        "last_name",
+        "birthdate",
+        "email",
+        "address",
+        "phone_number",
+        "year_level",
+        "student_number",
+        "course",
+        "cor",
+      ];
+      const nextInformation = Object.fromEntries(
+        fields.map((field) => [
+          field,
+          field === "birthdate"
+            ? normalizeDateInput(profile[field])
+            : String(
+                field === "course"
+                  ? profile.course ||
+                      localStorage.getItem("seller_course") ||
+                      ""
+                  : profile[field] || "",
+              ),
+        ]),
+      );
+      setAccountInformation(nextInformation);
+      fields.forEach((field) =>
+        localStorage.setItem(`seller_${field}`, nextInformation[field]),
+      );
+      setAccountInformationError("");
+    } catch (error) {
+      setAccountInformationError(
+        error.message || "Failed to load account information.",
+      );
+    } finally {
+      setLoadingAccountInformation(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAccountInformation();
+  }, [loadAccountInformation]);
 
   const handleOpenPasswordEdit = () => {
     setOpenPasswordForm(true);
@@ -309,6 +286,21 @@ export default function Settings() {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
+
+  if (accountInformationError) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Settings</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Settings Unavailable"
+          message={accountInformationError}
+          onRetry={loadAccountInformation}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>

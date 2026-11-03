@@ -22,6 +22,7 @@ import {
   reviewPromotionHeaderRequest,
   savePromotionHeader,
 } from "../../api/admin/systemSettingsAPI";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 
 const initialHeader = {
   message: "",
@@ -72,31 +73,26 @@ export default function PromotionHeader() {
     loadRequests();
   }, [loadRequests]);
 
-  useEffect(() => {
-    let active = true;
-    fetchPromotionHeader()
-      .then((loadedHeader) => {
-        if (active) {
-          setHeader({
-            message: loadedHeader.message || "",
-            button_label: loadedHeader.button_label || "",
-            button_url: loadedHeader.button_url || "",
-          });
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(loadError.message || "Unable to load promo header.");
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+  const loadHeader = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const loadedHeader = await fetchPromotionHeader();
+      setHeader({
+        message: loadedHeader?.message || "",
+        button_label: loadedHeader?.button_label || "",
+        button_url: loadedHeader?.button_url || "",
       });
-
-    return () => {
-      active = false;
-    };
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load promo header.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadHeader();
+  }, [loadHeader]);
 
   const updateField = (field) => (event) => {
     setHeader((current) => ({ ...current, [field]: event.target.value }));
@@ -145,6 +141,16 @@ export default function PromotionHeader() {
       setReviewingRequestId(null);
     }
   };
+
+  if (error && !header.message) {
+    return (
+      <ConnectionErrorPanel
+        title="Promo Header Unavailable"
+        message={error}
+        onRetry={loadHeader}
+      />
+    );
+  }
 
   return (
     <Box sx={{ minWidth: 0 }}>

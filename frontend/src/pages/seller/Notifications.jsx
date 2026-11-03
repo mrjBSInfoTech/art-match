@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { fetchSellerNotifications, markSellerNotificationsRead } from "../../api/seller/messageAPI";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 
 const formatNotificationDate = (value) => {
   if (!value) return "Just now";

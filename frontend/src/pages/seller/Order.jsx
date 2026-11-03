@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect, createElement } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import {
@@ -24,17 +24,12 @@ import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
-import { createElement, useEffect } from "react";
-import { fetchSellerOrders, updateSellerOrderStatus } from "../../api/seller/orderAPI";
-import { canFulfillOrder, isPayMongoOrder, isPlacedOrder, isSellerSale, needsPaymentSupport } from "../../utils/orderPayments.js";
+
+import { fetchSellerOrders } from "../../api/seller/orderAPI";
+import { isPlacedOrder, isSellerSale } from "../../utils/orderPayments.js";
 import OrderCard from "../../components/seller/Order/OrderCard";
-import OrderInfo from "../../components/seller/Order/OrderInfo";
-import OrderParcelPhoto from "../../components/seller/Order/OrderParcelPhoto";
-import OrderTrack from "../../components/seller/Order/OrderTrack";
-import OrderReceived from "../../components/seller/Order/OrderReceived";
-import OrderReceipt from "../../components/seller/Order/OrderReceipt";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
-import { getSecureTrackingUrl } from "../../utils/trackingUrl.js";
 
 const orderStatuses = [
   "All",
@@ -46,76 +41,19 @@ const orderStatuses = [
   "Cancelled",
 ];
 
-const parcelHandlingOptions = [
-  { value: "fragile", label: "Fragile — artwork or breakable items" },
-  { value: "do_not_bend", label: "Do not bend — prints or flat artwork" },
-  { value: "keep_dry", label: "Keep dry — protect from moisture" },
-  { value: "handle_with_care", label: "Handle with care" },
-  { value: "small_items", label: "Small trinkets or loose items inside" },
-  { value: "this_side_up", label: "This side up" },
-];
-
-const nextStatusMap = {
-  Pending: ["Confirmed", "Cancelled"],
-  Confirmed: ["Packed"],
-  Packed: ["Shipped"],
-  Shipped: ["Delivered"],
-  Delivered: [],
-  Cancelled: [],
-};
-
-const availableNextStatuses = (order) => canFulfillOrder(order)
-  ? (nextStatusMap[order.status] || []).filter((status) =>
-      status !== "Cancelled" || !isPayMongoOrder(order))
-  : [];
-
-const fulfillmentHint = (order) => {
-  if (needsPaymentSupport(order)) return "Payment received. Contact support for refund review.";
-  if (String(order.paymentStatus).toLowerCase() === "refunded") return "Payment refunded. This order cannot be processed.";
-  const isMeetup = order.deliveryMethod === "pickup";
-  const hints = {
-    Pending: "Confirm this order to start preparing it.",
-    Confirmed: "Mark as packed and upload 1–5 parcel photos.",
-    Packed: isMeetup
-      ? "Mark as ready for meet-up. Coordinate handover in chat."
-      : "Mark as shipped; choose a courier and add its tracking information.",
-    Shipped: isMeetup
-      ? "Meet the buyer and confirm delivery with proof photos."
-      : "Mark as delivered after the buyer receives the parcel.",
-    Delivered: "Order completed.",
-    Cancelled: "Order cancelled.",
-  };
-  return hints[order.status] || "";
-};
-
 export default function SellerOrder() {
   const navigate = useNavigate();
   const theme = useTheme();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusError, setStatusError] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [fulfillmentTarget, setFulfillmentTarget] = useState(null);
-  const [parcelPhotos, setParcelPhotos] = useState([]);
-  const [photoPreviews, setPhotoPreviews] = useState([]);
-  const [receivedPhotos, setReceivedPhotos] = useState([]);
-  const [receivedPreviews, setReceivedPreviews] = useState([]);
-  const [deliveryNotes, setDeliveryNotes] = useState("");
-  const [courier, setCourier] = useState("");
-  const [trackingNumber, setTrackingNumber] = useState("");
-  const [trackingUrl, setTrackingUrl] = useState("");
-  const [handlingInstructions, setHandlingInstructions] = useState([]);
-  const [savingFulfillment, setSavingFulfillment] = useState(false);
-  const [savingOrderId, setSavingOrderId] = useState(null);
-  const savingOrderRef = useRef(false);
   const loadingOrdersRef = useRef(false);
   const mountedRef = useRef(false);
 
   const loadOrders = useCallback(async () => {
-    if (loadingOrdersRef.current || savingOrderRef.current) return;
+    if (loadingOrdersRef.current) return;
     loadingOrdersRef.current = true;
     try {
       setError("");
@@ -129,9 +67,6 @@ export default function SellerOrder() {
         (order) => order && isPlacedOrder(order),
       );
       setOrders(placedOrders);
-      setSelectedOrder((current) => current
-        ? placedOrders.find((order) => order.orderId === current.orderId) || null
-        : null);
     } catch (loadError) {
       if (mountedRef.current) setError(loadError.message || "Unable to load orders");
     } finally {
@@ -154,18 +89,6 @@ export default function SellerOrder() {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [loadOrders]);
-
-  useEffect(() => {
-    const previews = parcelPhotos.map((file) => URL.createObjectURL(file));
-    setPhotoPreviews(previews);
-    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
-  }, [parcelPhotos]);
-
-  useEffect(() => {
-    const previews = receivedPhotos.map((file) => URL.createObjectURL(file));
-    setReceivedPreviews(previews);
-    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
-  }, [receivedPhotos]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -195,192 +118,20 @@ export default function SellerOrder() {
   }, [orders]);
   const hasFilters = selectedStatus !== "All" || searchTerm.trim() !== "";
 
-  const saveOrderStatus = async (orderId, nextStatus, payload = {}) => {
-    if (savingOrderRef.current) return false;
-    const order = orders.find((item) => item.orderId === orderId);
-    if (!order || !canFulfillOrder(order)) {
-      setStatusError("This order cannot be processed. Refresh to check its payment and order status.");
-      return false;
-    }
-    if (!availableNextStatuses(order).includes(nextStatus)) {
-      setStatusError(`Cannot move an order from ${order.status} to ${nextStatus}.`);
-      return false;
-    }
-    savingOrderRef.current = true;
-    setSavingOrderId(orderId);
-    try {
-      setStatusError("");
-      const result = await updateSellerOrderStatus(orderId, nextStatus, payload);
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          order.orderId === orderId
-            ? {
-                ...order,
-                status: nextStatus,
-                deliveredAt: result.deliveredAt ?? order.deliveredAt ?? (nextStatus === "Delivered" ? new Date().toISOString() : null),
-                returnDeadline: result.returnDeadline ?? order.returnDeadline,
-                paymentStatus: result.paymentStatus ?? order.paymentStatus,
-                paidAt: result.paidAt ?? order.paidAt,
-                courier: result.courier ?? order.courier,
-                trackingNumber: result.trackingNumber === undefined ? order.trackingNumber : result.trackingNumber,
-                trackingUrl: result.trackingUrl ?? order.trackingUrl,
-                parcelPhotoCount: result.parcelPhotoCount,
-                handlingInstructions: result.handlingInstructions ?? order.handlingInstructions,
-              }
-            : order,
-        ),
-      );
-      setSelectedOrder((current) =>
-        current?.orderId === orderId
-          ? {
-              ...current,
-              status: nextStatus,
-              deliveredAt: result.deliveredAt ?? current.deliveredAt ?? (nextStatus === "Delivered" ? new Date().toISOString() : null),
-              returnDeadline: result.returnDeadline ?? current.returnDeadline,
-              paymentStatus: result.paymentStatus ?? current.paymentStatus,
-              paidAt: result.paidAt ?? current.paidAt,
-              courier: result.courier ?? current.courier,
-              trackingNumber: result.trackingNumber === undefined ? current.trackingNumber : result.trackingNumber,
-              trackingUrl: result.trackingUrl ?? current.trackingUrl,
-              parcelPhotoCount: result.parcelPhotoCount,
-              handlingInstructions: result.handlingInstructions ?? current.handlingInstructions,
-            }
-          : current,
-      );
-      return true;
-    } catch (updateError) {
-      setStatusError(updateError.message || "Unable to update order status");
-      return false;
-    } finally {
-      savingOrderRef.current = false;
-      setSavingOrderId(null);
-    }
-  };
-
-  const updateOrderStatus = async (orderId, nextStatus) => {
-    if (savingOrderRef.current || savingFulfillment) return;
-    const currentOrder = orders.find((order) => order.orderId === orderId);
-    if (nextStatus === currentOrder?.status) return;
-    if (!currentOrder || !availableNextStatuses(currentOrder).includes(nextStatus)) {
-      setStatusError("Choose the next available order status. Refresh if the order has changed.");
-      return;
-    }
-    if (nextStatus === "Packed") {
-      const order = orders.find((item) => item.orderId === orderId);
-      setStatusError("");
-      setParcelPhotos([]);
-      setHandlingInstructions(order?.handlingInstructions || []);
-      setSelectedOrder(null);
-      setFulfillmentTarget({ orderId, status: nextStatus, order });
-      return;
-    }
-    if (nextStatus === "Shipped") {
-      const order = orders.find((item) => item.orderId === orderId);
-      const isMeetup = order?.deliveryMethod === "pickup";
-      if (isMeetup) {
-        // Meet-up Delivery does not require courier, tracking number or tracking URL.
-        await saveOrderStatus(orderId, "Shipped");
-        return;
-      }
-      setStatusError("");
-      setParcelPhotos([]);
-      setCourier(order?.courier || "");
-      setTrackingNumber(order?.trackingNumber || "");
-      setTrackingUrl(order?.trackingUrl || "");
-      setHandlingInstructions(order?.handlingInstructions || []);
-      setSelectedOrder(null);
-      setFulfillmentTarget({ orderId, status: nextStatus, order });
-      return;
-    }
-    if (nextStatus === "Delivered") {
-      const order = orders.find((item) => item.orderId === orderId);
-      setStatusError("");
-      setReceivedPhotos([]);
-      setDeliveryNotes("");
-      setSelectedOrder(null);
-      setFulfillmentTarget({ orderId, status: nextStatus, order });
-      return;
-    }
-    await saveOrderStatus(orderId, nextStatus);
-  };
-
-  const submitFulfillmentUpdate = async () => {
-    if (!fulfillmentTarget) return;
-    const formData = new FormData();
-    if (fulfillmentTarget.status === "Packed") {
-      if (parcelPhotos.length < 1 || parcelPhotos.length > 5) {
-        setStatusError("Choose 1 to 5 parcel photos before continuing.");
-        return;
-      }
-      parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
-      formData.append("handling_instructions", JSON.stringify(handlingInstructions));
-    } else if (fulfillmentTarget.status === "Delivered") {
-      if (receivedPhotos.length < 1 || receivedPhotos.length > 5) {
-        setStatusError("Upload at least 1 photo as proof that this order is finished before marking it Delivered.");
-        return;
-      }
-      receivedPhotos.forEach((file) => formData.append("parcel_photos", file));
-      if (deliveryNotes.trim()) {
-        formData.append("delivery_notes", deliveryNotes.trim());
-      }
-    } else {
-      const submittedCourier = courier.trim();
-      const hasCourierControl = [...submittedCourier].some((character) => {
-        const code = character.charCodeAt(0);
-        return code < 32 || (code >= 127 && code <= 159);
-      });
-      if (!submittedCourier || submittedCourier.length > 50 || hasCourierControl) {
-        setStatusError("Enter a courier name up to 50 characters without control characters.");
-        return;
-      }
-      const submittedTrackingNumber = trackingNumber.trim();
-      const hasTrackingControl = [...submittedTrackingNumber].some((character) => {
-        const code = character.charCodeAt(0);
-        return code < 32 || (code >= 127 && code <= 159);
-      });
-      if (submittedTrackingNumber.length > 100 || hasTrackingControl) {
-        setStatusError("Enter a tracking number or ID up to 100 characters without control characters.");
-        return;
-      }
-      const submittedTrackingUrl = getSecureTrackingUrl(trackingUrl.trim());
-      if (!submittedTrackingUrl) {
-        setStatusError("Add a valid secure HTTPS tracking / share link before marking this order as shipped.");
-        return;
-      }
-      formData.append("courier", submittedCourier);
-      formData.append("tracking_number", submittedTrackingNumber);
-      formData.append("tracking_url", submittedTrackingUrl);
-    }
-
-    setSavingFulfillment(true);
-    try {
-      const targetOrderId = fulfillmentTarget.orderId;
-      const targetStatus = fulfillmentTarget.status;
-      const saved = await saveOrderStatus(
-        targetOrderId,
-        targetStatus,
-        formData,
-      );
-      if (saved) {
-        setFulfillmentTarget(null);
-        setReceivedPhotos([]);
-        setParcelPhotos([]);
-        setDeliveryNotes("");
-        if (targetStatus === "Delivered") {
-          const finishedOrder = orders.find((item) => item.orderId === targetOrderId);
-          if (finishedOrder) {
-            setSelectedOrder({
-              ...finishedOrder,
-              status: "Delivered",
-              deliveredAt: new Date().toISOString(),
-            });
-          }
-        }
-      }
-    } finally {
-      setSavingFulfillment(false);
-    }
-  };
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Orders</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Orders Unavailable"
+          message={error}
+          onRetry={loadOrders}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
@@ -406,7 +157,6 @@ export default function SellerOrder() {
               Manage paid online orders and cash on delivery orders.
             </Typography>
           </Box>
-
         </Box>
 
         <Box
@@ -450,63 +200,57 @@ export default function SellerOrder() {
               key={label}
               elevation={0}
               sx={{
-                p: 2,
+                p: 2.5,
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 2.5,
-                backgroundColor: (theme) => theme.palette.background.paper,
+                borderRadius: 2,
+                backgroundColor: theme.palette.background.paper,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
               }}
+              variant="outlined"
             >
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 2,
+                  alignItems: "flex-start",
                 }}
               >
                 <Box>
                   <Typography
+                    variant="caption"
+                    color="text.secondary"
                     sx={{
-                      color: (theme) => theme.palette.text.secondary,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: 1,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
                     }}
                   >
                     {label}
                   </Typography>
                   <Typography
-                    sx={{
-                      mt: 0.5,
-                      color: (theme) => theme.palette.text.primary,
-                      fontSize: 24,
-                      fontWeight: 800,
-                      lineHeight: 1,
-                    }}
+                    variant="h5"
+                    sx={{ fontWeight: 800, mt: 0.5, fontVariantNumeric: "tabular-nums" }}
                   >
                     {value}
                   </Typography>
                   <Typography
-                    sx={{
-                      mt: 1,
-                      color: (theme) => theme.palette.text.secondary,
-                      fontSize: 12,
-                    }}
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 0.5 }}
                   >
                     {caption}
                   </Typography>
                 </Box>
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: 2,
-                    backgroundColor: (theme) =>
+                    p: 1,
+                    borderRadius: 1.5,
+                    backgroundColor:
                       theme.palette.mode === "dark"
-                        ? "rgba(239, 68, 68, 0.14)"
+                        ? "rgba(239, 68, 68, 0.15)"
                         : "#fff5f5",
                     color: (theme) => theme.palette.error.main,
                   }}
@@ -606,7 +350,7 @@ export default function SellerOrder() {
               <Button
                 variant="outlined"
                 startIcon={<RefreshOutlinedIcon />}
-                disabled={loading || savingOrderId !== null || savingFulfillment}
+                disabled={loading}
                 onClick={loadOrders}
                 sx={{ minHeight: 44, flex: { xs: 1, sm: "0 0 auto" } }}
               >
@@ -636,20 +380,17 @@ export default function SellerOrder() {
 
         <Stack spacing={2}>
           {error && <Alert severity="error" action={<Button color="inherit" onClick={loadOrders}>Retry</Button>}>{error}</Alert>}
-          {statusError && <Alert severity="error" onClose={() => setStatusError("")}>{statusError}</Alert>}
           {loading && <Box sx={{ display: "grid", placeItems: "center", py: 4 }}><CircularProgress /></Box>}
           {loading ? null : filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
               <OrderCard
                 key={order.orderId}
                 order={order}
-                onViewDetails={setSelectedOrder}
-                onViewReturn={(request) => navigate(`/seller/messages?conversation=${request.conversation_id}&return=${request.return_request_id}`)}
-                onStatusChange={updateOrderStatus}
-                nextStatuses={availableNextStatuses(order)}
-                statusHint={fulfillmentHint(order)}
-                saving={savingOrderId !== null || savingFulfillment}
-                updating={savingOrderId === order.orderId}
+                onClick={() =>
+                  navigate(`/seller/orders/manage/${order.orderId}`, {
+                    state: { order },
+                  })
+                }
               />
             ))
           ) : error ? null : (
@@ -673,74 +414,6 @@ export default function SellerOrder() {
           )}
         </Stack>
       </Stack>
-
-      <OrderInfo
-        open={Boolean(selectedOrder)}
-        handleClose={() => setSelectedOrder(null)}
-        order={selectedOrder}
-        onStatusChange={updateOrderStatus}
-        nextStatuses={selectedOrder ? availableNextStatuses(selectedOrder) : []}
-        statusHint={selectedOrder ? fulfillmentHint(selectedOrder) : ""}
-        saving={savingOrderId !== null || savingFulfillment}
-        updating={selectedOrder !== null && savingOrderId === selectedOrder.orderId}
-        statusError={statusError}
-        onPrint={() => window.print()}
-      />
-
-      <OrderReceipt
-        selectedOrder={selectedOrder}
-        parcelHandlingOptions={parcelHandlingOptions}
-      />
-
-      <OrderParcelPhoto
-        open={Boolean(fulfillmentTarget && fulfillmentTarget.status === "Packed")}
-        fulfillmentTarget={fulfillmentTarget}
-        statusError={statusError}
-        setStatusError={setStatusError}
-        parcelPhotos={parcelPhotos}
-        setParcelPhotos={setParcelPhotos}
-        photoPreviews={photoPreviews}
-        handlingOptions={parcelHandlingOptions}
-        handlingInstructions={handlingInstructions}
-        setHandlingInstructions={setHandlingInstructions}
-        saving={savingFulfillment}
-        onClose={() => setFulfillmentTarget(null)}
-        onSubmit={submitFulfillmentUpdate}
-      />
-
-      <OrderTrack
-        open={Boolean(fulfillmentTarget && fulfillmentTarget.status === "Shipped")}
-        fulfillmentTarget={fulfillmentTarget}
-        statusError={statusError}
-        courier={courier}
-        onCourierChange={setCourier}
-        trackingNumber={trackingNumber}
-        setTrackingNumber={setTrackingNumber}
-        trackingUrl={trackingUrl}
-        setTrackingUrl={setTrackingUrl}
-        saving={savingFulfillment}
-        onClose={() => setFulfillmentTarget(null)}
-        onSubmit={submitFulfillmentUpdate}
-      />
-
-      <OrderReceived
-        open={Boolean(fulfillmentTarget && fulfillmentTarget.status === "Delivered")}
-        order={fulfillmentTarget?.order}
-        statusError={statusError}
-        setStatusError={setStatusError}
-        receivedPhotos={receivedPhotos}
-        setReceivedPhotos={setReceivedPhotos}
-        photoPreviews={receivedPreviews}
-        deliveryNotes={deliveryNotes}
-        setDeliveryNotes={setDeliveryNotes}
-        saving={savingFulfillment}
-        onClose={() => {
-          setFulfillmentTarget(null);
-          setReceivedPhotos([]);
-          setDeliveryNotes("");
-        }}
-        onSubmit={submitFulfillmentUpdate}
-      />
     </Box>
   );
 }

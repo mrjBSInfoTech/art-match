@@ -30,6 +30,7 @@ import {
 } from "../../api/seller/storefrontAPI";
 import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
 import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
+import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -437,6 +438,21 @@ export default function Storefront() {
       setSavingPinId(null);
     }
   };
+
+  if (error && !artworks.length) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Storefront</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Storefront Unavailable"
+          message={error}
+          onRetry={() => window.location.reload()}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

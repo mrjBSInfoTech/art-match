@@ -76,7 +76,7 @@ export default function SellerPayout() {
   if (error) {
     return (
       <ConnectionErrorPanel
-        title="Payouts unavailable"
+        title="Payouts Unavailable"
         onRetry={reload}
       />
     );

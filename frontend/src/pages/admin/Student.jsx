@@ -24,6 +24,7 @@ import StudentForm from "../../components/admin/Student/StudentForm";
 import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
 import StudentDelete from "../../components/admin/Student/StudentDelete";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import { courseOptions, yearLevelOptions } from "../../components/admin/Student/studentOptions";
 import {
   addStudents,
@@ -85,8 +86,8 @@ export default function Student() {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      setStudents(await fetchStudents());
       setError("");
+      setStudents(await fetchStudents());
     } catch (err) {
       setError(err.message || "Failed to load students.");
     } finally {
@@ -238,6 +239,21 @@ export default function Student() {
         return "primary.light";
     }
   };
+
+  if (error) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Students</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Students Unavailable"
+          message={error}
+          onRetry={loadStudents}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -479,10 +495,6 @@ export default function Student() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : error ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>
-            {error}
-          </Typography>
         ) : filteredStudents.length === 0 ? (
           <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
             No student records found.
