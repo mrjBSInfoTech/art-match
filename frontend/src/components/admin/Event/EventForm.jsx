@@ -9,10 +9,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Slide,
   Stack,
   TextField,
@@ -31,7 +27,6 @@ const createEmptyEventForm = () => ({
   location: "",
   start_at: "",
   end_at: "",
-  status: "Draft",
 
   image_key: "",
   image_url: "",
@@ -66,6 +61,23 @@ const formatDateTimeInput = (value) => {
     pad(date.getHours()),
     ":",
     pad(date.getMinutes()),
+  ].join("");
+};
+
+const getCurrentDateTimeInput = () => {
+  const now = new Date();
+  const pad = (number) => String(number).padStart(2, "0");
+
+  return [
+    now.getFullYear(),
+    "-",
+    pad(now.getMonth() + 1),
+    "-",
+    pad(now.getDate()),
+    "T",
+    pad(now.getHours()),
+    ":",
+    pad(now.getMinutes()),
   ].join("");
 };
 
@@ -146,7 +158,6 @@ export default function EventForm({
 
         end_at: formatDateTimeInput(selectedEvent.end_at),
 
-        status: selectedEvent.status || "Draft",
 
         image_key: selectedEvent.image_key || "",
 
@@ -242,6 +253,17 @@ export default function EventForm({
     if (!formData.start_at) {
       setError("Event start date and time are required.");
 
+      return;
+    }
+
+    const minimumDateTime = getCurrentDateTimeInput();
+    if (formData.start_at < minimumDateTime) {
+      setError("Event start date and time must be now or in the future.");
+      return;
+    }
+
+    if (formData.end_at && formData.end_at < minimumDateTime) {
+      setError("Event end date and time must be now or in the future.");
       return;
     }
 
@@ -478,6 +500,7 @@ export default function EventForm({
               type="datetime-local"
               value={formData.start_at}
               onChange={handleChange}
+              inputProps={{ min: getCurrentDateTimeInput() }}
               fullWidth
               required
               InputLabelProps={{
@@ -491,28 +514,13 @@ export default function EventForm({
               type="datetime-local"
               value={formData.end_at}
               onChange={handleChange}
+              inputProps={{ min: getCurrentDateTimeInput() }}
               fullWidth
               InputLabelProps={{
                 shrink: true,
               }}
             />
 
-            <FormControl fullWidth sx={{ gridColumn: "1 / -1" }}>
-              <InputLabel>Status</InputLabel>
-
-              <Select
-                name="status"
-                label="Status"
-                value={formData.status}
-                onChange={handleChange}
-              >
-                <MenuItem value="Draft">Draft</MenuItem>
-
-                <MenuItem value="Published">Published</MenuItem>
-
-                <MenuItem value="Archived">Archived</MenuItem>
-              </Select>
-            </FormControl>
           </Box>
         </Stack>
       </DialogContent>

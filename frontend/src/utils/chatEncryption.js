@@ -64,10 +64,11 @@ export const createChatKeyPair = async (storageKey) => {
 };
 
 const recoveryIterations = 600000;
-const deriveRecoveryKey = async (pin, salt) => {
+const recoveryKeyPattern = /^[A-Z2-7]{24}$/;
+const deriveRecoveryKey = async (secret, salt) => {
   const material = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(pin),
+    encoder.encode(secret),
     "PBKDF2",
     false,
     ["deriveKey"],
@@ -81,12 +82,11 @@ const deriveRecoveryKey = async (pin, salt) => {
   );
 };
 
-export const encryptChatKeyBackup = async (keyPair, pin) => {
-  if (!/^\d{6}$/.test(pin)) throw new Error("Enter a six-digit recovery PIN");
+const encryptRecoveryBackup = async (keyPair, secret, backupVersion) => {
   const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveRecoveryKey(pin, salt);
+  const key = await deriveRecoveryKey(secret, salt);
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
@@ -97,15 +97,38 @@ export const encryptChatKeyBackup = async (keyPair, pin) => {
     salt: bytesToBase64(salt),
     iv: bytesToBase64(iv),
     publicKey: keyPair.publicKeyJwk,
+    backupVersion,
   };
 };
 
-export const restoreChatKeyPair = async (storageKey, backup, pin) => {
-  if (!/^\d{6}$/.test(pin)) throw new Error("Enter your six-digit recovery PIN");
+export const encryptChatKeyBackup = async (keyPair, recoveryKey) => {
+  const normalizedKey = recoveryKey.replace(/\s/g, "").toUpperCase();
+  if (!recoveryKeyPattern.test(normalizedKey)) {
+    throw new Error("Invalid recovery key");
+  }
+  return encryptRecoveryBackup(keyPair, normalizedKey, 2);
+};
+
+export const encryptLegacyChatKeyBackup = async (keyPair, pin) => {
+  if (!/^\d{6}$/.test(pin)) throw new Error("Enter a six-digit recovery PIN");
+  return encryptRecoveryBackup(keyPair, pin, 1);
+};
+
+export const restoreChatKeyPair = async (storageKey, backup, secret) => {
+  const isLegacyBackup = Number(backup.backupVersion || 1) === 1;
+  const normalizedSecret = isLegacyBackup
+    ? secret
+    : secret.replace(/\s/g, "").toUpperCase();
+  if (isLegacyBackup && !/^\d{6}$/.test(normalizedSecret)) {
+    throw new Error("Enter your six-digit recovery PIN");
+  }
+  if (!isLegacyBackup && !recoveryKeyPattern.test(normalizedSecret)) {
+    throw new Error("Invalid recovery key");
+  }
   let privateJwk;
   let publicJwk;
   try {
-    const key = await deriveRecoveryKey(pin, base64ToBytes(backup.salt));
+    const key = await deriveRecoveryKey(normalizedSecret, base64ToBytes(backup.salt));
     const privateBytes = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: base64ToBytes(backup.iv) },
       key,
@@ -119,19 +142,35 @@ export const restoreChatKeyPair = async (storageKey, backup, pin) => {
     }
     await importPrivateKey(privateJwk);
   } catch {
-    throw new Error("That PIN could not unlock this chat backup");
+    throw new Error(
+      isLegacyBackup
+        ? "That PIN could not unlock this chat backup"
+        : "That recovery key could not unlock this chat backup",
+    );
   }
   return storeChatKeyPair(storageKey, privateJwk, publicJwk);
 };
 
-const MIN_RECOVERY_PIN = 100000;
-const MAX_RECOVERY_PIN = 1000000;
-export const generateRecoveryPin = () =>
-  String(
-    crypto.getRandomValues(new Uint32Array(1))[0]
-      % (MAX_RECOVERY_PIN - MIN_RECOVERY_PIN)
-      + MIN_RECOVERY_PIN,
-  );
+const recoveryAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+export const generateRecoveryKey = () => {
+  const randomBytes = crypto.getRandomValues(new Uint8Array(15));
+  let value = 0;
+  let bits = 0;
+  let key = "";
+  for (const byte of randomBytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      key += recoveryAlphabet[(value >> bits) & 31];
+    }
+    value &= bits === 0 ? 0 : (1 << bits) - 1;
+  }
+  return key;
+};
+
+export const formatRecoveryKey = (recoveryKey) =>
+  recoveryKey.replace(/\s/g, "").match(/.{1,4}/g)?.join(" ") || "";
 
 export const ensureChatKeyPair = async (storageKey) => {
   const stored = await loadChatKeyPair(storageKey);
@@ -207,7 +246,7 @@ export const decryptChatMessage = async ({ privateKey, message, attachmentUrl, k
   let attachmentError = "";
   if (message.image && message.attachment_iv && attachmentUrl) {
     try {
-      const response = await fetch(attachmentUrl);
+      const response = await fetch(attachmentUrl, { credentials: "include" });
       if (!response.ok) throw new Error("Unable to load encrypted attachment");
       const encryptedAttachment = await response.arrayBuffer();
       const decryptedAttachment = await crypto.subtle.decrypt(

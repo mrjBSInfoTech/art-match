@@ -19,16 +19,18 @@ import {
 import ArtistCard from "../../components/buyer/Artist/ArtistCard";
 import { formatArtistRating } from "../../utils/artistEngagement.js";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import { getProfileInitials } from "../../utils/profileInitials.js";
 
 const API_URL = "http://localhost:5000";
 
-const getProfileFallback = () => `${API_URL}/uploads/seller/profile.jpg`;
+const getProfileFallback = () => "";
 
 const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
   if (!imageName) return getProfileFallback(artist?.name || "Artist");
   if (imageName.startsWith("http")) return imageName;
-  return `${API_URL}/uploads/seller/profile/${encodeURIComponent(imageName)}`;
+  if (imageName.startsWith("/uploads/")) return `${API_URL}${imageName}`;
+  return `${API_URL}/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
 };
 
 const parseSpecialties = (value) => {
@@ -324,7 +326,9 @@ export default function Artist() {
                   "&:hover": { backgroundColor: "action.hover" },
                 }}
               >
-                <Avatar src={artist.image} alt="" sx={{ width: 32, height: 32, mr: 1 }} />
+                <Avatar src={artist.image || undefined} alt={artist.name} sx={{ width: 32, height: 32, mr: 1 }}>
+                  {!artist.image && getProfileInitials(artist.name)}
+                </Avatar>
                 <Box
                   component="span"
                   sx={{

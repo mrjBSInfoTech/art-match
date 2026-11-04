@@ -87,12 +87,12 @@ export default function Storefront() {
   const [settings, setSettings] = useState(defaultSettings);
   const [artworks, setArtworks] = useState([]);
   const [sellerProfile, setSellerProfile] = useState({
-    first_name: localStorage.getItem("seller_first_name") || "",
-    middle_name: localStorage.getItem("seller_middle_name") || "",
-    last_name: localStorage.getItem("seller_last_name") || "",
-    course: localStorage.getItem("seller_course") || "",
-    profile_image: localStorage.getItem("seller_profile_image") || "",
-    registered_date: localStorage.getItem("seller_registered_date") || "",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
+    course: "",
+    profile_image: "",
+    registered_date: "",
   });
   const [profileError, setProfileError] = useState("");
   const [sellerReviews, setSellerReviews] = useState([]);
@@ -188,36 +188,22 @@ export default function Storefront() {
 
   useEffect(() => {
     const loadSavedStorefront = async () => {
-      let legacySettings = defaultSettings;
       try {
-        const savedSettings = localStorage.getItem("seller_settings");
-        if (savedSettings) {
-          legacySettings = { ...defaultSettings, ...JSON.parse(savedSettings) };
-          setSettings(legacySettings);
-        }
-      } catch (err) {
-        console.warn("Unable to read saved storefront settings:", err.message);
-      }
-
-      const legacyPinnedArtworkIds = parseArray(
-        localStorage.getItem("seller_pinned_artworks"),
-      ).map(String);
-
-      try {
-        const storefront = await fetchStorefront();
+        const [storefront, profile] = await Promise.all([
+          fetchStorefront(),
+          getSellerProfile(),
+        ]);
+        setSellerProfile(profile || {});
         const specialties =
           storefront?.specialties != null
             ? parseArray(storefront.specialties)
-            : legacySettings.specialties || [];
+            : [];
         const savedPinnedArtworkIds =
           storefront?.pinned_artwork_ids != null
             ? parseArray(storefront.pinned_artwork_ids).map(String)
-            : legacyPinnedArtworkIds;
-        const shopName = storefront?.shop_name || legacySettings.shopName || "";
-        const shopDescription =
-          storefront?.shop_description ||
-          legacySettings.shopDescription ||
-          "";
+            : [];
+        const shopName = storefront?.shop_name || "";
+        const shopDescription = storefront?.shop_description || "";
 
         setSettings((current) => ({
           ...current,
@@ -227,22 +213,6 @@ export default function Storefront() {
         }));
         setPinnedArtworkIds(savedPinnedArtworkIds);
 
-        const hasLegacyStorefrontSettings =
-          storefront?.specialties == null &&
-          specialties.length > 0;
-        const hasLegacyPinnedArtworks =
-          storefront?.pinned_artwork_ids == null &&
-          savedPinnedArtworkIds.length > 0;
-        if (hasLegacyStorefrontSettings || hasLegacyPinnedArtworks) {
-          const migrated = await saveStorefront({
-            shop_name: shopName,
-            shop_description: shopDescription,
-            specialties,
-            pinned_artwork_ids: savedPinnedArtworkIds,
-          });
-          getSavedSpecialties(migrated);
-        }
-        localStorage.removeItem("seller_pinned_artworks");
       } catch (err) {
         setError(err.message || "Unable to load storefront profile.");
       }
@@ -323,22 +293,6 @@ export default function Storefront() {
         pinned_artwork_ids: pinnedArtworkIds.map(Number),
       });
 
-      const nextSettings = {
-        ...settings,
-        specialties: settings.specialties || [],
-        customSpecialty: settings.customSpecialty || "",
-      };
-
-      localStorage.setItem("seller_settings", JSON.stringify(nextSettings));
-      localStorage.setItem(
-        "seller_shop_name",
-        saved?.shop_name || settings.shopName,
-      );
-      localStorage.setItem(
-        "seller_shop_description",
-        saved?.shop_description || settings.shopDescription,
-      );
-
       setSettings((current) => ({
         ...current,
         shopName: saved?.shop_name || current.shopName,
@@ -402,10 +356,7 @@ export default function Storefront() {
       });
       setSettings(defaultSettings);
       setPinnedArtworkIds([]);
-      localStorage.removeItem("seller_settings");
       localStorage.removeItem("seller_pinned_artworks");
-      localStorage.removeItem("seller_shop_name");
-      localStorage.removeItem("seller_shop_description");
       showSnackbar("Storefront reset successfully.");
     } catch (err) {
       showSnackbar(err.message || "Unable to reset storefront details.", "error");

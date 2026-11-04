@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -29,9 +30,9 @@ import {
   fetchPublicSellerReviews,
 } from "../../api/buyer/artworkAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import { getProfileInitials } from "../../utils/profileInitials.js";
 
-const getProfileFallback = () =>
-  "http://localhost:5000/uploads/seller/profile.jpg";
+const getProfileFallback = () => "";
 
 const parseArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -399,8 +400,7 @@ export default function SellerProfile() {
                   : "0 16px 40px rgba(68, 41, 15, 0.06)",
               }}
             >
-              <Box
-                component="img"
+              <Avatar
                 src={selectedSeller.image}
                 alt={selectedSeller.name}
                 sx={{
@@ -412,7 +412,10 @@ export default function SellerProfile() {
                   flexShrink: 0,
                   background: colors.cardAlt,
                 }}
-              />
+              >
+                {!selectedSeller.image &&
+                  getProfileInitials(selectedSeller.name)}
+              </Avatar>
 
               <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
                 <Stack

@@ -31,6 +31,7 @@ import {
   fetchProfileEmail,
   sendSupportMessage,
 } from "../../api/buyer/supportChatAPI";
+import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import ContactSupportOutlinedIcon from "@mui/icons-material/ContactSupportOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -90,9 +91,7 @@ export default function HelpSupport() {
 
   // Contact form (the template buyers use to reach admin support).
   // The reply address comes from the buyer's profile, not from this form.
-  const [profileEmail, setProfileEmail] = useState(
-    () => localStorage.getItem("buyer_email") || "",
-  );
+  const [profileEmail, setProfileEmail] = useState("");
   const [issueType, setIssueType] = useState("Order/Shipping");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +100,12 @@ export default function HelpSupport() {
   const [touched, setTouched] = useState(false);
 
   const detailsInvalid = touched && !details.trim();
+
+  useEffect(() => {
+    getBuyerProfile()
+      .then((profile) => setProfileEmail(profile.email || ""))
+      .catch(() => setProfileEmail(""));
+  }, []);
 
   useEffect(() => {
     let active = true;

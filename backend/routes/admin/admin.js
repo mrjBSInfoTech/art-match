@@ -148,6 +148,9 @@ const changeRole = (direction) => (req, res) => {
   const roleOrder = ["customize", "moderator", "admin", "super admin"];
   const targetId = req.params.id;
   const action = direction > 0 ? "PROMOTE_ADMIN_ACCOUNT" : "DEMOTE_ADMIN_ACCOUNT";
+  if (String(targetId) === String(req.user.admin_id)) {
+    return res.status(403).json({ error: "You cannot change your own admin role." });
+  }
 
   db.query(
     "SELECT role FROM admin_role WHERE admin_id = ?",
@@ -185,6 +188,21 @@ const changeRole = (direction) => (req, res) => {
           error: "You cannot assign an admin role equal to or higher than your own.",
         });
       }
+
+      if (direction < 0 && currentRole === "super admin") {
+        try {
+          const [countResults] = await db.promise().query(
+            "SELECT COUNT(*) AS super_admin_count FROM admin_role WHERE LOWER(TRIM(role)) = ?",
+            ["super admin"],
+          );
+          if (Number(countResults[0]?.super_admin_count || 0) <= 1) {
+            return res.status(403).json({ error: "The last super-admin cannot be demoted." });
+          }
+        } catch (countError) {
+          return res.status(500).json({ error: countError.message });
+        }
+      }
+
       const permissions = rolePermissions(newRole);
 
       // Special case: if promoting to super admin, demote the existing super admin to admin
@@ -626,9 +644,12 @@ router.put(
        * Get current admin image.
        */
       const [currentRows] = await db.promise().query(
-        `SELECT image
-           FROM admin
-           WHERE admin_id = ?
+        `SELECT a.image, ar.role,
+                (SELECT COUNT(*) FROM admin_role
+                 WHERE LOWER(TRIM(role)) = 'super admin') AS super_admin_count
+           FROM admin a
+           LEFT JOIN admin_role ar ON ar.admin_id = a.admin_id
+           WHERE a.admin_id = ?
            LIMIT 1`,
         [id],
       );
@@ -904,6 +925,15 @@ router.delete(
       }
 
       const imageName = rows[0].image;
+      if (String(id) === String(req.user.admin_id)) {
+        return res.status(403).json({ error: "You cannot delete your own admin account." });
+      }
+      if (
+        normalizeAdminRole(rows[0].role) === "super admin" &&
+        Number(rows[0].super_admin_count || 0) <= 1
+      ) {
+        return res.status(403).json({ error: "The last super-admin cannot be deleted." });
+      }
 
       /*
        * Delete database record first.

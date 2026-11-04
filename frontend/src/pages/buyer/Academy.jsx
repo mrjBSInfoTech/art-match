@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
+  Alert,
   Box,
   Button,
+  CircularProgress,
   Container,
   Divider,
   Grid,
@@ -14,6 +16,8 @@ import { useTheme } from "@mui/material/styles";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import MailOutlineOutlinedIcon from "@mui/icons-material/MailOutlineOutlined";
+import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
+import { fetchEvents } from "../../api/buyer/eventAPI";
 
 const academyPages = {
   exhibitions: {
@@ -23,11 +27,6 @@ const academyPages = {
       "Keep up with upcoming showcases, open studios, and graduate exhibitions from the CAFA creative community.",
     icon: CalendarMonthOutlinedIcon,
     accent: "#bb493d",
-    events: [
-      ["OCT 12", "New Voices: Studio Selection", "Red Nexus Online Gallery"],
-      ["NOV 03", "Material / Memory", "CAFA Design Building"],
-      ["DEC 08", "Winter Degree Show", "Central Academy of Fine Arts"],
-    ],
   },
   inquiries: {
     title: "Vocation & Inquiries",
@@ -61,6 +60,44 @@ export default function Academy() {
     [section],
   );
   const Icon = details.icon;
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState("");
+
+  useEffect(() => {
+    if (section !== "exhibitions") return undefined;
+
+    let active = true;
+    setEventsLoading(true);
+    setEventsError("");
+    fetchEvents()
+      .then((loadedEvents) => {
+        if (active) setEvents(loadedEvents);
+      })
+      .catch((error) => {
+        if (active) {
+          setEventsError(error.message || "Unable to load upcoming exhibitions.");
+        }
+      })
+      .finally(() => {
+        if (active) setEventsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [section]);
+
+  const formatEventDate = (value) => {
+    if (!value) return "Date to be announced";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Date to be announced";
+    return date.toLocaleDateString("en-PH", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   return (
     <>
@@ -136,11 +173,96 @@ export default function Academy() {
           What is happening
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 4 }}>
-          A small preview of the academy calendar and community connections.
+          {section === "exhibitions"
+            ? "Discover upcoming showcases, open studios, and graduate exhibitions."
+            : "A small preview of the academy calendar and community connections."}
         </Typography>
-        <Grid container spacing={2}>
-          {details.events.map(([label, title, location]) => (
-            <Grid item xs={12} md={4} key={title}>
+        {section === "exhibitions" ? (
+          eventsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress aria-label="Loading upcoming exhibitions" />
+            </Box>
+          ) : eventsError ? (
+            <Alert severity="error">{eventsError}</Alert>
+          ) : events.length ? (
+            <Grid container spacing={2}>
+              {events.map((event) => (
+                <Grid item xs={12} md={4} key={event.event_id}>
+                  <Box
+                    sx={{
+                      p: 3,
+                      height: "100%",
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 3,
+                      backgroundColor: theme.palette.background.paper,
+                    }}
+                  >
+                    {event.image_url && (
+                      <Box
+                        component="img"
+                        src={event.image_url}
+                        alt=""
+                        sx={{
+                          width: "100%",
+                          aspectRatio: "16 / 9",
+                          objectFit: "cover",
+                          borderRadius: 2,
+                          mb: 2,
+                        }}
+                      />
+                    )}
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        color: details.accent,
+                        fontWeight: 800,
+                        letterSpacing: 1.5,
+                      }}
+                    >
+                      {formatEventDate(event.start_at)}
+                    </Typography>
+                    <Typography variant="h6" sx={{ mt: 1.5, fontWeight: 800 }}>
+                      {event.title}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1, lineHeight: 1.6 }}
+                    >
+                      {event.description}
+                    </Typography>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {event.location || "Location to be announced"}
+                    </Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Box
+              sx={{
+                border: "1px dashed",
+                borderColor: "divider",
+                borderRadius: 3,
+                py: 8,
+                px: 3,
+                textAlign: "center",
+              }}
+            >
+              <EventBusyOutlinedIcon sx={{ fontSize: 44, color: "text.disabled" }} />
+              <Typography sx={{ mt: 1, fontWeight: 700 }}>
+                No upcoming exhibitions
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                Check back soon for the next event.
+              </Typography>
+            </Box>
+          )
+        ) : (
+          <Grid container spacing={2}>
+            {details.events.map(([label, title, location]) => (
+              <Grid item xs={12} md={4} key={title}>
               <Box
                 sx={{
                   p: 3,
@@ -168,9 +290,10 @@ export default function Academy() {
                   {location}
                 </Typography>
               </Box>
-            </Grid>
-          ))}
-        </Grid>
+              </Grid>
+            ))}
+          </Grid>
+        )}
 
         <Box
           sx={{

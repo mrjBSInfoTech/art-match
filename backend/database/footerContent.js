@@ -26,7 +26,6 @@ export const defaultFooterContent = {
       links: [
         { label: "About CAFA", url: "/buyer/about" },
         { label: "Exhibitions Calendar", url: "/buyer/academy/exhibitions" },
-        { label: "Vocation & Inquiries", url: "/buyer/academy/inquiries" },
         { label: "Support Desk", url: "/buyer/help-support" },
       ],
     },
@@ -70,7 +69,16 @@ export function getFooterContent() {
           return reject(new Error("Footer content has not been initialized."));
         }
         try {
-          resolve(JSON.parse(rows[0].content_json));
+          const content = JSON.parse(rows[0].content_json);
+          resolve({
+            ...content,
+            columns: content.columns.map((column) => ({
+              ...column,
+              links: column.links.filter(
+                (link) => link.url !== "/buyer/academy/inquiries",
+              ),
+            })),
+          });
         } catch (parseError) {
           reject(new Error(`Unable to parse saved footer content: ${parseError.message}`));
         }

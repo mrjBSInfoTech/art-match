@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   IconButton,
   Menu,
   MenuItem,
@@ -46,21 +45,6 @@ export default function EventCard({
 
   const handleInfoClose = () => {
     setOpenInfoDialog(false);
-  };
-
-  const getStatusColor = (status) => {
-    const shade = theme.palette.mode === "dark" ? "light" : "dark";
-    const normalizedStatus = String(status || "").trim().toLowerCase();
-
-    if (normalizedStatus === "published") {
-      return theme.palette.success[shade];
-    }
-
-    if (normalizedStatus === "archived") {
-      return theme.palette.text.secondary;
-    }
-
-    return theme.palette.warning[shade];
   };
 
   const formatDate = (value) => {
@@ -139,22 +123,6 @@ export default function EventCard({
                   sx={{ fontSize: 56, color: "text.disabled" }}
                 />
               )}
-              <Chip
-                label={(eventItem.status || "Draft").toUpperCase()}
-                size="small"
-                sx={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  height: 22,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  color: getStatusColor(eventItem.status),
-                  fontSize: 10,
-                  fontWeight: 700,
-                  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
-                }}
-              />
             </Box>
 
             <CardContent
@@ -270,7 +238,6 @@ export default function EventCard({
               >
                 View Details
               </Button>
-
               <Menu
                 anchorEl={anchorEl}
                 open={

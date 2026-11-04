@@ -33,41 +33,55 @@ export const authenticateAdmin = (req, res, next) => {
         return res.status(403).json({ message: "Unable to identify admin." });
       }
 
-      const normalizedRole = String(user.role || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
       const ALLOWED_ADMIN_ROLES = new Set(["admin", "superadmin", "moderator", "customize"]);
-
-      if (user.role && !ALLOWED_ADMIN_ROLES.has(normalizedRole)) {
-        return res.status(403).json({ message: "Access denied. Admin privileges required." });
-      }
-
-      const proceed = () => {
-        req.user = { ...user, admin_id: adminId, role: user.role || "admin" };
-        next();
-      };
-
-      if (user.password_changed !== undefined && db?.query) {
-        db.query(
-          "SELECT password_changed FROM admin WHERE admin_id = ?",
-          [adminId],
-          (error, results) => {
-            if (!error && Array.isArray(results) && results.length > 0) {
-              const currentPasswordChanged = Number(results[0].password_changed || 0);
-              const tokenPasswordChanged = Number(user.password_changed || 0);
-              if (tokenPasswordChanged !== currentPasswordChanged) {
-                if (typeof res.clearCookie === "function") {
-                  res.clearCookie("admin_token", clearAuthCookieOptions());
-                }
-                return res.status(401).json({
-                  message: "Session has expired due to a password change or logout. Please log in again.",
-                });
-              }
+      db.query(
+        `SELECT a.password_changed, ar.role,
+                COALESCE(aa.is_banned, 0) AS is_banned
+         FROM admin a
+         LEFT JOIN admin_role ar ON ar.admin_id = a.admin_id
+         LEFT JOIN account_access aa
+           ON aa.role = 'admin' AND aa.account_id = a.admin_id
+         WHERE a.admin_id = ?
+         LIMIT 1`,
+        [adminId],
+        (error, results) => {
+          if (error) {
+            return res.status(500).json({ message: "Unable to verify admin account status." });
+          }
+          const current = results?.[0];
+          if (!current) {
+            if (typeof res.clearCookie === "function") {
+              res.clearCookie("admin_token", clearAuthCookieOptions());
             }
-            proceed();
-          },
-        );
-      } else {
-        proceed();
-      }
+            return res.status(401).json({ message: "Admin account no longer exists." });
+          }
+
+          const normalizedRole = String(current.role || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[\s_-]+/g, "");
+          if (!ALLOWED_ADMIN_ROLES.has(normalizedRole)) {
+            return res.status(403).json({ message: "Access denied. Admin privileges required." });
+          }
+          if (Number(current.is_banned)) {
+            return res.status(403).json({ message: "Admin account is banned." });
+          }
+
+          const tokenPasswordChanged = Number(user.password_changed || 0);
+          const currentPasswordChanged = Number(current.password_changed || 0);
+          if (user.password_changed !== undefined && tokenPasswordChanged !== currentPasswordChanged) {
+            if (typeof res.clearCookie === "function") {
+              res.clearCookie("admin_token", clearAuthCookieOptions());
+            }
+            return res.status(401).json({
+              message: "Session has expired due to a password change or logout. Please log in again.",
+            });
+          }
+
+          req.user = { ...user, admin_id: adminId, role: current.role };
+          next();
+        },
+      );
     },
   );
 };

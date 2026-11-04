@@ -327,9 +327,7 @@ export default function Artwork() {
     return s === "verified" || s === "approved" || s === "approved";
   }).length;
 
-  const accountStatus = String(
-    localStorage.getItem("seller_register_status"),
-  ).toLowerCase();
+  const accountStatus = String(sellerProfile?.register_status || "").toLowerCase();
   const isVerified = accountStatus === "verified" || accountStatus === "";
 
   const showSnackbar = (message, severity = "success") => {

@@ -61,7 +61,10 @@ import {
   fetchBuyerConversations,
   fetchBuyerNotifications,
 } from "../api/buyer/messageAPI";
-import { recordLogout } from "../api/buyer/buyerAuthenticationAPI";
+import {
+  getBuyerProfile,
+  recordLogout,
+} from "../api/buyer/buyerAuthenticationAPI";
 import {
   clearRecommendationClientState,
   recordRecommendationEvent,
@@ -163,22 +166,26 @@ function BuyerLayoutContent({ children }) {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    const refreshProfile = () => {
+    const refreshProfile = async () => {
       const storedLoggedIn = isAuthenticated("buyer");
-      const storedUsername = localStorage.getItem("buyer_username");
-      const storedFirstName = localStorage.getItem("buyer_first_name");
-      const storedLastName = localStorage.getItem("buyer_last_name");
-      const storedEmail = localStorage.getItem("buyer_email");
-      const storedPhoneNumber = localStorage.getItem("buyer_phone_number");
-      const storedProfileImage = localStorage.getItem("buyer_profile_image");
-  
-      setUsername(storedUsername || "");
-      setFirstName(storedFirstName || "");
-      setLastName(storedLastName || "");
-      setEmail(storedEmail || "");
-      setPhoneNumber(storedPhoneNumber || "");
-      setProfileImage(storedProfileImage || "");
       setLoggedIn(!!storedLoggedIn);
+      if (!storedLoggedIn) return;
+      try {
+        const profile = await getBuyerProfile();
+        setUsername(profile.username || "");
+        setFirstName(profile.first_name || "");
+        setLastName(profile.last_name || "");
+        setEmail(profile.email || "");
+        setPhoneNumber(profile.phone_number || "");
+        setProfileImage(profile.profile_image || "");
+      } catch {
+        setUsername("");
+        setFirstName("");
+        setLastName("");
+        setEmail("");
+        setPhoneNumber("");
+        setProfileImage("");
+      }
     };
     refreshProfile();
     window.addEventListener("buyer-profile-updated", refreshProfile);

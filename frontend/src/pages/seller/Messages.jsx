@@ -77,7 +77,6 @@ const formatMessageTime = (dateString) => {
     minute: "2-digit",
   }).format(date);
 };
-
 const clearConversationUnreadCount = (items, conversationId) =>
   items.map((conversation) =>
     String(conversation.conversation_id) === String(conversationId)
@@ -131,7 +130,7 @@ export default function Messages() {
   const [error, setError] = useState("");
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState("");
-  // "" = closed, "create" = no PIN yet, "enter" = unlock with existing PIN
+  // "" = closed, "enter" = unlock a legacy PIN backup
   const [pinDialogMode, setPinDialogMode] = useState("");
   const pinDialogOpen = pinDialogMode !== "";
   const [recoveryBusy, setRecoveryBusy] = useState(false);
@@ -177,14 +176,21 @@ export default function Messages() {
         recoveryBackupRef.current = backup;
 
         if (!localKeyPair && backup) {
-          setRecoveryMode("restore");
-          setPinDialogMode("enter");
+          if (Number(backup.backupVersion || 1) === 1) {
+            setPinDialogMode("enter");
+          } else {
+            setRecoveryMode("restore-key");
+          }
           return;
         }
 
-        if (backup && (localKeyPair.publicKey.x !== JSON.parse(backup.publicKey).x
+        if (backup && localKeyPair && (localKeyPair.publicKey.x !== JSON.parse(backup.publicKey).x
           || localKeyPair.publicKey.y !== JSON.parse(backup.publicKey).y)) {
-          setRecoveryMode("restore");
+          if (Number(backup.backupVersion || 1) === 1) {
+            setPinDialogMode("enter");
+          } else {
+            setRecoveryMode("restore-key");
+          }
           return;
         }
 
@@ -194,7 +200,7 @@ export default function Messages() {
             setRecoveryMode("fresh");
             return;
           }
-          setPinDialogMode("create");
+          setRecoveryMode("setup");
           return;
         }
 
@@ -205,10 +211,13 @@ export default function Messages() {
         if (!backup) {
           privateKeyRef.current = null;
           publicKeyJwkRef.current = "";
-          setPinDialogMode("create");
+          setRecoveryMode("setup");
           return;
         }
         setEncryptionReady(true);
+        if (Number(backup.backupVersion || 1) === 1) {
+          setRecoveryMode("upgrade");
+        }
       } catch (err) {
         setError(err.message || "Secure messaging could not be initialized");
       }
@@ -221,7 +230,7 @@ export default function Messages() {
     setRecoveryBusy(true);
     setRecoveryError("");
     try {
-      if (pinDialogMode === "create") {
+      if (recoveryMode === "setup" || recoveryMode === "upgrade") {
         if (!privateKeyRef.current) {
           const keyPair = await createChatKeyPair(recoveryStorageKeyRef.current);
           privateKeyRef.current = keyPair.privateKey;
@@ -239,6 +248,7 @@ export default function Messages() {
         await saveSellerChatRecoveryBackup(backup);
         recoveryBackupRef.current = backup;
       } else {
+        pendingRecoveryRef.current = true;
         const keyPair = await restoreChatKeyPair(
           recoveryStorageKeyRef.current,
           recoveryBackupRef.current,
@@ -248,7 +258,7 @@ export default function Messages() {
         publicKeyJwkRef.current = keyPair.publicKeyJwk;
         await registerSellerChatKey(keyPair.publicKeyJwk);
       }
-      const restoredExistingKey = pinDialogMode !== "create";
+      const restoredExistingKey = pinDialogMode !== "" || recoveryMode === "restore-key";
       setRecoveryMode("");
       setPinDialogMode("");
       setEncryptionReady(true);
@@ -261,8 +271,8 @@ export default function Messages() {
     } catch (err) {
       setRecoveryError(
         err.message
-          || (pinDialogMode === "create"
-            ? "Unable to create your recovery PIN"
+          || (recoveryMode === "setup" || recoveryMode === "upgrade"
+            ? "Unable to create your recovery key"
             : "Unable to unlock secure messaging"),
       );
     } finally {
@@ -278,20 +288,29 @@ export default function Messages() {
     setRecoveryError("");
     setRecoveryStatus("");
     setChatUnlockRequested(true);
-    setPinDialogMode("restore");
+    if (Number(recoveryBackupRef.current.backupVersion || 1) === 1) {
+      setPinDialogMode("restore");
+    } else {
+      setRecoveryMode("restore-key");
+    }
   };
+  const recoveryLabel =
+    Number(recoveryBackupRef.current?.backupVersion || 1) === 1
+      ? "Recover with six-digit passkey"
+      : "Recover with recovery key";
 
   const handleRecoveryReset = async () => {
     setRecoveryBusy(true);
     setRecoveryError("");
     try {
-      // The old backup is useless without its PIN, so rotate to a fresh key.
-      // The new PIN is chosen by the user in the pop-up, which then saves the backup.
       await resetSellerChatRecoveryBackup();
       setRecoveryMode("");
-      setPinDialogMode("create");
+      const keyPair = await createChatKeyPair(recoveryStorageKeyRef.current);
+      privateKeyRef.current = keyPair.privateKey;
+      publicKeyJwkRef.current = keyPair.publicKeyJwk;
+      await registerSellerChatKey(keyPair.publicKeyJwk);
+      setRecoveryMode("setup");
       setRecoveryError("");
-      setEncryptionReady(true);
     } catch (err) {
       setRecoveryError(err.message || "Unable to reset chat recovery");
     } finally {
@@ -1126,6 +1145,7 @@ export default function Messages() {
                     message={message}
                     onViewMedia={setSelectedMedia}
                     onRecover={handleRecoverMessages}
+                    recoveryLabel={recoveryLabel}
                   />
                 ))
               )}
@@ -1283,11 +1303,12 @@ export default function Messages() {
         isMobile={isMobile} />
 
       <ChatRecoveryDialog
-        mode={!showChatUnlockDialogs || pinDialogOpen ? "" : recoveryMode}
+        mode={recoveryMode}
         busy={recoveryBusy}
         error={recoveryError}
         onSubmit={handleRecoverySubmit}
         onReset={handleRecoveryReset}
+        onSkip={() => setRecoveryMode("")}
       />
 
       <ChatPinDialog

@@ -239,6 +239,11 @@ function AdminLayoutContent() {
           title: "FAQ Edit",
           icon: <HelpOutlineRoundedIcon />,
         },
+        {
+          segment: "program",
+          title: "Program",
+          icon: <SchoolOutlinedIcon />,
+        },
       ],
     },
     {

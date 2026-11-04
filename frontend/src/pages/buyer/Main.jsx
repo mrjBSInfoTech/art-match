@@ -3,6 +3,7 @@ import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -44,9 +45,9 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import { getProfileInitials } from "../../utils/profileInitials.js";
 
-const getProfileFallback = () =>
-  "http://localhost:5000/uploads/seller/profile.jpg";
+const getProfileFallback = () => "";
 
 const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
@@ -57,6 +58,10 @@ const getProfileImage = (artist) => {
 
   if (imageName.startsWith("http")) {
     return imageName;
+  }
+
+  if (imageName.startsWith("/uploads/")) {
+    return `http://localhost:5000${imageName}`;
   }
 
   return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
@@ -861,9 +866,8 @@ export default function Main() {
                 backgroundColor: theme.palette.background.paper,
               }}
             >
-              <Box
-                component="img"
-                src={artist.image}
+              <Avatar
+                src={artist.image || undefined}
                 alt={artist.name}
                 sx={{
                   width: 56,
@@ -873,7 +877,9 @@ export default function Main() {
                   objectFit: "cover",
                   border: `2px solid ${theme.palette.background.default}`,
                 }}
-              />
+              >
+                {!artist.image && getProfileInitials(artist.name)}
+              </Avatar>
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="body2" noWrap sx={{ fontWeight: 800 }}>
                   <Box

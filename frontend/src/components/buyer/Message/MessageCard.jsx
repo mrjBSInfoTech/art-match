@@ -4,7 +4,12 @@ import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 
 const certificateLinkType = "application/vnd.artmatch.certificate-link";
 
-export default function MessageCard({ message: msg, onViewMedia, onRecover }) {
+export default function MessageCard({
+  message: msg,
+  onViewMedia,
+  onRecover,
+  recoveryLabel = "Recover messages",
+}) {
   const isMine = msg.sender === "buyer";
   return (
     <Box
@@ -117,7 +122,7 @@ export default function MessageCard({ message: msg, onViewMedia, onRecover }) {
             onClick={onRecover}
             sx={{ mt: 0.5, px: 0.5, textTransform: "none" }}
           >
-            Recover with six-digit passkey
+            {recoveryLabel}
           </Button>
         )}
         {msg.recoveryUnavailable && (

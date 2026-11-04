@@ -442,7 +442,9 @@ const registerChatKeyRecovery = (role, authenticate, getAccountId) => {
     const encryptedPrivateKey = req.body.encryptedPrivateKey;
     const salt = req.body.salt;
     const iv = req.body.iv;
-    if (!publicKey
+    const backupVersion = Number(req.body.backupVersion);
+    if (backupVersion !== 2
+      || !publicKey
       || !validBase64(encryptedPrivateKey, 10000)
       || Buffer.from(encryptedPrivateKey, "base64").length < 17
       || !validBase64(salt, 64, 16)
@@ -453,7 +455,7 @@ const registerChatKeyRecovery = (role, authenticate, getAccountId) => {
     saveChatKeyRecovery(
       role,
       getAccountId(req.user),
-      { publicKey, encryptedPrivateKey, salt, iv },
+      { publicKey, encryptedPrivateKey, salt, iv, backupVersion },
       (error) => {
         if (error) {
           console.error(`${role} chat recovery save failed:`, error);

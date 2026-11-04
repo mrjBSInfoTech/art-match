@@ -38,6 +38,7 @@ import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalance
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 
 import { fetchCart, updateCartItemQuantity } from "../../api/buyer/cartAPI";
+import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import { addAddress, fetchAddresses, updateAddress } from "../../api/buyer/addressAPI";
 import { cancelBuyerPayment, fetchBuyerPayment, fetchPaymentMethods, placeBuyerOrder, retryBuyerPayment, validateCheckoutVoucher } from "../../api/buyer/orderAPI";
 import { canResumePayment, isOrderPaid } from "../../utils/orderPayments.js";
@@ -150,6 +151,7 @@ export default function Checkout() {
   const [paymentActionError, setPaymentActionError] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
   const [paymentRefresh, setPaymentRefresh] = useState(0);
+  const [buyerProfile, setBuyerProfile] = useState({});
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherQuote, setVoucherQuote] = useState(null);
   const [voucherWarning, setVoucherWarning] = useState("");
@@ -340,13 +342,15 @@ export default function Checkout() {
       const request = ++latestRequest;
       try {
         setPageLoading(true);
-        const [cart, addresses, paymentConfig] = await Promise.all([
+        const [cart, addresses, paymentConfig, profile] = await Promise.all([
           fetchCart(),
           fetchAddresses(),
+          getBuyerProfile(),
           typeof fetchPaymentMethods === "function"
             ? Promise.resolve(fetchPaymentMethods()).catch(() => null)
             : Promise.resolve(null),
         ]);
+        setBuyerProfile(profile || {});
         if (!active || request !== latestRequest) return;
         if (Array.isArray(paymentConfig?.payment_method_types) && paymentConfig.payment_method_types.length) {
           setEnabledPaymentChannels(paymentConfig.payment_method_types);
@@ -515,9 +519,9 @@ export default function Checkout() {
   };
 
   const profile = {
-    firstName: localStorage.getItem("buyer_first_name") || "Customer",
-    lastName: localStorage.getItem("buyer_last_name") || "",
-    email: localStorage.getItem("buyer_email") || "",
+    firstName: buyerProfile.first_name || "Customer",
+    lastName: buyerProfile.last_name || "",
+    email: buyerProfile.email || "",
   };
 
   const originalSubtotal = cartItems.reduce((sum, item) => sum + getItemSubtotal(item), 0);

@@ -193,7 +193,8 @@ router.post("/logout", async (req, res) => {
 router.get("/me", authenticateAdmin, (req, res) => {
   db.query(
     `SELECT a.admin_id, a.username, a.first_name, a.last_name, a.email, a.image, a.password_changed,
-            ar.role, ar.can_add, ar.can_edit, ar.can_delete, ar.can_promote, ar.can_demote
+            ar.role, ar.can_add, ar.can_edit, ar.can_delete, ar.can_promote, ar.can_demote,
+            ar.created_at, ar.updated_at
      FROM admin a
      LEFT JOIN admin_role ar ON a.admin_id = ar.admin_id
      WHERE a.admin_id = ?`,

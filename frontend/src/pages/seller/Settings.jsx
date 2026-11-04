@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -26,6 +27,7 @@ import {
   verifyPassword,
   changePassword,
 } from "../../api/seller/sellerAPI";
+import { getProfileInitials } from "../../utils/profileInitials.js";
 import {
   getMissingSellerProfileFields,
   requiredSellerProfileFields,
@@ -92,12 +94,14 @@ export default function Settings() {
   const [passwordVerificationError, setPasswordVerificationError] =
     useState("");
   const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
+  const [profileImage, setProfileImage] = useState("");
 
   const loadAccountInformation = useCallback(async () => {
     setLoadingAccountInformation(true);
     setAccountInformationError("");
     try {
       const profile = await getSellerProfile();
+      setProfileImage(profile.profile_image || "");
       const fields = [
         "first_name",
         "middle_name",
@@ -119,16 +123,12 @@ export default function Settings() {
             : String(
                 field === "course"
                   ? profile.course ||
-                      localStorage.getItem("seller_course") ||
                       ""
                   : profile[field] || "",
               ),
         ]),
       );
       setAccountInformation(nextInformation);
-      fields.forEach((field) =>
-        localStorage.setItem(`seller_${field}`, nextInformation[field]),
-      );
       setAccountInformationError("");
     } catch (error) {
       setAccountInformationError(
@@ -154,9 +154,10 @@ export default function Settings() {
     const formData = new FormData();
     formData.append("profile_image", file);
 
-    const response = await updateSeller(sellerId, formData);
-    const image = response.profile_image || file.name;
-    localStorage.setItem("seller_profile_image", image);
+    const updatedProfile = await updateSeller(sellerId, formData);
+    const nextProfileImage = updatedProfile.profile_image || "";
+    setProfileImage(nextProfileImage);
+    localStorage.setItem("seller_profile_image", nextProfileImage);
     window.dispatchEvent(new Event("seller-profile-updated"));
     showSnackbar("Profile image updated successfully.");
   };
@@ -347,14 +348,16 @@ export default function Settings() {
             flexWrap: "wrap",
           }}
         >
-          <Box
-            component="img"
+          <Avatar
             src={
-              localStorage.getItem("seller_profile_image")
-                ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(localStorage.getItem("seller_profile_image"))}`
-                : "http://localhost:5000/uploads/seller/profile.jpg"
+              profileImage
+                ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+                : undefined
             }
             alt="Seller profile"
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
             sx={{
               width: 72,
               height: 72,
@@ -363,7 +366,12 @@ export default function Settings() {
               border: "1px solid",
               borderColor: "divider",
             }}
-          />
+          >
+            {!profileImage &&
+              getProfileInitials(
+                `${accountInformation.first_name} ${accountInformation.last_name}`,
+              )}
+          </Avatar>
           <Button
             variant="outlined"
             startIcon={<CloudUploadIcon />}

@@ -48,7 +48,7 @@ export const loginUser = async ({ username, password }) => {
 };
 
 export const cacheBuyerProfile = (profile) => {
-  for (const field of ["username", "first_name", "last_name", "email", "phone_number", "profile_image"]) {
+  for (const field of ["username", "first_name", "last_name", "profile_image"]) {
     if (Object.hasOwn(profile, field)) {
       localStorage.setItem(`buyer_${field}`, profile[field] || "");
     }
@@ -115,6 +115,15 @@ export const recordLogout = async () => {
 // CHECK IF USER IS AUTHENTICATED
 export const isAuthenticated = () => {
   return checkIsAuthenticated("buyer");
+};
+
+export const getBuyerProfile = async () => {
+  try {
+    const res = await api.get("/me");
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
 };
 
 // GET TOKEN (returns null; tokens are strictly stored in HttpOnly cookies)

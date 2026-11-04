@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Box, Button, Container, Grid, Stack, Typography } from "@mui/material";
@@ -7,8 +7,9 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArchitectureOutlinedIcon from "@mui/icons-material/ArchitectureOutlined";
 import ChairOutlinedIcon from "@mui/icons-material/ChairOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import { fetchProgramContent } from "../../api/programContentAPI";
 
-const programs = {
+const defaultPrograms = {
   architecture: {
     title: "Architecture",
     eyebrow: "CAFA Program",
@@ -61,11 +62,34 @@ export default function Program() {
   const { program } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
+  const [programs, setPrograms] = useState(defaultPrograms);
+  useEffect(() => {
+    let active = true;
+    fetchProgramContent()
+      .then((savedPrograms) => {
+        if (active) {
+          setPrograms((current) =>
+            Object.fromEntries(
+              Object.entries(current).map(([key, fallback]) => [
+                key,
+                { ...fallback, ...savedPrograms[key] },
+              ]),
+            ),
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Unable to load saved program content:", error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const details = useMemo(
     () =>
       programs[decodeURIComponent(program || "").toLowerCase()] ||
       programs["fine-arts"],
-    [program],
+    [program, programs],
   );
   const Icon = details.icon;
 

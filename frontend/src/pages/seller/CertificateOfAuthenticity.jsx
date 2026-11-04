@@ -167,14 +167,14 @@ export default function CertificateOfAuthenticity() {
       );
       setArtistName(
         [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
-          localStorage.getItem("seller_student_number") ||
+          profile?.student_number ||
           "Artist",
       );
       setStoreName(
         String(storefront?.shop_name || "").trim() ||
           profile?.username ||
           profile?.student_number ||
-          localStorage.getItem("seller_student_number") ||
+          profile?.student_number ||
           "Your shop",
       );
     } catch (loadError) {

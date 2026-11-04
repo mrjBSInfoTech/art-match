@@ -28,7 +28,7 @@ const eventsTableSql = `
       'Draft',
       'Published',
       'Archived'
-    ) NOT NULL DEFAULT 'Draft',
+    ) NOT NULL DEFAULT 'Published',
 
     created_at DATETIME NOT NULL
       DEFAULT CURRENT_TIMESTAMP,
@@ -54,6 +54,15 @@ const eventsTableSql = `
 
 export const ensureEventsTable = async () => {
   await query(eventsTableSql);
+  await query(
+    "ALTER TABLE events MODIFY COLUMN status ENUM('Draft', 'Published', 'Archived') NOT NULL DEFAULT 'Published'",
+  );
+  await query(
+    "UPDATE events SET status = 'Published' WHERE status = 'Draft'",
+  );
+  await query(
+    "UPDATE events SET status = 'Archived' WHERE status != 'Archived' AND end_at IS NOT NULL AND end_at < NOW()",
+  );
 };
 
 // DATETIME values represent the local date/time entered in the admin form.
@@ -64,8 +73,24 @@ const eventColumns = `event_id, admin_id, title, description, location,
   image_key, image_original_name, image_content_type, image_size,
   status, created_at, updated_at`;
 
-export async function listEvents() {
-  return query(`SELECT ${eventColumns} FROM events ORDER BY start_at ASC, event_id DESC`);
+export async function archiveExpiredEvents(connection = db.promise()) {
+  await connection.query(
+    "UPDATE events SET status = 'Archived' WHERE status != 'Archived' AND end_at IS NOT NULL AND end_at < NOW()",
+  );
+  await connection.query(
+    "UPDATE events SET status = 'Published' WHERE status = 'Draft'",
+  );
+}
+
+export async function listEvents({ archived = false } = {}) {
+  await archiveExpiredEvents();
+  return query(
+    `SELECT ${eventColumns}
+     FROM events
+     WHERE status = '${archived ? "Archived" : "Published"}'
+       ${archived ? "" : "AND (end_at IS NULL OR end_at >= NOW())"}
+     ORDER BY start_at ASC, event_id DESC`,
+  );
 }
 
 export async function findEvent(eventId, connection = db.promise(), lock = false) {

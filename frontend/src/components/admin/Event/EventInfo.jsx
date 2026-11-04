@@ -2,7 +2,6 @@ import React from "react";
 import {
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,15 +24,6 @@ export default function EventInfo({
 }) {
   const theme = useTheme();
   const event = selectedEvent;
-  const status = String(event?.status || "Draft").trim();
-  const statusShade = theme.palette.mode === "dark" ? "light" : "dark";
-  const normalizedStatus = status.toLowerCase();
-  const statusColor =
-    normalizedStatus === "published"
-      ? theme.palette.success[statusShade]
-      : normalizedStatus === "archived"
-        ? theme.palette.text.secondary
-        : theme.palette.warning[statusShade];
 
   const formatDateTime = (value) => {
     if (!value) return "Not provided";
@@ -48,16 +38,6 @@ export default function EventInfo({
       hour: "numeric",
       minute: "2-digit",
     });
-  };
-
-  const formatFileSize = (value) => {
-    const bytes = Number(value);
-    if (!Number.isFinite(bytes) || bytes <= 0) return "Not provided";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
-    }
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const detailLabelSx = {
@@ -171,21 +151,6 @@ export default function EventInfo({
                   sx={{ fontSize: 56, color: "text.disabled" }}
                 />
               )}
-              <Chip
-                label={status.toUpperCase()}
-                size="small"
-                sx={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  height: 22,
-                  backgroundColor: theme.palette.background.paper,
-                  color: statusColor,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.16)",
-                }}
-              />
             </Box>
 
             <Box

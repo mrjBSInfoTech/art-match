@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -7,6 +8,10 @@ import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
+import db from "./database/db.js";
+import { authenticateAdmin } from "./middleware/adminAuthMiddleware.js";
+import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
+import { authenticateSeller } from "./middleware/sellerAuthMiddleware.js";
 // Routes (Admin)
 import adminAuthenticateRoutes from "./routes/admin/adminAuthentication.js";
 import adminArtworkRoutes from "./routes/admin/artwork.js";
@@ -24,7 +29,9 @@ import sellerPayoutAccountRoutes from "./routes/seller/payouts.js";
 import { ensurePayoutTables } from "./database/payouts.js";
 import aboutContentRoutes from "./routes/aboutContent.js";
 import footerContentRoutes from "./routes/footerContent.js";
+import programContentRoutes from "./routes/programContent.js";
 import { ensureFooterContentTable } from "./database/footerContent.js";
+import { ensureProgramContentTable } from "./database/programContent.js";
 import { createAuditLogsTable } from "./utils/auditLogger.js";
 import { ensureAccountAccessTable } from "./database/accountAccess.js";
 import {
@@ -58,7 +65,6 @@ import { ensureFaqTable } from "./database/faq.js";
 import { ensureSupportChatTables } from "./database/supportChat.js";
 import buyerFaqRoutes from "./routes/buyer/faq.js";
 import supportChatRoutes from "./routes/supportChat.js";
-import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
 import {
   getCustomerIdForWatermarkCode,
   getWatermarkCode,
@@ -134,6 +140,12 @@ const app = express();
 
 const allowedOrigins = getAllowedOrigins();
 
+app.disable("x-powered-by");
+app.use(helmet({ hsts: process.env.NODE_ENV === "production" }));
+app.use("/uploads", (req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -462,6 +474,44 @@ const serveB2Cached =
     }
   };
 
+const getUploadToken = (req) =>
+  req.cookies?.admin_token ||
+  req.cookies?.seller_token ||
+  req.cookies?.buyer_token ||
+  (req.headers?.authorization?.startsWith("Bearer ")
+    ? req.headers.authorization.split(" ")[1]
+    : null);
+
+const authenticateUploadCaller = (req, res, next) => {
+  const token = getUploadToken(req);
+  if (!token) return res.status(401).json({ message: "Authentication required." });
+
+  try {
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
+    const role = String(decoded.role || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+    if (["admin", "superadmin", "moderator", "customize"].includes(role)) {
+      return authenticateAdmin(req, res, next);
+    }
+    if (["seller", "student"].includes(role)) {
+      return authenticateSeller(req, res, next);
+    }
+    if (["buyer", "customer"].includes(role)) {
+      return authenticateBuyer(req, res, next);
+    }
+    return res.status(403).json({ message: "Access denied." });
+  } catch {
+    return res.status(401).json({ message: "Invalid or expired session token." });
+  }
+};
+
+const hasSafeUploadFilename = (filename) =>
+  typeof filename === "string" &&
+  filename.length > 0 &&
+  !filename.includes("..") &&
+  !filename.includes("/") &&
+  !filename.includes("\\") &&
+  path.basename(filename) === filename;
+
 // =====================================================
 // Artwork images
 // =====================================================
@@ -654,57 +704,71 @@ app.get(
   }),
 );
 
-// =====================================================
-// Chat attachments
-// =====================================================
-
 app.get(
-  "/uploads/chat/:filename",
-
+  "/uploads/admin/program/:filename",
   serveB2Cached({
-    keyPrefix: "app-uploads/chat",
-
-    localFolder: path.join(__dirname, "uploads", "chat"),
-
-    label: "Chat attachment",
-    contentType: "application/octet-stream",
+    keyPrefix: "app-uploads/admin/program",
+    localFolder: path.join(__dirname, "uploads", "admin", "program"),
+    label: "Program image",
   }),
 );
 
 // =====================================================
-// Seller registration documents (COR) - Authenticated Only
+// Chat attachments
 // =====================================================
-app.get("/uploads/seller/uploadCOR/:filename", (req, res) => {
-  const filename = path.basename(req.params.filename);
-  if (!filename || filename !== req.params.filename) {
+
+const serveChatAttachment = serveB2Cached({
+    keyPrefix: "app-uploads/chat",
+    localFolder: path.join(__dirname, "uploads", "chat"),
+    label: "Chat attachment",
+    contentType: "application/octet-stream",
+  });
+
+app.get("/uploads/chat/:filename", authenticateUploadCaller, async (req, res, next) => {
+  const { filename } = req.params;
+  if (!hasSafeUploadFilename(filename)) {
     return res.status(400).json({ message: "Invalid filename." });
   }
 
-  // Requester must be an authenticated Admin or Seller
-  const token =
-    req.cookies?.admin_token ||
-    req.cookies?.seller_token ||
-    (req.headers?.authorization?.startsWith("Bearer ")
-      ? req.headers.authorization.split(" ")[1]
-      : null) ||
-    req.query?.token;
-
-  if (!token) {
-    return res
-      .status(401)
-      .json({ message: "Authentication required to view registration documents." });
-  }
-
+  const accountId = req.user.role === "buyer"
+    ? req.user.customer_id
+    : req.user.student_id;
+  const accountColumn = req.user.role === "buyer" ? "c.customer_id" : "c.student_id";
   try {
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
-    const role = String(decoded.role || "").toLowerCase().replace(/[\s_-]+/g, "");
-    const isAdmin = ["admin", "superadmin", "moderator", "customize"].includes(role);
-    const isSeller = ["seller", "student"].includes(role);
+    const [rows] = await db.promise().query(
+      `SELECT m.message_id
+       FROM message m
+       JOIN conversation c ON c.conversation_id = m.conversation_id
+       WHERE SUBSTRING_INDEX(m.image, '/', -1) = ?
+         AND ${accountColumn} = ?
+       LIMIT 1`,
+      [filename, accountId],
+    );
+    if (!rows.length) return res.status(403).json({ message: "Access denied." });
+    return serveChatAttachment(req, res, next);
+  } catch (error) {
+    console.error("Unable to verify chat attachment access:", error);
+    return res.status(500).json({ message: "Unable to load chat attachment." });
+  }
+});
 
-    if (!isAdmin && !isSeller) {
+// =====================================================
+// Seller registration documents (COR) - Authenticated Only
+// =====================================================
+app.get("/uploads/seller/uploadCOR/:filename", authenticateUploadCaller, async (req, res) => {
+  const { filename } = req.params;
+  if (!hasSafeUploadFilename(filename)) {
+    return res.status(400).json({ message: "Invalid filename." });
+  }
+  try {
+    const [owners] = await db.promise().query(
+      "SELECT student_id FROM student WHERE cor = ? LIMIT 1",
+      [filename],
+    );
+    if (!owners.length) return res.status(404).json({ message: "Document not found." });
+    if (req.user.role === "seller" && String(owners[0].student_id) !== String(req.user.student_id)) {
       return res.status(403).json({ message: "Access denied." });
     }
-
     const filePath = path.join(__dirname, "uploads", "seller", "uploadCOR", filename);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: "Document not found." });
@@ -715,8 +779,9 @@ app.get("/uploads/seller/uploadCOR/:filename", (req, res) => {
     const contentType = safeUploadContentTypes[ext] || "application/octet-stream";
     res.setHeader("Content-Type", contentType);
     return res.sendFile(filePath);
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid or expired session token." });
+  } catch (error) {
+    console.error("Unable to verify seller COR access:", error);
+    return res.status(500).json({ message: "Unable to load registration document." });
   }
 });
 
@@ -766,6 +831,7 @@ app.use("/api/admin/admin", adminAdminRoutes);
 app.use("/api/admin/system-settings", adminSystemSettingsRoutes);
 app.use("/api/about-content", aboutContentRoutes);
 app.use("/api/footer-content", footerContentRoutes);
+app.use("/api/program-content", programContentRoutes);
 //app.use("/api/admin/sales", adminSalesRoutes);
 // Routes (Seller)
 app.use("/api/seller/authenticate", sellerAuthenticateRoutes);
@@ -840,6 +906,7 @@ ensureAccountAccessTable()
   .then(() => ensurePaymentSplitTable())
   .then(() => ensureArtworkWatermarkTables())
   .then(() => ensureAboutContentTable())
+  .then(() => ensureProgramContentTable())
   .then(() => ensureFooterContentTable())
   .then(() => ensureFaqTable())
   .then(() => ensureSupportChatTables())

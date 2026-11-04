@@ -18,6 +18,8 @@ import DialogActions from "@mui/material/DialogActions";
 import Slide from "@mui/material/Slide";
 import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
+import { getSellerProfile } from "../api/seller/sellerAPI";
+import { getProfileInitials } from "../utils/profileInitials.js";
 import {
   fetchSellerConversations,
   fetchSellerNotifications,
@@ -117,10 +119,24 @@ function SellerLayoutContent() {
   };
 
   useEffect(() => {
-    const loadSellerProfile = () => {
-      setFirstName(localStorage.getItem("seller_first_name") || "");
-      setLastName(localStorage.getItem("seller_last_name") || "");
-      setProfileImage(localStorage.getItem("seller_profile_image") || "");
+    const loadSellerProfile = async () => {
+      if (!isAuthenticated("seller")) {
+        setFirstName("");
+        setLastName("");
+        setProfileImage("");
+        return;
+      }
+      try {
+        const profile = await getSellerProfile();
+        setFirstName(profile.first_name || "");
+        setLastName(profile.last_name || "");
+        setProfileImage(profile.profile_image || "");
+        localStorage.setItem("seller_profile_image", profile.profile_image || "");
+      } catch {
+        setFirstName("");
+        setLastName("");
+        setProfileImage("");
+      }
     };
 
     loadSellerProfile();
@@ -405,12 +421,17 @@ function SellerLayoutContent() {
           src={
             profileImage
               ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
-              : "http://localhost:5000/uploads/seller/profile.jpg"
+              : undefined
           }
-          alt={firstName || "Seller"}
+          imgProps={{
+            onError: (event) => {
+              event.currentTarget.style.display = "none";
+            },
+          }}
+          alt={`${firstName} ${lastName}`}
           sx={{ width: 32, height: 32, bgcolor: "#232b38" }}
         >
-          {firstName ? firstName.charAt(0).toUpperCase() : "S"}
+          {!profileImage && getProfileInitials(`${firstName} ${lastName}`)}
         </Avatar>
       </Button>
     </Stack>
@@ -494,12 +515,17 @@ function SellerLayoutContent() {
               src={
                 profileImage
                   ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
-                  : "http://localhost:5000/uploads/seller/profile.jpg"
+                  : undefined
               }
-              alt={firstName || "Seller"}
+              imgProps={{
+                onError: (event) => {
+                  event.currentTarget.style.display = "none";
+                },
+              }}
+              alt={`${firstName} ${lastName}`}
               sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
             >
-              {firstName ? firstName.charAt(0).toUpperCase() : "S"}
+              {!profileImage && getProfileInitials(`${firstName} ${lastName}`)}
             </Avatar>
             <Stack sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>

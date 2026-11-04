@@ -23,6 +23,7 @@ import ChangeInfoProfile from "../../components/admin/Settings/ChangeInfoProfile
 import ChangeProfileImage from "../../components/admin/Settings/ChangeProfileImage";
 import {
   changePassword,
+  getAdminProfile,
   verifyPassword,
 } from "../../api/admin/adminAuthenticationAPI";
 import { updateAdmin } from "../../api/admin/adminAPI";
@@ -75,12 +76,19 @@ export default function Settings() {
   const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
 
   useEffect(() => {
-    setAccountInformation({
-      username: localStorage.getItem("admin_username") || "",
-      first_name: localStorage.getItem("admin_first_name") || "",
-      last_name: localStorage.getItem("admin_last_name") || "",
-      email: localStorage.getItem("admin_email") || "",
-    });
+    getAdminProfile()
+      .then((profile) => setAccountInformation({
+        username: profile.username || "",
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        email: profile.email || "",
+      }))
+      .catch(() => setAccountInformation({
+        username: "",
+        first_name: "",
+        last_name: "",
+        email: "",
+      }));
   }, []);
 
   const handleOpenPasswordEdit = () => {
@@ -144,9 +152,6 @@ export default function Settings() {
       setSavingAccountInformation(true);
       await verifyPassword(confirmationPassword);
       await updateAdmin(localStorage.getItem("admin_id"), accountInformation);
-      Object.entries(accountInformation).forEach(([key, value]) => {
-        localStorage.setItem(`admin_${key}`, value.trim());
-      });
       setPasswordDialogOpen(false);
       setConfirmationPassword("");
       showSnackbar("Account information updated successfully", "success");

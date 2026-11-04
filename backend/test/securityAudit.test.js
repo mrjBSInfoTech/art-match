@@ -109,12 +109,22 @@ test("Admin Authentication Middleware", async (t) => {
     const req = { cookies: { admin_token: adminToken }, headers: {} };
     const res = createMockRes();
     let nextCalled = false;
+    const originalQuery = db.query;
+    db.query = (sql, params, cb) => {
+      if (typeof sql === "string" && sql.includes("FROM admin a")) {
+        return cb(null, [{ password_changed: 0, role: "admin", is_banned: 0 }]);
+      }
+      return originalQuery.call(db, sql, params, cb);
+    };
 
-    await authenticateAdmin(req, res, () => { nextCalled = true; });
-
-    assert.equal(nextCalled, true);
-    assert.equal(req.user.admin_id, 10);
-    assert.equal(req.user.role, "admin");
+    try {
+      await authenticateAdmin(req, res, () => { nextCalled = true; });
+      assert.equal(nextCalled, true);
+      assert.equal(req.user.admin_id, 10);
+      assert.equal(req.user.role, "admin");
+    } finally {
+      db.query = originalQuery;
+    }
   });
 
   await t.test("accepts valid Super Admin token from cookie", async () => {
@@ -126,12 +136,22 @@ test("Admin Authentication Middleware", async (t) => {
     const req = { cookies: { admin_token: superAdminToken }, headers: {} };
     const res = createMockRes();
     let nextCalled = false;
+    const originalQuery = db.query;
+    db.query = (sql, params, cb) => {
+      if (typeof sql === "string" && sql.includes("FROM admin a")) {
+        return cb(null, [{ password_changed: 0, role: "super admin", is_banned: 0 }]);
+      }
+      return originalQuery.call(db, sql, params, cb);
+    };
 
-    await authenticateAdmin(req, res, () => { nextCalled = true; });
-
-    assert.equal(nextCalled, true);
-    assert.equal(req.user.admin_id, 1);
-    assert.equal(req.user.role, "Super Admin");
+    try {
+      await authenticateAdmin(req, res, () => { nextCalled = true; });
+      assert.equal(nextCalled, true);
+      assert.equal(req.user.admin_id, 1);
+      assert.equal(req.user.role, "super admin");
+    } finally {
+      db.query = originalQuery;
+    }
   });
 
   await t.test("rejects buyer token accessing admin route (403)", async () => {
@@ -304,8 +324,8 @@ test("JWT Revocation on Password Change & Logout", async (t) => {
 
     const originalQuery = db.query;
     db.query = (sql, params, cb) => {
-      if (typeof sql === "string" && sql.includes("SELECT password_changed FROM admin")) {
-        return cb(null, [{ password_changed: 2 }]);
+      if (typeof sql === "string" && sql.includes("FROM admin a")) {
+        return cb(null, [{ password_changed: 2, role: "admin", is_banned: 0 }]);
       }
       return originalQuery.call(db, sql, params, cb);
     };
@@ -332,8 +352,8 @@ test("JWT Revocation on Password Change & Logout", async (t) => {
 
     const originalQuery = db.query;
     db.query = (sql, params, cb) => {
-      if (typeof sql === "string" && sql.includes("SELECT password_changed FROM admin")) {
-        return cb(null, [{ password_changed: 2 }]);
+      if (typeof sql === "string" && sql.includes("FROM admin a")) {
+        return cb(null, [{ password_changed: 2, role: "admin", is_banned: 0 }]);
       }
       return originalQuery.call(db, sql, params, cb);
     };

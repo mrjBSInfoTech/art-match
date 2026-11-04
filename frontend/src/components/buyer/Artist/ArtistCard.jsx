@@ -14,6 +14,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 import { formatArtistRating } from "../../../utils/artistEngagement.js";
+import { getProfileInitials } from "../../../utils/profileInitials.js";
 const BIO_FALLBACK = "The seller currently doesn't have a bio.";
 
 export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
@@ -69,7 +70,7 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
     >
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
         <Avatar
-          src={artist.image || "http://localhost:5000/uploads/seller/profile.jpg"}
+          src={artist.image || undefined}
           alt={artist.name}
           sx={{
             width: 60,
@@ -78,7 +79,9 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
             border: "2px solid",
             borderColor: "divider",
           }}
-        />
+        >
+          {!artist.image && getProfileInitials(artist.name)}
+        </Avatar>
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             component="h3"

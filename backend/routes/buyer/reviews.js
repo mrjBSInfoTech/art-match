@@ -85,7 +85,22 @@ router.get("/artwork/:artworkId/eligibility", authenticateBuyer, requireBuyerIde
   if (!artworkId) return res.status(400).json({ message: "A valid artwork is required" });
   try {
     if (!await verifiedArtwork(artworkId)) return res.status(404).json({ message: "Artwork not found" });
-    return res.json({ can_review: true, order_item_id: null, reason: "eligible" });
+    const purchased = await query(`
+      SELECT oi.order_item_id
+      FROM marketplace_order_item oi
+      JOIN marketplace_order o ON o.order_id = oi.order_id
+      WHERE oi.artwork_id = ? AND o.customer_id = ? AND o.status = 'Delivered'
+      ORDER BY oi.order_item_id DESC
+      LIMIT 1
+    `, [artworkId, req.user.customer_id]);
+    if (!purchased.length) {
+      return res.json({ can_review: false, order_item_id: null, reason: "purchase_required" });
+    }
+    return res.json({
+      can_review: true,
+      order_item_id: purchased[0].order_item_id,
+      reason: "eligible",
+    });
   } catch (error) {
     console.error("Artwork review eligibility error:", error);
     return res.status(500).json({ message: "Unable to check review eligibility" });

@@ -161,7 +161,7 @@ export default function ArtworkCard({
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
-          {artwork.artist}
+          {artwork.shop_name || artwork.artist}
         </Typography>
 
         <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>

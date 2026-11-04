@@ -103,7 +103,7 @@ export default function Voucher() {
           String(
             seller?.username ||
               seller?.student_number ||
-              localStorage.getItem("seller_student_number") ||
+              "",
               "",
           ).trim(),
       );

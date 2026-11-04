@@ -31,6 +31,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { updateAdmin } from "../../api/admin/adminAPI";
+import { getAdminProfile } from "../../api/admin/adminAuthenticationAPI";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 
 const DropZone = styled(Box, {
@@ -93,23 +94,24 @@ export default function Profile() {
   };
 
   useEffect(() => {
-    const storedFirst = localStorage.getItem("admin_first_name") || "";
-    const storedLast = localStorage.getItem("admin_last_name") || "";
-    const storedEmail = localStorage.getItem("admin_email") || "";
-    const storedUsername = localStorage.getItem("admin_username") || "";
-    const storedImage = localStorage.getItem("admin_image") || "";
-    const storedRole = localStorage.getItem("admin_role") || "";
-    const storedCreatedAt = localStorage.getItem("admin_created_at") || "";
-    const storedUpdatedAt = localStorage.getItem("admin_updated_at") || "";
-
-    setFirstName(storedFirst);
-    setLastName(storedLast);
-    setEmail(storedEmail);
-    setUsername(storedUsername);
-    setImage(storedImage);
-    setRole(storedRole);
-    setCreatedAt(storedCreatedAt);
-    setUpdatedAt(storedUpdatedAt);
+    getAdminProfile().then((profile) => {
+      setFirstName(profile.first_name || "");
+      setLastName(profile.last_name || "");
+      setEmail(profile.email || "");
+      setUsername(profile.username || "");
+      setImage(profile.image || "");
+      setRole(profile.role || "");
+      setCreatedAt(profile.created_at || localStorage.getItem("admin_created_at") || "");
+      setUpdatedAt(profile.updated_at || localStorage.getItem("admin_updated_at") || "");
+    }).catch(() => {
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setUsername("");
+      setImage("");
+      setCreatedAt("");
+      setUpdatedAt("");
+    });
   }, []);
 
   const formatDate = (dateString) => {

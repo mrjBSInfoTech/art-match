@@ -124,26 +124,9 @@ const Login = () => {
       setToken("seller");
 
       localStorage.setItem("seller_student_id", data.student_id || "");
-      localStorage.setItem("seller_student_number", data.student_number || "");
       localStorage.setItem("seller_first_name", data.first_name || "");
       localStorage.setItem("seller_middle_name", data.middle_name || "");
       localStorage.setItem("seller_last_name", data.last_name || "");
-      localStorage.setItem("seller_email", data.email || "");
-      localStorage.setItem("seller_phone_number", data.phone_number || "");
-      localStorage.setItem("seller_address", data.address || "");
-      localStorage.setItem("seller_birthdate", data.birthdate || "");
-      localStorage.setItem("seller_cor", data.cor || "");
-      localStorage.setItem("seller_year_level", data.year_level || "");
-      localStorage.setItem("seller_course", data.course || "");
-      localStorage.setItem(
-        "seller_register_status",
-        data.register_status || "",
-      );
-      localStorage.setItem(
-        "seller_registered_date",
-        data.registered_date || "",
-      );
-      localStorage.setItem("seller_approved_date", data.approved_date || "");
       localStorage.setItem("seller_profile_image", data.profile_image || "");
 
       showSnackbar("Login successful!", "success");

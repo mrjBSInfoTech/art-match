@@ -43,7 +43,6 @@ const defaultFooterContent = {
       links: [
         { label: "About CAFA", url: "/buyer/about" },
         { label: "Exhibitions Calendar", url: "/buyer/academy/exhibitions" },
-        { label: "Vocation & Inquiries", url: "/buyer/academy/inquiries" },
         { label: "Support Desk", url: "/buyer/help-support" },
       ],
     },

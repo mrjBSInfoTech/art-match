@@ -36,14 +36,6 @@ const profileFields = [
   "year_level",
 ];
 
-const getCachedProfile = () =>
-  Object.fromEntries(
-    profileFields.map((field) => [
-      field,
-      localStorage.getItem(`seller_${field}`) || "",
-    ]),
-  );
-
 const getProfileImage = (image) => {
   if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
   if (image.startsWith("http")) return image;
@@ -95,7 +87,7 @@ function InfoRow({ icon, label, value }) {
 
 export default function Profile() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(getCachedProfile);
+  const [profile, setProfile] = useState({});
   const [profileImage, setProfileImage] = useState(
     localStorage.getItem("seller_profile_image") || "",
   );
@@ -112,9 +104,6 @@ export default function Profile() {
         );
         setProfile(nextProfile);
         setProfileImage(data.profile_image || "");
-        profileFields.forEach((field) => {
-          localStorage.setItem(`seller_${field}`, nextProfile[field]);
-        });
         if (data.profile_image) {
           localStorage.setItem("seller_profile_image", data.profile_image);
         }
@@ -154,10 +143,8 @@ export default function Profile() {
   ]
     .filter(Boolean)
     .join(" ");
-  const registeredDate =
-    localStorage.getItem("seller_registered_date") || "";
-  const accountStatus =
-    localStorage.getItem("seller_register_status") || "N/A";
+  const registeredDate = profile.registered_date || "";
+  const accountStatus = profile.register_status || "N/A";
 
   return (
     <Box sx={{ width: "100%", minWidth: 0, maxWidth: 1100, mx: "auto", pb: 5 }}>

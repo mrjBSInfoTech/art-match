@@ -1,5 +1,6 @@
 import express from "express";
 import db from "../../database/db.js";
+import { archiveExpiredEvents } from "../../database/events.js";
 
 const router = express.Router();
 const imagePrefix = "app-uploads/admin/events/";
@@ -36,10 +37,12 @@ const serializeEvent = (event) => {
 
 router.get("/", async (_req, res) => {
   try {
+    await archiveExpiredEvents();
     const [events] = await db.promise().query(
       `SELECT ${publicEventColumns}
        FROM events
-       WHERE status = 'Published'
+       WHERE status != 'Archived'
+         AND (end_at IS NULL OR end_at >= NOW())
        ORDER BY start_at ASC, event_id DESC`,
     );
 
@@ -57,10 +60,12 @@ router.get("/:id", async (req, res) => {
   }
 
   try {
+    await archiveExpiredEvents();
     const [events] = await db.promise().query(
       `SELECT ${publicEventColumns}
        FROM events
-       WHERE event_id = ? AND status = 'Published'
+       WHERE event_id = ? AND status != 'Archived'
+         AND (end_at IS NULL OR end_at >= NOW())
        LIMIT 1`,
       [eventId],
     );

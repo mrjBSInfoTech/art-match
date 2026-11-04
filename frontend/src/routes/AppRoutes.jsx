@@ -210,6 +210,16 @@ export default function AppRoutes() {
                   path="system-settings/faq-edit"
                   element={<AdminFaqEdit />}
                 />
+                <Route
+                  path="system-settings/program"
+                  element={<AdminSystemSettingsPlaceholder title="Program" />}
+                />
+                <Route
+                  path="system-settings/exhibitions-calendar"
+                  element={
+                    <Navigate to="/admin/event?tab=calendar" replace />
+                  }
+                />
                 <Route path="profile" element={<AdminProfile />} />
                 <Route
                   path="artwork"

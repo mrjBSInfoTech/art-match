@@ -44,33 +44,43 @@ export const ensureChatPublicKeysTable = async () => {
 };
 
 export const ensureChatKeyRecoveryTable = () =>
-  new Promise((resolve, reject) => {
-    db.query(
-      `CREATE TABLE IF NOT EXISTS chat_key_recovery (
-        account_type ENUM('buyer', 'seller') NOT NULL,
-        account_id INT NOT NULL,
-        public_key TEXT NOT NULL,
-        encrypted_private_key TEXT NOT NULL,
-        salt VARCHAR(64) NOT NULL,
-        iv VARCHAR(64) NOT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (account_type, account_id)
-      ) ENGINE=InnoDB`,
-      (error) => (error ? reject(error) : resolve()),
-    );
+  query(
+    `CREATE TABLE IF NOT EXISTS chat_key_recovery (
+      account_type ENUM('buyer', 'seller') NOT NULL,
+      account_id INT NOT NULL,
+      public_key TEXT NOT NULL,
+      encrypted_private_key TEXT NOT NULL,
+      salt VARCHAR(64) NOT NULL,
+      iv VARCHAR(64) NOT NULL,
+      backup_version TINYINT UNSIGNED NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (account_type, account_id)
+    ) ENGINE=InnoDB`,
+  ).then(async () => {
+    const columns = await query("SHOW COLUMNS FROM chat_key_recovery");
+    if (!columns.some((column) => column.Field === "backup_version")) {
+      await query(
+        "ALTER TABLE chat_key_recovery ADD COLUMN backup_version TINYINT UNSIGNED NOT NULL DEFAULT 1",
+      );
+    }
   });
 
 export const saveChatKeyRecovery = (accountType, accountId, backup, callback) => {
+  if (Number(backup.backupVersion) !== 2) {
+    callback(new Error("Only version 2 chat recovery backups can be saved"));
+    return;
+  }
   db.query(
     `INSERT INTO chat_key_recovery
-       (account_type, account_id, public_key, encrypted_private_key, salt, iv)
-     VALUES (?, ?, ?, ?, ?, ?)
+       (account_type, account_id, public_key, encrypted_private_key, salt, iv, backup_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        public_key = VALUES(public_key),
        encrypted_private_key = VALUES(encrypted_private_key),
        salt = VALUES(salt),
-       iv = VALUES(iv)`,
+       iv = VALUES(iv),
+       backup_version = VALUES(backup_version)`,
     [
       accountType,
       accountId,
@@ -78,6 +88,7 @@ export const saveChatKeyRecovery = (accountType, accountId, backup, callback) =>
       backup.encryptedPrivateKey,
       backup.salt,
       backup.iv,
+      backup.backupVersion,
     ],
     callback,
   );
@@ -86,7 +97,8 @@ export const saveChatKeyRecovery = (accountType, accountId, backup, callback) =>
 export const getChatKeyRecovery = (accountType, accountId, callback) => {
   db.query(
     `SELECT public_key AS publicKey,
-            encrypted_private_key AS encryptedPrivateKey, salt, iv
+            encrypted_private_key AS encryptedPrivateKey, salt, iv,
+            backup_version AS backupVersion
      FROM chat_key_recovery
      WHERE account_type = ? AND account_id = ?
      LIMIT 1`,

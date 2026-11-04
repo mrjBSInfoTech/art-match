@@ -66,6 +66,15 @@ export const isAuthenticated = () => {
   return checkIsAuthenticated("admin");
 };
 
+export const getAdminProfile = async () => {
+  try {
+    const res = await api.get("/me");
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 // GET TOKEN (returns null; tokens are strictly stored in HttpOnly cookies)
 export const getToken = () => {
   return null;

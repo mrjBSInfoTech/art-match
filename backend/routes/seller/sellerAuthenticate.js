@@ -335,7 +335,13 @@ router.post("/login", authRateLimiter, (req, res) => {
 
 router.get("/me", authenticateSeller, (req, res) => {
   db.query(
-    "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, address, phone_number, cor, year_level, course, profile_image FROM student WHERE student_id = ?",
+    `SELECT s.student_id, s.student_number, s.first_name, s.middle_name, s.last_name,
+            s.birthdate, s.email, s.address, s.phone_number, s.cor, s.year_level,
+            s.course, s.profile_image, ar.register_status, ar.registered_date,
+            ar.approved_date
+     FROM student s
+     LEFT JOIN accregistration ar ON ar.student_id = s.student_id
+     WHERE s.student_id = ?`,
     [req.user.student_id],
     (err, result) => {
       if (err) return res.status(500).json({ message: "Database error" });

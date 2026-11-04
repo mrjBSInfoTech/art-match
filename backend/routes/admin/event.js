@@ -55,14 +55,34 @@ function validateEvent(body = {}) {
   const location = typeof body.location === "string" ? body.location.trim() : "";
   const start = parseDate(body.start_at);
   const end = body.end_at ? parseDate(body.end_at) : null;
-  const status = body.status ?? "Draft";
   if (!title || title.length > 200) throw Object.assign(new Error("Event title is required and must be 200 characters or fewer."), { status: 400 });
   if (!description || Buffer.byteLength(description, "utf8") > 65535) throw Object.assign(new Error("Event description is required and must fit within 65KB."), { status: 400 });
   if (location.length > 255) throw Object.assign(new Error("Location must be 255 characters or fewer."), { status: 400 });
   if (!start || (body.end_at && !end)) throw Object.assign(new Error("Enter valid event dates and times."), { status: 400 });
   if (end && end < start) throw Object.assign(new Error("Event end date cannot be before the start date."), { status: 400 });
-  if (!["Draft", "Published", "Archived"].includes(status)) throw Object.assign(new Error("Choose a valid event status."), { status: 400 });
-  return { title, description, location: location || null, start_at: start, end_at: end, status };
+  return { title, description, location: location || null, start_at: start, end_at: end, status: "Published" };
+}
+
+async function validateEventDates(connection, eventData) {
+  const [rows] = await connection.query(
+    "SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:00') AS current_datetime",
+  );
+  const currentDateTime = rows[0]?.current_datetime;
+  if (!currentDateTime) {
+    throw Object.assign(new Error("Unable to validate event dates."), { status: 500 });
+  }
+  if (eventData.start_at < currentDateTime) {
+    throw Object.assign(
+      new Error("Event start date and time must be now or in the future."),
+      { status: 400 },
+    );
+  }
+  if (eventData.end_at && eventData.end_at < currentDateTime) {
+    throw Object.assign(
+      new Error("Event end date and time must be now or in the future."),
+      { status: 400 },
+    );
+  }
 }
 
 function serializeEvent(event) {
@@ -84,8 +104,11 @@ async function audit(req, action, title) {
   } catch (error) { console.error("Unable to record event audit:", error.name); }
 }
 
-router.get("/", authenticateAdmin, async (_req, res) => {
-  try { res.json((await listEvents()).map(serializeEvent)); }
+router.get("/", authenticateAdmin, async (req, res) => {
+  try {
+    const archived = req.query.archived === "true";
+    res.json((await listEvents({ archived })).map(serializeEvent));
+  }
   catch (error) { console.error("Unable to load events:", error.code || error.name); res.status(500).json({ message: "Unable to load events." }); }
 });
 
@@ -111,6 +134,7 @@ async function persistEvent(req, res) {
     }
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
+    await validateEventDates(connection, data);
     const previous = req.eventId ? await findEvent(req.eventId, connection, true) : null;
     if (req.eventId && !previous) {
       await connection.rollback();

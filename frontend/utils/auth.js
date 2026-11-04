@@ -8,7 +8,6 @@ const ADMIN_AUTH_KEYS = [
   "admin_username",
   "admin_first_name",
   "admin_last_name",
-  "admin_email",
   "admin_image",
   "admin_role",
   "admin_can_add",
@@ -36,20 +35,9 @@ const SELLER_AUTH_KEYS = [
   "seller_token",
   "seller_logged_in",
   "seller_student_id",
-  "seller_student_number",
   "seller_first_name",
   "seller_middle_name",
   "seller_last_name",
-  "seller_birthdate",
-  "seller_email",
-  "seller_phone_number",
-  "seller_address",
-  "seller_cor",
-  "seller_year_level",
-  "seller_course",
-  "seller_register_status",
-  "seller_registered_date",
-  "seller_approved_date",
 ];
 
 // For buyer part
@@ -60,8 +48,6 @@ const BUYER_AUTH_KEYS = [
   "buyer_username",
   "buyer_first_name",
   "buyer_last_name",
-  "buyer_email",
-  "buyer_phone_number",
   "buyer_profile_image",
   "recommendation_session_id",
 ];
@@ -102,7 +88,32 @@ const TOKEN_KEYS = {
   buyer: "buyer_token",
 };
 
+const REMOVED_PROFILE_KEYS = [
+  "admin_email",
+  "buyer_email",
+  "buyer_phone_number",
+  "seller_student_number",
+  "seller_email",
+  "seller_phone_number",
+  "seller_address",
+  "seller_birthdate",
+  "seller_cor",
+  "seller_year_level",
+  "seller_course",
+  "seller_register_status",
+  "seller_registered_date",
+  "seller_approved_date",
+  "seller_settings",
+  "seller_shop_name",
+  "seller_shop_description",
+];
+
+export function clearRemovedProfileData() {
+  REMOVED_PROFILE_KEYS.forEach((key) => localStorage.removeItem(key));
+}
+
 export function clearAuthData(section = null) {
+  clearRemovedProfileData();
   if (section === "admin") {
     ADMIN_AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     ADMIN_SIDEBAR_PREFERENCE_KEYS.forEach((key) => localStorage.removeItem(key));
@@ -180,8 +191,7 @@ export function isAuthenticated(section) {
   if (section === "seller") {
     return Boolean(
       localStorage.getItem("seller_logged_in") === "true" ||
-      localStorage.getItem("seller_student_id") ||
-      localStorage.getItem("seller_student_number"),
+      localStorage.getItem("seller_student_id"),
     );
   }
   if (section === "buyer") {

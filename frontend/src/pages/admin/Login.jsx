@@ -108,7 +108,6 @@ const Login = () => {
       localStorage.setItem("admin_username", data.username || "");
       localStorage.setItem("admin_first_name", data.first_name || "");
       localStorage.setItem("admin_last_name", data.last_name || "");
-      localStorage.setItem("admin_email", data.email || "");
       localStorage.setItem("admin_image", data.image || "");
       localStorage.setItem("admin_role", data.role || "");
       localStorage.setItem("admin_can_add", data.can_add);

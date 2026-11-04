@@ -66,10 +66,16 @@ const normalizeEvent = (event) => ({
   image_url: event.image_url ? new URL(event.image_url, api.defaults.baseURL).href : null,
 });
 
-export const fetchEvents = async () => {
+export const fetchEvents = async ({ archived = false } = {}) => {
   try {
-    const response = await api.get("/");
-    return Array.isArray(response.data) ? response.data.map(normalizeEvent) : [];
+    const response = await api.get("/", {
+      params: archived ? { archived: "true" } : undefined,
+    });
+    if (!Array.isArray(response.data)) return [];
+    const normalizedEvents = response.data.map(normalizeEvent);
+    return archived
+      ? normalizedEvents.filter((event) => event.status === "Archived")
+      : normalizedEvents.filter((event) => event.status !== "Archived");
   } catch (error) {
     handleError(error);
   }
