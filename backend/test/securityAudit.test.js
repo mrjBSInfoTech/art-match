@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
+dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)), quiet: true });
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import {
@@ -149,6 +153,33 @@ test("Admin Authentication Middleware", async (t) => {
       assert.equal(nextCalled, true);
       assert.equal(req.user.admin_id, 1);
       assert.equal(req.user.role, "super admin");
+    } finally {
+      db.query = originalQuery;
+    }
+  });
+
+  await t.test("rejects token when role in token does not match DB role (403)", async () => {
+    const forgedRoleToken = jwt.sign(
+      { admin_id: 10, username: "mod_user", role: "super admin" },
+      JWT_SECRET,
+      { algorithm: "HS256", expiresIn: "1h" },
+    );
+    const req = { cookies: { admin_token: forgedRoleToken }, headers: {} };
+    const res = createMockRes();
+    let nextCalled = false;
+    const originalQuery = db.query;
+    db.query = (sql, params, cb) => {
+      if (typeof sql === "string" && sql.includes("FROM admin a")) {
+        return cb(null, [{ password_changed: 0, role: "moderator", is_banned: 0 }]);
+      }
+      return originalQuery.call(db, sql, params, cb);
+    };
+
+    try {
+      await authenticateAdmin(req, res, () => { nextCalled = true; });
+      assert.equal(res.statusCode, 403);
+      assert.equal(nextCalled, false);
+      assert.match(res.body.message, /role mismatch/i);
     } finally {
       db.query = originalQuery;
     }
@@ -369,16 +400,56 @@ test("JWT Revocation on Password Change & Logout", async (t) => {
 });
 
 test("Centralized JWT Secret Safety", async (t) => {
-  await t.test("throws error in production when JWT_SECRET is unset or default", () => {
+  await t.test("throws error across all environments when JWT_SECRET is unset, too short, or weak", () => {
     const prevEnv = process.env.NODE_ENV;
     const prevSecret = process.env.JWT_SECRET;
     try {
-      process.env.NODE_ENV = "production";
-      process.env.JWT_SECRET = "your_secret_key";
-      assert.throws(() => getJwtSecret(), /FATAL: A secure JWT_SECRET/);
+      for (const env of ["development", "production", "test"]) {
+        process.env.NODE_ENV = env;
+        for (const weak of ["", "short", "my_super_secret_key", "secret", "changeme", "default_secret", "your_secret_key"]) {
+          process.env.JWT_SECRET = weak;
+          assert.throws(
+            () => getJwtSecret(),
+            /JWT_SECRET must be a high-entropy secret of at least 256 bits/,
+            `Should fail in ${env} with secret: "${weak}"`
+          );
+        }
+      }
     } finally {
       process.env.NODE_ENV = prevEnv;
       process.env.JWT_SECRET = prevSecret;
+    }
+  });
+});
+
+test("Environment Configuration Validator (validateEnv)", async (t) => {
+  const { validateEnv } = await import("../utils/validateEnv.js");
+
+  await t.test("passes with valid runtime environment", () => {
+    const result = validateEnv();
+    assert.equal(result.valid, true);
+  });
+
+  await t.test("fails in production when third-party placeholders are present", () => {
+    const prevEnv = process.env.NODE_ENV;
+    const prevB2 = process.env.B2_KEY_ID;
+    try {
+      process.env.NODE_ENV = "production";
+      process.env.B2_KEY_ID = "dev_placeholder_b2_key_id";
+      assert.throws(() => validateEnv(), /Environment configuration validation failed/);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+      process.env.B2_KEY_ID = prevB2;
+    }
+  });
+
+  await t.test("fails when PAYOUT_ACCOUNT_ENCRYPTION_KEY is not a 64-hex key", () => {
+    const prevKey = process.env.PAYOUT_ACCOUNT_ENCRYPTION_KEY;
+    try {
+      process.env.PAYOUT_ACCOUNT_ENCRYPTION_KEY = "not-a-valid-hex-key";
+      assert.throws(() => validateEnv(), /PAYOUT_ACCOUNT_ENCRYPTION_KEY must be a valid 64-character/);
+    } finally {
+      process.env.PAYOUT_ACCOUNT_ENCRYPTION_KEY = prevKey;
     }
   });
 });

@@ -1,8 +1,14 @@
 import { createHash } from "node:crypto";
 import { decryptPayoutAccount } from "./payoutAccount.js";
 
-export const REQUIRED_PAYOUT_APPROVALS = 3;
-export const isFinanceAdmin = admin => Boolean(admin && ["admin", "super admin"].includes(admin.role) && !Number(admin.is_banned));
+export const REQUIRED_PAYOUT_APPROVALS = 1;
+export const REQUIRED_PAYOUT_ACCOUNT_APPROVALS = 3;
+export const isFinanceAdmin = admin => Boolean(
+  admin && !Number(admin.is_banned) && (
+    ["admin", "super admin"].includes(admin.role) ||
+    (["moderator", "customize", "customizable"].includes(admin.role) && admin.payout_permission === "Approved")
+  )
+);
 
 // Ciphertexts change when an identical account is saved again. Hash the
 // canonical destination, not the random encryption envelope. Neither the full
@@ -24,8 +30,7 @@ export function payoutApprovalSnapshot(eligibility, account, providerName, provi
 
 export function validPayoutApprovalCount(cycle, decisions) {
   if (!cycle) return 0;
-  return new Set(decisions.filter(decision => decision.decision === "Approved" &&
-    Number(decision.admin_id) !== Number(cycle.requested_by_admin_id) && isFinanceAdmin(decision))
+  return new Set(decisions.filter(decision => decision.decision === "Approved" && isFinanceAdmin(decision))
     .map(decision => Number(decision.admin_id))).size;
 }
 
@@ -53,10 +58,8 @@ export function payoutApprovalActions({ approval, payoutStatus, eligible, hasDes
   const alreadyVoted = approval.decisions.some(row => Number(row.adminId) === Number(adminId));
   return {
     canRequest: Boolean(financeAuthorized && economic && (!open || approval.releasedAt)),
-    canApprove: Boolean(financeAuthorized && economic && approval.status === "Pending Approval" && !approval.releasedAt &&
-      Number(adminId) !== Number(approval.requestedByAdminId) && !alreadyVoted),
-    canReject: Boolean(financeAuthorized && economic && open &&
-      Number(adminId) !== Number(approval.requestedByAdminId) && !alreadyVoted),
+    canApprove: Boolean(financeAuthorized && economic && (!open || (approval.status === "Pending Approval" && !alreadyVoted))),
+    canReject: Boolean(financeAuthorized && economic && open && !alreadyVoted),
     canRelease: Boolean(financeAuthorized && economic && providerEnabled && approval.status === "Approved" &&
       approval.approvalCount >= REQUIRED_PAYOUT_APPROVALS && !approval.releasedAt),
     canReconcile: Boolean(financeAuthorized && ["Processing", "Failed"].includes(payoutStatus)),

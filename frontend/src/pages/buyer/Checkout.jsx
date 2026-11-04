@@ -41,7 +41,7 @@ import { fetchCart, updateCartItemQuantity } from "../../api/buyer/cartAPI";
 import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import { addAddress, fetchAddresses, updateAddress } from "../../api/buyer/addressAPI";
 import { cancelBuyerPayment, fetchBuyerPayment, fetchPaymentMethods, placeBuyerOrder, retryBuyerPayment, validateCheckoutVoucher } from "../../api/buyer/orderAPI";
-import { canResumePayment, isOrderPaid } from "../../utils/orderPayments.js";
+import { canResumePayment, isOrderPaid, calculateProcessingFee } from "../../utils/orderPayments.js";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import CheckoutVoucher from "../../components/buyer/Checkout/CheckoutVoucher";
 import AddressForm from "../../components/buyer/Address/AddressForm";
@@ -538,8 +538,12 @@ export default function Checkout() {
     const remaining = getRemainingStock(item);
     return remaining !== null && getItemQuantity(item) > remaining;
   });
-  // Total Amount = Product Subtotal + Shipping Fee - Valid Discount
-  const total = Math.max(0, (appliedVoucher?.total ?? (originalSubtotal - discountAmount)) + shippingFee);
+  const discountedSubtotal = Math.max(0, appliedVoucher?.total ?? (originalSubtotal - discountAmount));
+  const processingFee = paymentMethod === "paymongo" && discountedSubtotal > 0
+    ? calculateProcessingFee(discountedSubtotal)
+    : 0;
+  // Total Amount = Product Subtotal - Valid Discount + Shipping Fee + Payment Processing Fee
+  const total = Math.max(0, discountedSubtotal + shippingFee + processingFee);
 
   /*
    * One payment, several storefronts. The buyer is charged once, but each
@@ -623,7 +627,7 @@ export default function Checkout() {
       );
       const orderOptions = {
         voucherCode: appliedVoucher?.voucher.code,
-        expectedTotalCentavos: appliedVoucher ? Math.round(Number(appliedVoucher.total) * 100) : undefined,
+        expectedTotalCentavos: appliedVoucher ? Math.round(Number(total) * 100) : undefined,
         ...(hasCustomQuantities ? { quantities } : {}),
         ...(deliveryMethod !== "door_to_door" ? { deliveryMethod } : {}),
       };
@@ -1525,10 +1529,25 @@ export default function Checkout() {
                     value={`−${currency(appliedVoucher.discount_amount)}`}
                   />
                 )}
+                {processingFee > 0 && (
+                  <>
+                    <SummaryRow
+                      label="Payment Processing Fee (2% + ₱15.00)"
+                      value={currency(processingFee)}
+                    />
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: -1, mb: 0.5 }}
+                    >
+                      Payment gateway fee applied to online transactions.
+                    </Typography>
+                  </>
+                )}
                 <Divider sx={{ my: 1 }} />
                 <SummaryRow
                   label="Total Amount"
-                  value={`₱${total.toLocaleString()}`}
+                  value={currency(total)}
                   bold
                 />
               </Stack>

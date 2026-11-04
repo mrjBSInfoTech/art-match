@@ -33,7 +33,7 @@ export const authenticateAdmin = (req, res, next) => {
         return res.status(403).json({ message: "Unable to identify admin." });
       }
 
-      const ALLOWED_ADMIN_ROLES = new Set(["admin", "superadmin", "moderator", "customize"]);
+      const ALLOWED_ADMIN_ROLES = new Set(["admin", "superadmin", "moderator", "customize", "customizable"]);
       db.query(
         `SELECT a.password_changed, ar.role,
                 COALESCE(aa.is_banned, 0) AS is_banned
@@ -65,6 +65,19 @@ export const authenticateAdmin = (req, res, next) => {
           }
           if (Number(current.is_banned)) {
             return res.status(403).json({ message: "Admin account is banned." });
+          }
+
+          if (user.role) {
+            const tokenRole = String(user.role || "")
+              .trim()
+              .toLowerCase()
+              .replace(/[\s_-]+/g, "");
+            if (tokenRole && tokenRole !== normalizedRole) {
+              if (typeof res.clearCookie === "function") {
+                res.clearCookie("admin_token", clearAuthCookieOptions());
+              }
+              return res.status(403).json({ message: "Access denied. Admin role mismatch." });
+            }
           }
 
           const tokenPasswordChanged = Number(user.password_changed || 0);

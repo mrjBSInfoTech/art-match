@@ -15,6 +15,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
@@ -63,30 +64,62 @@ const nextStatusMap = {
   Cancelled: [],
 };
 
-const statusPillStyles = {
-  Pending: { bgcolor: "#fffbeb", color: "#d97706", borderColor: "#fde68a" },
-  Confirmed: { bgcolor: "#ecfeff", color: "#0891b2", borderColor: "#a5f3fc" },
-  Packed: { bgcolor: "#faf5ff", color: "#7c3aed", borderColor: "#e9d5ff" },
-  Shipped: { bgcolor: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe" },
-  Delivered: { bgcolor: "#f0fdf4", color: "#16a34a", borderColor: "#bbf7d0" },
-  Cancelled: { bgcolor: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
+const getStatusPillStyle = (theme, status) => {
+  const styles = {
+    Pending: {
+      bgcolor: alpha(theme.palette.warning.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.warning.main,
+      borderColor: alpha(theme.palette.warning.main, 0.4),
+    },
+    Confirmed: {
+      bgcolor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.info.main,
+      borderColor: alpha(theme.palette.info.main, 0.4),
+    },
+    Packed: {
+      bgcolor: alpha(theme.palette.secondary.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.secondary.main,
+      borderColor: alpha(theme.palette.secondary.main, 0.4),
+    },
+    Shipped: {
+      bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.primary.main,
+      borderColor: alpha(theme.palette.primary.main, 0.4),
+    },
+    Delivered: {
+      bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.success.main,
+      borderColor: alpha(theme.palette.success.main, 0.4),
+    },
+    Cancelled: {
+      bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.22 : 0.12),
+      color: theme.palette.error.main,
+      borderColor: alpha(theme.palette.error.main, 0.4),
+    },
+  };
+
+  return styles[status] || {
+    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === "dark" ? 0.18 : 0.12),
+    color: theme.palette.text.secondary,
+    borderColor: alpha(theme.palette.grey[500], 0.4),
+  };
 };
 
-const getStatusHeaderIcon = (status) => {
+const getStatusHeaderIcon = (status, theme) => {
   switch (status) {
     case "Delivered":
-      return <CheckCircleOutlinedIcon sx={{ fontSize: 32, color: "#10b981" }} />;
+      return <CheckCircleOutlinedIcon sx={{ fontSize: 32, color: theme.palette.success.main }} />;
     case "Shipped":
-      return <LocalShippingOutlinedIcon sx={{ fontSize: 32, color: "#2563eb" }} />;
+      return <LocalShippingOutlinedIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />;
     case "Packed":
-      return <Inventory2OutlinedIcon sx={{ fontSize: 32, color: "#7c3aed" }} />;
+      return <Inventory2OutlinedIcon sx={{ fontSize: 32, color: theme.palette.secondary.main }} />;
     case "Confirmed":
-      return <AssignmentTurnedInOutlinedIcon sx={{ fontSize: 32, color: "#0891b2" }} />;
+      return <AssignmentTurnedInOutlinedIcon sx={{ fontSize: 32, color: theme.palette.info.main }} />;
     case "Cancelled":
-      return <CancelOutlinedIcon sx={{ fontSize: 32, color: "#ef4444" }} />;
+      return <CancelOutlinedIcon sx={{ fontSize: 32, color: theme.palette.error.main }} />;
     case "Pending":
     default:
-      return <HourglassEmptyOutlinedIcon sx={{ fontSize: 32, color: "#f59e0b" }} />;
+      return <HourglassEmptyOutlinedIcon sx={{ fontSize: 32, color: theme.palette.warning.main }} />;
   }
 };
 
@@ -114,6 +147,7 @@ export default function OrderDetail() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const [order, setOrder] = useState(location.state?.order || null);
   const [loading, setLoading] = useState(!order);
@@ -380,7 +414,7 @@ export default function OrderDetail() {
   const artworkTitle = primaryItem.title || "Artwork";
   const studentArtist = order.sellerName || primaryItem.artistName || "Student Artist";
   const buyerName = order.customer || order.buyerName || "Maria Santos";
-  const pillStyle = statusPillStyles[currentStatus] || statusPillStyles.Pending;
+  const pillStyle = getStatusPillStyle(theme, currentStatus);
   const secureTrackingUrl = getSecureTrackingUrl(order.trackingUrl);
   const courierInfo = getShipmentCourier(order.courier);
 
@@ -397,11 +431,11 @@ export default function OrderDetail() {
           onClick={() => navigate("/seller/orders/manage")}
           sx={{
             textTransform: "none",
-            color: "#475569",
+            color: "text.secondary",
             fontWeight: 700,
             fontSize: 14,
             p: 0,
-            "&:hover": { bgcolor: "transparent", color: "#0f172a" },
+            "&:hover": { bgcolor: "transparent", color: "text.primary" },
           }}
         >
           Back to manage orders
@@ -415,8 +449,8 @@ export default function OrderDetail() {
           p: { xs: 2.5, sm: 3.5, md: 4.5 },
           borderRadius: 4,
           border: "1px solid",
-          borderColor: "#e2e8f0",
-          bgcolor: "#ffffff",
+          borderColor: "divider",
+          bgcolor: "background.paper",
           boxShadow: "0 4px 24px rgba(15, 23, 42, 0.04)",
         }}
       >
@@ -445,10 +479,10 @@ export default function OrderDetail() {
                   flexShrink: 0,
                 }}
               >
-                {getStatusHeaderIcon(currentStatus)}
+                {getStatusHeaderIcon(currentStatus, theme)}
               </Box>
               <Box>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", lineHeight: 1.2 }}>
                   Fulfillment & delivery
                 </Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.35 }}>
@@ -494,46 +528,47 @@ export default function OrderDetail() {
             sx={{
               p: 2.5,
               borderRadius: 2.5,
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
             }}
           >
             <Stack spacing={1.5}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Artwork Title
                 </Typography>
-                <Typography sx={{ color: "#0f172a", fontSize: 14, fontWeight: 700 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 14, fontWeight: 700 }}>
                   {artworkTitle}
                 </Typography>
               </Box>
-              <Divider sx={{ borderColor: "#e2e8f0" }} />
+              <Divider sx={{ borderColor: "divider" }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Student Artist
                 </Typography>
-                <Typography sx={{ color: "#0f172a", fontSize: 14, fontWeight: 700 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 14, fontWeight: 700 }}>
                   {studentArtist}
                 </Typography>
               </Box>
-              <Divider sx={{ borderColor: "#e2e8f0" }} />
+              <Divider sx={{ borderColor: "divider" }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Collector / Buyer
                 </Typography>
-                <Typography sx={{ color: "#0f172a", fontSize: 14, fontWeight: 700 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 14, fontWeight: 700 }}>
                   {buyerName}
                 </Typography>
               </Box>
-              <Divider sx={{ borderColor: "#e2e8f0" }} />
+              <Divider sx={{ borderColor: "divider" }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Order Date
                 </Typography>
-                <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600 }}>
                   {formatOrderDate(order.date)}
                 </Typography>
               </Box>
@@ -545,37 +580,38 @@ export default function OrderDetail() {
             sx={{
               p: 2.5,
               borderRadius: 2.5,
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
             }}
           >
             <Stack spacing={1.5}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Artwork Price / Gross
                 </Typography>
-                <Typography sx={{ color: "#0f172a", fontSize: 14, fontWeight: 700 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 14, fontWeight: 700 }}>
                   {formatCurrency(grossAmount)}
                 </Typography>
               </Box>
-              <Divider sx={{ borderColor: "#e2e8f0" }} />
+              <Divider sx={{ borderColor: "divider" }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Platform Take / Deductions
                 </Typography>
-                <Typography sx={{ color: "#0f172a", fontSize: 14, fontWeight: 700 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 14, fontWeight: 700 }}>
                   {formatCurrency(platformTake)} ({platformTakePercent}%)
                 </Typography>
               </Box>
-              <Divider sx={{ borderColor: "#e2e8f0" }} />
+              <Divider sx={{ borderColor: "divider" }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography sx={{ color: "#64748b", fontSize: 13, fontWeight: 600 }}>
+                <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                   Payment Method & Status
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600 }}>
+                  <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600 }}>
                     {getPaymentMethodLabel(order)}
                   </Typography>
                   <Chip
@@ -587,13 +623,13 @@ export default function OrderDetail() {
                   />
                 </Stack>
               </Box>
-              <Divider sx={{ borderColor: "#e2e8f0" }} />
+              <Divider sx={{ borderColor: "divider" }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pt: 0.5 }}>
-                <Typography sx={{ color: "#0f172a", fontSize: 15, fontWeight: 800 }}>
+                <Typography sx={{ color: "text.primary", fontSize: 15, fontWeight: 800 }}>
                   Total Net Student Payout
                 </Typography>
-                <Typography sx={{ color: "#10b981", fontSize: 18, fontWeight: 900 }}>
+                <Typography sx={{ color: "success.main", fontSize: 18, fontWeight: 900 }}>
                   {formatCurrency(netPayout)}
                 </Typography>
               </Box>
@@ -605,30 +641,31 @@ export default function OrderDetail() {
             sx={{
               p: 2.5,
               borderRadius: 3,
-              bgcolor: "#f0f7ff",
-              border: "1px solid #c7dffd",
+              bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.08),
+              border: "1px solid",
+              borderColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.32 : 0.2),
             }}
           >
             <Stack spacing={1.5}>
               <Stack direction="row" spacing={1.25} alignItems="center">
-                <LocalShippingOutlinedIcon sx={{ color: "#2563eb", fontSize: 22 }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#1e3a8a" }}>
+                <LocalShippingOutlinedIcon sx={{ color: "primary.main", fontSize: 22 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "primary.main" }}>
                   Delivery & fulfillment
                 </Typography>
               </Stack>
 
-              <Typography variant="body2" sx={{ color: "#2563eb", fontWeight: 700, fontSize: 13 }}>
+              <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 700, fontSize: 13 }}>
                 Status: {fulfillmentHint(order)}
               </Typography>
 
-              <Divider sx={{ borderColor: "#bfdbfe" }} />
+              <Divider sx={{ borderColor: alpha(theme.palette.primary.main, 0.25) }} />
 
               <Stack spacing={1}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                  <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                  <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                     Delivery Method:
                   </Typography>
-                  <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 700 }}>
+                  <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 700 }}>
                     {isMeetup ? "Meet-up Delivery" : "Door-to-Door Delivery"}
                   </Typography>
                 </Box>
@@ -739,25 +776,6 @@ export default function OrderDetail() {
               spacing={2}
               alignItems={{ xs: "stretch", sm: "center" }}
             >
-              <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 240 } }}>
-                <Select
-                  value={currentStatus}
-                  disabled={savingStatus || savingFulfillment || !nextStatuses.length}
-                  onChange={(event) => handleStatusSelect(event.target.value)}
-                  sx={{
-                    fontSize: 13,
-                    borderRadius: 2,
-                    bgcolor: "#ffffff",
-                  }}
-                >
-                  {[currentStatus, ...nextStatuses].map((status) => (
-                    <MenuItem key={status} value={status} disabled={status === currentStatus}>
-                      {status}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
               {/* Quick Action Button for next progression */}
               {nextStatuses.length > 0 && (
                 <Button
@@ -769,8 +787,8 @@ export default function OrderDetail() {
                     textTransform: "none",
                     fontWeight: 800,
                     minHeight: 40,
-                    bgcolor: "#ef4444",
-                    "&:hover": { bgcolor: "#dc2626" },
+                    bgcolor: "error.main",
+                    color:"#fff",
                   }}
                 >
                   {savingStatus || savingFulfillment ? (

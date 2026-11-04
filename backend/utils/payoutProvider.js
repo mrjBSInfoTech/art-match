@@ -7,12 +7,20 @@ export const PayoutProviderError = paymongo.PayoutProviderError;
 const fail = (message, code = "provider_not_configured", status = 503) => {
   throw new PayoutProviderError(message, { status, code });
 };
-const configuredName = (env = process.env) => String(env.PAYOUT_PROVIDER || "paymongo").trim().toLowerCase();
+const configuredName = (env = process.env) => String(env.PAYOUT_PROVIDER || "demo").trim().toLowerCase();
 const isProduction = (env = process.env) => String(env.NODE_ENV || "").trim().toLowerCase() === "production";
+const placeholderLike = (value = "") => {
+  const text = String(value || "").trim().toLowerCase();
+  return !text || /placeholder|your_|your\.|dev_placeholder|example|sample|changeme|set_me/.test(text);
+};
 
 export function assertPayoutProviderConfiguration(env = process.env) {
   const name = configuredName(env);
   if (!["demo", "paymongo"].includes(name)) fail("Unknown payout provider. Configure PAYOUT_PROVIDER as demo or paymongo.", "unknown_provider");
+  if (name === "paymongo" && (!String(env.PAYMONGO_SECRET_KEY || "").trim() || placeholderLike(env.PAYMONGO_SECRET_KEY) || placeholderLike(env.PAYMONGO_PAYOUT_WALLET_ID))) {
+    if (isProduction(env)) fail("PayMongo payouts are not configured for production. Set an active wallet and secret before enabling PAYOUT_PROVIDER=paymongo.", "provider_not_configured");
+    return "demo";
+  }
   if (name === "demo" && isProduction(env)) fail("Demo payout provider is forbidden in production.", "demo_forbidden");
   return name;
 }

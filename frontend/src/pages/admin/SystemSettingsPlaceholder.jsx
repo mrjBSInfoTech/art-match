@@ -450,6 +450,7 @@ export default function SystemSettingsPlaceholder({ title }) {
         {!programLoading && (
           <Button
             variant="contained"
+            color="error"
             size="large"
             startIcon={
               programSaving ? (
@@ -584,6 +585,7 @@ export default function SystemSettingsPlaceholder({ title }) {
               />
               <Button
                 type="submit"
+                color="error"
                 variant="contained"
                 disabled={loadingExpiration || savingExpiration}
                 sx={{ textTransform: "none" }}
@@ -621,6 +623,7 @@ export default function SystemSettingsPlaceholder({ title }) {
               </Box>
               <Button
                 variant="outlined"
+                color="error"
                 onClick={handleDownloadBackup}
                 disabled={creatingBackup}
                 startIcon={creatingBackup ? <CircularProgress size={16} /> : <BackupIcon />}

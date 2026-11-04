@@ -6,23 +6,22 @@ import { isFinanceAdmin, validPayoutApprovalCount, payoutApprovalSnapshot, payou
 
 const cycle = { cycle_id: 12, requested_by_admin_id: 1, approval_status: "Pending Approval" };
 const decision = (admin_id, changes = {}) => ({ admin_id, role: "admin", is_banned: 0, decision: "Approved", ...changes });
-test("quorum counts distinct current finance admins, excluding requester, rejects, demotions and bans", () => {
+test("quorum counts distinct current finance admins, excluding rejects, demotions and bans", () => {
   assert.equal(validPayoutApprovalCount(cycle, [decision(1),decision(2),decision(2),decision(3),
-    decision(4,{ role: "moderator" }),decision(5,{ is_banned: 1 }),decision(6,{ decision: "Rejected" }),decision(7,{ role: "super admin" })]), 3);
+    decision(4,{ role: "moderator" }),decision(5,{ is_banned: 1 }),decision(6,{ decision: "Rejected" }),decision(7,{ role: "super admin" })]), 4);
   assert.equal(isFinanceAdmin({ role: "admin", is_banned: 1 }), false);
 });
 test("approval DTO removes an old quorum when current admin permissions no longer qualify", () => {
-  const dto = payoutApprovalDto({ ...cycle, approval_status: "Approved" }, [decision(2),decision(3),decision(4,{ role: "moderator" })]);
+  const dto = payoutApprovalDto({ ...cycle, approval_status: "Approved" }, [decision(4,{ role: "moderator" })]);
   assert.equal(dto.status, "Pending Approval");
-  assert.equal(dto.approvalCount, 2);
-  assert.equal(dto.decisions[2].authorized, false);
+  assert.equal(dto.approvalCount, 0);
+  assert.equal(dto.decisions[0].authorized, false);
 });
-test("requester can release after quorum but cannot vote; two approvals cannot enable release", () => {
-  const approval = payoutApprovalDto({ ...cycle, approval_status: "Approved" }, [decision(2),decision(3),decision(4)]);
+test("requester can release after quorum; zero approvals cannot enable release", () => {
+  const approval = payoutApprovalDto({ ...cycle, approval_status: "Approved" }, [decision(2)]);
   const context = { approval, payoutStatus: "Eligible", eligible: true, hasDestination: true, adminId: 1, financeAuthorized: true, providerEnabled: true };
   assert.equal(payoutApprovalActions(context).canRelease, true);
-  assert.equal(payoutApprovalActions(context).canApprove, false);
-  assert.equal(payoutApprovalActions({ ...context, approval: { ...approval, approvalCount: 2 } }).canRelease, false);
+  assert.equal(payoutApprovalActions({ ...context, approval: { ...approval, approvalCount: 0 } }).canRelease, false);
   assert.equal(payoutApprovalActions({ ...context, payoutStatus: "Paid" }).canRelease, false);
 });
 test("snapshot detects amount, provider and destination changes without persisting account numbers", () => {

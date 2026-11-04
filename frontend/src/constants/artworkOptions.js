@@ -10,6 +10,19 @@ export const ART_TYPES = [
   "Customize",
 ];
 
+export const DIGITAL_ART_TYPES = [
+  "Digital",
+  "Photography",
+  "Print",
+  "Architecture",
+  "Customize",
+];
+
+export const PHYSICAL_ONLY_ART_TYPES = [
+  "Sculpture",
+  "Product",
+];
+
 export const ART_STYLES = [
   "Modern",
   "Abstract",

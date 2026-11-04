@@ -716,6 +716,7 @@ export default function ArtworkDetail() {
                     borderRadius: 999,
                     textTransform: "none",
                     fontWeight: 600,
+                    color: "#fff",
                   }}
                 >
                   {addingToCart

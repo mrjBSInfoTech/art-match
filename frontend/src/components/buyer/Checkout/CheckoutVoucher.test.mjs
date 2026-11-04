@@ -25,6 +25,7 @@ function renderCheckout(apiOverrides = {}) {
   };
   const react = {
     createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
+    useCallback: (fn) => fn,
     useState(initial) {
       const index = cursor++;
       if (!(index in hooks)) hooks[index] = typeof initial === "function" ? initial() : initial;
@@ -73,7 +74,7 @@ function renderCheckout(apiOverrides = {}) {
   return {
     items, placed, validations, navigations,
     async flush() { for (let i = 0; i < 5; i++) { await new Promise(resolve => setImmediate(resolve)); if (dirty) render(); } },
-    voucher: () => nodesOf(tree).find(node => node?.type === "CheckoutVoucher"),
+    voucher: () => nodesOf(tree).find(node => node?.type === "CheckoutVoucher" || node?.type?.default === "CheckoutVoucher"),
     button: label => nodesOf(tree).find(node => node?.type === "Button" && textOf(node) === label),
     iconButton: label => nodesOf(tree).find(node => node?.type === "IconButton" && node?.props?.["aria-label"] === label),
     summary: label => nodesOf(tree).find(node => node?.props?.label === label),

@@ -790,6 +790,7 @@ export default function SystemSetting() {
         (footerContent && activeSection === "footer")) && (
         <Button
           variant="contained"
+          color="error"
           size="large"
           startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveRoundedIcon />}
           onClick={handleSave}

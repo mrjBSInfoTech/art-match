@@ -53,6 +53,7 @@ const orderTableSql = `
     voucher_code VARCHAR(20) NULL,
     -- No shipping fee: couriers are arranged outside ArtMatch.
     shipping_fee DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    processing_fee DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
     total_amount DECIMAL(12, 2) NOT NULL,
 
     status ENUM(
@@ -272,6 +273,7 @@ const ensureOrderColumns = async () => {
   for (const [name, definition] of [
     ["courier", "VARCHAR(50) NULL"],
     ["tracking_number", "VARCHAR(100) NULL"],
+    ["processing_fee", "DECIMAL(12, 2) NOT NULL DEFAULT 0.00"],
   ]) {
     if (!names.has(name)) {
       await query(`ALTER TABLE marketplace_order ADD COLUMN ${name} ${definition}`);

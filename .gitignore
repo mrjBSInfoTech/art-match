@@ -1,13 +1,33 @@
-backend/.env
-frontend/.env
+# Environment files across all packages and directories
 .env
 .env.*
 !.env.example
+*.env
+*.env.*
+**/.env
+**/.env.*
+!**/.env.example
+backend/.env*
+!backend/.env.example
+frontend/.env*
+!frontend/.env.example
+
+# Backup and config copies
+*.bak
+*.backup
+*.old
+*.env.bak
+*.env.backup
+*.swp
+
+# Dependencies & build
 node_modules/
+dist/
 dist/gi
 backend/.cache/
 backend/uploads/orders/
-# Local database dumps (contain real user data)
+
+# Local database dumps
 backend/database/backups/
 
 # Local logs and runtime artifacts
@@ -20,7 +40,6 @@ backend-server.err.log
 .DS_Store
 
 # Stray local backups and one-off scripts
-*.bak
 backend/debug-delete.mjs
 backend/verify-delete.mjs
 backend/add-placeholder.cjs

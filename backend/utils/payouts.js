@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import db from "../database/db.js";
 import * as providerApi from "./payoutProvider.js";
 import { getPayoutHoldPolicy, loadPayoutEligibility, refreshSellerPayoutEligibility, payoutToCentavos } from "./payoutEligibility.js";
-import { encryptPayoutAccount, decryptPayoutAccount, payoutAccountDto } from "./payoutAccount.js";
+import { encryptPayoutAccount, decryptPayoutAccount, payoutAccountDto, maskPayoutAccount } from "./payoutAccount.js";
 import { logAudit } from "./auditLogger.js";
-import { REQUIRED_PAYOUT_APPROVALS, isFinanceAdmin, payoutApprovalSnapshot, validPayoutApprovalCount,
+import { REQUIRED_PAYOUT_APPROVALS, REQUIRED_PAYOUT_ACCOUNT_APPROVALS, isFinanceAdmin, payoutApprovalSnapshot, validPayoutApprovalCount,
   payoutApprovalDto, payoutApprovalActions } from "./payoutApprovals.js";
 
 export class PayoutError extends Error {
@@ -72,7 +72,8 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     }
   };
   const admin = async (executor, adminId, { lock = false } = {}) => (await rows(executor, `SELECT a.admin_id,
-    CONCAT(a.first_name,' ',a.last_name) AS admin_name,r.role,COALESCE(ac.is_banned,0) AS is_banned
+    CONCAT(a.first_name,' ',a.last_name) AS admin_name,r.role,COALESCE(ac.is_banned,0) AS is_banned,
+    (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id=a.admin_id LIMIT 1) AS payout_permission
     FROM admin a JOIN admin_role r ON r.admin_id=a.admin_id
     LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=a.admin_id
     WHERE a.admin_id=?${lock ? " FOR UPDATE" : ""}`, [id(adminId)]))[0];
@@ -88,7 +89,9 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       WHERE c.cycle_id=? AND c.split_id=?${lock ? " FOR UPDATE" : ""}`, [split.approval_cycle_id,split.split_id]))[0];
     if (!cycle) fail(409, "Payout approval history requires administrator review.");
     const decisions = await rows(executor, `SELECT v.*,CONCAT(a.first_name,' ',a.last_name) AS admin_name,
-      r.role,COALESCE(ac.is_banned,0) AS is_banned FROM seller_payout_approval v
+      r.role,COALESCE(ac.is_banned,0) AS is_banned,
+      (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id=v.admin_id LIMIT 1) AS payout_permission
+      FROM seller_payout_approval v
       JOIN admin a ON a.admin_id=v.admin_id LEFT JOIN admin_role r ON r.admin_id=v.admin_id
       LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=v.admin_id
       WHERE v.cycle_id=? ORDER BY v.approval_id${lock ? " FOR UPDATE" : ""}`, [cycle.cycle_id]);
@@ -107,15 +110,88 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       WHERE r.role IN ('admin','super admin') AND COALESCE(ac.is_banned,0)=0`, [message,payout.order_id]);
   };
   const capability = async () => {
-    const result = await provider.getPayoutCapability();
-    // A seller may see readiness, not the platform's aggregate Wallet balance.
-    return { enabled: result.enabled, mode: result.mode, message: result.message, provider: result.provider || configuredProviderName(), simulated: result.simulated || false,
-      walletConfigured: result.walletConfigured, feeReserveCentavos: result.feeReserveCentavos };
+    try {
+      const result = await provider.getPayoutCapability();
+      // A seller may see readiness, not the platform's aggregate Wallet balance.
+      return {
+        enabled: Boolean(result?.enabled),
+        mode: result?.mode || configuredProviderMode(),
+        message: result?.message || null,
+        provider: result?.provider || configuredProviderName(),
+        simulated: result?.simulated || false,
+        walletConfigured: Boolean(result?.walletConfigured),
+        feeReserveCentavos: result?.feeReserveCentavos ?? null,
+      };
+    } catch (error) {
+      return {
+        enabled: false,
+        mode: configuredProviderMode(),
+        message: error.message || "Payout provider is unavailable.",
+        provider: configuredProviderName(),
+        simulated: configuredProviderName() === "demo",
+        walletConfigured: false,
+        feeReserveCentavos: null,
+      };
+    }
   };
-  const getAccount = async sellerId => ({
-    account: payoutAccountDto((await rows(pool, "SELECT * FROM seller_payout_account WHERE student_id = ?", [id(sellerId)]))[0]),
-    capability: await capability(),
-  });
+  const getAccount = async sellerId => {
+    const accountRow = (await rows(pool, "SELECT * FROM seller_payout_account WHERE student_id = ?", [id(sellerId)]))[0];
+    const pendingRequestRow = (await rows(pool, `SELECT r.*,
+      (SELECT COUNT(DISTINCT a.admin_id) FROM seller_payout_account_approval a WHERE a.request_id=r.request_id AND a.decision='Approved') AS approval_count
+      FROM seller_payout_account_request r
+      WHERE r.student_id = ? AND r.status = 'Pending'
+      ORDER BY r.request_id DESC LIMIT 1`, [id(sellerId)]))[0];
+    
+    let pendingRequest = null;
+    if (pendingRequestRow) {
+      let maskedNum = "••••••••";
+      try {
+        maskedNum = maskPayoutAccount(decryptPayoutAccount(pendingRequestRow.account_number_ciphertext, sellerId));
+      } catch { /* fallback */ }
+      pendingRequest = {
+        requestId: pendingRequestRow.request_id,
+        status: pendingRequestRow.status,
+        destinationType: pendingRequestRow.destination_type,
+        institutionCode: pendingRequestRow.institution_code,
+        institutionName: pendingRequestRow.institution_name,
+        institutionProvider: pendingRequestRow.institution_provider,
+        accountName: pendingRequestRow.account_name,
+        maskedAccountNumber: maskedNum,
+        approvalCount: Number(pendingRequestRow.approval_count || 0),
+        requiredApprovals: REQUIRED_PAYOUT_ACCOUNT_APPROVALS,
+        requestedAt: pendingRequestRow.requested_at,
+      };
+    } else {
+      const lastRejected = (await rows(pool, `SELECT * FROM seller_payout_account_request
+        WHERE student_id = ? AND status = 'Rejected'
+        ORDER BY request_id DESC LIMIT 1`, [id(sellerId)]))[0];
+      if (lastRejected) {
+        let maskedNum = "••••••••";
+        try {
+          maskedNum = maskPayoutAccount(decryptPayoutAccount(lastRejected.account_number_ciphertext, sellerId));
+        } catch { /* fallback */ }
+        pendingRequest = {
+          requestId: lastRejected.request_id,
+          status: lastRejected.status,
+          destinationType: lastRejected.destination_type,
+          institutionCode: lastRejected.institution_code,
+          institutionName: lastRejected.institution_name,
+          institutionProvider: lastRejected.institution_provider,
+          accountName: lastRejected.account_name,
+          maskedAccountNumber: maskedNum,
+          approvalCount: 0,
+          requiredApprovals: REQUIRED_PAYOUT_ACCOUNT_APPROVALS,
+          requestedAt: lastRejected.requested_at,
+          rejectionReason: lastRejected.rejection_reason,
+        };
+      }
+    }
+    return {
+      account: payoutAccountDto(accountRow),
+      pendingRequest,
+      capability: await capability(),
+    };
+  };
   const saveAccount = async (sellerId, body) => {
     id(sellerId);
     allowedBody(body, ["institutionCode", "provider", "accountName", "accountNumber"]);
@@ -130,21 +206,24 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     await transaction(async connection => {
       const sellers = await rows(connection, "SELECT student_id FROM student WHERE student_id = ? FOR UPDATE", [sellerId]);
       if (!sellers.length) fail(404, "Seller not found.");
-      await rows(connection, "SELECT payout_account_id FROM seller_payout_account WHERE student_id = ? FOR UPDATE", [sellerId]);
       const processing = await rows(connection, "SELECT split_id FROM seller_payment_split WHERE seller_id = ? AND payout_status = 'Processing' LIMIT 1", [sellerId]);
       if (processing.length) fail(409, "A payout is processing. Update your destination after it finishes.");
-      await rows(connection, `INSERT INTO seller_payout_account
-        (student_id,destination_type,institution_code,institution_name,institution_provider,account_name,account_number_ciphertext)
-        VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE destination_type=VALUES(destination_type),
-        institution_code=VALUES(institution_code),institution_name=VALUES(institution_name),institution_provider=VALUES(institution_provider),
-        account_name=VALUES(account_name),account_number_ciphertext=VALUES(account_number_ciphertext)`,
-      [sellerId, institution.destinationType || "bank", institution.code, institution.name, institution.provider, name, ciphertext]);
-      // Changing a saved destination must never carry old authorizations to
-      // the new recipient. Released attempts retain their frozen destination.
-      await rows(connection, `UPDATE seller_payout_approval_cycle c
-        JOIN seller_payment_split s ON s.approval_cycle_id=c.cycle_id
-        SET c.approval_status='Invalidated',c.approved_at=NULL,c.invalidation_reason='The seller payout destination was updated. Request fresh approvals.'
-        WHERE s.seller_id=? AND c.released_at IS NULL AND c.approval_status IN ('Pending Approval','Approved')`, [sellerId]);
+      
+      const existingPending = await rows(connection, "SELECT request_id FROM seller_payout_account_request WHERE student_id = ? AND status = 'Pending' FOR UPDATE", [sellerId]);
+      if (existingPending.length) {
+        const reqId = existingPending[0].request_id;
+        await rows(connection, "DELETE FROM seller_payout_account_approval WHERE request_id = ?", [reqId]);
+        await rows(connection, `UPDATE seller_payout_account_request
+          SET destination_type=?, institution_code=?, institution_name=?, institution_provider=?,
+              account_name=?, account_number_ciphertext=?, requested_at=CURRENT_TIMESTAMP
+          WHERE request_id=?`,
+          [institution.destinationType || "bank", institution.code, institution.name, institution.provider, name, ciphertext, reqId]);
+      } else {
+        await rows(connection, `INSERT INTO seller_payout_account_request
+          (student_id,destination_type,institution_code,institution_name,institution_provider,account_name,account_number_ciphertext,status)
+          VALUES (?,?,?,?,?,?,?,'Pending')`,
+          [sellerId, institution.destinationType || "bank", institution.code, institution.name, institution.provider, name, ciphertext]);
+      }
     });
     return getAccount(sellerId);
   };
@@ -291,17 +370,31 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       fail(400, decision === "Rejected" ? "A rejection comment is required (maximum 500 characters)." : "Approval comments must be at most 500 characters.");
     }
     const outcome = await transaction(async connection => {
-      const context = await lockedPayout(connection, payoutId);
+      let context = await lockedPayout(connection, payoutId);
       await requireAdmin(connection, adminId, { lock: true });
-      const { eligibility, cycle, decisions } = context;
-      if (!cycle) fail(409, "Request this payout before collecting approvals.");
-      if (Number(cycle.requested_by_admin_id) === Number(adminId)) fail(403, decision === "Approved"
-        ? "You cannot approve a payout request that you initiated." : "You cannot reject a payout request that you initiated.");
+      let { eligibility, cycle, decisions } = context;
+      if (!cycle) {
+        if (eligibility.split.payout_status !== "Eligible" || !eligibility.canSend) {
+          fail(409, eligibility.holdReason || "This payout is not currently eligible for approval.");
+        }
+        if (!context.account) fail(422, "Seller payout destination is not configured.");
+        const providerName = configuredProviderName();
+        const mode = configuredProviderMode();
+        const snapshot = payoutApprovalSnapshot(eligibility, context.account, providerName, mode);
+        const inserted = await rows(connection, `INSERT INTO seller_payout_approval_cycle
+          (split_id,requested_by_admin_id,approval_status,payout_provider,payout_mode,amount_centavos,snapshot_hash)
+          VALUES (?,?,'Pending Approval',?,?,?,?)`,
+          [eligibility.split.split_id, adminId, providerName, mode, eligibility.payoutAmountCentavos, snapshot]);
+        await rows(connection, "UPDATE seller_payment_split SET approval_cycle_id=? WHERE split_id=?", [inserted.insertId, eligibility.split.split_id]);
+        context = await lockedPayout(connection, payoutId);
+        cycle = context.cycle;
+        decisions = context.decisions;
+      }
       const problem = await snapshotProblem(connection, context);
       if (problem) return { error: problem };
       if (cycle.released_at || !["Pending Approval", "Approved"].includes(cycle.approval_status)) fail(409, "This approval cycle is closed. Request a new payout approval cycle.");
       if (decisions.some(row => Number(row.admin_id) === Number(adminId))) fail(409, "You have already voted on this payout request.");
-      if (decision === "Approved" && cycle.approval_status === "Approved") fail(409, "This payout already has three independent approvals.");
+      if (decision === "Approved" && cycle.approval_status === "Approved") fail(409, "This payout already has required approval.");
       await rows(connection, "INSERT INTO seller_payout_approval (cycle_id,admin_id,decision,comment) VALUES (?,?,?,?)", [cycle.cycle_id,adminId,decision,comment]);
       const current = await approvalState(connection, eligibility.split, { lock: true });
       const count = validPayoutApprovalCount(cycle, current.decisions);
@@ -310,7 +403,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         approved_at=IF(?='Approved',CURRENT_TIMESTAMP,NULL) WHERE cycle_id=?`, [status,status,cycle.cycle_id]);
       await notifyAdmins(connection, eligibility.split, status === "Rejected" ? `Payout ${eligibility.order.order_number} was rejected.` :
         status === "Approved" ? `Payout ${eligibility.order.order_number} is approved for release.` :
-          `Payout ${eligibility.order.order_number} has ${count} of 3 approvals.`);
+          `Payout ${eligibility.order.order_number} has ${count} of 1 approval.`);
       return { payout: eligibility.split };
     });
     if (outcome.error) throw outcome.error;
@@ -381,7 +474,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     const initialApproval = await approvalState(pool, initialSplit);
     if (!initialApproval.cycle || initialApproval.cycle.approval_status !== "Approved" ||
         validPayoutApprovalCount(initialApproval.cycle, initialApproval.decisions) < REQUIRED_PAYOUT_APPROVALS) {
-      fail(409, "Three independent admin approvals are required.");
+      fail(409, "One authorized admin approval is required before release.");
     }
     const available = await capability();
     if (!available.enabled) fail(503, available.message || "PayMongo Wallet payouts are not enabled.");
@@ -399,7 +492,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       if (problem) return { error: problem };
       if (split.payout_status !== "Eligible" || !eligibility.canSend) fail(409, eligibility.holdReason || "This payout is not eligible, is already processing, or has already been paid.");
       if (!cycle || cycle.approval_status !== "Approved" || cycle.released_at ||
-          validPayoutApprovalCount(cycle, decisions) < REQUIRED_PAYOUT_APPROVALS) fail(409, "Three independent admin approvals are required.");
+          validPayoutApprovalCount(cycle, decisions) < REQUIRED_PAYOUT_APPROVALS) fail(409, "One authorized admin approval is required before release.");
       const previous = await rows(connection, "SELECT * FROM seller_payout_attempt WHERE split_id=? ORDER BY attempt_id DESC LIMIT 1 FOR UPDATE", [payoutId]);
       if (previous.length && previous[0].status !== "Failed") fail(409, "An existing payout must be reconciled before another attempt.");
       if (!account) fail(422, "Seller payout destination is not configured.");
@@ -532,7 +625,426 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     return { payout, refundStatus: state };
   };
 
-  return { capability, getAccount, saveAccount, list, request, approve, reject, approvals, release: send, send, reconcile, verifyRefund, handleTransferEvent };
+  const listAccountRequests = async ({ status, adminId } = {}) => {
+    let currentAdmin = null;
+    if (adminId != null) {
+      currentAdmin = await admin(pool, adminId);
+    }
+    const financeAuthorized = currentAdmin != null && isFinanceAdmin(currentAdmin);
+    const filterStatus = status && status !== "All" ? status : null;
+    const reqRows = await rows(pool, `
+      SELECT r.*,
+        st.first_name, st.last_name, st.email,
+        pa.destination_type AS current_destination_type,
+        pa.institution_code AS current_institution_code,
+        pa.institution_name AS current_institution_name,
+        pa.institution_provider AS current_institution_provider,
+        pa.account_name AS current_account_name,
+        pa.account_number_ciphertext AS current_account_number_ciphertext,
+        (SELECT COUNT(DISTINCT a.admin_id) FROM seller_payout_account_approval a
+          JOIN admin ad ON ad.admin_id = a.admin_id
+          JOIN admin_role ar ON ar.admin_id = ad.admin_id
+          LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=ad.admin_id
+          LEFT JOIN admin_payout_permission_request perm ON perm.admin_id=ad.admin_id
+          WHERE a.request_id = r.request_id AND a.decision = 'Approved'
+            AND COALESCE(ac.is_banned,0)=0
+            AND (ar.role IN ('admin','super admin') OR (ar.role IN ('moderator','customize') AND perm.status='Approved'))
+        ) AS approval_count,
+        (SELECT COUNT(*) FROM seller_payout_account_approval a WHERE a.request_id = r.request_id AND a.admin_id = ?) AS user_voted
+      FROM seller_payout_account_request r
+      JOIN student st ON st.student_id = r.student_id
+      LEFT JOIN seller_payout_account pa ON pa.student_id = r.student_id
+      WHERE (? IS NULL OR r.status = ?)
+      ORDER BY (CASE WHEN r.status = 'Pending' THEN 0 ELSE 1 END), r.requested_at DESC
+    `, [adminId || 0, filterStatus, filterStatus]);
+
+    const requestIds = reqRows.map(r => r.request_id);
+    let allDecisions = [];
+    if (requestIds.length > 0) {
+      allDecisions = await rows(pool, `
+        SELECT a.*, CONCAT(ad.first_name, ' ', ad.last_name) AS admin_name, ar.role,
+          COALESCE(ac.is_banned,0) AS is_banned,
+          (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id=a.admin_id LIMIT 1) AS payout_permission
+        FROM seller_payout_account_approval a
+        JOIN admin ad ON ad.admin_id = a.admin_id
+        LEFT JOIN admin_role ar ON ar.admin_id = ad.admin_id
+        LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=ad.admin_id
+        WHERE a.request_id IN (${requestIds.map(() => "?").join(",")})
+        ORDER BY a.approval_id ASC
+      `, requestIds);
+    }
+
+    const decisionsByReq = new Map();
+    for (const d of allDecisions) {
+      if (!decisionsByReq.has(d.request_id)) decisionsByReq.set(d.request_id, []);
+      decisionsByReq.get(d.request_id).push({
+        approvalId: d.approval_id,
+        adminId: d.admin_id,
+        adminName: d.admin_name,
+        decision: d.decision,
+        comment: d.comment,
+        createdAt: d.created_at,
+        authorized: isFinanceAdmin(d),
+      });
+    }
+
+    const requests = reqRows.map(r => {
+      let requestedMasked = "••••••••";
+      try {
+        requestedMasked = maskPayoutAccount(decryptPayoutAccount(r.account_number_ciphertext, r.student_id));
+      } catch {}
+      let currentMasked = null;
+      if (r.current_account_number_ciphertext) {
+        try {
+          currentMasked = maskPayoutAccount(decryptPayoutAccount(r.current_account_number_ciphertext, r.student_id));
+        } catch {}
+      }
+      const userVoted = Number(r.user_voted || 0) > 0;
+      const canVote = financeAuthorized && r.status === "Pending" && !userVoted;
+      return {
+        requestId: r.request_id,
+        studentId: r.student_id,
+        studentName: `${r.first_name || ""} ${r.last_name || ""}`.trim() || `Student ${r.student_id}`,
+        studentEmail: r.email || "",
+        status: r.status,
+        destinationType: r.destination_type,
+        institutionCode: r.institution_code,
+        institutionName: r.institution_name,
+        institutionProvider: r.institution_provider,
+        accountName: r.account_name,
+        maskedAccountNumber: requestedMasked,
+        currentDestination: r.current_institution_name ? {
+          institutionName: r.current_institution_name,
+          accountName: r.current_account_name,
+          maskedAccountNumber: currentMasked,
+        } : null,
+        approvalCount: Number(r.approval_count || 0),
+        requiredApprovals: REQUIRED_PAYOUT_ACCOUNT_APPROVALS,
+        rejectionReason: r.rejection_reason,
+        requestedAt: r.requested_at,
+        approvedAt: r.approved_at,
+        rejectedAt: r.rejected_at,
+        decisions: decisionsByReq.get(r.request_id) || [],
+        canApprove: canVote,
+        canReject: canVote,
+        userVoted,
+      };
+    });
+
+    return { requests, requiredApprovals: REQUIRED_PAYOUT_ACCOUNT_APPROVALS };
+  };
+
+  const approveAccountRequest = async (requestId, adminId, body = {}) => {
+    allowedBody(body, ["comment"]);
+    const comment = body.comment?.trim() || null;
+    const reqId = id(requestId);
+    const updated = await transaction(async connection => {
+      await requireAdmin(connection, adminId, { lock: true });
+      const reqList = await rows(connection, "SELECT * FROM seller_payout_account_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!reqList.length) fail(404, "Payout account change request not found.");
+      const req = reqList[0];
+      if (req.status !== "Pending") fail(409, "This change request is already resolved.");
+
+      const existingVote = await rows(connection, "SELECT * FROM seller_payout_account_approval WHERE request_id = ? AND admin_id = ?", [reqId, adminId]);
+      if (existingVote.length) fail(409, "You have already voted on this payout account request.");
+
+      await rows(connection, "INSERT INTO seller_payout_account_approval (request_id, admin_id, decision, comment) VALUES (?, ?, 'Approved', ?)", [reqId, adminId, comment]);
+
+      const validVotes = await rows(connection, `
+        SELECT a.admin_id, r.role, COALESCE(ac.is_banned,0) AS is_banned,
+          (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id=a.admin_id LIMIT 1) AS payout_permission
+        FROM seller_payout_account_approval a
+        JOIN admin ad ON ad.admin_id=a.admin_id
+        JOIN admin_role r ON r.admin_id=a.admin_id
+        LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=a.admin_id
+        WHERE a.request_id = ? AND a.decision = 'Approved'
+      `, [reqId]);
+      const validCount = new Set(validVotes.filter(v => isFinanceAdmin(v)).map(v => Number(v.admin_id))).size;
+
+      let approved = false;
+      if (validCount >= REQUIRED_PAYOUT_ACCOUNT_APPROVALS) {
+        approved = true;
+        await rows(connection, "UPDATE seller_payout_account_request SET status = 'Approved', approved_at = CURRENT_TIMESTAMP WHERE request_id = ?", [reqId]);
+        await rows(connection, `
+          INSERT INTO seller_payout_account (student_id, destination_type, institution_code, institution_name, institution_provider, account_name, account_number_ciphertext)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            destination_type = VALUES(destination_type),
+            institution_code = VALUES(institution_code),
+            institution_name = VALUES(institution_name),
+            institution_provider = VALUES(institution_provider),
+            account_name = VALUES(account_name),
+            account_number_ciphertext = VALUES(account_number_ciphertext),
+            updated_at = CURRENT_TIMESTAMP
+        `, [req.student_id, req.destination_type, req.institution_code, req.institution_name, req.institution_provider, req.account_name, req.account_number_ciphertext]);
+
+        await rows(connection, `
+          INSERT INTO account_notifications (role, account_id, notification_type, message)
+          VALUES ('seller', ?, 'payout', 'Your payout destination change request has been approved by 3 administrators and updated.')
+        `, [req.student_id]);
+      }
+
+      return { req, validCount, approved };
+    });
+
+    await audit({
+      action: updated.approved ? "PAYOUT_ACCOUNT_APPROVED" : "PAYOUT_ACCOUNT_VOTED",
+      actor: String(adminId),
+      role: "Admin",
+      status: "SUCCESS",
+      information: `Payout account request ${reqId} for student ${updated.req.student_id} approved (${updated.validCount}/${REQUIRED_PAYOUT_ACCOUNT_APPROVALS}).`,
+    }).catch(err => console.error("Payout account approval audit failed:", err));
+
+    return (await listAccountRequests({ adminId })).requests.find(r => r.requestId === reqId);
+  };
+
+  const rejectAccountRequest = async (requestId, adminId, body = {}) => {
+    allowedBody(body, ["reason", "comment"]);
+    const reason = (body.reason || body.comment || "").trim();
+    if (!reason || reason.length > 500) fail(400, "A rejection reason is required (maximum 500 characters).");
+    const reqId = id(requestId);
+    const updated = await transaction(async connection => {
+      await requireAdmin(connection, adminId, { lock: true });
+      const reqList = await rows(connection, "SELECT * FROM seller_payout_account_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!reqList.length) fail(404, "Payout account change request not found.");
+      const req = reqList[0];
+      if (req.status !== "Pending") fail(409, "This change request is already resolved.");
+
+      await rows(connection, "INSERT INTO seller_payout_account_approval (request_id, admin_id, decision, comment) VALUES (?, ?, 'Rejected', ?)", [reqId, adminId, reason]);
+      await rows(connection, "UPDATE seller_payout_account_request SET status = 'Rejected', rejection_reason = ?, rejected_at = CURRENT_TIMESTAMP WHERE request_id = ?", [reason, reqId]);
+
+      await rows(connection, `
+        INSERT INTO account_notifications (role, account_id, notification_type, message)
+        VALUES ('seller', ?, 'payout', CONCAT('Your payout destination change request was rejected: ', ?))
+      `, [req.student_id, reason]);
+
+      return req;
+    });
+
+    await audit({
+      action: "PAYOUT_ACCOUNT_REJECTED",
+      actor: String(adminId),
+      role: "Admin",
+      status: "SUCCESS",
+      information: `Payout account request ${reqId} for student ${updated.student_id} was rejected. Reason: ${reason}`,
+    }).catch(err => console.error("Payout account reject audit failed:", err));
+
+    return (await listAccountRequests({ adminId })).requests.find(r => r.requestId === reqId);
+  };
+
+  const getAdminPermissionStatus = async adminId => {
+    const actor = await admin(pool, adminId);
+    if (!actor) fail(404, "Admin not found.");
+    const role = actor.role;
+    if (["admin", "super admin"].includes(role)) {
+      return {
+        role,
+        permissionStatus: "Approved",
+        isAuthorized: true,
+        canRequest: false,
+        request: null,
+      };
+    }
+    const permRows = await rows(pool, "SELECT * FROM admin_payout_permission_request WHERE admin_id = ?", [id(adminId)]);
+    const req = permRows[0] || null;
+    const status = req ? req.status : "Not Requested";
+    return {
+      role,
+      permissionStatus: status,
+      isAuthorized: status === "Approved",
+      canRequest: status === "Not Requested" || status === "Rejected",
+      request: req ? {
+        requestId: req.request_id,
+        status: req.status,
+        reason: req.reason,
+        rejectionReason: req.rejection_reason,
+        requestedAt: req.requested_at,
+        reviewedAt: req.reviewed_at,
+      } : null,
+    };
+  };
+
+  const requestAdminPayoutPermission = async (adminId, body = {}) => {
+    allowedBody(body, ["reason", "notes"]);
+    const reason = (body.reason || body.notes || "").trim() || null;
+    const actor = await admin(pool, adminId);
+    if (!actor) fail(404, "Admin not found.");
+    if (!["moderator", "customize"].includes(actor.role)) {
+      fail(400, "Only Customizable or Moderation admins need to request payout permissions.");
+    }
+    const existing = (await rows(pool, "SELECT * FROM admin_payout_permission_request WHERE admin_id = ?", [id(adminId)]))[0];
+    if (existing && existing.status === "Pending") {
+      fail(409, "A permission request is already pending review.");
+    }
+    if (existing && existing.status === "Approved") {
+      fail(409, "You already have permission to manage student payouts.");
+    }
+
+    await transaction(async connection => {
+      await rows(connection, `
+        INSERT INTO admin_payout_permission_request (admin_id, status, reason, requested_at)
+        VALUES (?, 'Pending', ?, CURRENT_TIMESTAMP)
+        ON DUPLICATE KEY UPDATE
+          status = 'Pending',
+          reason = VALUES(reason),
+          reviewed_by_admin_id = NULL,
+          rejection_reason = NULL,
+          requested_at = CURRENT_TIMESTAMP,
+          reviewed_at = NULL
+      `, [adminId, reason]);
+
+      await rows(connection, `
+        INSERT INTO account_notifications (role, account_id, notification_type, message)
+        SELECT 'admin', a.admin_id, 'payout', CONCAT('Admin ', ?, ' requested permission to manage student payouts.')
+        FROM admin a JOIN admin_role r ON r.admin_id=a.admin_id
+        LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=a.admin_id
+        WHERE r.role = 'super admin' AND COALESCE(ac.is_banned,0)=0
+      `, [actor.admin_name || `Admin ${adminId}`]);
+    });
+
+    await audit({
+      action: "ADMIN_PAYOUT_PERMISSION_REQUESTED",
+      actor: String(adminId),
+      role: "Admin",
+      status: "SUCCESS",
+      information: `Admin ${actor.admin_name || adminId} (${actor.role}) requested permission to manage student payouts.`,
+    }).catch(err => console.error("Payout permission request audit failed:", err));
+
+    return getAdminPermissionStatus(adminId);
+  };
+
+  const listAdminPermissionRequests = async superAdminId => {
+    const actor = (await rows(pool, `
+      SELECT r.role, COALESCE(ac.is_banned,0) AS is_banned
+      FROM admin_role r
+      LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=r.admin_id
+      WHERE r.admin_id = ?
+    `, [id(superAdminId)]))[0];
+    if (!actor || actor.role !== "super admin" || Number(actor.is_banned) !== 0) {
+      fail(403, "Only Super Admins can review payout permission requests.");
+    }
+
+    const requests = await rows(pool, `
+      SELECT p.*,
+        CONCAT(a.first_name, ' ', a.last_name) AS admin_name,
+        a.email AS admin_email,
+        r.role AS admin_role,
+        CONCAT(rev.first_name, ' ', rev.last_name) AS reviewer_name
+      FROM admin_payout_permission_request p
+      JOIN admin a ON a.admin_id = p.admin_id
+      JOIN admin_role r ON r.admin_id = a.admin_id
+      LEFT JOIN admin rev ON rev.admin_id = p.reviewed_by_admin_id
+      ORDER BY (CASE WHEN p.status = 'Pending' THEN 0 ELSE 1 END), p.requested_at DESC
+    `);
+
+    return {
+      requests: requests.map(r => ({
+        requestId: r.request_id,
+        adminId: r.admin_id,
+        adminName: r.admin_name,
+        adminEmail: r.admin_email,
+        adminRole: r.admin_role,
+        status: r.status,
+        reason: r.reason,
+        rejectionReason: r.rejection_reason,
+        reviewerName: r.reviewer_name,
+        requestedAt: r.requested_at,
+        reviewedAt: r.reviewed_at,
+      })),
+    };
+  };
+
+  const approveAdminPermissionRequest = async (superAdminId, requestId) => {
+    const reqId = id(requestId);
+    const actor = (await rows(pool, `
+      SELECT r.role, COALESCE(ac.is_banned,0) AS is_banned
+      FROM admin_role r
+      LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=r.admin_id
+      WHERE r.admin_id = ?
+    `, [id(superAdminId)]))[0];
+    if (!actor || actor.role !== "super admin" || Number(actor.is_banned) !== 0) {
+      fail(403, "Only Super Admins can approve payout permission requests.");
+    }
+
+    const target = await transaction(async connection => {
+      const list = await rows(connection, "SELECT * FROM admin_payout_permission_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!list.length) fail(404, "Permission request not found.");
+      const req = list[0];
+      await rows(connection, `
+        UPDATE admin_payout_permission_request
+        SET status = 'Approved', reviewed_by_admin_id = ?, reviewed_at = CURRENT_TIMESTAMP, rejection_reason = NULL
+        WHERE request_id = ?
+      `, [superAdminId, reqId]);
+
+      await rows(connection, `
+        INSERT INTO account_notifications (role, account_id, notification_type, message)
+        VALUES ('admin', ?, 'payout', 'Your request for permission to manage student payouts has been approved by a Super Admin.')
+      `, [req.admin_id]);
+
+      return req;
+    });
+
+    await audit({
+      action: "ADMIN_PAYOUT_PERMISSION_APPROVED",
+      actor: String(superAdminId),
+      role: "Super Admin",
+      status: "SUCCESS",
+      information: `Payout permission approved for Admin ${target.admin_id}.`,
+    }).catch(err => console.error("Payout permission approval audit failed:", err));
+
+    return { success: true, status: "Approved" };
+  };
+
+  const rejectAdminPermissionRequest = async (superAdminId, requestId, body = {}) => {
+    allowedBody(body, ["reason", "rejectionReason"]);
+    const reason = (body.reason || body.rejectionReason || "").trim() || null;
+    const reqId = id(requestId);
+    const actor = (await rows(pool, `
+      SELECT r.role, COALESCE(ac.is_banned,0) AS is_banned
+      FROM admin_role r
+      LEFT JOIN account_access ac ON ac.role='admin' AND ac.account_id=r.admin_id
+      WHERE r.admin_id = ?
+    `, [id(superAdminId)]))[0];
+    if (!actor || actor.role !== "super admin" || Number(actor.is_banned) !== 0) {
+      fail(403, "Only Super Admins can reject payout permission requests.");
+    }
+
+    const target = await transaction(async connection => {
+      const list = await rows(connection, "SELECT * FROM admin_payout_permission_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!list.length) fail(404, "Permission request not found.");
+      const req = list[0];
+      await rows(connection, `
+        UPDATE admin_payout_permission_request
+        SET status = 'Rejected', rejection_reason = ?, reviewed_by_admin_id = ?, reviewed_at = CURRENT_TIMESTAMP
+        WHERE request_id = ?
+      `, [reason, superAdminId, reqId]);
+
+      await rows(connection, `
+        INSERT INTO account_notifications (role, account_id, notification_type, message)
+        VALUES ('admin', ?, 'payout', CONCAT('Your request for permission to manage student payouts was rejected: ', ?))
+      `, [req.admin_id, reason || "Request denied by Super Admin."]);
+
+      return req;
+    });
+
+    await audit({
+      action: "ADMIN_PAYOUT_PERMISSION_REJECTED",
+      actor: String(superAdminId),
+      role: "Super Admin",
+      status: "SUCCESS",
+      information: `Payout permission rejected for Admin ${target.admin_id}. Reason: ${reason || "None"}`,
+    }).catch(err => console.error("Payout permission reject audit failed:", err));
+
+    return { success: true, status: "Rejected" };
+  };
+
+  return {
+    capability, getAccount, saveAccount, list, request, approve, reject,
+    approvals, release: send, send, reconcile, verifyRefund, handleTransferEvent,
+    listAccountRequests, approveAccountRequest, rejectAccountRequest,
+    getAdminPermissionStatus, requestAdminPayoutPermission,
+    listAdminPermissionRequests, approveAdminPermissionRequest, rejectAdminPermissionRequest,
+  };
 }
 
 export const payoutService = createPayoutService();

@@ -1,40 +1,49 @@
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ArtworkImage from "../../common/ArtworkImage";
 import { formatCurrency, formatOrderDate } from "./orderPresentation.js";
 
-const statusPillStyles = {
-  Pending: {
-    bgcolor: "#fffbeb",
-    color: "#d97706",
-    borderColor: "#fde68a",
-  },
-  Confirmed: {
-    bgcolor: "#ecfeff",
-    color: "#0891b2",
-    borderColor: "#a5f3fc",
-  },
-  Packed: {
-    bgcolor: "#faf5ff",
-    color: "#7c3aed",
-    borderColor: "#e9d5ff",
-  },
-  Shipped: {
-    bgcolor: "#eff6ff",
-    color: "#2563eb",
-    borderColor: "#bfdbfe",
-  },
-  Delivered: {
-    bgcolor: "#f0fdf4",
-    color: "#16a34a",
-    borderColor: "#bbf7d0",
-  },
-  Cancelled: {
-    bgcolor: "#fef2f2",
-    color: "#dc2626",
-    borderColor: "#fecaca",
-  },
+const getStatusPillStyle = (theme, status) => {
+  const styles = {
+    Pending: {
+      bgcolor: alpha(theme.palette.warning.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.warning.main,
+      borderColor: alpha(theme.palette.warning.main, 0.4),
+    },
+    Confirmed: {
+      bgcolor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.info.main,
+      borderColor: alpha(theme.palette.info.main, 0.4),
+    },
+    Packed: {
+      bgcolor: alpha(theme.palette.secondary.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.secondary.main,
+      borderColor: alpha(theme.palette.secondary.main, 0.4),
+    },
+    Shipped: {
+      bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.primary.main,
+      borderColor: alpha(theme.palette.primary.main, 0.4),
+    },
+    Delivered: {
+      bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+      color: theme.palette.success.main,
+      borderColor: alpha(theme.palette.success.main, 0.4),
+    },
+    Cancelled: {
+      bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.22 : 0.12),
+      color: theme.palette.error.main,
+      borderColor: alpha(theme.palette.error.main, 0.4),
+    },
+  };
+
+  return styles[status] || {
+    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === "dark" ? 0.18 : 0.12),
+    color: theme.palette.text.secondary,
+    borderColor: alpha(theme.palette.grey[500], 0.4),
+  };
 };
 
 export default function OrderCard({
@@ -42,14 +51,11 @@ export default function OrderCard({
   onClick,
   onViewDetails,
 }) {
+  const theme = useTheme();
   const items = Array.isArray(order.items) ? order.items : [];
   const primaryItem = items[0] || {};
   const status = order.status || "Pending";
-  const pillStyle = statusPillStyles[status] || {
-    bgcolor: "#f1f5f9",
-    color: "#475569",
-    borderColor: "#cbd5e1",
-  };
+  const pillStyle = getStatusPillStyle(theme, status);
 
   const handleClick = () => {
     if (onClick) onClick();
@@ -87,7 +93,7 @@ export default function OrderCard({
         borderRadius: 3.5,
         border: "1px solid",
         borderColor: "divider",
-        bgcolor: "#ffffff",
+        bgcolor: "background.paper",
         cursor: "pointer",
         transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
         "&:hover": {
@@ -116,9 +122,9 @@ export default function OrderCard({
               width: 58,
               height: 58,
               borderRadius: 2.5,
-              bgcolor: "#f8fafc",
+              bgcolor: "background.default",
               border: "1px solid",
-              borderColor: "#e2e8f0",
+              borderColor: "divider",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -142,7 +148,7 @@ export default function OrderCard({
                 />
               ))
             ) : (
-              <Inventory2OutlinedIcon sx={{ color: "#ef4444", fontSize: 28 }} />
+              <Inventory2OutlinedIcon sx={{ color: "error.main", fontSize: 28 }} />
             )}
           </Box>
 
@@ -154,7 +160,7 @@ export default function OrderCard({
                 variant="subtitle1"
                 sx={{
                   fontWeight: 800,
-                  color: "#0f172a",
+                  color: "text.primary",
                   lineHeight: 1.3,
                   overflowWrap: "anywhere",
                 }}
@@ -184,9 +190,9 @@ export default function OrderCard({
                     fontSize: 10,
                     fontWeight: 700,
                     borderRadius: "16px",
-                    bgcolor: "#fffbeb",
-                    color: "#b45309",
-                    border: "1px solid #fde68a",
+                    bgcolor: alpha(theme.palette.warning.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
+                    color: theme.palette.warning.main,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
                   }}
                 />
               )}
@@ -202,7 +208,7 @@ export default function OrderCard({
                 mb: 0.35,
               }}
             >
-              Artist: <strong style={{ color: "#334155" }}>{artistName}</strong> · Buyer: <strong style={{ color: "#334155" }}>{buyerName}</strong>
+              Artist: <strong style={{ color: "inherit" }}>{artistName}</strong> · Buyer: <strong style={{ color: "inherit" }}>{buyerName}</strong>
             </Typography>
 
             {/* Date Sold */}
@@ -231,8 +237,9 @@ export default function OrderCard({
           {/* Price / Gross */}
           <Box
             sx={{
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
               borderRadius: 2,
               px: { xs: 1.5, sm: 2 },
               py: 1,
@@ -247,7 +254,7 @@ export default function OrderCard({
                 display: "block",
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#94a3b8",
+                color: "text.secondary",
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
               }}
@@ -258,7 +265,7 @@ export default function OrderCard({
               variant="body2"
               sx={{
                 fontWeight: 800,
-                color: "#0f172a",
+                color: "text.primary",
                 fontSize: 14,
                 fontVariantNumeric: "tabular-nums",
                 mt: 0.25,
@@ -271,8 +278,9 @@ export default function OrderCard({
           {/* Platform Take */}
           <Box
             sx={{
-              bgcolor: "#f8fafc",
-              border: "1px solid #f1f5f9",
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
               borderRadius: 2,
               px: { xs: 1.5, sm: 2 },
               py: 1,
@@ -287,7 +295,7 @@ export default function OrderCard({
                 display: "block",
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#94a3b8",
+                color: "text.secondary",
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
               }}
@@ -298,7 +306,7 @@ export default function OrderCard({
               variant="body2"
               sx={{
                 fontWeight: 800,
-                color: "#0f172a",
+                color: "text.primary",
                 fontSize: 14,
                 fontVariantNumeric: "tabular-nums",
                 mt: 0.25,
@@ -311,8 +319,9 @@ export default function OrderCard({
           {/* Net Payout */}
           <Box
             sx={{
-              bgcolor: "#f0fdf4",
-              border: "1px solid #bbf7d0",
+              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.12 : 0.08),
+              border: "1px solid",
+              borderColor: alpha(theme.palette.success.main, 0.35),
               borderRadius: 2,
               px: { xs: 1.5, sm: 2 },
               py: 1,
@@ -327,7 +336,7 @@ export default function OrderCard({
                 display: "block",
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#16a34a",
+                color: "success.main",
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
               }}
@@ -338,7 +347,7 @@ export default function OrderCard({
               variant="body2"
               sx={{
                 fontWeight: 800,
-                color: "#10b981",
+                color: "success.main",
                 fontSize: 14,
                 fontVariantNumeric: "tabular-nums",
                 mt: 0.25,

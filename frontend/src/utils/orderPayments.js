@@ -1,3 +1,12 @@
+export const calculateProcessingFee = (subtotalPesos) => {
+  const subtotal = Number(subtotalPesos || 0);
+  if (!Number.isFinite(subtotal) || subtotal <= 0) return 0;
+  const percent = 2;
+  const flatPesos = 15;
+  const feeCentavos = Math.round(subtotal * 100 * (percent / 100)) + Math.round(flatPesos * 100);
+  return Number((feeCentavos / 100).toFixed(2));
+};
+
 const normalize = (value) => String(value ?? "").trim().toLowerCase();
 
 export const isPayMongoOrder = (order) =>

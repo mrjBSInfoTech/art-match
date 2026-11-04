@@ -115,7 +115,7 @@ export default function PayoutConfirm({ open, handleClose, onSubmit, submitting 
         </DialogTitle>
 
         <DialogContent sx={{ px: 3, py: 2.5 }}>
-          <Stack spacing={2.5}>
+          <Stack spacing={2.5} sx={{ mt: 2 }}>
             <Alert severity="warning">
               Enter your current password to confirm this payout wallet change.
             </Alert>

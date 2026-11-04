@@ -228,20 +228,6 @@ export default function Artwork() {
             Review and manage the artwork catalog
           </Typography>
         </Box>
-        <Box
-          sx={{
-            px: 1.5,
-            py: 0.75,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: 1.5,
-            color: theme.palette.text.secondary,
-            fontSize: 12,
-            minHeight: 44,
-            backgroundColor: theme.palette.background.paper,
-          }}
-        >
-          <span aria-live="polite">{statusCount} artworks shown</span>
-        </Box>
       </Box>
 
       <Paper

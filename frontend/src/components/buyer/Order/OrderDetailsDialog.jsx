@@ -297,6 +297,12 @@ export default function OrderDetailsDialog({
                 <Typography sx={detailLabelSx}>Shipping Fee:</Typography>
                 <Typography sx={detailValueSx}>{isMeetup ? "₱0 (Meet-up Delivery)" : "₱0 (Paid to courier)"}</Typography>
               </Box>
+              {Number(order.processingFee || 0) > 0 && (
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Typography sx={detailLabelSx}>Processing Fee (2% + ₱15):</Typography>
+                  <Typography sx={detailValueSx}>{formatCurrency(order.processingFee)}</Typography>
+                </Box>
+              )}
               <Divider sx={{ my: 0.5 }} />
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                 <Typography sx={{ ...detailLabelSx, fontWeight: 700 }}>Total Paid:</Typography>

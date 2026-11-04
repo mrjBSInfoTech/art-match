@@ -122,6 +122,59 @@ export const orderRefundTableSql = `CREATE TABLE IF NOT EXISTS seller_order_refu
   CONSTRAINT chk_seller_order_refund_amount CHECK (amount > 0)
 ) ENGINE=InnoDB`;
 
+export const payoutAccountRequestTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_account_request (
+  request_id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  destination_type VARCHAR(24) NOT NULL,
+  institution_code VARCHAR(80) NOT NULL,
+  institution_name VARCHAR(150) NOT NULL,
+  institution_provider VARCHAR(80) NOT NULL,
+  account_name VARCHAR(180) NOT NULL,
+  account_number_ciphertext TEXT NOT NULL,
+  status ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+  rejection_reason VARCHAR(500) NULL,
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  approved_at DATETIME NULL,
+  rejected_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_seller_payout_account_request_student (student_id, status),
+  CONSTRAINT fk_payout_account_request_student FOREIGN KEY (student_id)
+    REFERENCES student(student_id) ON DELETE RESTRICT
+) ENGINE=InnoDB`;
+
+export const payoutAccountApprovalTableSql = `CREATE TABLE IF NOT EXISTS seller_payout_account_approval (
+  approval_id INT AUTO_INCREMENT PRIMARY KEY,
+  request_id INT NOT NULL,
+  admin_id INT NOT NULL,
+  decision ENUM('Approved', 'Rejected') NOT NULL,
+  comment VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_payout_account_request_admin (request_id, admin_id),
+  CONSTRAINT fk_payout_account_req_approval FOREIGN KEY (request_id)
+    REFERENCES seller_payout_account_request(request_id) ON DELETE CASCADE,
+  CONSTRAINT fk_payout_account_admin_approval FOREIGN KEY (admin_id)
+    REFERENCES admin(admin_id) ON DELETE RESTRICT
+) ENGINE=InnoDB`;
+
+export const adminPayoutPermissionRequestTableSql = `CREATE TABLE IF NOT EXISTS admin_payout_permission_request (
+  request_id INT AUTO_INCREMENT PRIMARY KEY,
+  admin_id INT NOT NULL,
+  status ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+  reason VARCHAR(500) NULL,
+  reviewed_by_admin_id INT NULL,
+  rejection_reason VARCHAR(500) NULL,
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_admin_payout_permission_admin (admin_id),
+  CONSTRAINT fk_payout_perm_admin FOREIGN KEY (admin_id)
+    REFERENCES admin(admin_id) ON DELETE CASCADE,
+  CONSTRAINT fk_payout_perm_reviewer FOREIGN KEY (reviewed_by_admin_id)
+    REFERENCES admin(admin_id) ON DELETE SET NULL
+) ENGINE=InnoDB`;
+
 export async function ensurePayoutTables() {
   const executor = db.promise();
   const [columns] = await executor.query("SHOW COLUMNS FROM seller_payment_split");
@@ -170,6 +223,9 @@ export async function ensurePayoutTables() {
     await executor.query("ALTER TABLE seller_payout_approval_cycle ADD COLUMN payout_mode ENUM('demo','test','live') NOT NULL DEFAULT 'test'");
   }
   await executor.query(payoutApprovalTableSql);
+  await executor.query(payoutAccountRequestTableSql);
+  await executor.query(payoutAccountApprovalTableSql);
+  await executor.query(adminPayoutPermissionRequestTableSql);
   await executor.query("UPDATE seller_payment_split SET approval_cycle_id = NULL WHERE payout_provider = 'demo' OR approval_cycle_id IN (SELECT cycle_id FROM (SELECT cycle_id FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo') t)");
   await executor.query("DELETE FROM seller_payout_approval WHERE cycle_id IN (SELECT cycle_id FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo')");
   await executor.query("DELETE FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo'");

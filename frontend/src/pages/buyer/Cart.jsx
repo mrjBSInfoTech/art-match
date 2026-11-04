@@ -25,7 +25,7 @@ export default function Cart() {
   const [cartErrorMessage, setCartErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
-  const [selection, setSelection] = useState(null);
+  const [selection, setSelection] = useState([]);
   const [cartQuantities, setCartQuantities] = useState({});
   const navigate = useNavigate();
   const [selectedCart, setSelectedCart] = useState(null);
@@ -47,33 +47,29 @@ export default function Cart() {
     setDeleteError("");
   };
   const closeOrderConfirmation = () => setConfirmingOrder(false);
-  const continueToCheckout = async (artworkIds) => {
+  const continueToCheckout = (artworkIds) => {
     if (!artworkIds.length) return;
     setConfirmingOrder(false);
     const quantitiesMap = {};
     const quantityParamParts = [];
-    await Promise.all(
-      artworkIds.map(async (id) => {
-        const matchedItem = items.find((item) => String(item.artwork_id) === String(id));
-        const selections = Array.isArray(matchedItem?.selected_products) ? matchedItem.selected_products : [];
-        const isMultiOption = selections.length > 1;
-        const qty = matchedItem && isProductItem(matchedItem)
-          ? Math.max(1, Number(cartQuantities[String(id)] ?? matchedItem.quantity ?? 1) || 1)
-          : 1;
-        quantitiesMap[String(id)] = qty;
-        quantityParamParts.push(`${id}:${qty}`);
-        if (matchedItem && isProductItem(matchedItem) && !isMultiOption &&
-            Number(matchedItem.quantity || 1) !== qty) {
-          try {
-            await updateCartItemQuantity(id, qty);
-          } catch {
-            // Quantity is also forwarded to Checkout so order creation stays accurate.
-          }
-        }
-      }),
-    );
+    artworkIds.forEach((id) => {
+      const matchedItem = items.find((item) => String(item.artwork_id) === String(id));
+      const selections = Array.isArray(matchedItem?.selected_products) ? matchedItem.selected_products : [];
+      const isMultiOption = selections.length > 1;
+      const qty = matchedItem && isProductItem(matchedItem)
+        ? Math.max(1, Number(cartQuantities[String(id)] ?? matchedItem.quantity ?? 1) || 1)
+        : 1;
+      quantitiesMap[String(id)] = qty;
+      quantityParamParts.push(`${id}:${qty}`);
+      if (matchedItem && isProductItem(matchedItem) && !isMultiOption &&
+          Number(matchedItem.quantity || 1) !== qty) {
+        updateCartItemQuantity(id, qty).catch(() => {});
+      }
+    });
+    const hasCustomQty = quantityParamParts.some((part) => !part.endsWith(":1"));
+    const quantitiesParam = hasCustomQty ? `&quantities=${encodeURIComponent(quantityParamParts.join(","))}` : "";
     navigate(
-      `/buyer/checkout?artwork_ids=${artworkIds.join(",")}&quantities=${encodeURIComponent(quantityParamParts.join(","))}`,
+      `/buyer/checkout?artwork_ids=${artworkIds.join(",")}${quantitiesParam}`,
       { state: { quantities: quantitiesMap } },
     );
   };
@@ -199,7 +195,7 @@ export default function Cart() {
   });
 
   const selectedItems = cartItems.filter((item) => Number(item.is_sold_out) !== 1 &&
-    (selection === null || selection.includes(String(item.artwork_id))));
+    Array.isArray(selection) && selection.includes(String(item.artwork_id)));
   const selectedIds = selectedItems.map((item) => String(item.artwork_id));
   const subtotal = selectedItems.reduce((s, i) => s + i.subtotal, 0);
   // No shipping fee: delivery is arranged with a third-party courier.

@@ -224,15 +224,15 @@ export default function PayoutForm({
             </Box>
 
             <Stack spacing={1} sx={{ pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
-              <Typography variant="subtitle2" fontWeight={700}>Multi-admin approval</Typography>
+              <Typography variant="subtitle2" fontWeight={700}>Authorized Admin Approval</Typography>
               <Typography variant="body2">{payoutApprovalLabel(selected)}</Typography>
               <Typography variant="body2">
-                Approvals: {selected.approval?.approvalCount || 0} / {selected.approval?.requiredApprovals || 3}
+                Approvals: {selected.approval?.approvalCount || 0} / {selected.approval?.requiredApprovals || 1}
               </Typography>
               <Typography variant="body2">
                 Requester: {selected.approval?.requestedByAdminId
                   ? `${selected.approval.requestedByName || "Admin"} (ID ${selected.approval.requestedByAdminId})`
-                  : "Not requested"}
+                  : "Direct Review"}
               </Typography>
               {selected.approval?.invalidationReason && (
                 <Alert severity="warning">{selected.approval.invalidationReason}</Alert>
@@ -255,14 +255,14 @@ export default function PayoutForm({
                     </Typography>
                   )}
                   <Typography variant="caption" color="text.secondary">
-                    {formatPayoutDate(decision.createdAt)}
+                    Approved: {formatPayoutDate(decision.createdAt)}
                   </Typography>
                 </Box>
               ))}
 
               {selected.approval?.status === "Pending Approval" && (
                 <Typography variant="body2" color="text.secondary">
-                  The requester cannot approve. Each other authorized admin can vote once. Three distinct approvals are required.
+                  One authorized admin approval is required to approve this payout transaction.
                 </Typography>
               )}
 
@@ -282,7 +282,7 @@ export default function PayoutForm({
                   <Stack direction="row" spacing={1}>
                     {canPayoutAction(selected, "approve") && (
                       <Button variant="outlined" onClick={onApprove} disabled={busy || loading || Boolean(error)}>
-                        Approve
+                        Approve Payout
                       </Button>
                     )}
                     {canPayoutAction(selected, "reject") && (
@@ -292,7 +292,7 @@ export default function PayoutForm({
                         onClick={onReject}
                         disabled={busy || loading || Boolean(error) || !approvalComment.trim()}
                       >
-                        Reject
+                        Reject Payout
                       </Button>
                     )}
                   </Stack>
@@ -301,7 +301,7 @@ export default function PayoutForm({
 
               {selected.approval?.status === "Approved" && selected.payoutStatus === "Eligible" && (
                 <Typography variant="body2" color="text.secondary">
-                  Three independent approvals are recorded. An authorized admin must explicitly release the payout.
+                  Authorized approval recorded. An authorized administrator can now release the payout.
                 </Typography>
               )}
             </Stack>
@@ -360,7 +360,7 @@ export default function PayoutForm({
 
             {selected.payoutStatus === "Eligible" && (
               <Typography variant="body2" color="text.secondary">
-                Requesting and approving do not release a payout. Release rechecks eligibility, the amount, the destination and all three approvals before the configured provider executes.
+                Approving does not release a payout immediately. Release verifies eligibility, amount, destination, and authorization before the configured provider executes.
               </Typography>
             )}
           </Stack>

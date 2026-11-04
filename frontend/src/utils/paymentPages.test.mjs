@@ -38,6 +38,7 @@ const pageHarness = (relativePath, { api = {}, orders = [], search = "", state, 
         effects.push(() => { cleanups[index]?.(); cleanups[index] = callback(); });
       }
     },
+    useCallback: (fn) => fn,
     useMemo: (callback, dependencies) => {
       const index = hookIndex++;
       const previous = hooks[index];

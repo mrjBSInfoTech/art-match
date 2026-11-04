@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
+  Badge,
   Box,
   Button,
   CircularProgress,
@@ -10,20 +11,32 @@ import {
   Slide,
   Snackbar,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import {
+  approveAccountChangeRequest,
+  approveAdminPermissionRequest,
   approveSellerPayout,
+  fetchAccountChangeRequests,
   fetchAdminPayouts,
+  fetchAdminPermissionRequests,
+  fetchAdminPermissionStatus,
   reconcileSellerPayout,
+  rejectAccountChangeRequest,
+  rejectAdminPermissionRequest,
   rejectSellerPayout,
   releaseSellerPayout,
+  requestAdminPayoutPermission,
   requestSellerPayout,
   verifySellerPayoutRefund,
 } from "../../api/admin/payoutAPI";
 import PayoutForm from "../../components/admin/Payout/PayoutForm";
+import AccountRequestsTable from "../../components/admin/Payout/AccountRequestsTable";
+import AdminPermissionsPanel from "../../components/admin/Payout/AdminPermissionsPanel";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
@@ -56,6 +69,7 @@ const statuses = [
 
 export default function AdminPayout() {
   const theme = useTheme();
+  const [currentTab, setCurrentTab] = useState(0);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -71,7 +85,13 @@ export default function AdminPayout() {
   const [refundId, setRefundId] = useState("");
   const [returnRequestId, setReturnRequestId] = useState("");
   const [approvalComment, setApprovalComment] = useState("");
+  const [accountRequests, setAccountRequests] = useState([]);
+  const [permissionStatus, setPermissionStatus] = useState(null);
+  const [permissionRequests, setPermissionRequests] = useState([]);
   const actionInFlight = useRef(false);
+
+  const adminRole = String(localStorage.getItem("admin_role") || "").toLowerCase();
+  const isSuperAdmin = adminRole === "super admin";
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
@@ -97,35 +117,66 @@ export default function AdminPayout() {
 
   useEffect(() => {
     let active = true;
-    fetchAdminPayouts()
-      .then((result) => {
+
+    const loadData = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        // Fetch permission status for current admin
+        const permResult = await fetchAdminPermissionStatus().catch(() => null);
         if (!active) return;
-        setData(result);
-        setSelected((current) =>
-          current
-            ? result.orders.find(
-                (item) => payoutIdentifier(item) === payoutIdentifier(current),
-              ) || null
-            : null,
-        );
-        setError("");
-      })
-      .catch((loadError) => {
-        if (active)
+        setPermissionStatus(permResult);
+
+        // If authorized (or admin/super admin), load transactions and account change requests
+        const isAuthorized = permResult?.isAuthorized ?? (adminRole === "admin" || adminRole === "super admin");
+
+        if (isAuthorized) {
+          const [payoutsRes, requestsRes] = await Promise.all([
+            fetchAdminPayouts(),
+            fetchAccountChangeRequests().catch(() => ({ requests: [] })),
+          ]);
+
+          if (!active) return;
+          setData(payoutsRes);
+          setAccountRequests(requestsRes.requests || []);
+          setSelected((current) =>
+            current
+              ? payoutsRes.orders.find(
+                  (item) => payoutIdentifier(item) === payoutIdentifier(current),
+                ) || null
+              : null,
+          );
+        } else {
+          setAccountRequests([]);
+          setData(null);
+        }
+
+        // If super admin, fetch admin permission requests
+        if (isSuperAdmin) {
+          const permReqs = await fetchAdminPermissionRequests().catch(() => ({ requests: [] }));
+          if (!active) return;
+          setPermissionRequests(permReqs.requests || []);
+        }
+      } catch (loadError) {
+        if (active) {
           setError(
             payoutErrorMessage(loadError, "Unable to load seller payouts."),
           );
-      })
-      .finally(() => {
+        }
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    };
+
+    loadData();
+
     return () => {
       active = false;
     };
-  }, [refresh]);
+  }, [refresh, isSuperAdmin, adminRole]);
 
   const reload = () => {
-    setLoading(true);
     setRefresh((value) => value + 1);
   };
 
@@ -144,10 +195,12 @@ export default function AdminPayout() {
       setActionError("");
     }
   };
+
   const capability = data?.providerCapability || data?.capability;
   const completedReturns = (selected?.returnRequests || []).filter(
     (item) => item.status === "Completed",
   );
+
   const filtered = (data?.orders || []).filter(
     (item) =>
       (status === "All" || item.payoutStatus === status) &&
@@ -195,8 +248,8 @@ export default function AdminPayout() {
       if (result.payout) setSelected(result.payout);
       const messages = {
         request:
-          "Payout requested. Three other admins must approve before release.",
-        approve: "Approval recorded. Release remains a separate action.",
+          "Payout approval initiated. One authorized admin approval is required before release.",
+        approve: "Payout approved. Release remains a separate action.",
         reject: "Payout request rejected. No payout was released.",
         release:
           "Payout released to the provider. Paid status requires provider confirmation.",
@@ -225,6 +278,77 @@ export default function AdminPayout() {
     }
   };
 
+  // Student payout method change request handlers
+  const handleApproveAccountRequest = async (requestId, comment) => {
+    setBusy(true);
+    try {
+      await approveAccountChangeRequest(requestId, comment);
+      showSnackbar("Payout method change approval recorded.", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to approve payout method change."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRejectAccountRequest = async (requestId, reason) => {
+    setBusy(true);
+    try {
+      await rejectAccountChangeRequest(requestId, reason);
+      showSnackbar("Payout method change request rejected.", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to reject payout method change."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Admin permission request handlers
+  const handleRequestPermission = async (reason) => {
+    setBusy(true);
+    try {
+      await requestAdminPayoutPermission(reason);
+      showSnackbar("Permission request submitted to Super Admins.", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to submit permission request."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApprovePermissionRequest = async (requestId) => {
+    setBusy(true);
+    try {
+      await approveAdminPermissionRequest(requestId);
+      showSnackbar("Admin payout permission approved.", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to approve admin permission."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRejectPermissionRequest = async (requestId, reason) => {
+    setBusy(true);
+    try {
+      await rejectAdminPermissionRequest(requestId, reason);
+      showSnackbar("Admin payout permission rejected.", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to reject admin permission."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pendingAccountRequestsCount = accountRequests.filter((r) => r.status === "Pending").length;
+  const pendingPermissionsCount = permissionRequests.filter((r) => r.status === "Pending").length;
+  const isAuthorizedAdmin = permissionStatus?.isAuthorized ?? (adminRole === "admin" || adminRole === "super admin");
+
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Helmet>
@@ -241,7 +365,7 @@ export default function AdminPayout() {
             Seller Payouts
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Review eligible earnings and track outbound seller transfers.
+            Review eligible earnings, approve payout method changes, and manage transfer authorizations.
           </Typography>
         </Box>
         <Button
@@ -252,91 +376,183 @@ export default function AdminPayout() {
           Refresh
         </Button>
       </Stack>
-      <Stack spacing={2.5} sx={{ mt: 3 }}>
-        {loading && (
-          <Stack alignItems="center" sx={{ py: 3 }}>
-            <CircularProgress aria-label="Loading payout review" />
-          </Stack>
-        )}
-        {data && (
-          <>
-            {capability?.enabled === false && (
-              <Alert severity="warning">
-                {capability.message ||
-                  "PayMongo outbound payouts are not enabled. You can review earnings, but sending is blocked."}
-              </Alert>
-            )}
-            <PayoutMetrics totals={data.totals} />
-            <Paper
-              sx={{
-                p: { xs: 1.25, sm: 1.5 },
-                borderRadius: 2,
-                backgroundColor: theme.palette.background.paper,
-                borderColor: theme.palette.divider,
-              }}
-              variant="outlined"
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: { xs: "column", lg: "row" },
-                  justifyContent: "space-between",
-                  alignItems: { xs: "stretch", lg: "center" },
-                  gap: 1.25,
-                }}
-              >
-                <TextField
-                  label="Search order or seller"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  size="small"
-                  sx={{
-                    width: { xs: "100%", lg: 255 },
-                    "& .MuiOutlinedInput-root": {
-                      color: theme.palette.text.primary,
-                      backgroundColor: theme.palette.background.default,
-                      "& fieldset": { borderColor: theme.palette.divider },
-                      "&:hover fieldset": {
-                        borderColor: theme.palette.text.secondary,
-                      },
-                    },
-                    "& .MuiInputBase-input::placeholder": {
-                      color: theme.palette.text.secondary,
-                      opacity: 1,
-                    },
-                  }}
-                />
-                <TextField
-                  select
-                  label="Payout status"
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value)}
-                  size="small"
-                  sx={{ minWidth: 180 }}
-                >
-                  {statuses.map((item) => (
-                    <MenuItem value={item} key={item}>
-                      {item}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Box>
-            </Paper>
 
-            <PayoutTable
-              orders={filtered}
-              admin
-              onReview={(payout) => {
-                setSelected(payout);
-                setActionError("");
-                setRefundId("");
-                setReturnRequestId("");
-                setApprovalComment("");
-              }}
-            />
-          </>
-        )}
-      </Stack>
+      {/* Permission Warning for Customizable / Moderation Admins */}
+      {permissionStatus && !isAuthorizedAdmin && !isSuperAdmin && (
+        <Alert
+          severity={permissionStatus.permissionStatus === "Pending" ? "warning" : "info"}
+          action={
+            <Button color="inherit" size="small" onClick={() => setCurrentTab(2)}>
+              {permissionStatus.permissionStatus === "Pending" ? "View Status" : "Request Permission"}
+            </Button>
+          }
+          sx={{ mt: 2.5 }}
+        >
+          {permissionStatus.permissionStatus === "Pending"
+            ? "Your request for payout management permission is pending Super Admin review. Direct approval actions remain restricted until approved."
+            : permissionStatus.permissionStatus === "Rejected"
+            ? `Your payout permission request was rejected: ${permissionStatus.request?.rejectionReason || "Denied by Super Admin"}.`
+            : "Permission Required: Customizable and Moderation administrators must obtain Super Admin approval before approving or releasing student payouts."}
+        </Alert>
+      )}
+
+      {/* Tabs */}
+      <Tabs
+        value={currentTab}
+        onChange={(e, val) => setCurrentTab(val)}
+        sx={{ borderBottom: 1, borderColor: "divider", mt: 3, mb: 2.5 }}
+      >
+        <Tab label="Payout Transactions" />
+        <Tab
+          label={
+            <Badge
+              badgeContent={pendingAccountRequestsCount}
+              color="warning"
+              sx={{ "& .MuiBadge-badge": { right: -10, top: 4 } }}
+            >
+              Payout Method Requests
+            </Badge>
+          }
+        />
+        <Tab
+          label={
+            isSuperAdmin ? (
+              <Badge
+                badgeContent={pendingPermissionsCount}
+                color="error"
+                sx={{ "& .MuiBadge-badge": { right: -10, top: 4 } }}
+              >
+                Admin Permissions
+              </Badge>
+            ) : (
+              "Permission Status"
+            )
+          }
+        />
+      </Tabs>
+
+      {/* TAB 0: PAYOUT TRANSACTIONS */}
+      {currentTab === 0 && (
+        <Stack spacing={2.5}>
+          {loading && (
+            <Stack alignItems="center" sx={{ py: 3 }}>
+              <CircularProgress aria-label="Loading payout review" />
+            </Stack>
+          )}
+
+          {!isAuthorizedAdmin && !isSuperAdmin && !loading && (
+            <Alert severity="warning">
+              You do not currently have authorized access to approve or process payout transactions. Obtain permission from a Super Admin in the <strong>Permission Status</strong> tab.
+            </Alert>
+          )}
+
+          {data && (
+            <>
+              {capability?.enabled === false && (
+                <Alert severity="warning">
+                  {capability.message ||
+                    "PayMongo outbound payouts are not enabled. You can review earnings, but sending is blocked."}
+                </Alert>
+              )}
+              <PayoutMetrics totals={data.totals} />
+              <Paper
+                sx={{
+                  p: { xs: 1.25, sm: 1.5 },
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  borderColor: theme.palette.divider,
+                }}
+                variant="outlined"
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: { xs: "column", lg: "row" },
+                    justifyContent: "space-between",
+                    alignItems: { xs: "stretch", lg: "center" },
+                    gap: 1.25,
+                  }}
+                >
+                  <TextField
+                    label="Search order or seller"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    size="small"
+                    sx={{
+                      width: { xs: "100%", lg: 255 },
+                      "& .MuiOutlinedInput-root": {
+                        color: theme.palette.text.primary,
+                        backgroundColor: theme.palette.background.default,
+                        "& fieldset": { borderColor: theme.palette.divider },
+                        "&:hover fieldset": {
+                          borderColor: theme.palette.text.secondary,
+                        },
+                      },
+                      "& .MuiInputBase-input::placeholder": {
+                        color: theme.palette.text.secondary,
+                        opacity: 1,
+                      },
+                    }}
+                  />
+                  <TextField
+                    select
+                    label="Payout status"
+                    value={status}
+                    onChange={(event) => setStatus(event.target.value)}
+                    size="small"
+                    sx={{ minWidth: 180 }}
+                  >
+                    {statuses.map((item) => (
+                      <MenuItem value={item} key={item}>
+                        {item}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              </Paper>
+
+              <PayoutTable
+                orders={filtered}
+                admin
+                onReview={(payout) => {
+                  setSelected(payout);
+                  setActionError("");
+                  setRefundId("");
+                  setReturnRequestId("");
+                  setApprovalComment("");
+                }}
+              />
+            </>
+          )}
+        </Stack>
+      )}
+
+      {/* TAB 1: PAYOUT METHOD REQUESTS */}
+      {currentTab === 1 && (
+        <AccountRequestsTable
+          requests={accountRequests}
+          loading={loading}
+          busy={busy}
+          onApprove={handleApproveAccountRequest}
+          onReject={handleRejectAccountRequest}
+        />
+      )}
+
+      {/* TAB 2: ADMIN PERMISSIONS */}
+      {currentTab === 2 && (
+        <AdminPermissionsPanel
+          permissionStatus={permissionStatus}
+          isSuperAdmin={isSuperAdmin}
+          requests={permissionRequests}
+          loading={loading}
+          busy={busy}
+          onRequestPermission={handleRequestPermission}
+          onApproveRequest={handleApprovePermissionRequest}
+          onRejectRequest={handleRejectPermissionRequest}
+        />
+      )}
+
+      {/* Payout Transaction Modal */}
       <PayoutForm
         open={Boolean(selected)}
         onClose={closeReview}
@@ -369,6 +585,8 @@ export default function AdminPayout() {
         onRefund={() => act("refund")}
         onReconcile={() => act("reconcile")}
       />
+
+      {/* Snackbar notification */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}

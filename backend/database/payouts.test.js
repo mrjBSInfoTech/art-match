@@ -29,7 +29,8 @@ function migrationFixture(statusType = "enum('Held','Eligible','Processing','Pai
     if (status) { columns.set("payout_status", status[1]); return [{}]; }
     const index = normalized.match(/^ALTER TABLE seller_payment_split ADD UNIQUE KEY ([a-z_]+) /);
     if (index) { assert.ok(!indexes.has(index[1])); indexes.add(index[1]); return [{}]; }
-    assert.match(normalized, /^CREATE TABLE IF NOT EXISTS (seller_payout_account|seller_payout_attempt|seller_order_refund|seller_payout_approval_cycle|seller_payout_approval) /);
+    if (/^(UPDATE|DELETE)/.test(normalized)) return [{}];
+    assert.match(normalized, /^CREATE TABLE IF NOT EXISTS (seller_payout_account|seller_payout_attempt|seller_order_refund|seller_payout_approval_cycle|seller_payout_approval|seller_payout_account_request|seller_payout_account_approval|admin_payout_permission_request) /);
     if (normalized.startsWith("CREATE TABLE IF NOT EXISTS seller_payout_attempt")) { attemptColumns.add("payout_provider"); attemptColumns.add("payout_mode"); }
     return [{}];
   } };
@@ -49,7 +50,7 @@ test("existing payout ledger is extended without discarding terminal statuses or
   assert.ok(current.columns.has("payout_amount"));
   assert.ok(current.columns.has("refund_amount"));
   assert.ok(current.columns.has("provider_transfer_id"));
-  assert.ok(!current.calls.some((sql) => /^(DROP|TRUNCATE|DELETE|UPDATE)/.test(sql)));
+  assert.ok(!current.calls.some((sql) => /^(DROP|TRUNCATE)/.test(sql)));
 });
 
 test("a second server initialization performs no duplicate-column/index alterations", async () => {
@@ -58,7 +59,7 @@ test("a second server initialization performs no duplicate-column/index alterati
   const initialCallCount = current.calls.length;
   await current.ensure();
   const restartCalls = current.calls.slice(initialCallCount);
-  assert.equal(restartCalls.filter((sql) => sql.startsWith("CREATE TABLE IF NOT EXISTS")).length, 5);
+  assert.equal(restartCalls.filter((sql) => sql.startsWith("CREATE TABLE IF NOT EXISTS")).length, 8);
   assert.ok(!restartCalls.some((sql) => sql.startsWith("ALTER TABLE")));
 });
 

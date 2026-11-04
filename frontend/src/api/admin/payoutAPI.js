@@ -26,3 +26,16 @@ export const verifySellerPayoutRefund = async (payoutId, providerRefundId, retur
   `/${encodeURIComponent(payoutId)}/refunds/verify`,
   { providerRefundId, ...(returnRequestId ? { returnRequestId } : {}) },
 )).data;
+
+// Account change requests (3 admin approvals)
+export const fetchAccountChangeRequests = async (status = "All") => (await api.get("/account-requests", { params: status !== "All" ? { status } : {} })).data;
+export const approveAccountChangeRequest = async (requestId, comment = "") => (await api.post(`/account-requests/${encodeURIComponent(requestId)}/approve`, comment.trim() ? { comment: comment.trim() } : {})).data;
+export const rejectAccountChangeRequest = async (requestId, reason) => (await api.post(`/account-requests/${encodeURIComponent(requestId)}/reject`, { reason: reason.trim() })).data;
+
+// Admin payout permissions
+export const fetchAdminPermissionStatus = async () => (await api.get("/permissions/status")).data;
+export const requestAdminPayoutPermission = async (reason = "") => (await api.post("/permissions/request", { reason: reason.trim() })).data;
+export const fetchAdminPermissionRequests = async () => (await api.get("/permissions")).data;
+export const approveAdminPermissionRequest = async (requestId) => (await api.post(`/permissions/${encodeURIComponent(requestId)}/approve`, {})).data;
+export const rejectAdminPermissionRequest = async (requestId, reason = "") => (await api.post(`/permissions/${encodeURIComponent(requestId)}/reject`, { reason: reason.trim() })).data;
+

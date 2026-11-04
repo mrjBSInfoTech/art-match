@@ -46,6 +46,7 @@ export default function OrderTrack({
   fulfillmentTarget,
   statusError,
   courier,
+  onCourierChange,
   trackingNumber,
   setTrackingNumber,
   trackingUrl,
@@ -58,6 +59,7 @@ export default function OrderTrack({
   const theme = useTheme();
 
   // Internal state when not controlled externally
+  const [internalCourier, setInternalCourier] = useState("");
   const [internalTrackingNumber, setInternalTrackingNumber] = useState("");
   const [internalTrackingUrl, setInternalTrackingUrl] = useState("");
   const [copied, setCopied] = useState(false);
@@ -86,6 +88,9 @@ export default function OrderTrack({
         : effectiveOrder.trackingUrl;
 
       const match = getShipmentCourier(activeCourier);
+      if (courier === undefined) {
+        setInternalCourier(activeCourier || "");
+      }
       if (trackingNumber === undefined) {
         setInternalTrackingNumber(activeNum || "");
       }
@@ -96,11 +101,22 @@ export default function OrderTrack({
     }
   }, [effectiveOrder, isReturn, courier, trackingNumber, trackingUrl]);
 
-  const activeCourierValue = courier !== undefined ? courier : effectiveOrder?.courier || "";
+  const activeCourierValue =
+    courier !== undefined
+      ? courier
+      : (internalCourier || (isReturn ? (effectiveOrder?.return_courier || effectiveOrder?.activeReturn?.return_courier || "") : effectiveOrder?.courier) || "");
   const activeTrackingNumber = trackingNumber !== undefined ? trackingNumber : internalTrackingNumber;
   const activeTrackingUrl = trackingUrl !== undefined ? trackingUrl : internalTrackingUrl;
   const selectedCourier = getShipmentCourier(activeCourierValue);
   const secureTrackingUrl = getSecureTrackingUrl(activeTrackingUrl || selectedCourier?.trackingUrl);
+
+  const handleCourierChange = (value) => {
+    if (onCourierChange) {
+      onCourierChange(value);
+    } else {
+      setInternalCourier(value);
+    }
+  };
 
   const handleTrackingNumberChange = (value) => {
     if (setTrackingNumber) {
@@ -131,6 +147,7 @@ export default function OrderTrack({
   };
 
   const isMeetupOrder = !isReturn && !onSubmit && effectiveOrder?.deliveryMethod === "pickup";
+
   return (
     <Dialog
       open={open}
@@ -167,10 +184,12 @@ export default function OrderTrack({
         )}
         {isMeetupOrder
           ? "Meet-up Delivery Details"
+          : onSubmit
+          ? isReturn
+            ? "Return Shipment Details"
+            : "Add Tracking Link"
           : isReturn
           ? "Return Tracking Details"
-          : onSubmit
-          ? "Add Tracking Link"
           : "Delivery Tracking"}
         <Button
           aria-label="Close tracking dialog"
@@ -259,32 +278,104 @@ export default function OrderTrack({
               </Box>
             )}
           </Stack>
+        ) : onSubmit ? (
+          /* Form mode: identical input fields to seller/Order/OrderTrack.jsx for submitting return shipment or tracking */
+          <Stack spacing={2.5}>
+            {statusError && <Alert severity="error">{statusError}</Alert>}
+
+            <Typography variant="body2" color="text.secondary">
+              {isReturn
+                ? "Add the courier name and tracking details to return the product to the seller. The seller will use these details to track and receive the item."
+                : "Add the courier name and tracking details. The recipient will use these details to track the delivery."}
+            </Typography>
+
+            <TextField
+              label="Courier"
+              required
+              value={activeCourierValue}
+              onChange={(event) => handleCourierChange(event.target.value)}
+              inputProps={{ maxLength: 50 }}
+              placeholder="e.g., Lalamove, GrabExpress, J&T Express"
+              disabled={saving}
+              fullWidth
+            />
+
+            <TextField
+              label="Tracking Number or ID (optional)"
+              value={activeTrackingNumber}
+              onChange={(event) => handleTrackingNumberChange(event.target.value)}
+              inputProps={{ maxLength: 100 }}
+              InputProps={{
+                endAdornment: activeTrackingNumber ? (
+                  <InputAdornment position="end">
+                    <Button
+                      size="small"
+                      startIcon={<ContentCopyOutlinedIcon sx={{ fontSize: 15 }} />}
+                      onClick={handleCopyTrackingNumber}
+                      sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
+                    >
+                      {copied ? "Copied" : "Copy"}
+                    </Button>
+                  </InputAdornment>
+                ) : null,
+              }}
+              disabled={saving}
+              fullWidth
+            />
+
+            <TextField
+              label="Tracking Link"
+              placeholder="https://"
+              required
+              value={activeTrackingUrl}
+              onChange={(event) => handleTrackingUrlChange(event.target.value)}
+              inputProps={{ maxLength: 2048 }}
+              InputProps={{
+                endAdornment: secureTrackingUrl ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      component="a"
+                      href={secureTrackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      edge="end"
+                      size="small"
+                      title={`Open tracking on ${selectedCourier?.label || activeCourierValue || "Courier"}`}
+                      sx={{ color: "error.main" }}
+                    >
+                      <OpenInNewOutlinedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+              helperText="Enter the secure tracking page or delivery-share link."
+              disabled={saving}
+              fullWidth
+            />
+          </Stack>
         ) : (
+          /* View mode: read-only shipment tracking details */
           <Stack spacing={2.5}>
             {statusError && <Alert severity="error">{statusError}</Alert>}
 
             <Typography variant="body2" color="text.secondary">
               {isReturn
                 ? "Use the tracking details provided for this return."
-                : onSubmit
-                  ? "Add the shipment tracking details so the recipient can follow the delivery."
-                  : "Use the shipment tracking link and number provided by the seller."}
+                : "Use the shipment tracking link and number provided by the seller."}
             </Typography>
 
             {activeCourierValue && (
               <Typography variant="body2" color="text.secondary">
-                Courier: {selectedCourier?.label || activeCourierValue}
+                Courier: <strong>{selectedCourier?.label || activeCourierValue}</strong>
               </Typography>
             )}
 
-            {(selectedCourier?.trackingNumberLabel || activeTrackingNumber || onSubmit) && (
+            {(selectedCourier?.trackingNumberLabel || activeTrackingNumber) && (
               <TextField
                 label={selectedCourier?.trackingNumberLabel || "Tracking Number"}
-                required={Boolean(onSubmit)}
-                value={activeTrackingNumber}
-                onChange={(event) => handleTrackingNumberChange(event.target.value)}
-                inputProps={{ maxLength: 100 }}
+                value={activeTrackingNumber || "—"}
                 InputProps={{
+                  readOnly: true,
                   endAdornment: activeTrackingNumber ? (
                     <InputAdornment position="end">
                       <Button
@@ -306,13 +397,9 @@ export default function OrderTrack({
             {(selectedCourier || activeTrackingUrl) && (
               <TextField
                 label="Tracking Link"
-                placeholder="https://"
-                required={Boolean(onSubmit)}
-                value={activeTrackingUrl}
-                onChange={(event) => handleTrackingUrlChange(event.target.value)}
-                inputProps={{ maxLength: 2048 }}
+                value={activeTrackingUrl || ""}
                 InputProps={{
-                  readOnly: !onSubmit,
+                  readOnly: true,
                   endAdornment: secureTrackingUrl ? (
                     <InputAdornment position="end">
                       <IconButton
@@ -330,21 +417,23 @@ export default function OrderTrack({
                     </InputAdornment>
                   ) : null,
                 }}
-                helperText={
-                  onSubmit
-                    ? "Enter the secure tracking or delivery-share link."
-                    : "Open the tracking link to view the latest delivery status."
-                }
+                helperText="Open the tracking link to view the latest delivery status."
                 disabled={saving}
                 fullWidth
               />
+            )}
+
+            {!activeCourierValue && !activeTrackingNumber && !activeTrackingUrl && (
+              <Typography variant="body2" color="text.secondary">
+                No tracking details available yet.
+              </Typography>
             )}
           </Stack>
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} disabled={saving} sx={{ color: "text.secondary" }}>
-          {isReturn ? "Back" : onSubmit ? "Cancel" : "Close"}
+          {isReturn && !onSubmit ? "Back" : onSubmit ? "Cancel" : "Close"}
         </Button>
         {isMeetupOrder && (
           <Button
@@ -363,16 +452,16 @@ export default function OrderTrack({
             Chat with Seller
           </Button>
         )}
-        {!isMeetupOrder && secureTrackingUrl && (
+        {!isMeetupOrder && !onSubmit && secureTrackingUrl && (
           <Button
             component="a"
             href={secureTrackingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            variant={onSubmit ? "outlined" : "contained"}
+            variant="contained"
             color="error"
             endIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 16 }} />}
-            sx={{ fontWeight: 700, textTransform: "none", ...(onSubmit ? {} : { color: "#fff" }) }}
+            sx={{ fontWeight: 700, textTransform: "none", color: "#fff" }}
           >
             Track on {selectedCourier?.label || activeCourierValue || "Courier"}
           </Button>
@@ -384,12 +473,15 @@ export default function OrderTrack({
             onClick={onSubmit}
             disabled={
               saving ||
-              !activeCourierValue ||
-              !activeTrackingUrl.trim()
+              !activeCourierValue?.trim() ||
+              !activeTrackingUrl?.trim()
             }
             sx={{ color: "#fff", textTransform: "none" }}
           >
-            {saving ? "Saving..." : submitButtonText || (isReturn ? "Confirm Return Shipped" : `Mark ${fulfillmentTarget?.status || "Shipped"}`)}
+            {saving
+              ? "Saving..."
+              : submitButtonText ||
+                (isReturn ? "Confirm Return Shipped" : `Mark ${fulfillmentTarget?.status || "Shipped"}`)}
           </Button>
         )}
       </DialogActions>

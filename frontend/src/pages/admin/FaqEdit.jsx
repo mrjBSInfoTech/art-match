@@ -164,6 +164,7 @@ export default function FaqEdit() {
         </Box>
         <Button
           variant="contained"
+          color="error"
           startIcon={<AddRoundedIcon />}
           onClick={addFaq}
           sx={{ textTransform: "none", alignSelf: { xs: "stretch", sm: "center" } }}
@@ -278,6 +279,7 @@ export default function FaqEdit() {
 
       <Button
         variant="contained"
+        color="error"
         size="large"
         startIcon={
           saving ? <CircularProgress size={18} color="inherit" /> : <SaveRoundedIcon />

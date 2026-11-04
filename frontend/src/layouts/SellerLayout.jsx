@@ -19,6 +19,7 @@ import Slide from "@mui/material/Slide";
 import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
 import { getSellerProfile } from "../api/seller/sellerAPI";
+import { fetchPayoutAccount } from "../api/seller/payoutAPI";
 import { getProfileInitials } from "../utils/profileInitials.js";
 import {
   fetchSellerConversations,
@@ -26,6 +27,7 @@ import {
   markSellerNotificationsRead,
 } from "../api/seller/messageAPI";
 import { fetchSellerReviews } from "../api/seller/reviewsAPI";
+import PayoutFirst from "../components/seller/Payout/PayoutFirst";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Stack,
@@ -98,6 +100,7 @@ function SellerLayoutContent() {
   const [notifications, setNotifications] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [sellerReviewCount, setSellerReviewCount] = useState(0);
+  const [openPayoutWarning, setOpenPayoutWarning] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
@@ -192,6 +195,51 @@ function SellerLayoutContent() {
 
     return () => {
       active = false;
+    };
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const checkPayoutWarning = async () => {
+      if (!isAuthenticated("seller")) {
+        setOpenPayoutWarning(false);
+        return;
+      }
+
+      const normalizedPath = location.pathname.replace(/\/+$/, "");
+      const isPayoutSetupPage =
+        normalizedPath === "/seller/settlement-payout" ||
+        normalizedPath.startsWith("/seller/settlement-payout/");
+
+      if (isPayoutSetupPage) {
+        setOpenPayoutWarning(false);
+        return;
+      }
+
+      try {
+        const result = await fetchPayoutAccount();
+        const account = result?.account;
+        const hasPayoutAccount = Boolean(
+          account &&
+            (account.provider ||
+              account.institutionName ||
+              account.accountName ||
+              account.accountNumber ||
+              account.maskedAccountNumber ||
+              account.institutionCode),
+        );
+        setOpenPayoutWarning(!hasPayoutAccount);
+      } catch {
+        setOpenPayoutWarning(false);
+      }
+    };
+
+    checkPayoutWarning();
+    window.addEventListener("storage", checkPayoutWarning);
+    window.addEventListener("seller-payout-account-changed", checkPayoutWarning);
+
+    return () => {
+      window.removeEventListener("storage", checkPayoutWarning);
+      window.removeEventListener("seller-payout-account-changed", checkPayoutWarning);
     };
   }, [location.pathname]);
 
@@ -482,6 +530,11 @@ function SellerLayoutContent() {
           </Button>
         </DialogActions>
       </Dialog>
+      <PayoutFirst
+        open={openPayoutWarning}
+        handleClose={() => setOpenPayoutWarning(false)}
+        navigate={navigate}
+      />
       <Drawer
         anchor="right"
         variant="temporary"

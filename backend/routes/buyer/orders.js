@@ -19,7 +19,7 @@ import {
 } from "../../utils/recommendationInteractions.js";
 import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 import { getCommissionRate } from "../../database/paymentSplits.js";
-import { buildPaymentSplit, calculateProcessingFee, validateSplits } from "../../utils/paymentSplit.js";
+import { apportion, buildPaymentSplit, calculateProcessingFee, validateSplits } from "../../utils/paymentSplit.js";
 import { attachOrderReturns } from "../../utils/returns.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
@@ -166,6 +166,7 @@ const groupOrderRows = (rows) => {
         voucherCode: row.voucher_code || null,
 
         shipping: Number(row.shipping_fee),
+        processingFee: Number(row.processing_fee || 0),
 
         total: Number(row.total_amount),
 
@@ -268,6 +269,7 @@ const ordersSql = `
     o.discount_amount,
     o.voucher_code,
     o.shipping_fee,
+    o.processing_fee,
     o.total_amount,
     o.buyer_name,
     o.shipping_street,
@@ -952,8 +954,14 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     // A preview is only informational. Re-read the current voucher and prices
     // under this checkout transaction before creating any payable order.
     const voucherQuote = await quoteCheckoutVoucher(connection, items, req.body.voucher_code, { lock: true });
-    if (req.body.expected_total_centavos !== undefined && req.body.expected_total_centavos !==
-        voucherQuote.items.reduce((sum, item) => sum + item.chargedCentavos, 0)) {
+    const artworkItemsTotalCentavos = voucherQuote.items.reduce((sum, item) => sum + item.chargedCentavos, 0);
+    const expectedProcessingFeePesos = isPayMongo ? calculateProcessingFee(artworkItemsTotalCentavos / 100) : 0;
+    const expectedProcessingFeeCentavos = Math.round(expectedProcessingFeePesos * 100);
+    const expectedBuyerTotalCentavos = artworkItemsTotalCentavos + expectedProcessingFeeCentavos;
+
+    if (req.body.expected_total_centavos !== undefined &&
+        req.body.expected_total_centavos !== artworkItemsTotalCentavos &&
+        req.body.expected_total_centavos !== expectedBuyerTotalCentavos) {
       throw new CheckoutVoucherError("Your checkout total changed. Apply the voucher again to review the updated discount.", 409);
     }
     const pricedByArtwork = new Map(voucherQuote.items.map((item) => [Number(item.artwork_id), item]));
@@ -990,16 +998,28 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
 
     const createdOrders = [];
 
+    const sellerList = [...bySeller.entries()];
+    const sellerSubtotalsCentavos = sellerList.map(([, sellerItems]) =>
+      sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos, 0),
+    );
+    const feeShares = isPayMongo && expectedProcessingFeeCentavos > 0
+      ? apportion(expectedProcessingFeeCentavos, sellerSubtotalsCentavos)
+      : sellerList.map(() => 0);
+
     /*
      * Create one order per seller.
      */
-    for (const [sellerId, sellerItems] of bySeller) {
+    for (let sIdx = 0; sIdx < sellerList.length; sIdx++) {
+      const [sellerId, sellerItems] = sellerList[sIdx];
+      const sellerFeeCentavos = feeShares[sIdx] || 0;
+      const sellerProcessingFee = sellerFeeCentavos / 100;
       const originalSubtotal = sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).originalCentavos, 0) / 100;
       const subtotal = sellerItems.reduce((sum, item) => sum + pricedByArtwork.get(Number(item.artwork_id)).chargedCentavos, 0) / 100;
       const discountAmount = (Math.round(originalSubtotal * 100) - Math.round(subtotal * 100)) / 100;
       const sellerPickupLocation =
         sellerItems[0]?.seller_address ||
         "Central Academy of Fine Arts (CAFA) Campus Studio";
+      const totalAmount = (Math.round(subtotal * 100) + Math.round(SHIPPING_FEE * 100) + sellerFeeCentavos) / 100;
 
       const [result] = await connection.query(
         `INSERT INTO marketplace_order
@@ -1027,13 +1047,14 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
             discount_amount,
             voucher_code,
             shipping_fee,
+            processing_fee,
             total_amount
           )
           VALUES (
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?
           )`,
 
         [
@@ -1060,7 +1081,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           discountAmount,
           discountAmount > 0 ? voucherQuote.summary.voucher.code : null,
           SHIPPING_FEE,
-          subtotal,
+          sellerProcessingFee,
+          totalAmount,
         ],
       );
 
@@ -1157,8 +1179,9 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         originalSubtotal,
         discount: discountAmount,
         voucherCode: discountAmount > 0 ? voucherQuote.summary.voucher.code : null,
+        processingFee: sellerProcessingFee,
 
-        total: subtotal + SHIPPING_FEE,
+        total: totalAmount,
       });
     }
 
@@ -1168,7 +1191,7 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
      * later price change. Rows start as Held and are released on payment.
      */
     const paymentTotal = createdOrders.reduce((sum, created) => sum + created.total, 0);
-    const processingFee = isPayMongo ? calculateProcessingFee(paymentTotal) : 0;
+    const processingFee = isPayMongo ? expectedProcessingFeePesos : 0;
     const { splits, totals: splitTotals } = buildPaymentSplit(createdOrders, {
       commissionRate: getCommissionRate(),
       processingFee,
@@ -1231,6 +1254,15 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           quantity,
         };
       });
+
+      if (expectedProcessingFeeCentavos > 0) {
+        lineItems.push({
+          name: "Payment Processing Fee (2% + ₱15.00)",
+          amount: expectedProcessingFeeCentavos,
+          currency: "PHP",
+          quantity: 1,
+        });
+      }
 
       // No shipping line item: the courier is arranged outside ArtMatch.
 
@@ -1320,7 +1352,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         artwork_ids: items.map((item) => item.artwork_id),
         voucher: voucherQuote.summary.voucher,
         discount_amount: voucherQuote.summary.discount_amount,
-        total: voucherQuote.summary.total,
+        processing_fee: expectedProcessingFeePesos,
+        total: expectedBuyerTotalCentavos / 100,
       });
     }
 

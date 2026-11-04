@@ -12,6 +12,12 @@ dotenv.config();
 
 let b2Client;
 
+const isPlaceholder = (val) =>
+  !val ||
+  /dev_placeholder|placeholder|your_|your\.|example|sample|changeme|set_me/i.test(
+    String(val).trim(),
+  );
+
 export const isB2Configured = () =>
   [
     "B2_KEY_ID",
@@ -19,7 +25,7 @@ export const isB2Configured = () =>
     "B2_BUCKET",
     "B2_REGION",
     "B2_ENDPOINT",
-  ].every((name) => Boolean(process.env[name]));
+  ].every((name) => Boolean(process.env[name]) && !isPlaceholder(process.env[name]));
 
 const getB2Client = () => {
   const required = [

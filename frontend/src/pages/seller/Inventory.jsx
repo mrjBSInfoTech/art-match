@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   Alert,
   Box,
@@ -196,32 +196,44 @@ export default function Inventory() {
       value: loading ? "..." : productCount,
       caption: "Your total artworks",
       icon: ColorLensRoundedIcon,
-      tint: "rgba(244, 114, 182, 0.15)",
-      accent: "primary.main",
+      tint: alpha(
+        theme.palette.primary.main,
+        theme.palette.mode === "dark" ? 0.18 : 0.1,
+      ),
+      accent: theme.palette.primary.main,
     },
     {
       label: "IN STOCK",
       value: loading ? "..." : inStockCount,
       caption: "More than 5 units",
       icon: CheckCircleRoundedIcon,
-      tint: "rgba(34, 197, 94, 0.18)",
-      accent: "success.main",
+      tint: alpha(
+        theme.palette.success.main,
+        theme.palette.mode === "dark" ? 0.18 : 0.1,
+      ),
+      accent: theme.palette.success.main,
     },
     {
       label: "LOW STOCK",
       value: loading ? "..." : lowStockCount,
       caption: "5 units or fewer",
       icon: SellRoundedIcon,
-      tint: "rgba(154, 197, 34, 0.18)",
-      accent: "warning.main",
+      tint: alpha(
+        theme.palette.warning.main,
+        theme.palette.mode === "dark" ? 0.18 : 0.1,
+      ),
+      accent: theme.palette.warning.main,
     },
     {
       label: "OUT OF STOCK",
       value: loading ? "..." : outOfStockCount,
       caption: "0 units available",
       icon: CreditScoreIcon,
-      tint: "rgba(246, 59, 84, 0.18)",
-      accent: "error.main",
+      tint: alpha(
+        theme.palette.error.main,
+        theme.palette.mode === "dark" ? 0.18 : 0.1,
+      ),
+      accent: theme.palette.error.main,
     },
   ];
 
@@ -327,24 +339,12 @@ export default function Inventory() {
           ({ label, value, caption, icon: SummaryIcon, tint, accent }) => (
             <Card
               key={label}
-              variant="outlined"
               sx={{
-                borderRadius: 4,
-                background: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
-                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-                border: "1px solid",
-                borderColor: "divider",
-                boxShadow: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "0 20px 38px rgba(2, 6, 23, 0.28)"
-                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
+                borderRadius: 3,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                boxShadow: "none",
                 overflow: "hidden",
-                transition: "transform 180ms ease, box-shadow 180ms ease",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                },
               }}
             >
               <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
@@ -359,7 +359,7 @@ export default function Inventory() {
                   <Box>
                     <Typography
                       sx={{
-                        color: "text.secondary",
+                        color: theme.palette.text.secondary,
                         fontSize: 11,
                         fontWeight: 800,
                         letterSpacing: 1.2,
@@ -370,7 +370,7 @@ export default function Inventory() {
                     <Typography
                       sx={{
                         mt: 1,
-                        color: "text.primary",
+                        color: theme.palette.text.primary,
                         fontSize: 30,
                         fontWeight: 800,
                         lineHeight: 1,
@@ -381,7 +381,7 @@ export default function Inventory() {
                     <Typography
                       sx={{
                         mt: 1,
-                        color: "text.secondary",
+                        color: theme.palette.text.secondary,
                         fontSize: 12,
                       }}
                     >
@@ -395,21 +395,11 @@ export default function Inventory() {
                       display: "grid",
                       placeItems: "center",
                       borderRadius: 3,
-                      background: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
-                          : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
+                      backgroundColor: tint,
                       color: accent,
-                      border: (theme) =>
-                        `1px solid ${
-                          theme.palette.mode === "dark"
-                            ? "rgba(255,255,255,0.08)"
-                            : "rgba(15,23,42,0.06)"
-                        }`,
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
                     }}
                   >
-                    {createElement(SummaryIcon)}
+                    {createElement(SummaryIcon, { sx: { fontSize: 26 } })}
                   </Box>
                 </Box>
               </CardContent>

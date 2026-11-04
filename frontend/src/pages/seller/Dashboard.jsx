@@ -21,7 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { fetchSellerOrders } from "../../api/seller/orderAPI";
 import { getSellerSalesData } from "../../utils/sellerSales";
@@ -137,6 +137,7 @@ export default function Dashboard() {
       >
         <Button
           variant="contained"
+          color="error"
           onClick={() => navigate("/seller/artwork")}
           sx={{ minHeight: 44, color: "#fff" }}
         >
@@ -144,6 +145,7 @@ export default function Dashboard() {
         </Button>
         <Button
           variant="outlined"
+          color="error"
           onClick={() => navigate("/seller/orders/manage")}
           sx={{ minHeight: 44 }}
         >
@@ -151,6 +153,7 @@ export default function Dashboard() {
         </Button>
         <Button
           variant="outlined"
+          color="error"
           onClick={() => navigate("/seller/orders/inventory")}
           sx={{ minHeight: 44 }}
         >
@@ -176,16 +179,22 @@ export default function Dashboard() {
             value: loading ? "..." : artworkCount,
             caption: "Your artwork catalog",
             icon: ColorLensRoundedIcon,
-            tint: "rgba(244, 114, 182, 0.15)",
-            accent: "primary.main",
+            tint: alpha(
+              theme.palette.primary.main,
+              theme.palette.mode === "dark" ? 0.18 : 0.1,
+            ),
+            accent: theme.palette.primary.main,
           },
           {
             label: "ACTIVE ORDERS",
             value: salesLoading ? "..." : salesError ? "—" : sales.orderCount,
             caption: "Excludes cancelled orders",
             icon: SellRoundedIcon,
-            tint: "rgba(34, 197, 94, 0.18)",
-            accent: "success.main",
+            tint: alpha(
+              theme.palette.success.main,
+              theme.palette.mode === "dark" ? 0.19 : 0.12,
+            ),
+            accent: theme.palette.success.main,
           },
           {
             label: "TOTAL SALES",
@@ -196,30 +205,21 @@ export default function Dashboard() {
                 : formatCurrency(sales.revenue),
             caption: "Total revenue generated",
             icon: CreditScoreIcon,
-            tint: "rgba(59, 130, 246, 0.18)",
-            accent: "secondary.main",
+            tint: alpha(
+              theme.palette.secondary.main,
+              theme.palette.mode === "dark" ? 0.18 : 0.1,
+            ),
+            accent: theme.palette.secondary.main,
           },
         ].map(({ label, value, caption, icon: MetricIcon, tint, accent }) => (
           <Card
             key={label}
-            variant="outlined"
             sx={{
-              borderRadius: 4,
-              background: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
-                  : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-              border: "1px solid",
-              borderColor: "divider",
-              boxShadow: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "0 20px 38px rgba(2, 6, 23, 0.28)"
-                  : "0 18px 36px rgba(15, 23, 42, 0.08)",
+              borderRadius: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: "none",
               overflow: "hidden",
-              transition: "transform 180ms ease, box-shadow 180ms ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-              },
             }}
           >
             <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
@@ -234,7 +234,7 @@ export default function Dashboard() {
                 <Box>
                   <Typography
                     sx={{
-                      color: "text.secondary",
+                      color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1.2,
@@ -245,7 +245,7 @@ export default function Dashboard() {
                   <Typography
                     sx={{
                       mt: 1,
-                      color: "text.primary",
+                      color: theme.palette.text.primary,
                       fontSize: 30,
                       fontWeight: 800,
                       lineHeight: 1,
@@ -262,7 +262,7 @@ export default function Dashboard() {
                   <Typography
                     sx={{
                       mt: 1,
-                      color: "text.secondary",
+                      color: theme.palette.text.secondary,
                       fontSize: 12,
                     }}
                   >
@@ -276,17 +276,11 @@ export default function Dashboard() {
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 3,
-                    background: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
-                        : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
+                    backgroundColor: tint,
                     color: accent,
-                    border: (theme) =>
-                      `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)"}`,
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
                   }}
                 >
-                  {createElement(MetricIcon)}
+                  {createElement(MetricIcon, { sx: { fontSize: 26 } })}
                 </Box>
               </Box>
             </CardContent>

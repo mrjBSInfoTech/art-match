@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+*.bak
+*.backup
+*.old
+*.env.bak
+*.env.backup
+

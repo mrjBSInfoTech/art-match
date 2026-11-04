@@ -273,6 +273,15 @@ export default function PurchaseInfo({
             </Typography>
           </Box>
 
+          {Number(rawOrder.processingFee) > 0 && (
+            <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+              <Typography sx={detailLabelSx}>Processing Fee (2% + ₱15.00)</Typography>
+              <Typography sx={detailValueSx}>
+                {formatCurrency(rawOrder.processingFee)}
+              </Typography>
+            </Box>
+          )}
+
           {Number(rawOrder.discount) > 0 && (
             <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
               <Typography sx={detailLabelSx}>Voucher Discount</Typography>

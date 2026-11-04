@@ -1,3 +1,4 @@
+import "./utils/validateEnv.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -24,6 +25,8 @@ import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import adminAdminRoutes from "./routes/admin/admin.js";
 import adminSystemSettingsRoutes from "./routes/admin/systemSettings.js";
 import adminPayoutRoutes from "./routes/admin/payouts.js";
+import adminPayoutPermissionRoutes from "./routes/admin/payoutPermissions.js";
+import adminPayoutAccountRequestRoutes from "./routes/admin/payoutAccountRequests.js";
 import adminDashboardRoutes from "./routes/admin/dashboard.js";
 import sellerPayoutAccountRoutes from "./routes/seller/payouts.js";
 import { ensurePayoutTables } from "./database/payouts.js";
@@ -182,6 +185,8 @@ app.use(
   }),
 );
 app.use(express.urlencoded({ extended: true }));
+app.use("/api/admin/payouts/permissions", adminPayoutPermissionRoutes);
+app.use("/api/admin/payouts/account-requests", adminPayoutAccountRequestRoutes);
 app.use("/api/admin/payouts", adminPayoutRoutes);
 app.use("/api/seller/payout-account", sellerPayoutAccountRoutes);
 
@@ -474,13 +479,17 @@ const serveB2Cached =
     }
   };
 
-const getUploadToken = (req) =>
-  req.cookies?.admin_token ||
-  req.cookies?.seller_token ||
-  req.cookies?.buyer_token ||
-  (req.headers?.authorization?.startsWith("Bearer ")
-    ? req.headers.authorization.split(" ")[1]
-    : null);
+const getUploadToken = (req) => {
+  if (req.query?.token) return null;
+  return (
+    req.cookies?.admin_token ||
+    req.cookies?.seller_token ||
+    req.cookies?.buyer_token ||
+    (req.headers?.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.split(" ")[1]
+      : null)
+  );
+};
 
 const authenticateUploadCaller = (req, res, next) => {
   const token = getUploadToken(req);
@@ -755,35 +764,51 @@ app.get("/uploads/chat/:filename", authenticateUploadCaller, async (req, res, ne
 // =====================================================
 // Seller registration documents (COR) - Authenticated Only
 // =====================================================
-app.get("/uploads/seller/uploadCOR/:filename", authenticateUploadCaller, async (req, res) => {
-  const { filename } = req.params;
-  if (!hasSafeUploadFilename(filename)) {
-    return res.status(400).json({ message: "Invalid filename." });
-  }
-  try {
-    const [owners] = await db.promise().query(
-      "SELECT student_id FROM student WHERE cor = ? LIMIT 1",
-      [filename],
-    );
-    if (!owners.length) return res.status(404).json({ message: "Document not found." });
-    if (req.user.role === "seller" && String(owners[0].student_id) !== String(req.user.student_id)) {
-      return res.status(403).json({ message: "Access denied." });
+app.get(
+  "/uploads/seller/uploadCOR/:filename",
+  (req, res, next) => {
+    if (req.query?.token) {
+      return res.status(400).json({ error: "Passing authentication tokens in query parameters is prohibited. Use HttpOnly cookies or Authorization header." });
     }
-    const filePath = path.join(__dirname, "uploads", "seller", "uploadCOR", filename);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "Document not found." });
+    next();
+  },
+  authenticateUploadCaller,
+  async (req, res) => {
+    const filename = req.params.filename;
+    if (!hasSafeUploadFilename(filename)) {
+      return res.status(400).json({ error: "Invalid filename." });
     }
+    try {
+      const [rows] = await db.promise().query(
+        "SELECT student_id FROM student WHERE cor = ? LIMIT 1",
+        [filename],
+      );
+      const ownerId = rows[0]?.student_id;
+      if (!ownerId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      const adminRoles = ["admin", "superadmin", "super admin", "moderator", "customize"];
+      const callerRole = String(req.user?.role || "").trim().toLowerCase();
+      const isAdmin = adminRoles.includes(callerRole);
+      if (!isAdmin && String(ownerId) !== String(req.user?.student_id)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const filePath = path.join(__dirname, "uploads", "seller", "uploadCOR", filename);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "Document not found" });
+      }
 
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    const ext = path.extname(filename).toLowerCase();
-    const contentType = safeUploadContentTypes[ext] || "application/octet-stream";
-    res.setHeader("Content-Type", contentType);
-    return res.sendFile(filePath);
-  } catch (error) {
-    console.error("Unable to verify seller COR access:", error);
-    return res.status(500).json({ message: "Unable to load registration document." });
-  }
-});
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      const ext = path.extname(filename).toLowerCase();
+      const contentType = safeUploadContentTypes[ext] || "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      return res.sendFile(filePath);
+    } catch (error) {
+      console.error("Unable to verify seller COR access:", error);
+      return res.status(500).json({ error: "Unable to load registration document." });
+    }
+  },
+);
 
 // Serve static files with absolute path.
 // The artwork and COR document directories are excluded from public static access.
