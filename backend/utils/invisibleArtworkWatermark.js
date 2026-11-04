@@ -5,7 +5,6 @@ const QUANTIZATION_STEP = 36;
 const MAGIC = 0xa73d;
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PAYLOAD_BITS = 16 + 32 + 8;
-const MINIMUM_REPETITIONS = 3;
 
 const cosine = Array.from({ length: BLOCK_SIZE }, (_, frequency) =>
   Array.from({ length: BLOCK_SIZE }, (_, position) =>
@@ -167,10 +166,13 @@ export const embedInvisibleArtworkWatermark = (pixels, code) => {
     );
   });
 
-  if (blockCount < bits.length * MINIMUM_REPETITIONS) {
-    throw new Error(
-      `Artwork image has insufficient detail for a redundant invisible watermark (${blockCount} eligible blocks).`,
+  const minimumBlocks = bits.length;
+  if (blockCount < minimumBlocks) {
+    const error = new Error(
+      `Artwork image has insufficient detail for an invisible watermark (${blockCount} eligible blocks).`,
     );
+    error.code = "INSUFFICIENT_WATERMARK_DETAIL";
+    throw error;
   }
   return pixels;
 };
@@ -189,7 +191,7 @@ export const readInvisibleArtworkWatermark = async (source) => {
     votes[bitIndex][bit] += 1;
   });
 
-  if (blockCount < PAYLOAD_BITS * MINIMUM_REPETITIONS) return null;
+  if (blockCount < PAYLOAD_BITS) return null;
   const bits = votes.map(([zero, one]) => (one > zero ? 1 : 0));
   const bytes = Buffer.alloc(Math.ceil(PAYLOAD_BITS / 8));
   bits.forEach((bit, index) => {

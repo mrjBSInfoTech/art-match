@@ -602,6 +602,7 @@ app.get(
         Vary: "Authorization",
         "X-ArtMatch-Watermark-Code": image.code,
         "X-ArtMatch-Invisible-Watermark": "DCT-8x8-v1",
+        "X-ArtMatch-Watermark-Mode": image.watermarkMode,
         "X-ArtMatch-Variant": variant,
         "X-Content-Type-Options": "nosniff",
         "Content-Disposition": "inline",

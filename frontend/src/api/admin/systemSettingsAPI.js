@@ -33,9 +33,9 @@ export const saveAccountExpirationDate = async (date) => {
   }
 };
 
-export const downloadSystemBackup = async () => {
+export const downloadSystemBackup = async (password) => {
   try {
-    const response = await api.get("/backup", {
+    const response = await api.post("/backup", { password }, {
       responseType: "blob",
       timeout: 0,
     });
@@ -56,6 +56,21 @@ export const downloadSystemBackup = async () => {
         throw parseError;
       }
     }
+    throwApiError(error);
+  }
+};
+
+export const importSystemBackup = async (file, password) => {
+  const formData = new FormData();
+  formData.append("backup", file);
+  formData.append("password", password);
+  try {
+    const response = await api.post("/backup/import", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 0,
+    });
+    return response.data;
+  } catch (error) {
     throwApiError(error);
   }
 };

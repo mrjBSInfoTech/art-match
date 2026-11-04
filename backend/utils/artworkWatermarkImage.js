@@ -62,22 +62,45 @@ export const renderWatermarkedArtwork = async (source, code) => {
     .composite([{ input: createWatermarkSvg(outputWidth, outputHeight, code) }])
     .raw()
     .toBuffer({ resolveWithObject: true });
-  embedInvisibleArtworkWatermark(pixels, code);
+  let watermarkMode = "invisible-and-visible";
+  try {
+    embedInvisibleArtworkWatermark(pixels, code);
+  } catch (error) {
+    if (error.code !== "INSUFFICIENT_WATERMARK_DETAIL") throw error;
+    watermarkMode = "visible-only";
+  }
   const output = sharp(pixels.data, { raw: pixels.info });
 
   switch (metadata.format) {
     case "png":
-      return { body: await output.png().toBuffer(), contentType: "image/png" };
+      return {
+        body: await output.png().toBuffer(),
+        contentType: "image/png",
+        watermarkMode,
+      };
     case "webp":
-      return { body: await output.webp({ quality: 95 }).toBuffer(), contentType: "image/webp" };
+      return {
+        body: await output.webp({ quality: 95 }).toBuffer(),
+        contentType: "image/webp",
+        watermarkMode,
+      };
     case "avif":
-      return { body: await output.avif({ quality: 92 }).toBuffer(), contentType: "image/avif" };
+      return {
+        body: await output.avif({ quality: 92 }).toBuffer(),
+        contentType: "image/avif",
+        watermarkMode,
+      };
     case "tiff":
-      return { body: await output.tiff().toBuffer(), contentType: "image/tiff" };
+      return {
+        body: await output.tiff().toBuffer(),
+        contentType: "image/tiff",
+        watermarkMode,
+      };
     default:
       return {
         body: await output.jpeg({ quality: 95, chromaSubsampling: "4:4:4" }).toBuffer(),
         contentType: "image/jpeg",
+        watermarkMode,
       };
   }
 };

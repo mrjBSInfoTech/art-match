@@ -89,3 +89,22 @@ test("embeds an invisible watermark in transparent PNG artwork", async () => {
   assert.equal(await sharp(rendered.body).metadata().then(({ channels }) => channels), 4);
   assert.equal(await readInvisibleArtworkWatermark(rendered.body), "AB23C");
 });
+
+test("serves a visible watermark fallback for low-detail artwork", async () => {
+  const source = await sharp({
+    create: {
+      width: 64,
+      height: 64,
+      channels: 3,
+      background: "#ffffff",
+    },
+  })
+    .png()
+    .toBuffer();
+  const rendered = await renderWatermarkedArtwork(source, "AB23C");
+  const renderedPixels = await sharp(rendered.body).raw().toBuffer();
+
+  assert.equal(rendered.watermarkMode, "visible-only");
+  assert.notDeepEqual(renderedPixels, await sharp(source).raw().toBuffer());
+  assert.equal(await readInvisibleArtworkWatermark(rendered.body), null);
+});

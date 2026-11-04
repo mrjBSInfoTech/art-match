@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
-import { createDatabaseDump } from "./systemBackup.js";
+import {
+  createDatabaseDump,
+  restoreDatabaseDump,
+  splitSqlStatements,
+} from "./systemBackup.js";
 
 test("database backup exports table definitions and streamed rows without generated columns", async () => {
   const queries = [];
@@ -42,6 +46,7 @@ test("database backup exports table definitions and streamed rows without genera
   const dump = chunks.join("");
 
   assert.match(dump, /CREATE TABLE IF NOT EXISTS `order``items`/);
+  assert.match(dump, /DROP TABLE IF EXISTS `order``items`/);
   assert.match(dump, /INSERT INTO `order``items` \(`id`, `note`\) VALUES \(42, 'buyer\\'s request\\nnext line'\)/);
   assert.doesNotMatch(dump, /`calculated`/);
   assert.deepEqual(queries, [
@@ -49,6 +54,26 @@ test("database backup exports table definitions and streamed rows without genera
     "SHOW COLUMNS FROM `order``items`",
     "SELECT * FROM `order``items`",
   ]);
+});
+
+test("backup SQL splitting preserves semicolons inside values", () => {
+  assert.deepEqual(
+    splitSqlStatements("SET NAMES utf8mb4; INSERT INTO `notes` VALUES ('a; b', 'it''s');"),
+    ["SET NAMES utf8mb4", "INSERT INTO `notes` VALUES ('a; b', 'it''s')"],
+  );
+});
+
+test("database restore executes every statement in order", async () => {
+  const statements = [];
+  const connection = {
+    promise: () => ({
+      query: async (statement) => {
+        statements.push(statement);
+      },
+    }),
+  };
+  await restoreDatabaseDump(connection, "SET FOREIGN_KEY_CHECKS=0;\nDROP TABLE `users`;");
+  assert.deepEqual(statements, ["SET FOREIGN_KEY_CHECKS=0", "DROP TABLE `users`"]);
 });
 
 test("database backup exports views without treating them as tables", async () => {

@@ -1,11 +1,18 @@
 import express from "express";
 import { ZipArchive } from "archiver";
+import multer from "multer";
+import unzipper from "unzipper";
+import fs from "node:fs/promises";
+import bcrypt from "bcryptjs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
-import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
+import {
+  normalizeAdminRole,
+  requireAdminPermission,
+} from "../../middleware/adminPermissionMiddleware.js";
 import {
   getAccountExpirationDate,
   getPromotionHeader,
@@ -20,8 +27,16 @@ import {
   reviewPromotionHeaderRequest,
 } from "../../database/promotionHeaderRequests.js";
 import { logAudit } from "../../utils/auditLogger.js";
-import { getFromB2, isB2Configured, listB2Objects } from "../../utils/b2Storage.js";
-import { createDatabaseDump } from "../../utils/systemBackup.js";
+import {
+  getFromB2,
+  isB2Configured,
+  listB2Objects,
+  uploadToB2,
+} from "../../utils/b2Storage.js";
+import {
+  createDatabaseDump,
+  restoreDatabaseDump,
+} from "../../utils/systemBackup.js";
 
 const router = express.Router();
 
@@ -30,6 +45,10 @@ const MAX_QUESTION_LENGTH = 255;
 const MAX_ANSWER_LENGTH = 5000;
 const MAX_PROMOTION_HEADER_MESSAGE_LENGTH = 200;
 const MAX_PROMOTION_HEADER_BUTTON_LABEL_LENGTH = 60;
+const MAX_BACKUP_SIZE_MB = Math.max(
+  500,
+  Number.parseInt(process.env.BACKUP_MAX_SIZE_MB || "2048", 10) || 2048,
+);
 const SYSTEM_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const BACKUP_EXCLUDED_PATHS = [
   "**/node_modules/**",
@@ -51,6 +70,94 @@ const BACKUP_EXCLUDED_PATHS = [
   "**/student-updates.csv",
   "**/verified-student-artworks.csv",
 ];
+const backupUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BACKUP_SIZE_MB * 1024 * 1024 },
+});
+const BACKUP_ROLES = new Set(["super admin", "admin", "moderator"]);
+const BACKUP_IMPORT_ROLES = new Set(["super admin", "admin"]);
+
+const requireSystemBackupAccess = (req, res, next) => {
+  db.query(
+    "SELECT role FROM admin_role WHERE admin_id = ?",
+    [req.user.admin_id],
+    async (error, results) => {
+      if (error) {
+        return res.status(500).json({ message: "Unable to verify backup permissions." });
+      }
+      const role = normalizeAdminRole(results[0]?.role);
+      if (BACKUP_ROLES.has(role)) {
+        req.adminBackupRole = role;
+        return next();
+      }
+      try {
+        await logAudit({
+          action: "SYSTEM_BACKUP_ACCESS_ATTEMPT",
+          actor: req.user.username || req.user.admin_id,
+          role: role || req.user.role || "Unknown",
+          status: "FAILED",
+          information: "Backup export/import attempted by an admin role without backup access.",
+        });
+      } catch (auditError) {
+        console.error("Unable to record denied system backup attempt:", auditError.message);
+      }
+      return res.status(403).json({
+        message: "Only Admin and Semi Admin accounts can export or import backups.",
+      });
+    },
+  );
+};
+
+const requireBackupPassword = async (req, res, next) => {
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (!password) {
+    return res.status(400).json({ message: "Admin password is required." });
+  }
+  try {
+    const [rows] = await db.promise().query(
+      "SELECT password FROM admin WHERE admin_id = ?",
+      [req.user.admin_id],
+    );
+    if (!rows[0] || !(await bcrypt.compare(password, rows[0].password))) {
+      try {
+        await logAudit({
+          action: "SYSTEM_BACKUP_PASSWORD_ATTEMPT",
+          actor: req.user.username || req.user.admin_id,
+          role: req.adminBackupRole,
+          status: "FAILED",
+          information: "Incorrect admin password supplied for a system backup action.",
+        });
+      } catch (auditError) {
+        console.error("Unable to record failed backup password attempt:", auditError.message);
+      }
+      return res.status(401).json({ message: "Incorrect admin password." });
+    }
+    return next();
+  } catch (error) {
+    console.error("Unable to verify backup password:", error.message);
+    return res.status(500).json({ message: "Unable to verify admin password." });
+  }
+};
+
+const requireTrustedBackupImport = async (req, res, next) => {
+  if (BACKUP_IMPORT_ROLES.has(req.adminBackupRole)) {
+    return next();
+  }
+  try {
+    await logAudit({
+      action: "SYSTEM_BACKUP_IMPORT_ACCESS_ATTEMPT",
+      actor: req.user.username || req.user.admin_id,
+      role: req.adminBackupRole || req.user.role || "Unknown",
+      status: "FAILED",
+      information: "Database restore attempted by an admin role without restore access.",
+    });
+  } catch (auditError) {
+    console.error("Unable to record denied backup import attempt:", auditError.message);
+  }
+  return res.status(403).json({
+    message: "Only Admin and Super Admin accounts can import system backups.",
+  });
+};
 
 const validatePromotionHeader = (header) => {
   const message =
@@ -272,10 +379,11 @@ router.put(
   },
 );
 
-router.get(
+router.post(
   "/backup",
   authenticateAdmin,
-  requireAdminPermission("can_edit"),
+  requireSystemBackupAccess,
+  requireBackupPassword,
   async (req, res) => {
     let connection;
     try {
@@ -367,7 +475,7 @@ router.get(
         await logAudit({
           action: "SYSTEM_BACKUP_DOWNLOADED",
           actor: req.user.admin_id,
-          role: "Admin",
+          role: req.adminBackupRole,
           status: "SUCCESS",
           information: `Downloaded system backup archive (${tables.length} database object(s), ${cloudObjects.length} cloud file(s)).`,
         });
@@ -380,6 +488,105 @@ router.get(
         return res.status(500).json({ message: "Unable to create the system backup." });
       }
       if (!res.destroyed) res.destroy(error);
+    } finally {
+      connection?.release();
+    }
+  },
+);
+
+router.post(
+  "/backup/import",
+  authenticateAdmin,
+  requireSystemBackupAccess,
+  requireTrustedBackupImport,
+  backupUpload.single("backup"),
+  requireBackupPassword,
+  async (req, res) => {
+    let connection;
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Choose a system backup ZIP file." });
+      }
+
+      const entries = await unzipper.Open.buffer(req.file.buffer);
+      const databaseEntry = entries.files.find(
+        (entry) => entry.path === "database/backup.sql",
+      );
+      if (!databaseEntry || databaseEntry.type !== "File") {
+        return res.status(400).json({
+          message: "This file is not a valid ArtMatch system backup.",
+        });
+      }
+
+      const databaseSql = await databaseEntry.buffer();
+      if (!databaseSql.toString("utf8").startsWith("-- ArtMatch database backup.")) {
+        return res.status(400).json({
+          message: "This file does not contain a valid ArtMatch database backup.",
+        });
+      }
+
+      connection = await new Promise((resolve, reject) => {
+        db.getConnection((error, result) => (error ? reject(error) : resolve(result)));
+      });
+      await restoreDatabaseDump(connection, databaseSql.toString("utf8"));
+
+      const uploadsRoot = path.resolve(SYSTEM_ROOT, "uploads");
+      let restoredLocalFiles = 0;
+      let restoredCloudFiles = 0;
+      for (const entry of entries.files) {
+        if (entry.type !== "File") continue;
+        if (entry.path.startsWith("system/uploads/")) {
+          const relativePath = path.posix.relative("system/uploads", entry.path);
+          const targetPath = path.resolve(uploadsRoot, ...relativePath.split("/"));
+          if (!targetPath.startsWith(`${uploadsRoot}${path.sep}`)) {
+            throw new Error("Backup contains an invalid local upload path.");
+          }
+          await fs.mkdir(path.dirname(targetPath), { recursive: true });
+          await fs.writeFile(targetPath, await entry.buffer());
+          restoredLocalFiles += 1;
+        } else if (entry.path.startsWith("cloud-storage/") && isB2Configured()) {
+          const key = path.posix.relative("cloud-storage", entry.path);
+          if (!key.startsWith("app-uploads/") || key.includes("../")) {
+            throw new Error("Backup contains an invalid cloud storage path.");
+          }
+          await uploadToB2({
+            key,
+            body: await entry.buffer(),
+          });
+          restoredCloudFiles += 1;
+        }
+      }
+
+      try {
+        await logAudit({
+          action: "SYSTEM_BACKUP_IMPORTED",
+          actor: req.user.admin_id,
+          role: req.adminBackupRole,
+          status: "SUCCESS",
+          information: `Imported system backup (${restoredLocalFiles} local file(s), ${restoredCloudFiles} cloud file(s)).`,
+        });
+      } catch (auditError) {
+        console.error("System backup imported but audit logging failed:", auditError.message);
+      }
+      return res.json({
+        message: "System backup imported successfully.",
+        restoredLocalFiles,
+        restoredCloudFiles,
+      });
+    } catch (error) {
+      console.error("System backup import failed:", error);
+      try {
+        await logAudit({
+          action: "SYSTEM_BACKUP_IMPORTED",
+          actor: req.user.admin_id,
+          role: req.adminBackupRole,
+          status: "FAILED",
+          information: "System backup import failed before completion.",
+        });
+      } catch (auditError) {
+        console.error("Unable to record failed system backup import:", auditError.message);
+      }
+      return res.status(500).json({ message: "Unable to import the system backup." });
     } finally {
       connection?.release();
     }

@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import BackupIcon from "@mui/icons-material/Backup";
+import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
@@ -28,6 +29,7 @@ import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import {
   fetchAccountExpirationDate,
   downloadSystemBackup,
+  importSystemBackup,
   saveAccountExpirationDate,
 } from "../../api/admin/systemSettingsAPI";
 import { useNavigate } from "react-router-dom";
@@ -85,6 +87,8 @@ const getTodayDateValue = () => {
   return `${today.getFullYear()}-${month}-${day}`;
 };
 
+const MAX_BACKUP_SIZE_MB = 2048;
+
 export default function SystemSettingsPlaceholder({ title }) {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -108,6 +112,11 @@ export default function SystemSettingsPlaceholder({ title }) {
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [backupError, setBackupError] = useState("");
   const [backupNotice, setBackupNotice] = useState("");
+  const [importingBackup, setImportingBackup] = useState(false);
+  const [backupFile, setBackupFile] = useState(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [backupPassword, setBackupPassword] = useState("");
+  const [backupAction, setBackupAction] = useState("");
 
   const loadExpiration = useCallback(async () => {
     if (title !== "Mechanicals") return;
@@ -168,12 +177,24 @@ export default function SystemSettingsPlaceholder({ title }) {
     }
   };
 
+  const openExportDialog = () => {
+    setBackupError("");
+    setBackupNotice("");
+    setBackupPassword("");
+    setBackupAction("export");
+    setImportDialogOpen(true);
+  };
+
   const handleDownloadBackup = async () => {
+    if (!backupPassword) {
+      setBackupError("Enter your admin password.");
+      return;
+    }
     setCreatingBackup(true);
     setBackupError("");
     setBackupNotice("");
     try {
-      const { blob, filename } = await downloadSystemBackup();
+      const { blob, filename } = await downloadSystemBackup(backupPassword);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -183,10 +204,58 @@ export default function SystemSettingsPlaceholder({ title }) {
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setBackupNotice("System backup downloaded.");
+      setBackupPassword("");
+      setBackupAction("");
+      setImportDialogOpen(false);
     } catch (error) {
       setBackupError(error.message || "Unable to download the system backup.");
     } finally {
       setCreatingBackup(false);
+    }
+  };
+
+  const handleBackupFileChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    setBackupError("");
+    setBackupNotice("");
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      setBackupError("Choose an ArtMatch backup ZIP file.");
+      return;
+    }
+    if (file.size > MAX_BACKUP_SIZE_MB * 1024 * 1024) {
+      setBackupError(`Backup files must be ${MAX_BACKUP_SIZE_MB}MB or smaller.`);
+      return;
+    }
+    setBackupFile(file);
+    setBackupPassword("");
+    setBackupAction("import");
+    setImportDialogOpen(true);
+  };
+
+  const handleImportBackup = async () => {
+    if (!backupFile) return;
+    if (!backupPassword) {
+      setBackupError("Enter your admin password.");
+      return;
+    }
+    setImportDialogOpen(false);
+    setImportingBackup(true);
+    setBackupError("");
+    setBackupNotice("");
+    try {
+      const result = await importSystemBackup(backupFile, backupPassword);
+      setBackupNotice(
+        `${result.message} ${result.restoredLocalFiles} local file(s) and ${result.restoredCloudFiles} cloud file(s) restored.`,
+      );
+      setBackupFile(null);
+      setBackupPassword("");
+      setBackupAction("");
+    } catch (error) {
+      setBackupError(error.message || "Unable to import the system backup.");
+    } finally {
+      setImportingBackup(false);
     }
   };
 
@@ -624,12 +693,27 @@ export default function SystemSettingsPlaceholder({ title }) {
               <Button
                 variant="outlined"
                 color="error"
-                onClick={handleDownloadBackup}
+                onClick={openExportDialog}
                 disabled={creatingBackup}
                 startIcon={creatingBackup ? <CircularProgress size={16} /> : <BackupIcon />}
                 sx={{ textTransform: "none" }}
               >
                 {creatingBackup ? "Preparing..." : "Download backup"}
+              </Button>
+              <Button
+                component="label"
+                variant="outlined"
+                disabled={importingBackup}
+                startIcon={importingBackup ? <CircularProgress size={16} /> : <UploadFileRoundedIcon />}
+                sx={{ textTransform: "none" }}
+              >
+                {importingBackup ? "Restoring..." : "Import backup"}
+                <input
+                  type="file"
+                  accept=".zip,application/zip"
+                  hidden
+                  onChange={handleBackupFileChange}
+                />
               </Button>
             </Stack>
             {backupError && (
@@ -643,6 +727,65 @@ export default function SystemSettingsPlaceholder({ title }) {
               </Alert>
             )}
           </Paper>
+          <Dialog
+            open={importDialogOpen}
+            onClose={() => {
+              if (!creatingBackup && !importingBackup) {
+                setImportDialogOpen(false);
+                setBackupPassword("");
+                setBackupAction("");
+              }
+            }}
+            aria-labelledby="import-backup-dialog-title"
+          >
+            <DialogTitle id="import-backup-dialog-title">
+              {backupAction === "export" ? "Export system backup" : "Import system backup?"}
+            </DialogTitle>
+            <DialogContent>
+              <DialogContentText>
+                {backupAction === "export"
+                  ? "Confirm your admin password to create a complete system backup."
+                  : "This replaces the current database data and restores backed-up uploads. The current system cannot be automatically undone. Continue only with a trusted ArtMatch backup."}
+              </DialogContentText>
+              {backupFile && (
+                <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
+                  Selected file: {backupFile.name}
+                </Typography>
+              )}
+              <TextField
+                autoFocus
+                fullWidth
+                required
+                type="password"
+                label="Admin password"
+                value={backupPassword}
+                onChange={(event) => {
+                  setBackupPassword(event.target.value);
+                  setBackupError("");
+                }}
+                autoComplete="current-password"
+                sx={{ mt: 2 }}
+              />
+              {backupError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {backupError}
+                </Alert>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setImportDialogOpen(false)}>Cancel</Button>
+              <Button
+                color={backupAction === "export" ? "primary" : "error"}
+                variant="contained"
+                onClick={backupAction === "export" ? handleDownloadBackup : handleImportBackup}
+                disabled={creatingBackup || importingBackup}
+              >
+                {backupAction === "export"
+                  ? (creatingBackup ? "Preparing..." : "Export backup")
+                  : "Replace and restore"}
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Stack>
       )}
     </Box>
