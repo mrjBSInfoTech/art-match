@@ -542,14 +542,6 @@ export default function Artwork() {
         }}
         variant="outlined"
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          aria-live="polite"
-          sx={{ display: "block", mb: 1.5 }}
-        >
-          <strong>{filteredArtworks.length}</strong> artworks shown
-        </Typography>
         <Box
           sx={{
             display: "flex",
@@ -557,8 +549,6 @@ export default function Artwork() {
             justifyContent: "space-between",
             alignItems: { xs: "stretch", md: "center" },
             gap: 2,
-            mb: 2,
-            mt: 2,
           }}
         >
           <TextField

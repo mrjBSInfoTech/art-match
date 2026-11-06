@@ -9,13 +9,9 @@ import {
   InputAdornment,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -24,8 +20,12 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
+import SalesTable from "../../components/admin/Sales/SalesTable";
+import SalesCard from "../../components/admin/Sales/SalesCard";
 
 const transactions = [
   {
@@ -61,6 +61,7 @@ export default function Sales() {
   const theme = useTheme();
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState("table");
 
   const checkConnection = useCallback(async () => {
     try {
@@ -215,6 +216,7 @@ export default function Sales() {
             boxShadow: "none",
             fontSize: 11,
             fontWeight: 700,
+            color:"#fff",
             "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
           }}
         >
@@ -298,14 +300,13 @@ export default function Sales() {
 
       <Paper
         variant="outlined"
-        sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, overflow: "hidden" }}
+        sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, mb: 2 }}
       >
         <Stack
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems={{ xs: "stretch", sm: "center" }}
           gap={1.25}
-          mb={1.5}
         >
           <TextField
             size="small"
@@ -324,140 +325,86 @@ export default function Sales() {
               ),
             }}
           />
-          <Typography sx={{ color: "text.secondary", fontSize: 12 }}>
-            {filteredTransactions.length} transactions recorded
-          </Typography>
         </Stack>
-        <TableContainer sx={{ overflowX: "auto" }}>
-          <Table size="small" sx={{ minWidth: 900 }}>
-            <TableHead
-              sx={{
-                backgroundColor:
-                  theme.palette.mode === "dark"
-                    ? "background.table"
-                    : "#f8fafc",
-              }}
-            >
-              <TableRow>
-                {[
-                  "Artwork",
-                  "Artist",
-                  "Buyer",
-                  "Date",
-                  "Gross Amount",
-                  "Platform Take",
-                  "Net Student Payout",
-                  "Status",
-                ].map((heading) => (
-                  <TableCell
-                    key={heading}
-                    sx={{
-                      py: 1.5,
-                      color: "text.secondary",
-                      fontSize: 10,
-                      fontWeight: 800,
-                      textTransform: "uppercase",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {heading}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredTransactions.map((transaction) => (
-                <TableRow
-                  key={`${transaction.artwork}-${transaction.date}`}
-                  sx={{
-                    "&:last-child td": { borderBottom: 0 },
-                    "&:hover": { backgroundColor: "action.hover" },
-                  }}
-                >
-                  <TableCell
-                    sx={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}
-                  >
-                    {transaction.artwork}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                    {transaction.artist}
-                  </TableCell>
-                  <TableCell sx={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                    {transaction.buyer}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontSize: 12,
-                      color: "text.secondary",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {transaction.date}
-                  </TableCell>
-                  <TableCell
-                    sx={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}
-                  >
-                    {formatCurrency(transaction.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label="₱0 (0%)"
-                      size="small"
-                      sx={{
-                        height: 22,
-                        borderRadius: 1,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        backgroundColor:
-                          theme.palette.mode === "dark" ? "#334155" : "#f1f5f9",
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontSize: 12,
-                      color: "success.main",
-                      fontWeight: 800,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {formatCurrency(transaction.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={transaction.status}
-                      size="small"
-                      sx={{
-                        height: 22,
-                        borderRadius: 1,
-                        color: "success.dark",
-                        backgroundColor:
-                          theme.palette.mode === "dark"
-                            ? "rgba(34, 197, 94, 0.16)"
-                            : "#dcfce7",
-                        fontSize: 10,
-                        fontWeight: 700,
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {filteredTransactions.length === 0 && (
-          <Typography
-            sx={{
-              py: 4,
-              textAlign: "center",
-              color: "text.secondary",
-              fontSize: 12,
-            }}
-          >
-            No transactions match your search.
-          </Typography>
-        )}
       </Paper>
+
+      {/* View Mode Switcher & Summary Count */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 0.5,
+          mb: 1.5,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredTransactions.length} of {transactions.length} transactions recorded
+        </Typography>
+
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(e, next) => {
+            if (next) setViewMode(next);
+          }}
+          size="small"
+          aria-label="Sales presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+              transition: "all 150ms ease",
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": {
+                backgroundColor: theme.palette.error.dark,
+              },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {viewMode === "table" ? (
+        <SalesTable
+          transactions={filteredTransactions}
+          formatCurrency={formatCurrency}
+        />
+      ) : (
+        <SalesCard
+          transactions={filteredTransactions}
+          formatCurrency={formatCurrency}
+        />
+      )}
     </Box>
   );
 }

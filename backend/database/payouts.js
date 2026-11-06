@@ -231,4 +231,18 @@ export async function ensurePayoutTables() {
   await executor.query("DELETE FROM seller_payout_approval_cycle WHERE payout_provider = 'demo' OR payout_mode = 'demo'");
   await executor.query("DELETE FROM seller_payout_attempt WHERE payout_provider = 'demo' OR payout_mode = 'demo' OR provider_reference LIKE 'DEMO-%'");
   await executor.query("DELETE FROM seller_payment_split WHERE payout_provider = 'demo' OR payout_reference LIKE 'DEMO-%' OR provider_reference LIKE 'DEMO-%'");
+
+  // Backfill processing fee for paymongo payment splits that were recorded with 0 processing fee
+  await executor.query(`
+    UPDATE seller_payment_split s
+    JOIN marketplace_order o ON o.order_id = s.order_id
+    SET 
+      s.processing_fee_amount = ROUND(s.gross_amount * 0.02 + 15.00, 2),
+      s.net_amount = GREATEST(0, ROUND(s.gross_amount - (s.gross_amount * 0.02 + 15.00) - s.commission_amount, 2)),
+      s.payout_amount = GREATEST(0, ROUND(s.gross_amount - (s.gross_amount * 0.02 + 15.00) - s.commission_amount - COALESCE(s.refund_amount, 0), 2))
+    WHERE o.payment_method = 'paymongo'
+      AND COALESCE(s.processing_fee_amount, 0) = 0
+      AND s.gross_amount > 0
+      AND s.payout_status NOT IN ('Paid', 'Processing')
+  `).catch((err) => console.warn("Notice: payout processing fee backfill:", err.message));
 }

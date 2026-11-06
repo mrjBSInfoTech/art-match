@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { createElement, useState, useEffect, useMemo, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
 import {
   Alert,
   Box,
+  Card,
+  CardContent,
   CircularProgress,
   FormControl,
   InputAdornment,
@@ -18,8 +20,6 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import SearchIcon from "@mui/icons-material/Search";
-import SwapVertIcon from "@mui/icons-material/SwapVert";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
 import ArtworkVerify from "../../components/admin/Artwork/ArtworkVerify";
 import ArtworkReject from "../../components/admin/Artwork/ArtworkReject";
@@ -29,6 +29,12 @@ import {
   verifyArtwork,
   rejectArtwork,
 } from "../../api/admin/artworkAPI.js";
+// Icons
+import SearchIcon from "@mui/icons-material/Search";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
+import BlockIcon from '@mui/icons-material/Block';
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -75,7 +81,9 @@ export default function Artwork() {
   }, [loadArtworks]);
 
   const normalizeStatus = (artwork) =>
-    String(artwork.request_status || artwork.status || "").trim().toLowerCase();
+    String(artwork.request_status || artwork.status || "")
+      .trim()
+      .toLowerCase();
   const totalPending = allArtworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
     return s === "pending" || s === "pending verification";
@@ -173,10 +181,16 @@ export default function Artwork() {
     return (
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
-          <title>{isVerifiedSection ? "Verified Artworks" : "Art Verification"}</title>
+          <title>
+            {isVerifiedSection ? "Verified Artworks" : "Art Verification"}
+          </title>
         </Helmet>
         <ConnectionErrorPanel
-          title={isVerifiedSection ? "Verified Artworks Unavailable" : "Art Verification Unavailable"}
+          title={
+            isVerifiedSection
+              ? "Verified Artworks Unavailable"
+              : "Art Verification Unavailable"
+          }
           message={errorMessage}
           onRetry={loadArtworks}
         />
@@ -230,9 +244,109 @@ export default function Artwork() {
         </Box>
       </Box>
 
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gap: 2,
+          mb: 2.5,
+        }}
+      >
+        {[
+          {
+            label: "PENDING REVIEW",
+            value: totalPending,
+            caption: "Awaiting verification",
+            icon: PendingActionsOutlinedIcon,
+          },
+          {
+            label: "VERIFIED ARTWORKS",
+            value: totalVerified,
+            caption: "Verified artworks",
+            icon: VerifiedOutlinedIcon,
+          },
+          {
+            label: "REJECTED ARTWORKS",
+            value: totalRejected,
+            caption: "Rejected artworks",
+            icon: BlockIcon,
+          },
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
+          <Card
+            key={label}
+            sx={{
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2.5,
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: theme.palette.text.primary,
+                      fontSize: 30,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: theme.palette.text.secondary,
+                      fontSize: 12,
+                    }}
+                  >
+                    {caption}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: theme.palette.error.main,
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+
       <Paper
         sx={{
-          p: { xs: 1.25, sm: 1.5 },
+          p: { xs: 2, md: 2.5 },
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -287,13 +401,6 @@ export default function Artwork() {
               flexWrap: "wrap",
             }}
           >
-            <Typography
-              variant="caption"
-              sx={{ color: theme.palette.text.secondary, whiteSpace: "nowrap" }}
-            >
-              {isVerifiedSection ? "Verified" : "Status"}:{" "}
-              <strong>{statusCount}</strong>
-            </Typography>
             {!isVerifiedSection && (
               <ToggleButtonGroup
                 exclusive
@@ -311,7 +418,10 @@ export default function Artwork() {
                     borderColor: theme.palette.divider,
                     backgroundColor: theme.palette.background.default,
                   },
-                  "& .MuiToggleButton-root.Mui-selected": { bgcolor: "primary.main", color: "#fff" },
+                  "& .MuiToggleButton-root.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "#fff",
+                  },
                   "& .MuiToggleButton-root.Mui-selected:hover": {
                     backgroundColor: theme.palette.primary.dark,
                   },
@@ -321,7 +431,10 @@ export default function Artwork() {
                 <ToggleButton value="rejected">Rejected</ToggleButton>
               </ToggleButtonGroup>
             )}
-            <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 130 } }}>
+            <FormControl
+              size="small"
+              sx={{ minWidth: { xs: "100%", sm: 130 } }}
+            >
               <Select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
@@ -362,7 +475,11 @@ export default function Artwork() {
             <CircularProgress />
           </Box>
         ) : filteredArtworks.length > 0 ? (
-          <ArtworkCard artworks={filteredArtworks} onVerify={setVerificationArtwork} onReject={setRejectionArtwork} />
+          <ArtworkCard
+            artworks={filteredArtworks}
+            onVerify={setVerificationArtwork}
+            onReject={setRejectionArtwork}
+          />
         ) : (
           <Typography
             color="text.secondary"

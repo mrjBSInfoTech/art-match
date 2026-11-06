@@ -1,28 +1,34 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  InputAdornment,
   Paper,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import SearchIcon from "@mui/icons-material/Search";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+
+import PromotionHeaderCard from "../../components/admin/Event/PromotionHeaderCard";
+import PromotionHeaderTable from "../../components/admin/Event/PromotionHeaderTable";
+import PromotionHeaderForm from "../../components/admin/Event/PromotionHeaderForm";
+import PromotionHeaderReviewDialog from "../../components/admin/Event/PromotionHeaderReviewDialog";
 import {
   fetchPromotionHeaderRequests,
   fetchPromotionHeader,
   reviewPromotionHeaderRequest,
   savePromotionHeader,
 } from "../../api/admin/systemSettingsAPI";
-import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 
 const initialHeader = {
   message: "",
@@ -43,35 +49,24 @@ const canEditPromotionHeader = () => {
 };
 
 export default function PromotionHeader() {
+  const theme = useTheme();
   const [header, setHeader] = useState(initialHeader);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [requests, setRequests] = useState([]);
-  const [requestsOpen, setRequestsOpen] = useState(false);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [reviewingRequestId, setReviewingRequestId] = useState(null);
   const [requestError, setRequestError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [noticeSeverity, setNoticeSeverity] = useState("success");
+
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("card");
+  const [formOpen, setFormOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewingRequestId, setReviewingRequestId] = useState(null);
+
   const canEdit = canEditPromotionHeader();
-
-  const loadRequests = useCallback(async () => {
-    setRequestsLoading(true);
-    setRequestError("");
-    try {
-      setRequests(await fetchPromotionHeaderRequests());
-    } catch (loadError) {
-      setRequestError(
-        loadError.message || "Unable to load promo header requests.",
-      );
-    } finally {
-      setRequestsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadRequests();
-  }, [loadRequests]);
 
   const loadHeader = useCallback(async () => {
     try {
@@ -90,26 +85,36 @@ export default function PromotionHeader() {
     }
   }, []);
 
+  const loadRequests = useCallback(async () => {
+    try {
+      setRequestsLoading(true);
+      setRequestError("");
+      const loadedRequests = await fetchPromotionHeaderRequests();
+      setRequests(Array.isArray(loadedRequests) ? loadedRequests : []);
+    } catch (loadError) {
+      setRequestError(
+        loadError.message || "Unable to load promo header requests.",
+      );
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadHeader();
-  }, [loadHeader]);
+    loadRequests();
+  }, [loadHeader, loadRequests]);
 
-  const updateField = (field) => (event) => {
-    setHeader((current) => ({ ...current, [field]: event.target.value }));
-    setNotice("");
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setNotice("");
+  const handleSaveHeader = async (headerData) => {
     setSaving(true);
     try {
-      const savedHeader = await savePromotionHeader(header);
+      const savedHeader = await savePromotionHeader(headerData);
       setHeader(savedHeader);
-      setNotice("Promo header updated. Buyers will see the new content.");
+      setNotice("Promo header updated successfully. Live for buyers.");
+      setNoticeSeverity("success");
+      setFormOpen(false);
     } catch (saveError) {
-      setError(saveError.message || "Unable to save promo header.");
+      throw saveError;
     } finally {
       setSaving(false);
     }
@@ -129,267 +134,267 @@ export default function PromotionHeader() {
           button_label: request.button_label,
           button_url: request.button_url,
         });
-        setNotice("Promo header request approved and now displayed to buyers.");
+        setNotice("Promo header request approved and now live on buyer banner.");
       } else {
         setNotice("Promo header request rejected.");
       }
+      setNoticeSeverity("success");
     } catch (reviewError) {
-      setRequestError(
-        reviewError.message || "Unable to review promo header request.",
-      );
+      setNotice(reviewError.message || "Unable to review promo header request.");
+      setNoticeSeverity("error");
     } finally {
       setReviewingRequestId(null);
     }
   };
 
-  if (error && !header.message) {
-    return (
-      <ConnectionErrorPanel
-        title="Promo Header Unavailable"
-        message={error}
-        onRetry={loadHeader}
-      />
+  const filteredRequests = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return requests;
+    return requests.filter((r) =>
+      [r.first_name, r.last_name, r.student_number, r.message, r.button_label, r.button_url]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
     );
-  }
+  }, [requests, search]);
 
   return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography variant="h5" fontWeight={800} sx={{ mb: 0.75 }}>
-        Promo Header
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Edit the red announcement strip shown above the buyer navigation.
-      </Typography>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {notice && <Alert severity="success" sx={{ mb: 2 }}>{notice}</Alert>}
-      {!canEdit && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          You have view-only access to this setting.
+    <Box>
+      {/* Notice & Error Alerts */}
+      {notice && (
+        <Alert
+          severity={noticeSeverity}
+          onClose={() => setNotice("")}
+          sx={{ mb: 2 }}
+        >
+          {notice}
         </Alert>
       )}
-      <Button
-        variant="outlined"
-        onClick={() => {
-          setRequestsOpen(true);
-          loadRequests();
-        }}
-        sx={{ mb: 2 }}
-      >
-        Header requests
-        {requests.length > 0 && (
-          <Chip
-            size="small"
-            color="warning"
-            label={requests.length}
-            sx={{ ml: 1 }}
-          />
-        )}
-      </Button>
 
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={loadHeader}>
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
+
+      {!canEdit && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          You have view-only access to promo header management.
+        </Alert>
+      )}
+
+      {/* Search & Actions Bar matching other admin pages */}
       <Paper
-        component="form"
         variant="outlined"
-        onSubmit={handleSubmit}
-        sx={{ p: { xs: 2, sm: 3 }, maxWidth: 760 }}
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: 2.5,
+          backgroundColor: theme.palette.background.paper,
+          borderColor: theme.palette.divider,
+          mb: 2,
+        }}
       >
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <Stack spacing={2.5}>
-            <TextField
-              label="Announcement message"
-              value={header.message}
-              onChange={updateField("message")}
-              required
-              fullWidth
-              multiline
-              minRows={2}
-              inputProps={{ maxLength: 200 }}
-              helperText={`${header.message.length}/200 characters`}
-              disabled={!canEdit || saving}
-            />
-            <TextField
-              label="Button label"
-              value={header.button_label}
-              onChange={updateField("button_label")}
-              required
-              fullWidth
-              inputProps={{ maxLength: 60 }}
-              helperText="Text shown on the right side of the red strip."
-              disabled={!canEdit || saving}
-            />
-            <TextField
-              label="Button destination"
-              value={header.button_url}
-              onChange={updateField("button_url")}
-              required
-              fullWidth
-              placeholder="/buyer/shop"
-              helperText="Enter a site path, for example /buyer/shop."
-              disabled={!canEdit || saving}
-            />
-            <Box
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+          gap={1.5}
+        >
+          <TextField
+            size="small"
+            placeholder="Search student header requests..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{
+              width: { xs: "100%", sm: 360 },
+              "& .MuiInputBase-input": { fontSize: 13 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button
+              variant="outlined"
+              startIcon={<RateReviewOutlinedIcon />}
+              onClick={() => {
+                setReviewOpen(true);
+                loadRequests();
+              }}
               sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 2,
-                flexWrap: "wrap",
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: 13,
+                height: 40,
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.primary,
+                "&:hover": {
+                  borderColor: theme.palette.text.secondary,
+                },
               }}
             >
-              <Box
+              Requests ({requests.length})
+            </Button>
+            {canEdit && (
+              <Button
+                variant="contained"
+                startIcon={<EditOutlinedIcon />}
+                onClick={() => setFormOpen(true)}
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 2,
-                  px: 2,
-                  py: 1.25,
-                  borderRadius: 1,
-                  bgcolor: "background.footer",
-                  color: "common.white",
-                  flex: 1,
-                  minWidth: 220,
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  height: 40,
+                  backgroundColor: "error.main",
+                  color: "#fff",
+                  boxShadow: "none",
+                  "&:hover": {
+                    backgroundColor: "error.dark",
+                    boxShadow: "none",
+                  },
                 }}
               >
-                <Typography variant="body2">{header.message}</Typography>
-                  <Button
-                    type="button"
-                    size="small"
-                    sx={{
-                      color: "inherit",
-                      textTransform: "none",
-                      whiteSpace: "nowrap",
-                    }}
-                    endIcon={<span aria-hidden="true">›</span>}
-                  >
-                    {header.button_label}
-                  </Button>
-                </Box>
-                <Button
-                  type="submit"
-                variant="contained"
-                disabled={!canEdit || saving}
-                startIcon={
-                  saving ? <CircularProgress size={18} color="inherit" /> : null
-                }
-              >
-                {saving ? "Saving..." : "Save header"}
+                Edit Promo Header
               </Button>
-            </Box>
+            )}
           </Stack>
-        )}
+        </Stack>
       </Paper>
-      <Dialog
-        open={requestsOpen}
-        onClose={() => reviewingRequestId === null && setRequestsOpen(false)}
-        fullWidth
-        maxWidth="md"
+
+      {/* View Mode Switcher & Summary Count */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 0.5,
+          mb: 1.5,
+        }}
       >
-        <DialogTitle>Promo header requests ({requests.length})</DialogTitle>
-        <DialogContent dividers>
-          {requestError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {requestError}
-            </Alert>
-          )}
-          {requestsLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-              <CircularProgress />
-            </Box>
-          ) : requests.length === 0 ? (
-            <Alert severity="info">There are no pending promo header requests.</Alert>
-          ) : (
-            <Stack spacing={2}>
-              {requests.map((request) => (
-                <Card key={request.request_id} variant="outlined">
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="flex-start"
-                        spacing={1}
-                      >
-                        <Typography fontWeight={700}>
-                          {request.first_name} {request.last_name}
-                          {request.student_number
-                            ? ` (${request.student_number})`
-                            : ""}
-                        </Typography>
-                        <Chip size="small" color="warning" label="Pending" />
-                      </Stack>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 2,
-                          flexWrap: "wrap",
-                          px: 2,
-                          py: 1.25,
-                          borderRadius: 1,
-                          bgcolor: "background.footer",
-                          color: "common.white",
-                        }}
-                      >
-                        <Typography variant="body2">{request.message}</Typography>
-                        <Button
-                          type="button"
-                          size="small"
-                          sx={{ color: "inherit", textTransform: "none" }}
-                          endIcon={<span aria-hidden="true">›</span>}
-                        >
-                          {request.button_label}
-                        </Button>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Destination: {request.button_url}
-                      </Typography>
-                      <Stack
-                        direction="row"
-                        justifyContent="flex-end"
-                        spacing={1}
-                      >
-                        <Button
-                          color="error"
-                          onClick={() => handleReviewRequest(request, "reject")}
-                          disabled={!canEdit || reviewingRequestId !== null}
-                        >
-                          {reviewingRequestId === request.request_id
-                            ? "Reviewing..."
-                            : "Reject"}
-                        </Button>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          onClick={() => handleReviewRequest(request, "accept")}
-                          disabled={!canEdit || reviewingRequestId !== null}
-                        >
-                          {reviewingRequestId === request.request_id
-                            ? "Reviewing..."
-                            : "Approve & display"}
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            onClick={() => setRequestsOpen(false)}
-            disabled={reviewingRequestId !== null}
-          >
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          {requests.length > 0
+            ? `Showing active header banner and ${filteredRequests.length} pending student requests`
+            : "Showing active header banner"}
+        </Typography>
+
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(e, next) => {
+            if (next) setViewMode(next);
+          }}
+          size="small"
+          aria-label="Promo header presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+              transition: "all 150ms ease",
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": {
+                backgroundColor: theme.palette.error.dark,
+              },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {/* Main Content Area: Cards vs Table */}
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress aria-label="Loading promo header" />
+        </Box>
+      ) : viewMode === "card" ? (
+        <PromotionHeaderCard
+          header={header}
+          requests={filteredRequests}
+          canEdit={canEdit}
+          onEdit={() => setFormOpen(true)}
+          onOpenRequests={() => setReviewOpen(true)}
+          onReviewRequest={handleReviewRequest}
+          reviewingRequestId={reviewingRequestId}
+        />
+      ) : (
+        <PromotionHeaderTable
+          header={header}
+          requests={filteredRequests}
+          canEdit={canEdit}
+          onEdit={() => setFormOpen(true)}
+          onReviewRequest={handleReviewRequest}
+          reviewingRequestId={reviewingRequestId}
+        />
+      )}
+
+      {/* Edit Header Dialog (Strictly designed to match ArtworkForm.jsx) */}
+      <PromotionHeaderForm
+        open={formOpen}
+        onClose={() => {
+          if (!saving) setFormOpen(false);
+        }}
+        onSubmit={handleSaveHeader}
+        initialData={header}
+        saving={saving}
+      />
+
+      {/* Review Header Requests Dialog (Strictly designed to match ArtworkForm.jsx) */}
+      <PromotionHeaderReviewDialog
+        open={reviewOpen}
+        onClose={() => {
+          if (reviewingRequestId === null) setReviewOpen(false);
+        }}
+        requests={requests}
+        loading={requestsLoading}
+        error={requestError}
+        onReview={handleReviewRequest}
+        reviewingRequestId={reviewingRequestId}
+        canEdit={canEdit}
+      />
     </Box>
   );
 }

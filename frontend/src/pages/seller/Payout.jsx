@@ -8,15 +8,21 @@ import {
   Slide,
   Snackbar,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import RefreshOutlinedIcon from "@mui/icons-material/Refresh";
+import ViewListIcon from "@mui/icons-material/ViewList";
+
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import PayoutAccount from "../../components/seller/Payout/PayoutAccount";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
+import PayoutCard from "../../components/seller/Payout/PayoutCard";
 import { payoutErrorMessage } from "../../components/seller/Payout/payoutDisplay";
 
 function SlideTransition(props) {
@@ -42,6 +48,7 @@ export default function SellerPayout() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
+  const [viewMode, setViewMode] = useState("table");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -75,10 +82,7 @@ export default function SellerPayout() {
 
   if (error) {
     return (
-      <ConnectionErrorPanel
-        title="Payouts Unavailable"
-        onRetry={reload}
-      />
+      <ConnectionErrorPanel title="Payouts Unavailable" onRetry={reload} />
     );
   }
 
@@ -87,11 +91,15 @@ export default function SellerPayout() {
       <Helmet>
         <title>Settlement and Payout | Red Nexus Seller</title>
       </Helmet>
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", sm: "center" }}
-        gap={2}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", sm: "center" },
+          gap: 2,
+          mb: 2.5,
+          flexWrap: "wrap",
+        }}
       >
         <Box>
           <Typography variant="h4" fontWeight={800}>
@@ -102,10 +110,25 @@ export default function SellerPayout() {
             nominated account.
           </Typography>
         </Box>
-        <Button startIcon={<RefreshIcon />} onClick={reload} disabled={loading}>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshOutlinedIcon />}
+          onClick={reload}
+          disabled={loading}
+          sx={{
+            width: { xs: "100%", sm: 150 },
+            height: { xs: 38, sm: 44 },
+            minWidth: { xs: 45, sm: 50 },
+            fontSize: { xs: 12, sm: 16 },
+            padding: 0,
+            borderRadius: 1.5,
+            textTransform: "none",
+            fontWeight: 700,
+          }}
+        >
           Refresh
         </Button>
-      </Stack>
+      </Box>
       <Stack spacing={2.5} sx={{ mt: 3 }}>
         <PayoutAccount
           onSaved={() => {
@@ -134,7 +157,77 @@ export default function SellerPayout() {
                   TEST payouts only. No real funds are transferred.
                 </Alert>
               )}
-            <PayoutTable orders={data.orders} />
+            {/* View Mode Switcher & Summary Count */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 1.5,
+                mt: 1,
+                mb: 0.5,
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                aria-live="polite"
+                sx={{ fontWeight: 600 }}
+              >
+                Showing {data.orders?.length || 0} payout records
+              </Typography>
+
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(e, next) => {
+                  if (next) setViewMode(next);
+                }}
+                size="small"
+                aria-label="Payout presentation mode"
+                sx={{
+                  backgroundColor: theme.palette.background.paper,
+                  borderRadius: 2.5,
+                  border: `1px solid ${theme.palette.divider}`,
+                  p: 0.3,
+                  "& .MuiToggleButton-root": {
+                    border: "none",
+                    borderRadius: 2,
+                    px: 1.5,
+                    py: 0.5,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    color: theme.palette.text.secondary,
+                    gap: 0.75,
+                    transition: "all 150ms ease",
+                  },
+                  "& .MuiToggleButton-root.Mui-selected": {
+                    backgroundColor: theme.palette.error.main,
+                    color: "#fff",
+                    "&:hover": {
+                      backgroundColor: theme.palette.error.dark,
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value="card" aria-label="Card view">
+                  <ViewModuleIcon sx={{ fontSize: 18 }} />
+                  Cards
+                </ToggleButton>
+                <ToggleButton value="table" aria-label="Table view">
+                  <ViewListIcon sx={{ fontSize: 18 }} />
+                  Table
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {viewMode === "table" ? (
+              <PayoutTable orders={data.orders} />
+            ) : (
+              <PayoutCard orders={data.orders} />
+            )}
             <Typography variant="caption" color="text.secondary">
               Cash on Delivery orders are handled separately and are not paid
               from the ArtMatch PayMongo Wallet.

@@ -4,45 +4,56 @@ import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ArtworkImage from "../../common/ArtworkImage";
 import { formatCurrency, formatOrderDate } from "./orderPresentation.js";
+import { isPayMongoOrder, calculateProcessingFee } from "../../../utils/orderPayments.js";
+
+const safeAlpha = (color, opacity) => (typeof alpha === "function" ? alpha(color, opacity) : color);
 
 const getStatusPillStyle = (theme, status) => {
+  const warning = theme?.palette?.warning?.main || "#ed6c02";
+  const info = theme?.palette?.info?.main || "#0288d1";
+  const secondary = theme?.palette?.secondary?.main || "#9c27b0";
+  const primary = theme?.palette?.primary?.main || "#d32f2f";
+  const success = theme?.palette?.success?.main || "#2e7d32";
+  const error = theme?.palette?.error?.main || "#d32f2f";
+  const isDark = theme?.palette?.mode === "dark";
+
   const styles = {
     Pending: {
-      bgcolor: alpha(theme.palette.warning.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
-      color: theme.palette.warning.main,
-      borderColor: alpha(theme.palette.warning.main, 0.4),
+      bgcolor: safeAlpha(warning, isDark ? 0.18 : 0.12),
+      color: warning,
+      borderColor: safeAlpha(warning, 0.4),
     },
     Confirmed: {
-      bgcolor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
-      color: theme.palette.info.main,
-      borderColor: alpha(theme.palette.info.main, 0.4),
+      bgcolor: safeAlpha(info, isDark ? 0.18 : 0.12),
+      color: info,
+      borderColor: safeAlpha(info, 0.4),
     },
     Packed: {
-      bgcolor: alpha(theme.palette.secondary.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
-      color: theme.palette.secondary.main,
-      borderColor: alpha(theme.palette.secondary.main, 0.4),
+      bgcolor: safeAlpha(secondary, isDark ? 0.18 : 0.12),
+      color: secondary,
+      borderColor: safeAlpha(secondary, 0.4),
     },
     Shipped: {
-      bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
-      color: theme.palette.primary.main,
-      borderColor: alpha(theme.palette.primary.main, 0.4),
+      bgcolor: safeAlpha(primary, isDark ? 0.18 : 0.12),
+      color: primary,
+      borderColor: safeAlpha(primary, 0.4),
     },
     Delivered: {
-      bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.18 : 0.12),
-      color: theme.palette.success.main,
-      borderColor: alpha(theme.palette.success.main, 0.4),
+      bgcolor: safeAlpha(success, isDark ? 0.18 : 0.12),
+      color: success,
+      borderColor: safeAlpha(success, 0.4),
     },
     Cancelled: {
-      bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.22 : 0.12),
-      color: theme.palette.error.main,
-      borderColor: alpha(theme.palette.error.main, 0.4),
+      bgcolor: safeAlpha(error, isDark ? 0.22 : 0.12),
+      color: error,
+      borderColor: safeAlpha(error, 0.4),
     },
   };
 
   return styles[status] || {
-    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === "dark" ? 0.18 : 0.12),
-    color: theme.palette.text.secondary,
-    borderColor: alpha(theme.palette.grey[500], 0.4),
+    bgcolor: safeAlpha(theme?.palette?.grey?.[500] || "#9e9e9e", isDark ? 0.18 : 0.12),
+    color: theme?.palette?.text?.secondary || "rgba(0, 0, 0, 0.6)",
+    borderColor: safeAlpha(theme?.palette?.grey?.[500] || "#9e9e9e", 0.4),
   };
 };
 
@@ -62,12 +73,16 @@ export default function OrderCard({
     else if (onViewDetails) onViewDetails(order);
   };
 
-  const grossAmount = order.earning?.gross ?? order.total ?? order.subtotal ?? 0;
-  const platformTake = (order.earning?.commission || 0) + (order.earning?.processingFee || 0);
-  const platformTakePercent = order.total && order.total > 0
-    ? Math.round((platformTake / order.total) * 100)
+  const isOnline = isPayMongoOrder(order);
+  const grossAmount = order.earning?.gross ?? order.subtotal ?? order.total ?? 0;
+  const recordedFee = (order.earning?.commission || 0) + (order.earning?.processingFee || 0);
+  const platformTake = recordedFee > 0 ? recordedFee : (isOnline ? calculateProcessingFee(grossAmount) : 0);
+  const platformTakePercent = grossAmount > 0
+    ? Math.round((platformTake / grossAmount) * 100)
     : 0;
-  const netPayout = order.earning?.net ?? order.total ?? grossAmount;
+  const netPayout = order.earning?.net && recordedFee > 0
+    ? order.earning.net
+    : Math.max(0, grossAmount - platformTake);
 
   const artistName = order.sellerName || primaryItem.artistName || "Student Artist";
   const buyerName = order.customer || order.buyerName || "Buyer";
@@ -319,9 +334,9 @@ export default function OrderCard({
           {/* Net Payout */}
           <Box
             sx={{
-              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.12 : 0.08),
+              bgcolor: safeAlpha(theme?.palette?.success?.main || "#2e7d32", theme?.palette?.mode === "dark" ? 0.12 : 0.08),
               border: "1px solid",
-              borderColor: alpha(theme.palette.success.main, 0.35),
+              borderColor: safeAlpha(theme?.palette?.success?.main || "#2e7d32", 0.35),
               borderRadius: 2,
               px: { xs: 1.5, sm: 2 },
               py: 1,

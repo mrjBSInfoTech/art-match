@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Divider,
   FormControl,
+  InputAdornment,
   InputLabel,
   MenuItem,
   Paper,
@@ -28,6 +29,7 @@ import {
 import StarRateRoundedIcon from "@mui/icons-material/StarRateRounded";
 import RateReviewRoundedIcon from "@mui/icons-material/RateReviewRounded";
 import QuestionAnswerRoundedIcon from "@mui/icons-material/QuestionAnswerRounded";
+import SearchIcon from "@mui/icons-material/Search";
 
 const QUICK_RESPONSES = [
   "Thank you for your feedback and support!",
@@ -566,52 +568,98 @@ export default function SellerReviews() {
                   borderRadius: 2.5,
                   backgroundColor: theme.palette.background.paper,
                   borderColor: theme.palette.divider,
+                  containerType: "inline-size",
+                  containerName: "seller-review-filters",
+                  minWidth: 0,
                   mb: 2.5,
                 }}
               >
-                <Autocomplete
-                  fullWidth
-                  id="seller-review-artwork-filter"
-                  options={artworkOptions}
-                  value={
-                    artworkOptions.find(
-                      (option) => option.key === selectedArtwork,
-                    ) || artworkOptions[0]
-                  }
-                  getOptionLabel={(option) => option.title}
-                  isOptionEqualToValue={(option, value) =>
-                    option.key === value.key
-                  }
-                  noOptionsText="No matching artwork"
-                  onChange={(_, option) =>
-                    setSelectedArtwork(option?.key || "all")
-                  }
-                  renderOption={(props, option) => (
-                    <Box component="li" {...props} key={option.key}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        spacing={2}
-                        sx={{ width: "100%", minWidth: 0 }}
-                      >
-                        <Typography noWrap>{option.title}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {option.count}{" "}
-                          {option.count === 1 ? "review" : "reviews"}
-                        </Typography>
-                      </Stack>
-                    </Box>
-                  )}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Categorize by artwork"
-                      placeholder="Search artwork reviews"
-                      helperText="Search by artwork title, then select to filter reviews."
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: { xs: "column", md: "row" },
+                    justifyContent: "space-between",
+                    alignItems: { xs: "stretch", md: "center" },
+                    gap: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: { xs: "column", sm: "row" },
+                      gap: 2,
+                      width: { xs: "100%", md: "auto" },
+                      minWidth: 0,
+                    }}
+                  >
+                    <Autocomplete
+                      fullWidth
+                      id="seller-review-artwork-filter"
+                      sx={{ width: { xs: "100%", sm: 520 }, maxWidth: "100%" }}
+                      options={artworkOptions}
+                      value={
+                        artworkOptions.find(
+                          (option) => option.key === selectedArtwork,
+                        ) || artworkOptions[0]
+                      }
+                      getOptionLabel={(option) => option.title}
+                      isOptionEqualToValue={(option, value) =>
+                        option.key === value.key
+                      }
+                      noOptionsText="No matching artwork"
+                      onChange={(_, option) =>
+                        setSelectedArtwork(option?.key || "all")
+                      }
+                      renderOption={(props, option) => (
+                        <Box component="li" {...props} key={option.key}>
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            spacing={2}
+                            sx={{ width: "100%", minWidth: 0 }}
+                          >
+                            <Typography noWrap>{option.title}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {option.count}{" "}
+                              {option.count === 1 ? "review" : "reviews"}
+                            </Typography>
+                          </Stack>
+                        </Box>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          variant="outlined"
+                          size="small"
+                          placeholder="Search artworks..."
+                          inputProps={{
+                            ...params.inputProps,
+                            "aria-label": "Search reviews by artwork",
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start">
+                                  <SearchIcon />
+                                </InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            ),
+                          }}
+                          sx={{
+                            minWidth: 0,
+                            "& .MuiInputBase-input::placeholder": {
+                              color: theme.palette.text.secondary,
+                              opacity: 1,
+                            },
+                          }}
+                        />
+                      )}
                     />
-                  )}
-                />
+                  </Box>
+                </Box>
               </Paper>
             )}
 

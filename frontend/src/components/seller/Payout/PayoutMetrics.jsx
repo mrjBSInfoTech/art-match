@@ -1,22 +1,101 @@
-import { Card, CardContent, Grid, Typography } from "@mui/material";
+import { createElement } from "react";
+import { Box, Card, CardContent, Grid, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
+import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
+import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import { formatPayoutCurrency } from "./payoutDisplay";
 
 export default function PayoutMetrics({ totals = {} }) {
+  const theme = useTheme();
   const metrics = [
-    ["Held", totals.held, "Delivery, return or refund hold"],
-    ["Eligible", totals.eligible, "Ready for administrator review"],
-    ["Processing", totals.processing, "Awaiting provider confirmation"],
-    ["Paid to seller", totals.paid, "Provider-confirmed transfers"],
+    ["Held", totals.held, "Delivery, return or refund hold", PauseCircleOutlineIcon],
+    ["Eligible", totals.eligible, "Ready for administrator review", TaskAltIcon],
+    ["Processing", totals.processing, "Awaiting provider confirmation", AutorenewIcon],
+    ["Paid to seller", totals.paid, "Provider-confirmed transfers", PaidOutlinedIcon],
   ];
-  return <Grid container spacing={2}>
-    {metrics.map(([label, value, hint]) => <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={label}>
-      <Card variant="outlined" sx={{ height: "100%", borderRadius: 3 }}>
-        <CardContent sx={{ p: 2.5 }}>
-          <Typography variant="body2" color="text.secondary" fontWeight={700}>{label}</Typography>
-          <Typography variant="h5" fontWeight={800} sx={{ my: 0.5 }}>{formatPayoutCurrency(value)}</Typography>
-          <Typography variant="caption" color="text.secondary">{hint}</Typography>
-        </CardContent>
-      </Card>
-    </Grid>)}
-  </Grid>;
+  return (
+    <Grid container spacing={2}>
+      {metrics.map(([label, value, hint, MetricIcon]) => (
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={label}>
+          <Card
+            variant="outlined"
+            sx={{
+              height: "100%",
+              minWidth: 0,
+              borderRadius: 2.5,
+              backgroundColor: theme?.palette?.background?.paper || "#fff",
+              borderColor: theme?.palette?.divider || "rgba(0,0,0,0.12)",
+              boxShadow: "none",
+            }}
+          >
+            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                  minWidth: 0,
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    sx={{
+                      color: theme?.palette?.text?.secondary || "text.secondary",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.5,
+                      color: theme?.palette?.text?.primary || "text.primary",
+                      fontSize: 30,
+                      fontWeight: 800,
+                      lineHeight: 1,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {formatPayoutCurrency(value)}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 1,
+                      color: theme?.palette?.text?.secondary || "text.secondary",
+                      fontSize: 12,
+                    }}
+                  >
+                    {hint}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    width: 54,
+                    height: 54,
+                    flex: "0 0 54px",
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 2,
+                    backgroundColor:
+                      theme?.palette?.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: theme?.palette?.error?.main || "#d32f2f",
+                  }}
+                >
+                  {createElement(MetricIcon)}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
 }

@@ -14,6 +14,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   FormControl,
   InputAdornment,
   InputLabel,
@@ -83,7 +84,9 @@ export default function Inventory() {
     () =>
       products.filter((product) => {
         const detailsStockable = product.artwork_details?.stockable;
-        const productType = String(product.product_type || "").trim().toLowerCase();
+        const productType = String(product.product_type || "")
+          .trim()
+          .toLowerCase();
         const isLegacyNonStockable =
           detailsStockable === undefined ||
           detailsStockable === null ||
@@ -91,7 +94,11 @@ export default function Inventory() {
           detailsStockable === false ||
           detailsStockable === "0" ||
           detailsStockable === 0;
-        return !isLegacyNonStockable && productType !== "digital" && productType !== "customize";
+        return (
+          !isLegacyNonStockable &&
+          productType !== "digital" &&
+          productType !== "customize"
+        );
       }),
     [products],
   );
@@ -154,19 +161,30 @@ export default function Inventory() {
   const saveStock = async (artworkId, direction, quantity) => {
     setSavingProductId(artworkId);
     try {
-      const savedProduct = await adjustInventoryStock(artworkId, direction, quantity);
+      const savedProduct = await adjustInventoryStock(
+        artworkId,
+        direction,
+        quantity,
+      );
       setProducts((current) =>
         current.map((product) =>
           product.artwork_id === artworkId ? savedProduct : product,
         ),
       );
-      showSnackbar(`Stock ${direction === "add" ? "increased" : "reduced"} successfully.`);
+      showSnackbar(
+        `Stock ${direction === "add" ? "increased" : "reduced"} successfully.`,
+      );
     } finally {
       setSavingProductId(null);
     }
   };
 
-  const adjustOptionStock = async (artworkId, optionId, direction, quantity) => {
+  const adjustOptionStock = async (
+    artworkId,
+    optionId,
+    direction,
+    quantity,
+  ) => {
     setSavingProductId(artworkId);
     try {
       const savedProduct = await adjustProductOptionStock(
@@ -181,9 +199,10 @@ export default function Inventory() {
         ),
       );
       showSnackbar(
-        `${direction === "add" ? "Added to" : "Reduced"} ${savedProduct.product_options.find(
-          (option) => option.id === optionId,
-        )?.name || "product"} stock successfully.`,
+        `${direction === "add" ? "Added to" : "Reduced"} ${
+          savedProduct.product_options.find((option) => option.id === optionId)
+            ?.name || "product"
+        } stock successfully.`,
       );
     } finally {
       setSavingProductId(null);
@@ -420,14 +439,6 @@ export default function Inventory() {
         }}
         variant="outlined"
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          aria-live="polite"
-          sx={{ display: "block", mb: 1.5 }}
-        >
-          <strong>{filteredProducts.length}</strong> artworks shown
-        </Typography>
         <Box
           sx={{
             display: "flex",
@@ -435,8 +446,6 @@ export default function Inventory() {
             justifyContent: "space-between",
             alignItems: { xs: "stretch", md: "center" },
             gap: 2,
-            mb: 2,
-            mt: 2,
           }}
         >
           <TextField
@@ -525,8 +534,8 @@ export default function Inventory() {
 
       <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
         {loading ? (
-          <Box sx={{ width: "80%", margin: "0 auto" }}>
-            <LinearProgress color="primary" />
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
           </Box>
         ) : products.length === 0 ? (
           <Typography align="center">No product listings found.</Typography>

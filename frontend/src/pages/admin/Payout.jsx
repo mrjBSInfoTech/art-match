@@ -14,9 +14,13 @@ import {
   Tab,
   Tabs,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import {
   approveAccountChangeRequest,
   approveAdminPermissionRequest,
@@ -40,6 +44,7 @@ import AdminPermissionsPanel from "../../components/admin/Payout/AdminPermission
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
+import PayoutCard from "../../components/seller/Payout/PayoutCard";
 import {
   canPayoutAction,
   canReleasePayout,
@@ -76,6 +81,7 @@ export default function AdminPayout() {
   const [refresh, setRefresh] = useState(0);
   const [status, setStatus] = useState("All");
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("table");
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -352,7 +358,7 @@ export default function AdminPayout() {
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Helmet>
-        <title>Seller Payouts | Red Nexus Admin</title>
+        <title>Seller Payouts | ArtMatch</title>
       </Helmet>
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -511,17 +517,97 @@ export default function AdminPayout() {
                 </Box>
               </Paper>
 
-              <PayoutTable
-                orders={filtered}
-                admin
-                onReview={(payout) => {
-                  setSelected(payout);
-                  setActionError("");
-                  setRefundId("");
-                  setReturnRequestId("");
-                  setApprovalComment("");
+              {/* View Mode Switcher & Summary Count */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 1.5,
+                  mt: 0.5,
+                  mb: 0.5,
                 }}
-              />
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  aria-live="polite"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Showing {filtered.length} of {data?.orders?.length || 0} payout records
+                </Typography>
+
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(e, next) => {
+                    if (next) setViewMode(next);
+                  }}
+                  size="small"
+                  aria-label="Payout presentation mode"
+                  sx={{
+                    backgroundColor: theme.palette.background.paper,
+                    borderRadius: 2.5,
+                    border: `1px solid ${theme.palette.divider}`,
+                    p: 0.3,
+                    "& .MuiToggleButton-root": {
+                      border: "none",
+                      borderRadius: 2,
+                      px: 1.5,
+                      py: 0.5,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textTransform: "none",
+                      color: theme.palette.text.secondary,
+                      gap: 0.75,
+                      transition: "all 150ms ease",
+                    },
+                    "& .MuiToggleButton-root.Mui-selected": {
+                      backgroundColor: theme.palette.error.main,
+                      color: "#fff",
+                      "&:hover": {
+                        backgroundColor: theme.palette.error.dark,
+                      },
+                    },
+                  }}
+                >
+                  <ToggleButton value="card" aria-label="Card view">
+                    <ViewModuleIcon sx={{ fontSize: 18 }} />
+                    Cards
+                  </ToggleButton>
+                  <ToggleButton value="table" aria-label="Table view">
+                    <ViewListIcon sx={{ fontSize: 18 }} />
+                    Table
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {viewMode === "table" ? (
+                <PayoutTable
+                  orders={filtered}
+                  admin
+                  onReview={(payout) => {
+                    setSelected(payout);
+                    setActionError("");
+                    setRefundId("");
+                    setReturnRequestId("");
+                    setApprovalComment("");
+                  }}
+                />
+              ) : (
+                <PayoutCard
+                  orders={filtered}
+                  admin
+                  onReview={(payout) => {
+                    setSelected(payout);
+                    setActionError("");
+                    setRefundId("");
+                    setReturnRequestId("");
+                    setApprovalComment("");
+                  }}
+                />
+              )}
             </>
           )}
         </Stack>

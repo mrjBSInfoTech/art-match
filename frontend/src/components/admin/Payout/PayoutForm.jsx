@@ -180,16 +180,18 @@ export default function PayoutForm({
               </Box>
             )}
             <Box>
-              <Typography variant="caption" color="text.secondary">Payout amount</Typography>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="caption" color="text.secondary">Net student payout</Typography>
+              <Typography variant="h5" fontWeight={800} sx={{ color: "success.main" }}>
                 {formatPayoutCurrency(payoutValue(selected))}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Artwork total {formatPayoutCurrency(selected.gross)} · Refunded {formatPayoutCurrency(selected.refundAmount)}
+                Artwork total {formatPayoutCurrency(selected.gross)}
+                {Number(selected.refundAmount) > 0 && ` · Refunded −${formatPayoutCurrency(selected.refundAmount)}`}
+                {Number(selected.processingFee || 0) > 0 && ` · Fee −${formatPayoutCurrency(selected.processingFee)}`}
               </Typography>
-              {(Number(selected.commission) > 0 || Number(selected.processingFee) > 0) && (
-                <Typography variant="body2" color="text.secondary">
-                  Recorded commission {formatPayoutCurrency(selected.commission)} · Recorded processing fee {formatPayoutCurrency(selected.processingFee)}
+              {(Number(selected.commission) > 0) && (
+                <Typography variant="caption" color="text.secondary" display="block">
+                  Recorded commission {formatPayoutCurrency(selected.commission)}
                 </Typography>
               )}
             </Box>

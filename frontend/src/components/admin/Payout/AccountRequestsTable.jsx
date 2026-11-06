@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -20,14 +21,24 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import React from "react";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CloseIcon from "@mui/icons-material/Close";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { formatPayoutDate } from "../../seller/Payout/payoutDisplay";
+
+const safeAlpha = (color, opacity) =>
+  typeof alpha === "function" ? alpha(color, opacity) : color;
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -41,6 +52,377 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
+function SingleAccountRequestCard({ req, busy, onReview, getStatusChip }) {
+  const theme = useTheme();
+  const isDark = theme?.palette?.mode === "dark";
+
+  return (
+    <Paper
+      component="article"
+      role="button"
+      tabIndex={0}
+      elevation={0}
+      onClick={onReview}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onReview();
+        }
+      }}
+      sx={{
+        p: { xs: 2, sm: 2.5 },
+        borderRadius: 3.5,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        cursor: "pointer",
+        transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "&:hover": {
+          boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)",
+          borderColor: "primary.light",
+          transform: "translateY(-1px)",
+        },
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.main",
+          outlineOffset: "2px",
+        },
+      }}
+    >
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        alignItems={{ xs: "flex-start", md: "center" }}
+        justifyContent="space-between"
+        spacing={2}
+      >
+        {/* Left Side: Icon Box + Details */}
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+          {/* Avatar thumbnail container */}
+          {(() => {
+            const rawImg = req.studentAvatar || req.studentImage;
+            const fullImg = rawImg
+              ? (rawImg.startsWith("http") || rawImg.startsWith("data:")
+                  ? rawImg
+                  : `http://localhost:5000${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
+              : null;
+            return (
+              <Box
+                sx={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 2.5,
+                  bgcolor: "background.default",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  overflow: "hidden",
+                }}
+              >
+                {fullImg ? (
+                  <Box
+                    component="img"
+                    src={fullImg}
+                    alt={req.studentName}
+                    sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      if (e.target.nextElementSibling) {
+                        e.target.nextElementSibling.style.display = "flex";
+                      }
+                    }}
+                  />
+                ) : null}
+                <Avatar
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 2,
+                    bgcolor: safeAlpha(theme.palette.error.main, 0.12),
+                    color: "error.main",
+                    fontWeight: 800,
+                    fontSize: 20,
+                    display: fullImg ? "none" : "flex",
+                  }}
+                >
+                  {req.studentName ? req.studentName.charAt(0).toUpperCase() : "S"}
+                </Avatar>
+              </Box>
+            );
+          })()}
+
+          <Box sx={{ minWidth: 0 }}>
+            {/* Title & Status */}
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.35 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 800,
+                  color: "text.primary",
+                  lineHeight: 1.3,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {req.studentName}
+              </Typography>
+              {getStatusChip(req.status)}
+              <Chip
+                label={req.institutionName}
+                size="small"
+                variant="outlined"
+                sx={{ height: 22, fontSize: 11, fontWeight: 700, borderRadius: "16px" }}
+              />
+              {req.userVoted && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label="You voted"
+                  color="info"
+                  sx={{ height: 22, fontSize: 10, fontWeight: 700, borderRadius: "16px" }}
+                />
+              )}
+            </Stack>
+
+            {/* Email & Subtitle */}
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                fontSize: 13,
+                fontWeight: 500,
+                mb: 0.35,
+              }}
+            >
+              Email: <strong style={{ color: "inherit" }}>{req.studentEmail}</strong> · Student ID: <strong style={{ color: "inherit" }}>#{req.studentId}</strong>
+            </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                fontSize: 13,
+                fontWeight: 500,
+                mb: 0.35,
+              }}
+            >
+              Requested: <strong style={{ color: "inherit" }}>{req.institutionName} ({req.accountName} · {req.maskedAccountNumber})</strong>
+              {req.currentDestination ? (
+                <> · Active: {req.currentDestination.institutionName} ({req.currentDestination.maskedAccountNumber})</>
+              ) : (
+                <> · No active destination</>
+              )}
+            </Typography>
+
+            {/* Date */}
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+              <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
+                Requested on: {formatPayoutDate(req.requestedAt)}
+              </Typography>
+            </Stack>
+          </Box>
+        </Stack>
+
+        {/* Right Side Stat Boxes */}
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="center"
+          sx={{
+            width: { xs: "100%", md: "auto" },
+            justifyContent: { xs: "space-between", md: "flex-end" },
+            pt: { xs: 1, md: 0 },
+            borderTop: { xs: "1px solid", md: "none" },
+            borderColor: { xs: "divider", md: "transparent" },
+          }}
+        >
+          {/* Destination */}
+          <Box
+            sx={{
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              px: { xs: 1.5, sm: 2 },
+              py: 1,
+              textAlign: "center",
+              minWidth: { xs: "auto", sm: 115 },
+              flex: { xs: 1, md: "initial" },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "text.secondary",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              DESTINATION
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                color: "text.primary",
+                fontSize: 13,
+                mt: 0.25,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: 130,
+              }}
+            >
+              {req.institutionName}
+            </Typography>
+          </Box>
+
+          {/* Approval Progress */}
+          <Box
+            sx={{
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              px: { xs: 1.5, sm: 2 },
+              py: 1,
+              textAlign: "center",
+              minWidth: { xs: "auto", sm: 120 },
+              flex: { xs: 1, md: "initial" },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 700,
+                color: "text.secondary",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              APPROVALS
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                color: "text.primary",
+                fontSize: 13,
+                mt: 0.25,
+              }}
+            >
+              {req.approvalCount} / {req.requiredApprovals || 3}
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={Math.min(100, Math.round((req.approvalCount / (req.requiredApprovals || 3)) * 100))}
+              color={req.status === "Approved" ? "success" : req.status === "Rejected" ? "error" : "warning"}
+              sx={{ height: 4, borderRadius: 2, mt: 0.5 }}
+            />
+          </Box>
+
+          {/* Status Box */}
+          <Box
+            sx={{
+              bgcolor: safeAlpha(
+                req.status === "Approved"
+                  ? theme.palette.success.main
+                  : req.status === "Rejected"
+                  ? theme.palette.error.main
+                  : theme.palette.warning.main,
+                isDark ? 0.12 : 0.08
+              ),
+              border: "1px solid",
+              borderColor: safeAlpha(
+                req.status === "Approved"
+                  ? theme.palette.success.main
+                  : req.status === "Rejected"
+                  ? theme.palette.error.main
+                  : theme.palette.warning.main,
+                0.35
+              ),
+              borderRadius: 2,
+              px: { xs: 1.5, sm: 2 },
+              py: 1,
+              textAlign: "center",
+              minWidth: { xs: "auto", sm: 100 },
+              flex: { xs: 1, md: "initial" },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 700,
+                color:
+                  req.status === "Approved"
+                    ? "success.main"
+                    : req.status === "Rejected"
+                    ? "error.main"
+                    : "warning.main",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              STATUS
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                color:
+                  req.status === "Approved"
+                    ? "success.main"
+                    : req.status === "Rejected"
+                    ? "error.main"
+                    : "warning.main",
+                fontSize: 13,
+                mt: 0.25,
+              }}
+            >
+              {req.status}
+            </Typography>
+          </Box>
+
+          {/* Review Action Button */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReview();
+            }}
+            disabled={busy}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              height: 42,
+              px: 2,
+              borderColor: "primary.main",
+              color: "primary.main",
+              "&:hover": {
+                borderColor: "primary.dark",
+                backgroundColor: safeAlpha(theme.palette.primary.main, 0.08),
+              },
+            }}
+          >
+            Review
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
 export default function AccountRequestsTable({
   requests = [],
   loading = false,
@@ -48,11 +430,13 @@ export default function AccountRequestsTable({
   onReject,
   busy = false,
 }) {
+  const theme = useTheme();
   const [selected, setSelected] = useState(null);
   const [dialogMode, setDialogMode] = useState("review"); // 'review' | 'reject'
   const [comment, setComment] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("table");
 
   const filtered = requests.filter((r) => {
     const matchesStatus = filterStatus === "All" || r.status === filterStatus;
@@ -121,103 +505,200 @@ export default function AccountRequestsTable({
         </Box>
       </Paper>
 
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: "auto" }}>
-        <Table size="medium">
-          <TableHead sx={{ bgcolor: "action.hover" }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>Student</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Requested Destination</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Current Destination</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Approval Progress</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Requested Date</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filtered.length === 0 ? (
+      {/* View Mode Switcher & Summary Count */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 0.5,
+          mb: 0.5,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filtered.length} of {requests.length} requests
+        </Typography>
+
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(e, next) => {
+            if (next) setViewMode(next);
+          }}
+          size="small"
+          aria-label="Presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+              transition: "all 150ms ease",
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": {
+                backgroundColor: theme.palette.error.dark,
+              },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {viewMode === "table" ? (
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: "auto" }}>
+          <Table size="medium">
+            <TableHead sx={{ bgcolor: "action.hover" }}>
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {loading ? "Loading requests…" : "No payout method change requests found."}
-                  </Typography>
-                </TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Student</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Requested Destination</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Current Destination</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Approval Progress</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Requested Date</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>Action</TableCell>
               </TableRow>
-            ) : (
-              filtered.map((req) => (
-                <TableRow key={req.requestId} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={700}>
-                      {req.studentName}
+            </TableHead>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {loading ? "Loading requests…" : "No payout method change requests found."}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {req.studentEmail}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>
-                      {req.institutionName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {req.accountName} · {req.maskedAccountNumber}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {req.currentDestination ? (
-                      <>
-                        <Typography variant="body2">
-                          {req.currentDestination.institutionName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          {req.currentDestination.accountName} · {req.currentDestination.maskedAccountNumber}
-                        </Typography>
-                      </>
-                    ) : (
-                      <Typography variant="caption" color="text.secondary">
-                        None configured
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ minWidth: 150 }}>
-                    <Stack spacing={0.5}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="caption" fontWeight={700}>
-                          {req.approvalCount} / {req.requiredApprovals || 3} Approvals
-                        </Typography>
-                        {req.userVoted && (
-                          <Chip size="small" variant="outlined" label="You voted" color="info" sx={{ height: 20, fontSize: 10 }} />
-                        )}
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(100, Math.round((req.approvalCount / (req.requiredApprovals || 3)) * 100))}
-                        color={req.status === "Approved" ? "success" : req.status === "Rejected" ? "error" : "warning"}
-                        sx={{ height: 6, borderRadius: 3 }}
-                      />
-                    </Stack>
-                  </TableCell>
-                  <TableCell>{getStatusChip(req.status)}</TableCell>
-                  <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatPayoutDate(req.requestedAt)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => openReview(req)}
-                      disabled={busy}
-                    >
-                      Review
-                    </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              ) : (
+                filtered.map((req) => (
+                  <TableRow key={req.requestId} hover>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={700}>
+                        {req.studentName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {req.studentEmail}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>
+                        {req.institutionName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {req.accountName} · {req.maskedAccountNumber}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {req.currentDestination ? (
+                        <>
+                          <Typography variant="body2">
+                            {req.currentDestination.institutionName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {req.currentDestination.accountName} · {req.currentDestination.maskedAccountNumber}
+                          </Typography>
+                        </>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">
+                          None configured
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 150 }}>
+                      <Stack spacing={0.5}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" fontWeight={700}>
+                            {req.approvalCount} / {req.requiredApprovals || 3} Approvals
+                          </Typography>
+                          {req.userVoted && (
+                            <Chip size="small" variant="outlined" label="You voted" color="info" sx={{ height: 20, fontSize: 10 }} />
+                          )}
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(100, Math.round((req.approvalCount / (req.requiredApprovals || 3)) * 100))}
+                          color={req.status === "Approved" ? "success" : req.status === "Rejected" ? "error" : "warning"}
+                          sx={{ height: 6, borderRadius: 3 }}
+                        />
+                      </Stack>
+                    </TableCell>
+                    <TableCell>{getStatusChip(req.status)}</TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatPayoutDate(req.requestedAt)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => openReview(req)}
+                        disabled={busy}
+                      >
+                        Review
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <Stack spacing={2}>
+          {filtered.length === 0 ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 4,
+                borderRadius: 3,
+                textAlign: "center",
+                border: "1px dashed",
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                {loading ? "Loading requests…" : "No payout method change requests found."}
+              </Typography>
+            </Paper>
+          ) : (
+            filtered.map((req) => (
+              <SingleAccountRequestCard
+                key={req.requestId}
+                req={req}
+                busy={busy}
+                onReview={() => openReview(req)}
+                getStatusChip={getStatusChip}
+              />
+            ))
+          )}
+        </Stack>
+      )}
 
       {/* Review Dialog */}
       <Dialog

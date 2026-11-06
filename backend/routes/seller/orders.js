@@ -93,7 +93,8 @@ router.get("/", authenticateSeller, (req, res) => {
        o.shipping_barangay, o.shipping_city, o.shipping_province,
        o.shipping_region, o.shipping_postal_code, o.parcel_photos, o.received_photos,
        o.courier, o.tracking_number, o.tracking_url, o.handling_instructions, i.order_item_id,
-       i.artwork_id, i.title, i.artist_name, i.image, i.unit_price, i.quantity,
+       i.artwork_id, COALESCE(NULLIF(i.title, ''), a.title) AS title, i.artist_name,
+       COALESCE(NULLIF(i.image, ''), a.image) AS image, i.unit_price, i.quantity,
        i.product_option_id, i.product_option_name,
        i.selected_products, i.line_total, i.original_line_total, i.order_note,
        s.gross_amount, s.commission_amount, s.processing_fee_amount,
@@ -101,6 +102,7 @@ router.get("/", authenticateSeller, (req, res) => {
      FROM marketplace_order o
      LEFT JOIN student st ON st.student_id = o.seller_id
      LEFT JOIN marketplace_order_item i ON i.order_id = o.order_id
+     LEFT JOIN artwork a ON a.artwork_id = i.artwork_id
      LEFT JOIN customer c ON c.customer_id = o.customer_id
      LEFT JOIN seller_payment_split s ON s.order_id = o.order_id
      WHERE o.seller_id = ?

@@ -1,5 +1,7 @@
 // Eligibility deliberately has no provider HTTP calls. Reading earnings can
 // release a hold, but can never move money or retry a failed transfer.
+import { calculateProcessingFee } from "./paymentSplit.js";
+
 const query = async (executor, sql, params = []) => (await executor.query(sql, params))[0];
 const protectedStatuses = new Set(["Processing", "Paid"]);
 const activeReturnStatuses = new Set(["Requested", "Approved", "Return Shipped", "Received"]);
@@ -118,9 +120,28 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
 
   try {
     const gross = payoutToCentavos(split.gross_amount, { allowZero: false });
-    const net = payoutToCentavos(split.net_amount);
+    let net = payoutToCentavos(split.net_amount);
     const commission = payoutToCentavos(split.commission_amount);
-    const fee = payoutToCentavos(split.processing_fee_amount);
+    let fee = payoutToCentavos(split.processing_fee_amount);
+
+    // If order was paid via PayMongo and processing fee was unrecorded (0), derive and apply it
+    if (order.payment_method === "paymongo" && fee === 0 && gross > 0) {
+      const calculatedFeePesos = calculateProcessingFee(split.gross_amount);
+      const calculatedFeeCentavos = Math.round(calculatedFeePesos * 100);
+      if (calculatedFeeCentavos > 0) {
+        fee = calculatedFeeCentavos;
+        net = Math.max(0, gross - commission - fee);
+        if (!protectedStatuses.has(split.payout_status)) {
+          await query(executor, `UPDATE seller_payment_split
+            SET processing_fee_amount = ?, net_amount = ?
+            WHERE split_id = ? AND payout_status NOT IN ('Processing', 'Paid')`,
+            [fee / 100, net / 100, split.split_id]);
+          split.processing_fee_amount = fee / 100;
+          split.net_amount = net / 100;
+        }
+      }
+    }
+
     const subtotal = payoutToCentavos(order.subtotal, { allowZero: false });
     const shipping = payoutToCentavos(order.shipping_fee);
     const total = payoutToCentavos(order.total_amount, { allowZero: false });

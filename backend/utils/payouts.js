@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import db from "../database/db.js";
 import * as providerApi from "./payoutProvider.js";
+import { calculateProcessingFee } from "./paymentSplit.js";
 import { getPayoutHoldPolicy, loadPayoutEligibility, refreshSellerPayoutEligibility, payoutToCentavos } from "./payoutEligibility.js";
 import { encryptPayoutAccount, decryptPayoutAccount, payoutAccountDto, maskPayoutAccount } from "./payoutAccount.js";
 import { logAudit } from "./auditLogger.js";
@@ -241,7 +242,9 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       pa.student_id AS account_student_id,pa.destination_type,pa.institution_code,pa.institution_name,pa.institution_provider,
       pa.account_name,pa.account_number_ciphertext,
       (SELECT GROUP_CONCAT(DISTINCT rr.status ORDER BY rr.status SEPARATOR ', ') FROM marketplace_return_request rr WHERE rr.order_id=s.order_id) AS return_statuses,
-      (SELECT GROUP_CONCAT(DISTINCT rf.status ORDER BY rf.status SEPARATOR ', ') FROM seller_order_refund rf WHERE rf.order_id=s.order_id) AS refund_statuses
+      (SELECT GROUP_CONCAT(DISTINCT rf.status ORDER BY rf.status SEPARATOR ', ') FROM seller_order_refund rf WHERE rf.order_id=s.order_id) AS refund_statuses,
+      (SELECT COALESCE(NULLIF(i.image, ''), a.image) FROM marketplace_order_item i LEFT JOIN artwork a ON a.artwork_id = i.artwork_id WHERE i.order_id=s.order_id LIMIT 1) AS artwork_image,
+      (SELECT COALESCE(NULLIF(i.title, ''), a.title) FROM marketplace_order_item i LEFT JOIN artwork a ON a.artwork_id = i.artwork_id WHERE i.order_id=s.order_id LIMIT 1) AS artwork_title
       FROM seller_payment_split s JOIN marketplace_order o ON o.order_id=s.order_id
       JOIN student st ON st.student_id=s.seller_id LEFT JOIN seller_payout_account pa ON pa.student_id=s.seller_id
       WHERE ${filters.join(" AND ")} ORDER BY s.created_at DESC,s.split_id DESC`, params);
@@ -257,13 +260,24 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         payoutApprovalSnapshot(current, row, configuredProviderName()) !== cycle.snapshot_hash));
       if (snapshotChanged) await invalidateCycle(pool, cycle, "Payout eligibility, amount, destination, provider or requester permissions changed. Request fresh approvals.");
       const approval = payoutApprovalDto(cycle, decisions, { snapshotChanged });
+      const effectiveFee = Number(row.processing_fee_amount) > 0
+        ? Number(row.processing_fee_amount)
+        : (row.payment_method === "paymongo" ? calculateProcessingFee(row.gross_amount) : 0);
+      const effectiveNet = Number(row.processing_fee_amount) > 0
+        ? Number(row.net_amount)
+        : Math.max(0, Number(row.gross_amount) - Number(row.commission_amount) - effectiveFee);
+      const effectivePayout = current?.payoutAmountCentavos != null
+        ? current.payoutAmountCentavos / 100
+        : Math.max(0, effectiveNet - Number(row.refund_amount || 0));
+
       return {
       payoutId: row.split_id, splitId: row.split_id, orderId: row.order_id,
       orderNumber: row.order_number || `AM-${String(row.order_id).padStart(6, "0")}`,
+      artworkImage: row.artwork_image || null, artworkTitle: row.artwork_title || null,
       sellerId: row.seller_id, sellerName: row.seller_name, status: row.order_status,
       paymentMethod: row.payment_method, paymentStatus: row.payment_status, paidAt: row.buyer_paid_at,
-      gross: Number(row.gross_amount), commission: Number(row.commission_amount), processingFee: Number(row.processing_fee_amount),
-      net: Number(row.net_amount), refundAmount: Number(row.refund_amount || 0), payoutAmount: Number(row.payout_amount || 0),
+      gross: Number(row.gross_amount), commission: Number(row.commission_amount), processingFee: effectiveFee,
+      net: effectiveNet, refundAmount: Number(row.refund_amount || 0), payoutAmount: effectivePayout,
       payoutStatus: row.payout_status, payoutReference: row.payout_reference,
       providerBatchId: row.provider_batch_id || null,
       providerTransferId: row.provider_transfer_id, holdReason: row.hold_reason, failureReason: row.failure_reason,
@@ -634,7 +648,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     const filterStatus = status && status !== "All" ? status : null;
     const reqRows = await rows(pool, `
       SELECT r.*,
-        st.first_name, st.last_name, st.email,
+        st.first_name, st.last_name, st.email, st.profile_image,
         pa.destination_type AS current_destination_type,
         pa.institution_code AS current_institution_code,
         pa.institution_name AS current_institution_name,
@@ -706,6 +720,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         studentId: r.student_id,
         studentName: `${r.first_name || ""} ${r.last_name || ""}`.trim() || `Student ${r.student_id}`,
         studentEmail: r.email || "",
+        studentAvatar: r.profile_image ? (r.profile_image.startsWith("http") ? r.profile_image : `/uploads/seller/uploadProfile/${encodeURIComponent(r.profile_image)}`) : null,
         status: r.status,
         destinationType: r.destination_type,
         institutionCode: r.institution_code,
@@ -928,6 +943,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       SELECT p.*,
         CONCAT(a.first_name, ' ', a.last_name) AS admin_name,
         a.email AS admin_email,
+        a.image AS admin_image,
         r.role AS admin_role,
         CONCAT(rev.first_name, ' ', rev.last_name) AS reviewer_name
       FROM admin_payout_permission_request p
@@ -943,6 +959,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         adminId: r.admin_id,
         adminName: r.admin_name,
         adminEmail: r.admin_email,
+        adminAvatar: r.admin_image ? (r.admin_image.startsWith("http") ? r.admin_image : `/uploads/admin/uploadAdmin/${encodeURIComponent(r.admin_image)}`) : null,
         adminRole: r.admin_role,
         status: r.status,
         reason: r.reason,

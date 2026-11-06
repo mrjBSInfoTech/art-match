@@ -36,6 +36,7 @@ import {
   isPayMongoOrder,
   isPlacedOrder,
   needsPaymentSupport,
+  calculateProcessingFee,
 } from "../../../utils/orderPayments.js";
 import { formatCurrency, formatOrderDate } from "./orderPresentation.js";
 import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
@@ -402,13 +403,17 @@ export default function OrderDetail() {
   }
 
   // Presentation Calculations
-  const grossAmount = order.earning?.gross ?? order.total ?? order.subtotal ?? 0;
-  const platformTake = (order.earning?.commission || 0) + (order.earning?.processingFee || 0);
+  const isOnline = isPayMongoOrder(order);
+  const grossAmount = order.earning?.gross ?? order.subtotal ?? order.total ?? 0;
+  const recordedFee = (order.earning?.commission || 0) + (order.earning?.processingFee || 0);
+  const platformTake = recordedFee > 0 ? recordedFee : (isOnline ? calculateProcessingFee(grossAmount) : 0);
   const platformTakePercent =
-    order.total && order.total > 0
-      ? Math.round((platformTake / order.total) * 100)
+    grossAmount > 0
+      ? Math.round((platformTake / grossAmount) * 100)
       : 0;
-  const netPayout = order.earning?.net ?? order.total ?? grossAmount;
+  const netPayout = order.earning?.net && recordedFee > 0
+    ? order.earning.net
+    : Math.max(0, grossAmount - platformTake);
 
   const isMeetup = order.deliveryMethod === "pickup";
   const artworkTitle = primaryItem.title || "Artwork";
@@ -815,7 +820,7 @@ export default function OrderDetail() {
           >
             <CheckCircleOutlinedIcon sx={{ color: "#16a34a", fontSize: 22, flexShrink: 0 }} />
             <Typography sx={{ color: "#166534", fontSize: 13, fontWeight: 600 }}>
-              100% payout disbursed directly to registered student bank account via InstaPay.
+              Net payout (after payment processing fee deduction) disbursed directly to registered student bank account via InstaPay.
             </Typography>
           </Box>
 

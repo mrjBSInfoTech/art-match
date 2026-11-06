@@ -1,3 +1,5 @@
+import { calculateProcessingFee } from "../../../utils/orderPayments.js";
+
 export const formatPayoutCurrency = (value) => new Intl.NumberFormat("en-PH", {
   style: "currency", currency: "PHP",
 }).format(Number(value || 0));
@@ -24,7 +26,29 @@ export const payoutStatusMessage = {
   Reversed: "This payout has been reversed.",
 };
 
-export const payoutValue = (payout) => payout?.payoutAmount ?? payout?.net ?? 0;
+export const getPayoutProcessingFee = (payout) => {
+  const recorded = Number(payout?.processingFee || 0);
+  if (recorded > 0) return recorded;
+  const method = String(payout?.paymentMethod || "").toLowerCase();
+  if (method === "paymongo" || !method) {
+    return calculateProcessingFee(Number(payout?.gross || 0));
+  }
+  return 0;
+};
+
+export const getPayoutNet = (payout) => {
+  const gross = Number(payout?.gross || 0);
+  const fee = getPayoutProcessingFee(payout);
+  const commission = Number(payout?.commission || 0);
+  const refund = Number(payout?.refundAmount || 0);
+
+  if (Number(payout?.processingFee) > 0 && payout?.payoutAmount !== undefined && payout?.payoutAmount !== null) {
+    return Number(payout.payoutAmount);
+  }
+  return Math.max(0, gross - fee - commission - refund);
+};
+
+export const payoutValue = (payout) => getPayoutNet(payout);
 export const payoutIdentifier = (payout) => payout?.payoutId ?? payout?.splitId;
 export const isDemoPayout = () => false;
 export const isDemoCapability = () => false;
