@@ -17,7 +17,12 @@ import {
   Snackbar,
   Slide,
 } from "@mui/material";
-import { fetchAddresses, addAddress, updateAddress, deleteAddress } from "../../api/buyer/addressAPI"; 
+import {
+  fetchAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+} from "../../api/buyer/addressAPI";
 import AddressCard from "../../components/buyer/Address/AddressCard";
 import AddressForm from "../../components/buyer/Address/AddressForm";
 import AddressDelete from "../../components/buyer/Address/AddressDelete";
@@ -66,7 +71,12 @@ export default function Address() {
   }, []);
 
   if (addressLoadError && !loading) {
-    return <ConnectionErrorPanel title="Addresses Unavailable" onRetry={loadAddresses} />;
+    return (
+      <ConnectionErrorPanel
+        title="Addresses Unavailable"
+        onRetry={loadAddresses}
+      />
+    );
   }
 
   // ========== ADDRESS HANDLERS ==========
@@ -115,17 +125,14 @@ export default function Address() {
       showSnackbar("Address deleted successfully", "success");
     } catch (err) {
       console.error("Error deleting address:", err, "error");
-      setAddressErrorMessage(
-        err.message || "Error deleting address",
-        "error",
-      );
+      setAddressErrorMessage(err.message || "Error deleting address", "error");
     }
   };
 
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
-    setSnackbarSeverity(severity); 
+    setSnackbarSeverity(severity);
     setSnackbarOpen(true);
   };
 
@@ -137,68 +144,71 @@ export default function Address() {
   const getSeverityColor = (severity) => {
     switch (severity) {
       case "success":
-        return "success.light"; 
+        return "success.light";
       case "error":
-        return "error.light"; 
+        return "error.light";
       default:
-        return "primary.light"; 
+        return "primary.light";
     }
   };
 
   return (
-    <Box
-      sx={{
-        p: 3,
-      }}
-    >
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Address</title>
       </Helmet>
       <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          justifyContent: "end",
-          mb: 2,
-        }}
-      >
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", md: "center" },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+            My Addresses
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Follow each seller's progress from confirmation to delivery.
+          </Typography>
+        </Box>
         <Button
-            variant="contained"
-            color="error"
-            onClick={handleOpenAddressAdd}
-            sx={{
-              width: { xs: "100%", sm: 150 },
-              height: { xs: 25, sm: 35 },
-              minWidth: { xs: 45, sm: 50 },
-              fontSize: { xs: 10, sm: 14 },
-              padding: 0,
-            }}
-          >
-            Add Address
-          </Button>
+          variant="contained"
+          color="error"
+          onClick={handleOpenAddressAdd}
+          sx={{
+            width: { xs: "100%", sm: 150 },
+            height: { xs: 25, sm: 35 },
+            minWidth: { xs: 45, sm: 50 },
+            fontSize: { xs: 10, sm: 14 },
+            padding: 0,
+          }}
+        >
+          Add Address
+        </Button>
       </Box>
       {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : addressErrorMessage ? (
-          <Typography align="center" color="error" sx={{ py: 3 }}>
-            {addressErrorMessage}
-          </Typography>
-        ) : addresses.length > 0 ? (
-          <AddressCard
-            addresses={addresses}
-            onEdit={handleOpenAddressEdit}
-            onDelete={handleOpenAddressDelete}
-          />
-        ) : (
-          <Typography
-            color="text.secondary"
-            sx={{ textAlign: "center", py: 4 }}
-          >
-            No addresses found. Add your first address!
-          </Typography>
-        )}
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress />
+        </Box>
+      ) : addressErrorMessage ? (
+        <Typography align="center" color="error" sx={{ py: 3 }}>
+          {addressErrorMessage}
+        </Typography>
+      ) : addresses.length > 0 ? (
+        <AddressCard
+          addresses={addresses}
+          onEdit={handleOpenAddressEdit}
+          onDelete={handleOpenAddressDelete}
+        />
+      ) : (
+        <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+          No addresses found. Add your first address!
+        </Typography>
+      )}
 
       <AddressForm
         open={openAddressForm}

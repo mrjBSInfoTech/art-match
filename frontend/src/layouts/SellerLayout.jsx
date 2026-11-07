@@ -28,6 +28,7 @@ import {
 } from "../api/seller/messageAPI";
 import { fetchSellerReviews } from "../api/seller/reviewsAPI";
 import PayoutFirst from "../components/seller/Payout/PayoutFirst";
+import FirstLoginConsentModal from "../components/seller/FirstLoginConsentModal";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Stack,
@@ -101,6 +102,8 @@ function SellerLayoutContent() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [sellerReviewCount, setSellerReviewCount] = useState(0);
   const [openPayoutWarning, setOpenPayoutWarning] = useState(false);
+  const [requiresFirstLoginSetup, setRequiresFirstLoginSetup] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState(false);
@@ -121,32 +124,36 @@ function SellerLayoutContent() {
     });
   };
 
-  useEffect(() => {
-    const loadSellerProfile = async () => {
-      if (!isAuthenticated("seller")) {
-        setFirstName("");
-        setLastName("");
-        setProfileImage("");
-        return;
-      }
-      try {
-        const profile = await getSellerProfile();
-        setFirstName(profile.first_name || "");
-        setLastName(profile.last_name || "");
-        setProfileImage(profile.profile_image || "");
-        localStorage.setItem("seller_profile_image", profile.profile_image || "");
-      } catch {
-        setFirstName("");
-        setLastName("");
-        setProfileImage("");
-      }
-    };
+  const loadSellerProfile = React.useCallback(async () => {
+    if (!isAuthenticated("seller")) {
+      setFirstName("");
+      setLastName("");
+      setProfileImage("");
+      setRequiresFirstLoginSetup(false);
+      setMustChangePassword(false);
+      return;
+    }
+    try {
+      const profile = await getSellerProfile();
+      setFirstName(profile.first_name || "");
+      setLastName(profile.last_name || "");
+      setProfileImage(profile.profile_image || "");
+      setRequiresFirstLoginSetup(Boolean(profile.requires_first_login_setup));
+      setMustChangePassword(Boolean(profile.must_change_password));
+      localStorage.setItem("seller_profile_image", profile.profile_image || "");
+    } catch {
+      setFirstName("");
+      setLastName("");
+      setProfileImage("");
+    }
+  }, []);
 
+  useEffect(() => {
     loadSellerProfile();
     window.addEventListener("seller-profile-updated", loadSellerProfile);
     return () =>
       window.removeEventListener("seller-profile-updated", loadSellerProfile);
-  }, []);
+  }, [loadSellerProfile]);
 
   useEffect(() => {
     const loadBadgeCounts = async () => {
@@ -530,8 +537,14 @@ function SellerLayoutContent() {
           </Button>
         </DialogActions>
       </Dialog>
+      <FirstLoginConsentModal
+        open={requiresFirstLoginSetup}
+        mustChangePassword={mustChangePassword}
+        onCompleted={loadSellerProfile}
+        onLogout={handleLogout}
+      />
       <PayoutFirst
-        open={openPayoutWarning}
+        open={openPayoutWarning && !requiresFirstLoginSetup}
         handleClose={() => setOpenPayoutWarning(false)}
         navigate={navigate}
       />

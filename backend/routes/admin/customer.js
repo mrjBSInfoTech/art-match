@@ -2,6 +2,7 @@ import express from "express";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
+import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 const editableFields = [
@@ -13,6 +14,15 @@ const editableFields = [
 ];
 const selectFields =
   "customer_id, username, first_name, last_name, email, phone_number, profile_image";
+
+const sanitizeCustomerField = (value) => {
+  if (value === undefined || value === null) return null;
+  const cleaned = String(value)
+    .replace(/<[^>]*>/g, "")
+    .replace(/^[\s]*[=+\-@\t\r]+/, "")
+    .trim();
+  return cleaned || null;
+};
 
 router.get("/", authenticateAdmin, (req, res) => {
   db.query(
@@ -57,7 +67,7 @@ router.put(
     const sql = `UPDATE customer SET ${fields.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`;
     db.query(
       sql,
-      [...fields.map((field) => req.body[field] || null), req.params.id],
+      [...fields.map((field) => sanitizeCustomerField(req.body[field])), req.params.id],
       (err, result) => {
         if (err) {
           if (err.code === "ER_DUP_ENTRY")
@@ -66,6 +76,13 @@ router.put(
               .json({ error: "Username or email already exists" });
           return res.status(500).json({ error: err.message });
         }
+        logAudit({
+          action: "UPDATE_CUSTOMER",
+          actor: req.user?.username || req.user?.admin_id || "Admin",
+          role: "Admin",
+          status: "SUCCESS",
+          information: `Updated customer ID ${req.params.id}`,
+        }).catch(() => {});
         res.json({ message: "Customer updated successfully" });
       },
     );
@@ -84,6 +101,13 @@ router.delete(
         if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0)
           return res.status(404).json({ error: "Customer not found" });
+        logAudit({
+          action: "DELETE_CUSTOMER",
+          actor: req.user?.username || req.user?.admin_id || "Admin",
+          role: "Admin",
+          status: "SUCCESS",
+          information: `Deleted customer ID ${req.params.id}`,
+        }).catch(() => {});
         res.json({ message: "Customer deleted successfully" });
       },
     );

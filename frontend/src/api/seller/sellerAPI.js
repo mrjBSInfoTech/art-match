@@ -68,3 +68,48 @@ export const changePassword = async (currentPassword, newPassword) => {
     handleError(error);
   }
 };
+
+// FIRST-TIME LOGIN CONSENT & PASSWORD SETUP (for bulk-imported student accounts)
+export const completeFirstLoginSetup = async ({
+  consent_accepted,
+  consent_version = "1.0",
+  currentPassword,
+  current_password,
+  newPassword,
+  new_password,
+}) => {
+  try {
+    const res = await api.post("/first-login-setup", {
+      consent_accepted,
+      consent_version,
+      currentPassword: currentPassword ?? current_password,
+      newPassword: newPassword ?? new_password,
+    });
+    return res.data;
+  } catch (error) {
+    console.error("First-login setup API error:", error.message);
+    handleError(error);
+  }
+};
+
+// EXPORT SELLER PERSONAL DATA (RA 10173 Right to Data Portability)
+export const exportSellerData = async () => {
+  try {
+    const res = await api.get("/export-data");
+    return res.data;
+  } catch (error) {
+    console.error("Export seller data API error:", error.message);
+    handleError(error);
+  }
+};
+
+// DEACTIVATE / DELETE SELLER ACCOUNT (RA 10173 Right to Blocking/Erasure)
+export const deleteSellerAccount = async (password) => {
+  try {
+    const res = await api.post("/delete-account", { password });
+    return res.data;
+  } catch (error) {
+    console.error("Delete seller account API error:", error.message);
+    handleError(error);
+  }
+};

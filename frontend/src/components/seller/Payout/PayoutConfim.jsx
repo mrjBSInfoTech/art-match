@@ -7,12 +7,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   Slide,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
@@ -32,6 +31,7 @@ const Transition = forwardRef(function Transition(props, ref) {
 });
 
 export default function PayoutConfirm({ open, handleClose, onSubmit, submitting = false }) {
+  const theme = useTheme();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -60,62 +60,56 @@ export default function PayoutConfirm({ open, handleClose, onSubmit, submitting 
 
   return (
     <Dialog
-      open={open}
+      open={Boolean(open)}
       onClose={submitting ? undefined : handleClose}
-      fullWidth
-      maxWidth="sm"
       TransitionComponent={Transition}
       keepMounted
+      disableRestoreFocus
       PaperProps={{
         sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
           overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
-      <Box component="form" onSubmit={handleSubmit} noValidate>
-        <DialogTitle sx={{ px: 3, py: 2.5, borderBottom: "1px solid", borderColor: "divider" }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box
-                sx={{
-                  display: "grid",
-                  placeItems: "center",
-                  width: 42,
-                  height: 42,
-                  borderRadius: 2,
-                  bgcolor: "rgba(239, 68, 68, 0.1)",
-                  color: "error.main",
-                }}
-              >
-                <LockOutlinedIcon />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={800}>
-                  Confirm your password
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Save or update your payout wallet securely.
-                </Typography>
-              </Box>
-            </Stack>
-            <IconButton
-              aria-label="Close password confirmation"
-              onClick={handleClose}
-              disabled={submitting}
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 2,
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <LockOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
+        Confirm Your Password
+        <Button
+          aria-label="Close"
+          onClick={handleClose}
+          disabled={submitting}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
+      </DialogTitle>
 
-        <DialogContent sx={{ px: 3, py: 2.5 }}>
-          <Stack spacing={2.5} sx={{ mt: 2 }}>
+      <Box component="form" onSubmit={handleSubmit} noValidate>
+        <DialogContent dividers sx={{ px: 3, py: 2.5 }}>
+          <Stack spacing={2.5}>
             <Alert severity="warning">
               Enter your current password to confirm this payout wallet change.
             </Alert>
@@ -145,22 +139,30 @@ export default function PayoutConfirm({ open, handleClose, onSubmit, submitting 
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2.5 }}>
-          <Button onClick={handleClose} disabled={submitting} sx={{ textTransform: "none" }}>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={handleClose}
+            disabled={submitting}
+            color="inherit"
+            sx={{ textTransform: "none", color: "text.secondary" }}
+          >
             Cancel
           </Button>
           <Button
             type="submit"
             variant="contained"
-            color="error"
             disabled={submitting || !password.trim()}
             sx={{
-              color: "#fff",
+              borderRadius: 1.5,
+              px: 2.5,
               textTransform: "none",
-              minWidth: 150,
+              fontWeight: 700,
+              color: "#fff",
+              backgroundColor: "#ef3340",
+              "&:hover": { backgroundColor: "#d62835" },
             }}
           >
-            {submitting ? "Verifying..." : "Confirm password"}
+            {submitting ? "Verifying..." : "Confirm Password"}
           </Button>
         </DialogActions>
       </Box>

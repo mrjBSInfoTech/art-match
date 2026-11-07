@@ -37,6 +37,7 @@ import {
   createDatabaseDump,
   restoreDatabaseDump,
 } from "../../utils/systemBackup.js";
+import { runDataRetentionCycle } from "../../utils/dataRetentionScheduler.js";
 
 const router = express.Router();
 
@@ -670,6 +671,106 @@ router.put(
     } catch (error) {
       console.error("Unable to save FAQs:", error.code || error.name);
       return res.status(500).json({ message: "Unable to save FAQs." });
+    }
+  },
+);
+
+router.post(
+  "/privacy/run-retention",
+  authenticateAdmin,
+  requireAdminPermission("can_edit"),
+  async (req, res) => {
+    try {
+      const result = await runDataRetentionCycle();
+      await logAudit({
+        action: "MANUAL_DATA_RETENTION_RUN",
+        actor: req.user?.username || req.user?.admin_id || "Admin",
+        role: req.user?.role || "Admin",
+        status: "SUCCESS",
+        information: `Executed RA 10173 data retention cycle: ${result.expiredAccountsCount} account(s) expired, ${result.disposedAccountsCount} long-expired student PII record(s) disposed, ${result.purgedInteractionsCount} interaction log(s) purged.`,
+      }).catch(() => {});
+      return res.json({
+        message: `Data retention cycle completed: ${result.expiredAccountsCount} account(s) expired, ${result.disposedAccountsCount} expired record(s) anonymized, ${result.purgedInteractionsCount} stale interaction log(s) purged.`,
+        ...result,
+      });
+    } catch (error) {
+      console.error("Manual data retention run failed:", error);
+      return res.status(500).json({
+        message: "Unable to execute data retention cycle.",
+      });
+    }
+  },
+);
+
+router.post(
+  "/privacy/breach-notification",
+  authenticateAdmin,
+  requireAdminPermission("can_edit"),
+  async (req, res) => {
+    const targetAudience = String(req.body?.audience || "all")
+      .trim()
+      .toLowerCase();
+    const incidentSummary = String(req.body?.summary || "").trim();
+    const protectiveSteps = String(req.body?.protective_steps || "").trim();
+
+    if (!["all", "buyers", "sellers"].includes(targetAudience)) {
+      return res.status(400).json({
+        message: "Select a valid target audience (all, buyers, or sellers).",
+      });
+    }
+    if (!incidentSummary || incidentSummary.length < 15 || incidentSummary.length > 1000) {
+      return res.status(400).json({
+        message:
+          "Enter an incident summary between 15 and 1,000 characters.",
+      });
+    }
+
+    const fullNotificationMessage = protectiveSteps
+      ? `[RA 10173 Security & Privacy Advisory] ${incidentSummary} — Recommended Action: ${protectiveSteps}`
+      : `[RA 10173 Security & Privacy Advisory] ${incidentSummary}`;
+
+    try {
+      let notifiedBuyers = 0;
+      let notifiedSellers = 0;
+
+      if (targetAudience === "all" || targetAudience === "buyers") {
+        const [buyerResult] = await db.promise().query(
+          `INSERT INTO account_notifications (role, account_id, notification_type, message, is_read)
+           SELECT 'buyer', customer_id, 'security_alert', ?, FALSE
+           FROM customer`,
+          [fullNotificationMessage],
+        );
+        notifiedBuyers = Number(buyerResult?.affectedRows || 0);
+      }
+
+      if (targetAudience === "all" || targetAudience === "sellers") {
+        const [sellerResult] = await db.promise().query(
+          `INSERT INTO account_notifications (role, account_id, notification_type, message, is_read)
+           SELECT 'seller', student_id, 'security_alert', ?, FALSE
+           FROM student`,
+          [fullNotificationMessage],
+        );
+        notifiedSellers = Number(sellerResult?.affectedRows || 0);
+      }
+
+      await logAudit({
+        action: "SECURITY_BREACH_ALERT",
+        actor: req.user?.username || req.user?.admin_id || "Admin",
+        role: req.user?.role || "Admin",
+        status: "SUCCESS",
+        information: `Dispatched NPC Circular 16-03 security/breach notification to ${notifiedBuyers} buyer(s) and ${notifiedSellers} seller(s): ${incidentSummary.slice(0, 200)}`,
+      }).catch(() => {});
+
+      return res.json({
+        message: `Security notification dispatched to ${notifiedBuyers} buyer(s) and ${notifiedSellers} seller(s) and logged to the security audit trail.`,
+        notifiedBuyers,
+        notifiedSellers,
+      });
+    } catch (error) {
+      console.error("Unable to dispatch breach notification:", error);
+      return res.status(500).json({
+        message: "Unable to dispatch security notification.",
+      });
     }
   },
 );

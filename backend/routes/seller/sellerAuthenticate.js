@@ -96,6 +96,8 @@ router.post("/register", authRateLimiter, upload.single("cor"), async (req, res)
     course,
     status,
     password,
+    consent_accepted,
+    consent_version,
   } = req.body;
 
   if (
@@ -111,10 +113,30 @@ router.post("/register", authRateLimiter, upload.single("cor"), async (req, res)
     !course ||
     !password
   ) {
+    if (req.file) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+    }
     return res.status(400).json({ message: "All fields are required" });
   }
 
+  const isConsentAccepted =
+    consent_accepted === true ||
+    consent_accepted === "true" ||
+    consent_accepted === 1 ||
+    consent_accepted === "1";
+
+  if (!isConsentAccepted) {
+    if (req.file) {
+      await fs.promises.unlink(req.file.path).catch(() => {});
+    }
+    return res.status(400).json({
+      message:
+        "You must agree to the Terms of Service and Privacy Policy to register.",
+    });
+  }
+
   const hashedPassword = bcrypt.hashSync(password, 10);
+  const policyVersion = String(consent_version || "1.0").trim().slice(0, 20) || "1.0";
   let corPath = null;
   if (req.file) {
     try {
@@ -130,9 +152,10 @@ router.post("/register", authRateLimiter, upload.single("cor"), async (req, res)
     INSERT INTO student (
       first_name, middle_name, last_name, birthdate, email, address,
       phone_number, cor, year_level, course, student_number, password,
+      consent_given_at, consent_version, must_change_password,
       created_at, account_status, expire_date
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active',
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 0, CURRENT_TIMESTAMP, 'active',
       DATE_ADD(?, INTERVAL 1 DAY)
     )
   `;
@@ -158,6 +181,7 @@ router.post("/register", authRateLimiter, upload.single("cor"), async (req, res)
         course,
         student_number,
         hashedPassword,
+        policyVersion,
         expirationDate,
       ],
       (err, result) => {
@@ -186,6 +210,14 @@ router.post("/register", authRateLimiter, upload.single("cor"), async (req, res)
               .status(500)
               .json({ message: "Database error recording registration" });
           }
+
+          logAudit({
+            action: "REGISTER_CONSENT",
+            actor: student_number,
+            role: "Student",
+            status: "SUCCESS",
+            information: `Student seller registered and accepted Privacy Policy v${policyVersion}`,
+          }).catch(() => {});
 
           res.status(201).json({ message: "User registered successfully" });
         });
@@ -220,6 +252,9 @@ router.post("/login", authRateLimiter, (req, res) => {
       s.student_number, 
       s.profile_image,
       s.password, 
+      s.consent_given_at,
+      s.consent_version,
+      COALESCE(s.must_change_password, 0) AS must_change_password,
       s.created_at,
       CASE
         WHEN s.expire_date <= CURRENT_TIMESTAMP THEN 'expired'
@@ -301,6 +336,16 @@ router.post("/login", authRateLimiter, (req, res) => {
 
     res.cookie("seller_token", token, getAuthCookieOptions(1));
 
+    const defaultPassword = String(user.last_name || "").trim().toUpperCase();
+    const isUsingDefaultPassword =
+      Boolean(defaultPassword) && String(password).trim() === defaultPassword;
+    const mustChangePassword = Boolean(
+      Number(user.must_change_password) || isUsingDefaultPassword,
+    );
+    const requiresFirstLoginSetup = Boolean(
+      !user.consent_given_at || mustChangePassword,
+    );
+
     logAudit({
       action: "LOGIN",
       actor: user.student_number,
@@ -323,6 +368,10 @@ router.post("/login", authRateLimiter, (req, res) => {
       year_level: user.year_level,
       student_number: user.student_number,
       course: user.course,
+      consent_given_at: user.consent_given_at,
+      consent_version: user.consent_version,
+      must_change_password: mustChangePassword,
+      requires_first_login_setup: requiresFirstLoginSetup,
       register_status: user.register_status,
       registered_date: user.registered_date,
       approved_date: user.approved_date,
@@ -337,8 +386,9 @@ router.get("/me", authenticateSeller, (req, res) => {
   db.query(
     `SELECT s.student_id, s.student_number, s.first_name, s.middle_name, s.last_name,
             s.birthdate, s.email, s.address, s.phone_number, s.cor, s.year_level,
-            s.course, s.profile_image, ar.register_status, ar.registered_date,
-            ar.approved_date
+            s.course, s.profile_image, s.password, s.consent_given_at, s.consent_version,
+            COALESCE(s.must_change_password, 0) AS must_change_password,
+            ar.register_status, ar.registered_date, ar.approved_date
      FROM student s
      LEFT JOIN accregistration ar ON ar.student_id = s.student_id
      WHERE s.student_id = ?`,
@@ -347,7 +397,30 @@ router.get("/me", authenticateSeller, (req, res) => {
       if (err) return res.status(500).json({ message: "Database error" });
       if (!result.length)
         return res.status(404).json({ message: "Seller not found" });
-      res.json(result[0]);
+
+      const row = result[0];
+      const defaultPassword = String(row.last_name || "").trim().toUpperCase();
+      let isUsingDefaultPassword = false;
+      if (defaultPassword && row.password) {
+        try {
+          isUsingDefaultPassword = bcrypt.compareSync(defaultPassword, row.password);
+        } catch {
+          isUsingDefaultPassword = false;
+        }
+      }
+      const mustChangePassword = Boolean(
+        Number(row.must_change_password) || isUsingDefaultPassword,
+      );
+      const requiresFirstLoginSetup = Boolean(
+        !row.consent_given_at || mustChangePassword,
+      );
+
+      const { password: _omittedPassword, ...safeProfile } = row;
+      res.json({
+        ...safeProfile,
+        must_change_password: mustChangePassword,
+        requires_first_login_setup: requiresFirstLoginSetup,
+      });
     },
   );
 });
@@ -1016,7 +1089,7 @@ router.put("/change-password", authenticateSeller, async (req, res) => {
 
     await new Promise((resolve, reject) => {
       db.query(
-        "UPDATE student SET password = ? WHERE student_id = ?",
+        "UPDATE student SET password = ?, must_change_password = 0 WHERE student_id = ?",
         [hashedPassword, studentId],
         (error) => (error ? reject(error) : resolve()),
       );
@@ -1051,6 +1124,338 @@ router.put("/change-password", authenticateSeller, async (req, res) => {
       ),
     );
     res.status(500).json({ message: "Unable to change password." });
+  }
+});
+
+router.post("/first-login-setup", authenticateSeller, async (req, res) => {
+  const { consent_accepted, consent_version, currentPassword, newPassword } =
+    req.body || {};
+  const studentId = req.user?.student_id;
+  const actor = req.user?.student_number || req.user?.student_id || "Unknown";
+
+  const isConsentAccepted =
+    consent_accepted === true ||
+    consent_accepted === "true" ||
+    consent_accepted === 1 ||
+    consent_accepted === "1";
+
+  if (!isConsentAccepted) {
+    return res.status(400).json({
+      message:
+        "You must review and accept the Privacy Policy and Terms of Service to continue.",
+    });
+  }
+
+  const policyVersion =
+    String(consent_version || "1.0").trim().slice(0, 20) || "1.0";
+
+  try {
+    const user = await new Promise((resolve, reject) => {
+      db.query(
+        `SELECT student_id, student_number, last_name, password, consent_given_at,
+                COALESCE(must_change_password, 0) AS must_change_password
+         FROM student WHERE student_id = ? LIMIT 1`,
+        [studentId],
+        (error, results) => {
+          if (error) return reject(error);
+          resolve(results[0]);
+        },
+      );
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Seller account not found." });
+    }
+
+    const defaultPassword = String(user.last_name || "").trim().toUpperCase();
+    let isUsingDefaultPassword = false;
+    if (defaultPassword && user.password) {
+      try {
+        isUsingDefaultPassword = await bcrypt.compare(
+          defaultPassword,
+          user.password,
+        );
+      } catch {
+        isUsingDefaultPassword = false;
+      }
+    }
+
+    const requiresPasswordChange = Boolean(
+      Number(user.must_change_password) ||
+        isUsingDefaultPassword ||
+        Boolean(newPassword),
+    );
+
+    if (requiresPasswordChange) {
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          message:
+            "Please enter your current password and choose a new password to activate your account.",
+        });
+      }
+
+      if (String(newPassword).length < 8) {
+        return res.status(400).json({
+          message: "Your new password must be at least 8 characters long.",
+        });
+      }
+
+      const currentMatches = await bcrypt.compare(
+        String(currentPassword),
+        user.password,
+      );
+
+      if (!currentMatches) {
+        await logAudit({
+          action: "FIRST_LOGIN_SETUP",
+          actor,
+          role: "Student",
+          status: "FAILED",
+          information:
+            "First-login setup failed: current password was incorrect.",
+        }).catch(() => {});
+        return res
+          .status(401)
+          .json({ message: "Current password is incorrect." });
+      }
+
+      if (
+        String(newPassword).trim() === String(currentPassword).trim() ||
+        (defaultPassword &&
+          String(newPassword).trim().toUpperCase() === defaultPassword)
+      ) {
+        return res.status(400).json({
+          message:
+            "Your new password must be different from your default last-name password.",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(String(newPassword), 10);
+      await new Promise((resolve, reject) => {
+        db.query(
+          `UPDATE student
+           SET password = ?,
+               must_change_password = 0,
+               consent_given_at = COALESCE(consent_given_at, CURRENT_TIMESTAMP),
+               consent_version = ?
+           WHERE student_id = ?`,
+          [hashedPassword, policyVersion, studentId],
+          (error) => (error ? reject(error) : resolve()),
+        );
+      });
+    } else {
+      await new Promise((resolve, reject) => {
+        db.query(
+          `UPDATE student
+           SET must_change_password = 0,
+               consent_given_at = COALESCE(consent_given_at, CURRENT_TIMESTAMP),
+               consent_version = ?
+           WHERE student_id = ?`,
+          [policyVersion, studentId],
+          (error) => (error ? reject(error) : resolve()),
+        );
+      });
+    }
+
+    await logAudit({
+      action: "FIRST_LOGIN_SETUP",
+      actor: user.student_number || actor,
+      role: "Student",
+      status: "SUCCESS",
+      information: `Student completed first-login setup and accepted Privacy Policy v${policyVersion}`,
+    }).catch(() => {});
+
+    return res.json({
+      message: "Privacy consent recorded and account setup completed.",
+      consent_version: policyVersion,
+      must_change_password: false,
+      requires_first_login_setup: false,
+    });
+  } catch (error) {
+    console.error("First-login setup error:", error);
+    return res.status(500).json({
+      message: "Unable to complete first-login account setup.",
+    });
+  }
+});
+
+router.get("/export-data", authenticateSeller, async (req, res) => {
+  const studentId = req.user.student_id;
+
+  try {
+    const [studentRows] = await db
+      .promise()
+      .query(
+        "SELECT student_id, student_number, first_name, middle_name, last_name, birthdate, email, phone_number, address, course, year_level, profile_image, cor, account_status, created_at, expire_date, consent_given_at, consent_version FROM student WHERE student_id = ? LIMIT 1",
+        [studentId],
+      );
+
+    if (!studentRows.length) {
+      return res.status(404).json({ message: "Seller account not found." });
+    }
+
+    const [
+      [storefrontRows],
+      [artworks],
+      [salesOrders],
+      [reviews],
+      [payoutAccounts],
+    ] = await Promise.all([
+      db
+        .promise()
+        .query(
+          "SELECT storefront_id, shop_name, shop_description, specialties, pinned_artwork_ids, created_at, updated_at FROM storefront WHERE student_id = ? LIMIT 1",
+          [studentId],
+        )
+        .catch(() => [[]]),
+      db
+        .promise()
+        .query(
+          "SELECT artwork_id, title, price, description, image, color_used, genre, art_size, art_type, product, status, is_sold, date_created FROM artwork WHERE student_id = ? ORDER BY date_created DESC",
+          [studentId],
+        )
+        .catch(() => [[]]),
+      db
+        .promise()
+        .query(
+          "SELECT o.order_id, o.order_number, o.payment_method, o.subtotal, o.discount_amount, o.shipping_fee, o.total_amount, o.status, o.delivered_at, o.created_at FROM marketplace_order o WHERE o.seller_id = ? ORDER BY o.created_at DESC",
+          [studentId],
+        )
+        .catch(() => [[]]),
+      db
+        .promise()
+        .query(
+          "SELECT review_id, order_id, artwork_id, rating, comment, seller_response, seller_response_at, created_at FROM artwork_reviews WHERE seller_id = ? ORDER BY created_at DESC",
+          [studentId],
+        )
+        .catch(() => [[]]),
+      db
+        .promise()
+        .query(
+          "SELECT provider, institution_code, institution_name, account_name, masked_account_number, is_active, updated_at FROM seller_payout_accounts WHERE seller_id = ? LIMIT 1",
+          [studentId],
+        )
+        .catch(() => [[]]),
+    ]);
+
+    await logAudit({
+      action: "EXPORT_PERSONAL_DATA",
+      actor: studentRows[0].student_number || studentId,
+      role: "Student",
+      status: "SUCCESS",
+      information:
+        "Seller exported personal and academic data package (RA 10173 Right to Data Portability).",
+    }).catch(() => {});
+
+    return res.json({
+      exported_at: new Date().toISOString(),
+      legal_basis:
+        "Republic Act No. 10173 (Data Privacy Act of 2012) - Section 18 (Right to Data Portability)",
+      account: studentRows[0],
+      storefront: storefrontRows[0] || null,
+      payout_account: payoutAccounts[0] || null,
+      artworks,
+      sales_orders: salesOrders,
+      reviews,
+    });
+  } catch (error) {
+    console.error("Seller data export failed:", error);
+    return res
+      .status(500)
+      .json({ message: "Unable to export seller data at this time." });
+  }
+});
+
+router.post("/delete-account", authenticateSeller, async (req, res) => {
+  const studentId = req.user.student_id;
+  const password = String(req.body.password || "");
+
+  if (!password) {
+    return res.status(400).json({
+      message:
+        "Please enter your current password to confirm account deactivation.",
+    });
+  }
+
+  try {
+    const [studentRows] = await db
+      .promise()
+      .query(
+        "SELECT student_id, student_number, password FROM student WHERE student_id = ? LIMIT 1",
+        [studentId],
+      );
+
+    if (!studentRows.length) {
+      return res.status(404).json({ message: "Seller account not found." });
+    }
+
+    const student = studentRows[0];
+    const passwordMatches = await bcrypt.compare(password, student.password);
+    if (!passwordMatches) {
+      await logAudit({
+        action: "DELETE_ACCOUNT_REQUEST",
+        actor: student.student_number || studentId,
+        role: "Student",
+        status: "FAILED",
+        information:
+          "Seller account deactivation failed: incorrect password confirmation.",
+      }).catch(() => {});
+      return res.status(400).json({ message: "Incorrect password." });
+    }
+
+    const [activeOrders] = await db
+      .promise()
+      .query(
+        "SELECT order_id FROM marketplace_order WHERE seller_id = ? AND status IN ('Pending', 'Confirmed', 'Packed', 'Shipped') LIMIT 1",
+        [studentId],
+      )
+      .catch(() => [[]]);
+
+    if (activeOrders.length > 0) {
+      return res.status(409).json({
+        message:
+          "You have active buyer orders in progress. Please fulfill or resolve all active orders before deactivating your seller account.",
+      });
+    }
+
+    await db
+      .promise()
+      .query(
+        `UPDATE student
+         SET account_status = 'expired',
+             expire_date = CURRENT_TIMESTAMP
+         WHERE student_id = ?`,
+        [studentId],
+      );
+
+    await db
+      .promise()
+      .query(
+        "UPDATE artwork SET status = 'Archived' WHERE student_id = ? AND COALESCE(is_sold, 0) = 0",
+        [studentId],
+      )
+      .catch(() => {});
+
+    res.clearCookie("seller_token", clearAuthCookieOptions());
+
+    await logAudit({
+      action: "DELETE_ACCOUNT_REQUEST",
+      actor: student.student_number || studentId,
+      role: "Student",
+      status: "SUCCESS",
+      information:
+        "Seller deactivated account and archived active listings (RA 10173 Right to Blocking/Erasure).",
+    }).catch(() => {});
+
+    return res.json({
+      message:
+        "Your seller account has been deactivated and your active listings have been archived.",
+    });
+  } catch (error) {
+    console.error("Seller account deactivation failed:", error);
+    return res.status(500).json({
+      message: "Unable to deactivate seller account at this time.",
+    });
   }
 });
 

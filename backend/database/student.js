@@ -32,6 +32,25 @@ export const ensureStudentAccountSchema = async () => {
       await query("ALTER TABLE student ADD COLUMN expire_date DATETIME NULL");
       existingColumns.add("expire_date");
     }
+    if (!existingColumns.has("consent_given_at")) {
+      await query("ALTER TABLE student ADD COLUMN consent_given_at DATETIME NULL");
+      existingColumns.add("consent_given_at");
+    }
+    if (!existingColumns.has("consent_version")) {
+      await query("ALTER TABLE student ADD COLUMN consent_version VARCHAR(20) NULL");
+      existingColumns.add("consent_version");
+    }
+    if (!existingColumns.has("must_change_password")) {
+      await query(
+        "ALTER TABLE student ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0",
+      );
+      existingColumns.add("must_change_password");
+    }
+
+    // Ensure contact/PII fields are nullable for RA 10173 12-month post-expiration disposal
+    await query("ALTER TABLE student MODIFY COLUMN birthdate DATE NULL").catch(() => {});
+    await query("ALTER TABLE student MODIFY COLUMN address TEXT NULL").catch(() => {});
+    await query("ALTER TABLE student MODIFY COLUMN phone_number VARCHAR(30) NULL").catch(() => {});
 
     // Only backfill rows that are actually missing values so normal startups
     // do not rewrite the whole table.

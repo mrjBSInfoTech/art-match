@@ -149,3 +149,29 @@ export const saveFaqs = async (faqs) => {
     throwApiError(error);
   }
 };
+
+export const runManualDataRetention = async () => {
+  try {
+    const response = await api.post("/privacy/run-retention");
+    return response.data;
+  } catch (error) {
+    throwApiError(error);
+  }
+};
+
+export const dispatchBreachNotification = async ({
+  audience = "all",
+  summary,
+  protective_steps = "",
+}) => {
+  try {
+    const response = await api.post("/privacy/breach-notification", {
+      audience,
+      summary,
+      protective_steps,
+    });
+    return response.data;
+  } catch (error) {
+    throwApiError(error);
+  }
+};

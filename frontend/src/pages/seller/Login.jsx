@@ -399,6 +399,32 @@ const Login = () => {
           >
             Login
           </Button>
+
+          <Typography
+            variant="caption"
+            align="center"
+            sx={{ color: "#666", mt: 1, display: "block" }}
+          >
+            By signing in, you agree to our{" "}
+            <Link
+              component={RouterLink}
+              to="/buyer/terms"
+              underline="hover"
+              sx={{ color: "#af4f4f", fontWeight: "600" }}
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              component={RouterLink}
+              to="/buyer/privacy-policy"
+              underline="hover"
+              sx={{ color: "#af4f4f", fontWeight: "600" }}
+            >
+              Privacy Policy
+            </Link>
+            .
+          </Typography>
         </Stack>
       </Paper>
       <Snackbar

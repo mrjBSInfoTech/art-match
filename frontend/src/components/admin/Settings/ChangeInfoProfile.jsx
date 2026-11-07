@@ -10,9 +10,23 @@ import {
   Alert,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import CloseIcon from "@mui/icons-material/Close";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
+  return (
+    <Slide
+      direction="up"
+      ref={ref}
+      {...props}
+      timeout={500}
+      easing={{
+        enter: "cubic-bezier(0.4, 0, 0.2, 1)",
+        exit: "ease-out",
+      }}
+    />
+  );
 });
 
 function ChangeInfoProfile({
@@ -24,29 +38,60 @@ function ChangeInfoProfile({
   loading,
   onConfirm,
 }) {
+  const theme = useTheme();
+
   return (
     <Dialog
-      open={open}
+      open={Boolean(open)}
       onClose={loading ? undefined : handleClose}
       disableRestoreFocus
       TransitionComponent={Transition}
       keepMounted
-      fullWidth
-      maxWidth="xs"
       PaperProps={{
         sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
-          p: 1,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
-      <DialogTitle sx={{ fontWeight: "bold" }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <LockOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
         Confirm Your Password
+        <Button
+          aria-label="Close"
+          onClick={handleClose}
+          disabled={loading}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
       </DialogTitle>
       <DialogContent dividers sx={{ pt: 2, pb: 2 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Alert severity="warning" sx={{ mb: 2.5 }}>
           Enter your current password to confirm these account changes.
-        </Typography>
+        </Alert>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -66,10 +111,28 @@ function ChangeInfoProfile({
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleClose} color="inherit" disabled={loading}>
+        <Button
+          onClick={handleClose}
+          color="inherit"
+          disabled={loading}
+          sx={{ textTransform: "none", color: "text.secondary" }}
+        >
           Cancel
         </Button>
-        <Button onClick={onConfirm} variant="contained" disabled={loading}>
+        <Button
+          onClick={onConfirm}
+          variant="contained"
+          disabled={loading}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+            backgroundColor: "#ef3340",
+            "&:hover": { backgroundColor: "#d62835" },
+          }}
+        >
           {loading ? "Verifying..." : "Confirm & Save"}
         </Button>
       </DialogActions>

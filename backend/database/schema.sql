@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS customer (
   phone_number VARCHAR(30) NOT NULL,
   password VARCHAR(255) NOT NULL,
   profile_image VARCHAR(255) NULL,
+  is_private TINYINT(1) NOT NULL DEFAULT 0,
+  allow_personalized_recommendations TINYINT(1) NOT NULL DEFAULT 1,
+  consent_given_at DATETIME NULL,
+  consent_version VARCHAR(20) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,16 +49,19 @@ CREATE TABLE IF NOT EXISTS student (
   first_name VARCHAR(100) NOT NULL,
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NOT NULL,
-  birthdate DATE NOT NULL,
+  birthdate DATE NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
-  address TEXT NOT NULL,
-  phone_number VARCHAR(30) NOT NULL,
+  address TEXT NULL,
+  phone_number VARCHAR(30) NULL,
   cor VARCHAR(255) NULL,
   year_level VARCHAR(30) NOT NULL,
   course VARCHAR(100) NOT NULL,
   student_number VARCHAR(50) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   profile_image VARCHAR(255) NULL,
+  consent_given_at DATETIME NULL,
+  consent_version VARCHAR(20) NULL,
+  must_change_password TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   account_status ENUM('active', 'expired') NOT NULL DEFAULT 'active',
   expire_date DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL 3 MONTH)

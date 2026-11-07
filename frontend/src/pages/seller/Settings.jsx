@@ -1,32 +1,44 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Avatar,
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   FormControl,
   FormHelperText,
   InputLabel,
   MenuItem,
   Paper,
   Select,
+  Stack,
   TextField,
   Typography,
   Snackbar,
   Slide,
+  Chip,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ChangePassword from "../../components/seller/Settings/ChangePassword";
 import ChangeInfoProfile from "../../components/seller/Settings/ChangeInfoProfile";
 import ChangeProfileImage from "../../components/seller/Settings/ChangeProfileImage";
+import DeactivateAccount from "../../components/seller/Settings/DeactivateAccount.jsx";
 import {
   updateSeller,
   getSellerProfile,
   verifyPassword,
   changePassword,
+  exportSellerData,
+  deleteSellerAccount,
 } from "../../api/seller/sellerAPI";
+import { clearAuthData } from "../../../utils/auth";
 import { getProfileInitials } from "../../utils/profileInitials.js";
 import {
   getMissingSellerProfileFields,
@@ -37,8 +49,15 @@ import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import ThemeModeSetting from "../../components/settings/ThemeModeSetting";
-
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import ContactMailOutlinedIcon from "@mui/icons-material/ContactMailOutlined";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import ThemeModeSetting from "../../components/seller/Settings/ThemeModeSetting";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -64,10 +83,16 @@ const courseOptions = [
 
 export default function Settings() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openPasswordForm, setOpenPasswordForm] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [accountInformation, setAccountInformation] = useState({
     first_name: "",
     middle_name: "",
@@ -85,8 +110,10 @@ export default function Settings() {
   const [loadingAccountInformation, setLoadingAccountInformation] =
     useState(true);
   const [accountInformationError, setAccountInformationError] = useState("");
-  const [accountInformationValidationError, setAccountInformationValidationError] =
-    useState("");
+  const [
+    accountInformationValidationError,
+    setAccountInformationValidationError,
+  ] = useState("");
   const [savingAccountInformation, setSavingAccountInformation] =
     useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -122,8 +149,7 @@ export default function Settings() {
             ? normalizeDateInput(profile[field])
             : String(
                 field === "course"
-                  ? profile.course ||
-                      ""
+                  ? profile.course || ""
                   : profile[field] || "",
               ),
         ]),
@@ -189,11 +215,15 @@ export default function Settings() {
     event.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setAccountInformationValidationError("Upload an image file for your COR.");
+      setAccountInformationValidationError(
+        "Upload an image file for your COR.",
+      );
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setAccountInformationValidationError("The COR image must be 2 MB or smaller.");
+      setAccountInformationValidationError(
+        "The COR image must be 2 MB or smaller.",
+      );
       return;
     }
     setCorFile(file);
@@ -203,7 +233,9 @@ export default function Settings() {
   const handleSaveAccountInformation = () => {
     const sellerId = localStorage.getItem("seller_student_id");
     if (!sellerId) {
-      setAccountInformationValidationError("Seller account not found. Please sign in again.");
+      setAccountInformationValidationError(
+        "Seller account not found. Please sign in again.",
+      );
       return;
     }
     if (accountInformationValidationError) return;
@@ -288,6 +320,52 @@ export default function Settings() {
     setSnackbarOpen(false);
   };
 
+  const handleExportSellerData = async () => {
+    try {
+      setExportingData(true);
+      const dataPackage = await exportSellerData();
+      const blob = new Blob([JSON.stringify(dataPackage, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `artmatch-seller-data-${accountInformation.student_number || "account"}-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showSnackbar(
+        "Your seller data package has been exported and downloaded as JSON.",
+        "success",
+      );
+    } catch (error) {
+      showSnackbar(error.message || "Unable to export seller data.", "error");
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleDeactivateSellerAccount = async (event) => {
+    event.preventDefault();
+    if (!deletePassword) {
+      setDeleteError("Please enter your current password to confirm.");
+      return;
+    }
+    try {
+      setDeletingAccount(true);
+      setDeleteError("");
+      await deleteSellerAccount(deletePassword);
+      clearAuthData("seller");
+      setDeleteDialogOpen(false);
+      navigate("/seller/login", { replace: true });
+    } catch (error) {
+      setDeleteError(error.message || "Unable to deactivate seller account.");
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   if (accountInformationError) {
     return (
       <Box sx={{ minWidth: 0 }}>
@@ -303,337 +381,641 @@ export default function Settings() {
     );
   }
 
+  const isDark = theme.palette.mode === "dark";
+  const cardSx = {
+    width: "100%",
+    p: { xs: 2, sm: 2.5, md: 3 },
+    borderRadius: 3,
+    bgcolor: isDark ? "rgba(30, 41, 59, 0.4)" : "#ffffff",
+    border: "1px solid",
+    borderColor: isDark
+      ? "rgba(255, 255, 255, 0.08)"
+      : "rgba(15, 23, 42, 0.08)",
+    boxShadow: isDark
+      ? "0 4px 20px rgba(0, 0, 0, 0.25)"
+      : "0 4px 20px rgba(15, 23, 42, 0.04)",
+  };
+
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        width: "100%",
+        boxSizing: "border-box",
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Settings</title>
       </Helmet>
 
-      <ThemeModeSetting />
+      {/* Standard Seller Page Header */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", sm: "center" },
+          gap: 2,
+          mb: 2.5,
+          flexWrap: "wrap",
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Settings
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              color: theme.palette.text.secondary,
+              fontSize: 13,
+            }}
+          >
+            Manage your student artist profile, credentials, appearance, and
+            privacy
+          </Typography>
+        </Box>
+      </Box>
 
-      {/* Profile Picture Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
+      <Stack spacing={2.5}>
+        {/* Appearance & Theme Section */}
+        <ThemeModeSetting />
+
+        {/* Profile Picture Section */}
+        <Paper elevation={0} sx={cardSx}>
           <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2.5,
-              bgcolor: "rgba(30, 31, 135, 0.08)",
-              color: "#1e1f87",
-              mb: 1.5,
-            }}
+            sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}
           >
-            <AccountCircleIcon />
-          </Box>
-          <Box>
-            <Typography variant="body1" fontWeight="700">
-              Profile Picture
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Manage the picture displayed on your seller profile.
-            </Typography>
-          </Box>
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-            flexWrap: "wrap",
-          }}
-        >
-          <Avatar
-            src={
-              profileImage
-                ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
-                : undefined
-            }
-            alt="Seller profile"
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-            sx={{
-              width: 72,
-              height: 72,
-              borderRadius: "50%",
-              objectFit: "cover",
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            {!profileImage &&
-              getProfileInitials(
-                `${accountInformation.first_name} ${accountInformation.last_name}`,
-              )}
-          </Avatar>
-          <Button
-            variant="outlined"
-            startIcon={<CloudUploadIcon />}
-            sx={{ textTransform: "none" }}
-            onClick={() => setProfileImageDialogOpen(true)}
-          >
-            Upload Picture
-          </Button>
-        </Box>
-      </Paper>
-
-      {/* Account Information Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2.5,
-              bgcolor: "rgba(30, 31, 135, 0.08)",
-              color: "#1e1f87",
-            }}
-          >
-            <AccountCircleIcon />
-          </Box>
-          <Box>
-            <Typography variant="body1" fontWeight="700">
-              Account Information
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Complete your student information here. All fields except middle
-              name are required before you can add new artwork.
-            </Typography>
-          </Box>
-        </Box>
-        {accountInformationError && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            {accountInformationError}
-          </Alert>
-        )}
-        {accountInformationValidationError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {accountInformationValidationError}
-          </Alert>
-        )}
-        {loadingAccountInformation && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-            gap: 2,
-          }}
-        >
-          <TextField
-            label="First Name"
-            name="first_name"
-            value={accountInformation.first_name}
-            onChange={handleAccountInformationChange}
-            required
-            disabled={loadingAccountInformation || savingAccountInformation}
-          />
-          <TextField
-            label="Last Name"
-            name="last_name"
-            value={accountInformation.last_name}
-            onChange={handleAccountInformationChange}
-            required
-            disabled={loadingAccountInformation || savingAccountInformation}
-          />
-          <TextField
-            label="Middle Name"
-            name="middle_name"
-            value={accountInformation.middle_name}
-            onChange={handleAccountInformationChange}
-            disabled={loadingAccountInformation || savingAccountInformation}
-          />
-          <TextField
-            label="Birthdate"
-            name="birthdate"
-            type="date"
-            value={normalizeDateInput(accountInformation.birthdate)}
-            onChange={handleAccountInformationChange}
-            required
-            InputLabelProps={{ shrink: true }}
-            disabled={loadingAccountInformation || savingAccountInformation}
-          />
-          <TextField
-            label="Email"
-            name="email"
-            type="email"
-            value={accountInformation.email}
-            onChange={handleAccountInformationChange}
-            required
-            disabled={loadingAccountInformation || savingAccountInformation}
-          />
-          <TextField
-            label="Phone Number"
-            name="phone_number"
-            type="tel"
-            value={accountInformation.phone_number}
-            onChange={handleAccountInformationChange}
-            required
-            disabled={loadingAccountInformation || savingAccountInformation}
-          />
-          <TextField
-            label="Address"
-            name="address"
-            value={accountInformation.address}
-            onChange={handleAccountInformationChange}
-            required
-            disabled={loadingAccountInformation || savingAccountInformation}
-            sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}
-          />
-          <TextField
-            label="Student Number"
-            name="student_number"
-            value={accountInformation.student_number}
-            required
-            disabled
-            helperText="Student number cannot be changed here."
-          />
-          <FormControl
-            required
-            disabled
-          >
-            <InputLabel id="seller-settings-year-level-label">
-              Year Level
-            </InputLabel>
-            <Select
-              labelId="seller-settings-year-level-label"
-              name="year_level"
-              label="Year Level"
-              value={accountInformation.year_level}
-            >
-              <MenuItem value="First Year">First Year</MenuItem>
-              <MenuItem value="Second Year">Second Year</MenuItem>
-              <MenuItem value="Third Year">Third Year</MenuItem>
-              <MenuItem value="Fourth Year">Fourth Year</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl
-            required
-            disabled
-          >
-            <InputLabel id="seller-settings-course-label">Course</InputLabel>
-            <Select
-              labelId="seller-settings-course-label"
-              name="course"
-              label="Course"
-              value={accountInformation.course}
-            >
-              {accountInformation.course &&
-                !courseOptions.includes(accountInformation.course) && (
-                  <MenuItem value={accountInformation.course}>
-                    {accountInformation.course}
-                  </MenuItem>
-                )}
-              {courseOptions.map((course) => (
-                <MenuItem key={course} value={course}>
-                  {course}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-              Certificate of Registration (COR)
-            </Typography>
-            <Button
-              component="label"
-              variant="outlined"
-              startIcon={<CloudUploadIcon />}
-              disabled={loadingAccountInformation || savingAccountInformation}
-            >
-              {corFile ? "Change COR image" : "Upload COR image"}
-              <input
-                hidden
-                type="file"
-                accept="image/*"
-                onChange={handleCORChange}
-              />
-            </Button>
-            <FormHelperText>
-              {corFile
-                ? `Selected: ${corFile.name}`
-                : accountInformation.cor
-                  ? `Current file: ${accountInformation.cor}`
-                  : "Optional. Image file up to 2 MB."}
-            </FormHelperText>
-          </Box>
-        </Box>
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button
-            variant="contained"
-            onClick={handleSaveAccountInformation}
-            disabled={loadingAccountInformation || savingAccountInformation}
-            sx={{
-              mt: 3,
-              color: "#fff",
-              bgcolor: "#1e1f87",
-              textTransform: "none",
-              fontWeight: "bold",
-              boxShadow: "none",
-              "&:hover": { bgcolor: "#151663" },
-            }}
-          >
-            {savingAccountInformation ? "Saving..." : "Save Information"}
-          </Button>
-        </Box>
-      </Paper>
-
-      {/* Account Password Section */}
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            alignItems: { xs: "stretch", sm: "center" },
-            gap: 2,
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Box
               sx={{
-                p: 1.5,
-                borderRadius: 2.5,
-                bgcolor: "rgba(30, 31, 135, 0.08)",
-                color: "#1e1f87",
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                display: "grid",
+                placeItems: "center",
+                bgcolor: "rgba(239, 51, 64, 0.1)",
+                color: "#ef3340",
+                flexShrink: 0,
               }}
             >
-              <LockResetIcon />
+              <AccountCircleIcon sx={{ fontSize: 22 }} />
             </Box>
             <Box>
-              <Typography variant="body1" fontWeight="700">
-                Account Password
+              <Typography variant="subtitle1" fontWeight={700}>
+                Profile Picture
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Change your password regularly to secure your account.
+                The image displayed across your shop storefront and public
+                listings
               </Typography>
             </Box>
           </Box>
 
-          <Button
-            variant="contained"
-            sx={{
-              color: "#fff",
-              bgcolor: "#1e1f87",
-              textTransform: "none",
-              fontWeight: "bold",
-              boxShadow: "none",
-              "&:hover": { bgcolor: "#151663" },
-            }}
-            onClick={handleOpenPasswordEdit}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={3}
+            alignItems="center"
           >
-            Update
-          </Button>
-        </Box>
-      </Paper>
+            <Avatar
+              src={
+                profileImage
+                  ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+                  : undefined
+              }
+              alt="Seller profile"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                border: "2px solid",
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.12)"
+                  : "rgba(15,23,42,0.12)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                fontSize: 24,
+                fontWeight: 700,
+              }}
+            >
+              {!profileImage &&
+                getProfileInitials(
+                  `${accountInformation.first_name} ${accountInformation.last_name}`,
+                )}
+            </Avatar>
+            <Box>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadIcon />}
+                onClick={() => setProfileImageDialogOpen(true)}
+                sx={{
+                  borderRadius: 2,
+                  px: 2.5,
+                  py: 1,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.2)"
+                    : "rgba(15,23,42,0.2)",
+                  color: "text.primary",
+                  "&:hover": {
+                    borderColor: "#ef3340",
+                    color: "#ef3340",
+                  },
+                }}
+              >
+                Change Profile Image
+              </Button>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                sx={{ mt: 1 }}
+              >
+                PNG, JPG, or WEBP up to 2MB recommended
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
+
+        {/* Account Information Section */}
+        <Paper elevation={0} sx={cardSx}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.5 }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                display: "grid",
+                placeItems: "center",
+                bgcolor: "rgba(239, 51, 64, 0.1)",
+                color: "#ef3340",
+                flexShrink: 0,
+              }}
+            >
+              <PersonOutlineOutlinedIcon sx={{ fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700}>
+                Student Artist Information
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Your personal and academic enrollment information registered
+                with CAFA
+              </Typography>
+            </Box>
+          </Box>
+
+          {accountInformationError && (
+            <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 2 }}>
+              {accountInformationError}
+            </Alert>
+          )}
+          {accountInformationValidationError && (
+            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
+              {accountInformationValidationError}
+            </Alert>
+          )}
+          {loadingAccountInformation && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+              <CircularProgress size={28} sx={{ color: "#ef3340" }} />
+            </Box>
+          )}
+
+          <Stack spacing={3}>
+            {/* Personal Details Subgroup */}
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  display: "block",
+                  mb: 1.5,
+                }}
+              >
+                Personal Details
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                    md: "1fr 1fr 1fr",
+                  },
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  label="First Name"
+                  name="first_name"
+                  value={accountInformation.first_name}
+                  onChange={handleAccountInformationChange}
+                  required
+                  size="small"
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                />
+                <TextField
+                  label="Middle Name"
+                  name="middle_name"
+                  value={accountInformation.middle_name}
+                  onChange={handleAccountInformationChange}
+                  size="small"
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                />
+                <TextField
+                  label="Last Name"
+                  name="last_name"
+                  value={accountInformation.last_name}
+                  onChange={handleAccountInformationChange}
+                  required
+                  size="small"
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                />
+                <TextField
+                  label="Birthdate"
+                  name="birthdate"
+                  type="date"
+                  value={normalizeDateInput(accountInformation.birthdate)}
+                  onChange={handleAccountInformationChange}
+                  required
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                />
+              </Box>
+            </Box>
+
+            <Divider
+              sx={{
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(0,0,0,0.06)",
+              }}
+            />
+
+            {/* Academic Credentials Subgroup */}
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  display: "block",
+                  mb: 1.5,
+                }}
+              >
+                Academic Credentials (Enrollment Roster)
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr 1fr" },
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  label="Student Number"
+                  name="student_number"
+                  value={accountInformation.student_number}
+                  required
+                  size="small"
+                  disabled
+                  helperText="Verified student roster identifier"
+                />
+                <FormControl required disabled size="small">
+                  <InputLabel id="seller-settings-year-level-label">
+                    Year Level
+                  </InputLabel>
+                  <Select
+                    labelId="seller-settings-year-level-label"
+                    name="year_level"
+                    label="Year Level"
+                    value={accountInformation.year_level}
+                  >
+                    <MenuItem value="First Year">First Year</MenuItem>
+                    <MenuItem value="Second Year">Second Year</MenuItem>
+                    <MenuItem value="Third Year">Third Year</MenuItem>
+                    <MenuItem value="Fourth Year">Fourth Year</MenuItem>
+                    <MenuItem value="Fifth Year">Fifth Year</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl required disabled size="small">
+                  <InputLabel id="seller-settings-course-label">
+                    Course
+                  </InputLabel>
+                  <Select
+                    labelId="seller-settings-course-label"
+                    name="course"
+                    label="Course"
+                    value={accountInformation.course}
+                  >
+                    {accountInformation.course &&
+                      !courseOptions.includes(accountInformation.course) && (
+                        <MenuItem value={accountInformation.course}>
+                          {accountInformation.course}
+                        </MenuItem>
+                      )}
+                    {courseOptions.map((course) => (
+                      <MenuItem key={course} value={course}>
+                        {course}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+
+            <Divider
+              sx={{
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(0,0,0,0.06)",
+              }}
+            />
+
+            {/* Contact & Address Subgroup */}
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  display: "block",
+                  mb: 1.5,
+                }}
+              >
+                Contact & Address
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={accountInformation.email}
+                  onChange={handleAccountInformationChange}
+                  required
+                  size="small"
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                />
+                <TextField
+                  label="Phone Number"
+                  name="phone_number"
+                  type="tel"
+                  value={accountInformation.phone_number}
+                  onChange={handleAccountInformationChange}
+                  required
+                  size="small"
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                />
+                <TextField
+                  label="Home / Studio Address"
+                  name="address"
+                  value={accountInformation.address}
+                  onChange={handleAccountInformationChange}
+                  required
+                  size="small"
+                  disabled={
+                    loadingAccountInformation || savingAccountInformation
+                  }
+                  sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}
+                />
+              </Box>
+            </Box>
+          </Stack>
+
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              mt: 3,
+              pt: 2,
+              borderTop: "1px solid",
+              borderColor: isDark
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(0,0,0,0.06)",
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={handleSaveAccountInformation}
+              disabled={loadingAccountInformation || savingAccountInformation}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                bgcolor: "#ef3340",
+                color: "#fff",
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              {savingAccountInformation ? "Saving..." : "Save Information"}
+            </Button>
+          </Box>
+        </Paper>
+
+        {/* Account Password Section */}
+        <Paper elevation={0} sx={cardSx}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              gap: 2,
+              justifyContent: "space-between",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(239, 51, 64, 0.1)",
+                  color: "#ef3340",
+                  flexShrink: 0,
+                }}
+              >
+                <LockResetIcon sx={{ fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Account Password & Security
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Update your authentication credentials regularly to keep your
+                  store secure
+                </Typography>
+              </Box>
+            </Box>
+
+            <Button
+              variant="outlined"
+              onClick={handleOpenPasswordEdit}
+              sx={{
+                borderRadius: 2,
+                px: 2.5,
+                py: 1,
+                textTransform: "none",
+                fontWeight: 700,
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.2)"
+                  : "rgba(15,23,42,0.2)",
+                color: "text.primary",
+                flexShrink: 0,
+                "&:hover": {
+                  borderColor: "#10b981",
+                  color: "#10b981",
+                },
+              }}
+            >
+              Update Password
+            </Button>
+          </Box>
+        </Paper>
+
+        {/* Data Privacy Rights (RA 10173) Section */}
+        <Paper elevation={0} sx={cardSx}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              alignItems: { xs: "stretch", md: "center" },
+              gap: 2.5,
+              justifyContent: "space-between",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(239, 51, 64, 0.1)",
+                  color: "#ef3340",
+                  flexShrink: 0,
+                }}
+              >
+                <ShieldOutlinedIcon sx={{ fontSize: 22 }} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Data Privacy &amp; Account Rights (RA 10173)
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5, lineHeight: 1.6 }}
+                >
+                  Export a portable JSON archive of your artist profile,
+                  artworks, and sales history (Sec. 18 Data Portability) or
+                  request account deactivation and listing archival (Sec. 16
+                  Erasure / Blocking).
+                </Typography>
+              </Box>
+            </Box>
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ flexShrink: 0 }}
+            >
+              <Button
+                variant="outlined"
+                startIcon={<DownloadOutlinedIcon />}
+                onClick={handleExportSellerData}
+                disabled={exportingData}
+                sx={{
+                  borderRadius: 2,
+                  px: 2,
+                  py: 1,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.2)"
+                    : "rgba(15,23,42,0.2)",
+                  color: "text.primary",
+                  "&:hover": { borderColor: "#ef3340", color: "#ef3340" },
+                }}
+              >
+                {exportingData ? "Exporting..." : "Export My Data (JSON)"}
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteForeverOutlinedIcon />}
+                onClick={() => {
+                  setDeletePassword("");
+                  setDeleteError("");
+                  setDeleteDialogOpen(true);
+                }}
+                sx={{
+                  borderRadius: 2,
+                  px: 2,
+                  py: 1,
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Deactivate Account
+              </Button>
+            </Stack>
+          </Box>
+        </Paper>
+      </Stack>
+
+      {/* Deactivate Account Confirmation Dialog */}
+      <DeactivateAccount
+        open={deleteDialogOpen}
+        onClose={() => !deletingAccount && setDeleteDialogOpen(false)}
+        onSubmit={handleDeactivateSellerAccount}
+        password={deletePassword}
+        onPasswordChange={(e) => setDeletePassword(e.target.value)}
+        error={deleteError}
+        loading={deletingAccount}
+      />
 
       {/* Profile Image Dialog */}
       <ChangeProfileImage

@@ -88,6 +88,40 @@ export const updateBuyerPrivacy = async (isPrivate) => {
   }
 };
 
+export const updateBuyerRecommendationPreference = async (
+  allowPersonalizedRecommendations,
+) => {
+  try {
+    const res = await api.put("/me", {
+      allow_personalized_recommendations: Boolean(
+        allowPersonalizedRecommendations,
+      ),
+    });
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const exportBuyerData = async () => {
+  try {
+    const res = await api.get("/export-data");
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const deleteBuyerAccount = async (password) => {
+  try {
+    const res = await api.post("/delete-account", { password });
+    clearAuthData("buyer");
+    return res.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const changeBuyerPassword = async (currentPassword, newPassword) => {
   try {
     const res = await api.put("/change-password", { currentPassword, newPassword });

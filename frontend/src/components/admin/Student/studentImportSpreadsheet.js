@@ -6,6 +6,13 @@ export const MAX_IMPORT_ROWS = 10000;
 
 const MAX_ROWS_WITH_HEADER = MAX_IMPORT_ROWS + 30;
 
+export function sanitizeSpreadsheetCell(value) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/^[\s]*[=+\-@\t\r]+/, "")
+    .trim();
+}
+
 export function normalizeStudentBirthdate(value) {
   const text = String(value || "").trim();
   if (!text) return "";

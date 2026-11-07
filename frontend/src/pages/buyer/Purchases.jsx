@@ -316,7 +316,7 @@ export default function Purchases() {
   ];
 
   return (
-    <Box sx={{ width: "100%", pb: 6 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>My Purchases</title>
       </Helmet>

@@ -24,7 +24,7 @@ import BuyerRoute from "../middleware/BuyerRoute";
 // Admin Pages
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminSystemSetting from "../pages/admin/SystemSetting";
-import AdminSystemSettingsPlaceholder from "../pages/admin/SystemSettingsPlaceholder";
+import AdminMechanicals from "../pages/admin/Mechanicals";
 import AdminFaqEdit from "../pages/admin/FaqEdit";
 import AdminChatSupport from "../pages/admin/ChatSupport";
 import AdminProfile from "../pages/admin/Profile";
@@ -90,6 +90,8 @@ import BuyerCertificateView from "../pages/buyer/CertificateView";
 import BuyerNotifications from "../pages/buyer/Notifications";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
+import BuyerPrivacyPolicy from "../pages/buyer/PrivacyPolicy";
+import BuyerTermsOfService from "../pages/buyer/TermsOfService";
 
 function LegacyArtworkRedirect() {
   const { genre } = useParams();
@@ -123,6 +125,8 @@ export default function AppRoutes() {
               <Route path="seller/:id" element={<BuyerSellerProfile />} />
               <Route path="about" element={<BuyerAboutUs />} />
               <Route path="help-support" element={<BuyerHelpSupport />} />
+              <Route path="privacy-policy" element={<BuyerPrivacyPolicy />} />
+              <Route path="terms" element={<BuyerTermsOfService />} />
               <Route path="programs/:program" element={<BuyerProgram />} />
               <Route path="academy/:section" element={<BuyerAcademy />} />
               <Route path="artwork/view/:id" element={<BuyerArtworkDetail />} />
@@ -204,7 +208,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="system-settings/mechanicals"
-                  element={<AdminSystemSettingsPlaceholder title="Mechanicals" />}
+                  element={<AdminMechanicals title="Mechanicals" />}
                 />
                 <Route
                   path="system-settings/faq-edit"
@@ -212,7 +216,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="system-settings/program"
-                  element={<AdminSystemSettingsPlaceholder title="Program" />}
+                  element={<AdminMechanicals title="Program" />}
                 />
                 <Route
                   path="system-settings/exhibitions-calendar"

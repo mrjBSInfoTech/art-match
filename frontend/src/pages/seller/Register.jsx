@@ -5,8 +5,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Container,
   Divider,
+  FormControlLabel,
   IconButton,
   InputAdornment,
   Link,
@@ -65,6 +67,7 @@ export default function Register() {
   });
   const [corImage, setCorImage] = useState(null);
   const [corImagePreview, setCorImagePreview] = useState(null);
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
     const sellerToken = isAuthenticated("seller");
@@ -144,6 +147,14 @@ export default function Register() {
       return;
     }
 
+    if (!consentAccepted) {
+      showSnackbar(
+        "Please accept the Privacy Policy and Terms of Service to create an account.",
+        "error",
+      );
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append("first_name", form.first_name);
@@ -160,6 +171,8 @@ export default function Register() {
       formData.append("year_level", form.year_level);
       formData.append("course", form.course);
       formData.append("password", form.password);
+      formData.append("consent_accepted", "true");
+      formData.append("consent_version", "1.0");
 
       setLoading(true);
       await registerUser(formData);
@@ -881,6 +894,47 @@ export default function Register() {
                 }}
               />
             </Box>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={consentAccepted}
+                  onChange={(e) => setConsentAccepted(e.target.checked)}
+                  sx={{
+                    color: "#af4f4f",
+                    "&.Mui-checked": { color: "#af4f4f" },
+                  }}
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ color: "#555", fontSize: "0.85rem" }}>
+                  I have read and agree to the{" "}
+                  <Link
+                    component={RouterLink}
+                    to="/buyer/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    sx={{ fontWeight: 700, color: "#af4f4f" }}
+                  >
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    component={RouterLink}
+                    to="/buyer/privacy-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    sx={{ fontWeight: 700, color: "#af4f4f" }}
+                  >
+                    Data Privacy Policy (RA 10173)
+                  </Link>
+                  , and I consent to the collection and processing of my student and personal data.
+                </Typography>
+              }
+              sx={{ alignItems: "flex-start", mt: 0.5, ml: 0 }}
+            />
 
             <Button
               type="submit"

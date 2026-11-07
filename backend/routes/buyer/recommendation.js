@@ -51,6 +51,22 @@ const cleanSessionId = (value) => {
 const getRecommendationSessionId = (req) =>
   cleanSessionId(req.get("x-recommendation-session") || req.query.session_id);
 
+const isPersonalizedRecommendationsAllowed = async (customerId) => {
+  if (!customerId) return true;
+  try {
+    const [rows] = await db
+      .promise()
+      .query(
+        "SELECT allow_personalized_recommendations FROM customer WHERE customer_id = ? LIMIT 1",
+        [customerId],
+      );
+    if (!rows.length) return true;
+    return Number(rows[0].allow_personalized_recommendations ?? 1) !== 0;
+  } catch {
+    return true;
+  }
+};
+
 const getLiveArtworkHistory = async ({ customerId, sessionId }) => {
   let whereSql;
   let params;
@@ -1130,6 +1146,13 @@ router.get("/recently-viewed", async (req, res) => {
     });
   }
 
+  if (customerId && !(await isPersonalizedRecommendationsAllowed(customerId))) {
+    return res.json({
+      artworks: [],
+      opted_out: true,
+    });
+  }
+
   const limit = Number(req.query.limit ?? 4);
   if (
     (req.query.limit !== undefined && typeof req.query.limit !== "string") ||
@@ -1339,6 +1362,7 @@ router.get("/", async (req, res) => {
       : 8;
 
   try {
+    const personalizationAllowed = await isPersonalizedRecommendationsAllowed(customerId);
     const [
       artworkIds,
       candidateArtworkIds,
@@ -1348,24 +1372,34 @@ router.get("/", async (req, res) => {
       purchasedArtworkIds,
     ] =
       await Promise.all([
-        getLiveArtworkHistory({
-          customerId,
-          sessionId,
-        }),
+        personalizationAllowed
+          ? getLiveArtworkHistory({
+              customerId,
+              sessionId,
+            })
+          : Promise.resolve([]),
 
         getAvailableCandidateArtworkIds(),
 
-        getRecommendationPreferenceEvents({
-          customerId,
-          sessionId,
-        }),
+        personalizationAllowed
+          ? getRecommendationPreferenceEvents({
+              customerId,
+              sessionId,
+            })
+          : Promise.resolve([]),
 
-        getArtistAffinity({
-          customerId,
-          sessionId,
-        }),
-        getRecentRecommendationActivity({ customerId, sessionId }),
-        getPurchasedArtworkIds({ customerId, sessionId }),
+        personalizationAllowed
+          ? getArtistAffinity({
+              customerId,
+              sessionId,
+            })
+          : Promise.resolve(new Map()),
+        personalizationAllowed
+          ? getRecentRecommendationActivity({ customerId, sessionId })
+          : Promise.resolve([]),
+        personalizationAllowed
+          ? getPurchasedArtworkIds({ customerId, sessionId })
+          : Promise.resolve(new Set()),
       ]);
 
     // The artwork page requests the full ranked list; homepage keeps its preview limit.
@@ -1456,11 +1490,13 @@ router.get("/", async (req, res) => {
     const candidateArtworks = await attachArtworkDetails(
       rankingArtworkIds.map((artworkId) => ({ artwork_id: artworkId })),
     );
-    const specialtyPreferences = await getSpecialtyPreferences({
-      customerId,
-      sessionId,
-      preferenceEvents,
-    });
+    const specialtyPreferences = personalizationAllowed
+      ? await getSpecialtyPreferences({
+          customerId,
+          sessionId,
+          preferenceEvents,
+        })
+      : new Map();
     const specialtyCandidates = selectSpecialtyCandidates(
       candidateArtworks.filter((artwork) => !seenArtworkIds.has(Number(artwork.artwork_id))),
       specialtyPreferences,
@@ -1704,6 +1740,13 @@ router.post("/interactions", async (req, res) => {
   if (!customerId && !sessionId) {
     return res.status(400).json({
       message: "A recommendation session is required.",
+    });
+  }
+
+  if (customerId && !(await isPersonalizedRecommendationsAllowed(customerId))) {
+    return res.json({
+      recorded: false,
+      opted_out: true,
     });
   }
 

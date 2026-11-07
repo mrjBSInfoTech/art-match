@@ -5,8 +5,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Container,
   Divider,
+  FormControlLabel,
   IconButton,
   InputAdornment,
   Link,
@@ -43,6 +45,7 @@ const Register = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,6 +78,7 @@ const Register = () => {
     phoneNumber,
     password,
     confirmPassword,
+    consentAccepted,
     isLoading,
   ]);
 
@@ -102,6 +106,14 @@ const Register = () => {
       return;
     }
 
+    if (!consentAccepted) {
+      showSnackbar(
+        "Please agree to the Terms of Service and Privacy Policy (RA 10173) to create an account.",
+        "error",
+      );
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await registerUser({
@@ -111,6 +123,8 @@ const Register = () => {
         email,
         phone_number: phoneNumber,
         password,
+        consent_accepted: true,
+        consent_version: "1.0",
       });
 
 
@@ -124,6 +138,7 @@ const Register = () => {
       setPhoneNumber("");
       setPassword("");
       setConfirmPassword("");
+      setConsentAccepted(false);
 
       setTimeout(() => {
         navigate("/buyer/login", { replace: true });
@@ -464,6 +479,47 @@ const Register = () => {
                 }}
               />
             </Box>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={consentAccepted}
+                  onChange={(e) => setConsentAccepted(e.target.checked)}
+                  sx={{
+                    color: "#af4f4f",
+                    "&.Mui-checked": { color: "#af4f4f" },
+                  }}
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ color: "#555", fontSize: "0.85rem" }}>
+                  I have read and agree to the{" "}
+                  <Link
+                    component={RouterLink}
+                    to="/buyer/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    sx={{ fontWeight: 700, color: "#af4f4f" }}
+                  >
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    component={RouterLink}
+                    to="/buyer/privacy-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    sx={{ fontWeight: 700, color: "#af4f4f" }}
+                  >
+                    Data Privacy Policy (RA 10173)
+                  </Link>
+                  , and I consent to the collection and processing of my personal data.
+                </Typography>
+              }
+              sx={{ alignItems: "flex-start", mt: 0.5, ml: 0 }}
+            />
 
             <Button
               onClick={handleRegister}

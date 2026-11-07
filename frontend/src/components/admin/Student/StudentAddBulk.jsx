@@ -18,6 +18,7 @@ import {
   MAX_IMPORT_ROWS,
   normalizeStudentBirthdate,
   readStudentSpreadsheet,
+  sanitizeSpreadsheetCell,
 } from "./studentImportSpreadsheet.js";
 import { bulkAddStudents } from "../../../api/admin/studentAPI";
 import { useTheme } from "@mui/material/styles";
@@ -158,7 +159,7 @@ const getCellValue = (row, columnMap, field) => {
     return "";
   }
 
-  return String(row[index] ?? "").trim();
+  return sanitizeSpreadsheetCell(row[index]);
 };
 
 const normalizeYearLevel = (value) => {
@@ -427,11 +428,9 @@ export default function StudentBulkAdd({
         Email: "juan@example.com",
         Address: "123 Sampaguita St",
         "Phone Number": "09123456789",
-        "Year Level": "2nd Year",
-        Course: "BS Computer Science",
+        "Year Level": "Second Year",
+        Course: "Bachelor of Fine Arts in Painting",
         "Student Number": "2021-12345",
-        "COR Image": "",
-        "Profile Picture": "",
       },
     ];
     const worksheet = XLSX.utils.json_to_sheet(template);

@@ -549,10 +549,20 @@ export default function Login() {
                 flexWrap: "wrap",
               }}
             >
-              <Link href="#" underline="hover" sx={{ color: "#7a7a7a" }}>
+              <Link
+                component={RouterLink}
+                to="/buyer/terms"
+                underline="hover"
+                sx={{ color: "#7a7a7a" }}
+              >
                 Terms of Service
               </Link>
-              <Link href="#" underline="hover" sx={{ color: "#7a7a7a" }}>
+              <Link
+                component={RouterLink}
+                to="/buyer/privacy-policy"
+                underline="hover"
+                sx={{ color: "#7a7a7a" }}
+              >
                 Privacy Policy
               </Link>
               <Typography sx={{ color: "#7a7a7a" }}>Red Nexus © 2026</Typography>

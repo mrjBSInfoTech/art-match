@@ -4,8 +4,41 @@ import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
 import { getAccountExpirationDate } from "../../database/systemSettings.js";
+import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
+const MAX_BULK_IMPORT_STUDENTS = 10000;
+
+const sanitizeStudentField = (value) => {
+  if (value === undefined || value === null) return null;
+  const cleaned = String(value)
+    .replace(/<[^>]*>/g, "")
+    .replace(/^[\s]*[=+\-@\t\r]+/, "")
+    .trim();
+  return cleaned || null;
+};
+
+const sanitizeStudentPayload = (raw = {}) => {
+  const sanitized = { ...raw };
+  const textFields = [
+    "first_name",
+    "middle_name",
+    "last_name",
+    "birthdate",
+    "email",
+    "address",
+    "phone_number",
+    "year_level",
+    "course",
+    "student_number",
+  ];
+  for (const field of textFields) {
+    if (Object.prototype.hasOwnProperty.call(raw, field)) {
+      sanitized[field] = sanitizeStudentField(raw[field]);
+    }
+  }
+  return sanitized;
+};
 
 // 🟢 Get all students, optionally filter by status
 router.get("/", authenticateAdmin, (req, res) => {
@@ -105,13 +138,21 @@ router.post(
   authenticateAdmin,
   requireAdminPermission("can_add"),
   (req, res) => {
-    const students = Array.isArray(req.body?.students) ? req.body.students : [];
+    const rawStudents = Array.isArray(req.body?.students) ? req.body.students : [];
 
-    if (students.length === 0) {
+    if (rawStudents.length === 0) {
       return res.status(400).json({ message: "No students provided" });
     }
 
+    if (rawStudents.length > MAX_BULK_IMPORT_STUDENTS) {
+      return res.status(400).json({
+        message: `Bulk import cannot exceed ${MAX_BULK_IMPORT_STUDENTS} student rows per request.`,
+      });
+    }
+
+    const students = rawStudents.map((row) => sanitizeStudentPayload(row));
     const adminId = req.user?.admin_id || null;
+    const adminActor = req.user?.username || adminId || "Admin";
     let createdCount = 0;
     let reactivatedCount = 0;
     let updatedCount = 0;
@@ -120,6 +161,13 @@ router.post(
     const processStudent = (index, expirationDate) => {
       if (index >= students.length) {
         const summary = `Bulk import complete: ${createdCount} added, ${updatedCount} updated, ${reactivatedCount} reactivated, ${skippedCount} unchanged/skipped`;
+        logAudit({
+          action: "BULK_IMPORT_STUDENTS",
+          actor: adminActor,
+          role: "Admin",
+          status: "SUCCESS",
+          information: summary,
+        }).catch(() => {});
         return res.status(201).json({
           message: summary,
           added: createdCount,
@@ -284,6 +332,13 @@ router.post(
               message: "Student account is already active or does not exist.",
             });
           }
+          logAudit({
+            action: "REACTIVATE_STUDENT",
+            actor: req.user?.username || req.user?.admin_id || "Admin",
+            role: "Admin",
+            status: "SUCCESS",
+            information: `Reactivated student ID ${req.params.id} through ${expirationDate}`,
+          }).catch(() => {});
           return res.json({
             message: `Student account reactivated through ${expirationDate}.`,
           });
@@ -300,6 +355,7 @@ router.put(
   requireAdminPermission("can_edit"),
   (req, res) => {
     const { id } = req.params;
+    const sanitizedBody = sanitizeStudentPayload(req.body || {});
     const profileFields = [
       "first_name",
       "middle_name",
@@ -313,9 +369,9 @@ router.put(
       "student_number",
     ];
     const profileUpdates = profileFields.filter((field) =>
-      Object.prototype.hasOwnProperty.call(req.body, field),
+      Object.prototype.hasOwnProperty.call(sanitizedBody, field),
     );
-    const { register_status } = req.body;
+    const { register_status } = sanitizedBody;
 
     if (profileUpdates.length === 0 && !register_status) {
       return res
@@ -324,6 +380,13 @@ router.put(
     }
 
     const updateStatus = () => {
+      logAudit({
+        action: "UPDATE_STUDENT",
+        actor: req.user?.username || req.user?.admin_id || "Admin",
+        role: "Admin",
+        status: "SUCCESS",
+        information: `Updated student ID ${id}${register_status ? ` (status: ${register_status})` : ""}`,
+      }).catch(() => {});
       if (!register_status)
         return res.json({ message: "Student updated successfully" });
 
@@ -387,7 +450,7 @@ router.put(
     const profileSql = `UPDATE student SET ${profileUpdates.map((field) => `${field} = ?`).join(", ")} WHERE student_id = ?`;
     db.query(
       profileSql,
-      [...profileUpdates.map((field) => req.body[field] || null), id],
+      [...profileUpdates.map((field) => sanitizedBody[field] || null), id],
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         updateStatus();
@@ -446,10 +509,13 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
       course,
       student_number,
       password,
+      consent_given_at,
+      consent_version,
+      must_change_password,
       created_at,
       account_status,
       expire_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', DATE_ADD(?, INTERVAL 1 DAY))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, CURRENT_TIMESTAMP, 'active', DATE_ADD(?, INTERVAL 1 DAY))
   `;
 
   db.query(
@@ -533,7 +599,7 @@ router.post(
   authenticateAdmin,
   requireAdminPermission("can_add"),
   (req, res) => {
-    const studentData = req.body || {};
+    const studentData = sanitizeStudentPayload(req.body || {});
 
     getAccountExpirationDate((settingsError, expirationDate) => {
       if (settingsError) {
@@ -545,6 +611,14 @@ router.post(
         if (err) {
           return res.status(err.status || 500).json({ message: err.message });
         }
+
+        logAudit({
+          action: "CREATE_STUDENT",
+          actor: req.user?.username || req.user?.admin_id || "Admin",
+          role: "Admin",
+          status: "SUCCESS",
+          information: `Created student record ${studentData.student_number || result?.student_id}`,
+        }).catch(() => {});
 
         return res.status(201).json({
           message: "Student added successfully",
@@ -567,6 +641,13 @@ router.delete(
         if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0)
           return res.status(404).json({ error: "Student not found" });
+        logAudit({
+          action: "DELETE_STUDENT",
+          actor: req.user?.username || req.user?.admin_id || "Admin",
+          role: "Admin",
+          status: "SUCCESS",
+          information: `Deleted student ID ${req.params.id}`,
+        }).catch(() => {});
         res.json({ message: "Student deleted successfully" });
       },
     );

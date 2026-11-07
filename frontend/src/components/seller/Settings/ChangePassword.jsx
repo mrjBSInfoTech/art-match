@@ -14,12 +14,14 @@ import {
   InputAdornment,
   Divider,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 // Icons
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import LockResetIcon from "@mui/icons-material/LockReset";
+import CloseIcon from "@mui/icons-material/Close";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -44,6 +46,7 @@ function ChangePassword({
   selectedPassword,
   userId,
 }) {
+  const theme = useTheme();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -163,21 +166,51 @@ function ChangePassword({
 
   return (
     <Dialog
-      open={open}
+      open={Boolean(open)}
       onClose={handleClose}
       disableRestoreFocus
       TransitionComponent={Transition}
       keepMounted
-      fullWidth
-      maxWidth="sm"
       PaperProps={{
         sx: {
+          width: "min(100% - 24px, 520px)",
+          maxWidth: "520px",
           borderRadius: 3,
-          p: 1,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
         },
       }}
     >
-      <DialogTitle sx={{ fontWeight: "bold" }}>Change Password</DialogTitle>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <LockResetIcon sx={{ color: "#ef3340", fontSize: 20 }} />
+        Change Password
+        <Button
+          aria-label="Close"
+          onClick={handleClose}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
+      </DialogTitle>
 
       <DialogContent dividers sx={{ pt: 2, pb: 2 }}>
         {error && (
@@ -323,14 +356,26 @@ function ChangePassword({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleClose} color="inherit">
+        <Button
+          onClick={handleClose}
+          color="inherit"
+          sx={{ textTransform: "none", color: "text.secondary" }}
+        >
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
-          color="primary"
           disabled={!allRequirementsMet || !passwordsMatch || !currentPassword}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+            backgroundColor: "#ef3340",
+            "&:hover": { backgroundColor: "#d62835" },
+          }}
         >
           Update Password
         </Button>

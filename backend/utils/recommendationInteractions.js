@@ -46,6 +46,23 @@ export const recordRecommendationInteraction = async ({
     throw new Error("eventType is required");
   }
 
+  if (normalizedCustomerId) {
+    try {
+      const [privacyRows] = await executor.query(
+        "SELECT allow_personalized_recommendations FROM customer WHERE customer_id = ? LIMIT 1",
+        [normalizedCustomerId],
+      );
+      if (
+        privacyRows.length &&
+        Number(privacyRows[0].allow_personalized_recommendations ?? 1) === 0
+      ) {
+        return null;
+      }
+    } catch {
+      // Proceed if column check fails before migration completes
+    }
+  }
+
   const sql = `
     INSERT INTO recommendation_interaction
       (

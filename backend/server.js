@@ -54,6 +54,7 @@ import { ensureOrderTables } from "./database/orders.js";
 import { ensureReturnTables } from "./database/returns.js";
 import { ensureCertificateTables } from "./database/certificates.js";
 import { startCertificateDeliveryScheduler } from "./utils/certificates.js";
+import { startDataRetentionScheduler } from "./utils/dataRetentionScheduler.js";
 import { ensureStudentAccountSchema } from "./database/student.js";
 import { ensureSystemSettingsTable } from "./database/systemSettings.js";
 import { ensurePaymentSplitTable } from "./database/paymentSplits.js";
@@ -957,6 +958,7 @@ ensureAccountAccessTable()
   )
   .then(() => {
     startCertificateDeliveryScheduler();
+    startDataRetentionScheduler();
     // Background: generate the low-res public files for older artworks.
     // Never blocks startup and never rejects.
     ensureArtworkDerivatives({ logger: console }).catch((error) =>

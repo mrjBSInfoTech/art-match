@@ -12,7 +12,9 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { styled } from "@mui/material/styles";
+import { styled, useTheme } from "@mui/material/styles";
+import CloseIcon from "@mui/icons-material/Close";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive" && prop !== "hasError",
@@ -32,10 +34,22 @@ const DropZone = styled(Box, {
 }));
 
 const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
+  return (
+    <Slide
+      direction="up"
+      ref={ref}
+      {...props}
+      timeout={500}
+      easing={{
+        enter: "cubic-bezier(0.4, 0, 0.2, 1)",
+        exit: "ease-out",
+      }}
+    />
+  );
 });
 
 export default function ChangeProfileImage({ open, handleClose, onSubmit }) {
+  const theme = useTheme();
   const [file, setFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -86,15 +100,51 @@ export default function ChangeProfileImage({ open, handleClose, onSubmit }) {
 
   return (
     <Dialog
-      open={open}
+      open={Boolean(open)}
       onClose={isSubmitting ? undefined : handleClose}
       TransitionComponent={Transition}
       keepMounted
-      maxWidth="sm"
-      fullWidth
+      disableRestoreFocus
+      PaperProps={{
+        sx: {
+          width: "min(100% - 24px, 470px)",
+          maxWidth: "470px",
+          borderRadius: 3,
+          overflow: "hidden",
+          backgroundColor: theme.palette.background.paper,
+        },
+      }}
     >
-      <DialogTitle sx={{ fontWeight: "bold" }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: theme.palette.text.primary,
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <PhotoCameraOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
         Change Profile Image
+        <Button
+          aria-label="Close"
+          onClick={handleClose}
+          disabled={isSubmitting}
+          sx={{
+            minWidth: 28,
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 18 }} />
+        </Button>
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -150,14 +200,28 @@ export default function ChangeProfileImage({ open, handleClose, onSubmit }) {
           </Button>
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={isSubmitting}>
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button
+          onClick={handleClose}
+          disabled={isSubmitting}
+          color="inherit"
+          sx={{ textTransform: "none", color: "text.secondary" }}
+        >
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={isSubmitting || !file}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+            backgroundColor: "#ef3340",
+            "&:hover": { backgroundColor: "#d62835" },
+          }}
         >
           {isSubmitting && (
             <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
