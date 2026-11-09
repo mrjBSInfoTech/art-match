@@ -124,9 +124,10 @@ function BuyerLayoutContent({ children }) {
   const [cartCount, setCartCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [promotionHeader, setPromotionHeader] = useState(
-    DEFAULT_PROMOTION_HEADER,
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine !== false : true,
   );
+  const [promotionHeader, setPromotionHeader] = useState(null);
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -141,23 +142,54 @@ function BuyerLayoutContent({ children }) {
 
   useEffect(() => {
     let active = true;
-    fetchPromotionHeader()
-      .then((header) => {
-        if (active) {
+    const loadPromotionHeader = () => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        if (active) setPromotionHeader(null);
+        return;
+      }
+      fetchPromotionHeader()
+        .then((header) => {
+          if (!active) return;
+          const message =
+            (typeof header?.message === "string" && header.message.trim()) ||
+            (typeof header?.title === "string" && header.title.trim()) ||
+            DEFAULT_PROMOTION_HEADER.message;
+          const buttonLabel =
+            (typeof header?.button_label === "string" && header.button_label.trim()) ||
+            DEFAULT_PROMOTION_HEADER.button_label;
+          const buttonUrl =
+            (typeof header?.button_url === "string" && header.button_url.trim()) ||
+            DEFAULT_PROMOTION_HEADER.button_url;
+
           setPromotionHeader({
-            message: header.message || DEFAULT_PROMOTION_HEADER.message,
-            button_label:
-              header.button_label || DEFAULT_PROMOTION_HEADER.button_label,
-            button_url:
-              header.button_url || DEFAULT_PROMOTION_HEADER.button_url,
+            message,
+            button_label: buttonLabel,
+            button_url: buttonUrl,
           });
-        }
-      })
-      .catch((error) => {
-        console.error("Unable to load the buyer promo header:", error);
-      });
+        })
+        .catch((error) => {
+          console.warn("Unable to load the buyer promo header:", error?.message);
+          if (active) setPromotionHeader(null);
+        });
+    };
+
+    loadPromotionHeader();
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      loadPromotionHeader();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setPromotionHeader(null);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     return () => {
       active = false;
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -484,57 +516,59 @@ function BuyerLayoutContent({ children }) {
         }}
         elevation={0}
       >
-        <Box
-          sx={{
-            display: "flex",
-            minHeight: { xs: 40, sm: 38 },
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1.5,
-            px: { xs: 1.5, sm: 3, lg: 5 },
-            backgroundColor: theme.palette.background.footer,
-            color: "white",
-            fontSize: { xs: 11, sm: 13 },
-          }}
-        >
-          <Typography
-            variant="caption"
+        {isOnline && Boolean(promotionHeader?.message) && (
+          <Box
             sx={{
-              minWidth: 0,
-              color: "inherit",
-              fontSize: "inherit",
-              fontWeight: 600,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              display: "flex",
+              minHeight: { xs: 40, sm: 38 },
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+              px: { xs: 1.5, sm: 3, lg: 5 },
+              backgroundColor: theme.palette.background.footer,
+              color: "white",
+              fontSize: { xs: 11, sm: 13 },
             }}
           >
-            {promotionHeader.message}
-          </Typography>
-          <Button
-            onClick={() => navigate(promotionHeader.button_url)}
-            sx={{
-              minHeight: 40,
-              px: { xs: 0.5, sm: 1 },
-              flexShrink: 0,
-              color: "inherit",
-              textTransform: "none",
-              fontSize: "inherit",
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-              {promotionHeader.button_label}
-            </Box>
-            <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-              Explore
-            </Box>
-            <span aria-hidden="true" style={{ marginLeft: 6 }}>
-              ›
-            </span>
-          </Button>
-        </Box>
+            <Typography
+              variant="caption"
+              sx={{
+                minWidth: 0,
+                color: "inherit",
+                fontSize: "inherit",
+                fontWeight: 600,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {promotionHeader.message}
+            </Typography>
+            <Button
+              onClick={() => navigate(promotionHeader.button_url || "/buyer/shop")}
+              sx={{
+                minHeight: 40,
+                px: { xs: 0.5, sm: 1 },
+                flexShrink: 0,
+                color: "inherit",
+                textTransform: "none",
+                fontSize: "inherit",
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                {promotionHeader.button_label || "Explore Collection"}
+              </Box>
+              <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                Explore
+              </Box>
+              <span aria-hidden="true" style={{ marginLeft: 6 }}>
+                ›
+              </span>
+            </Button>
+          </Box>
+        )}
         <Toolbar
           sx={{
             display: { xs: "flex", md: "grid" },

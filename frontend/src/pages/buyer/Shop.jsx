@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -9,6 +9,7 @@ import {
   Container,
   IconButton,
   Skeleton,
+  Snackbar,
   Stack,
   Typography,
   useTheme,
@@ -17,12 +18,10 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import FavoriteIcon from "@mui/icons-material/Favorite";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
+import { addToCart } from "../../api/buyer/cartAPI";
 
 import { getSearchColor } from "../../utils/artworkColors";
 
@@ -30,8 +29,8 @@ import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from
 import { scoreArtworkSearch } from "../../utils/artworkSearch";
 import { matchesArtworkCategoryFilters } from "../../utils/artworkCategoryFilters";
 import { isAuthenticated } from "../../../utils/auth";
-import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 
 const PAGE_SIZE = 8;
 
@@ -61,217 +60,6 @@ const shortcuts = [
     path: "/buyer/profile/addresses",
   },
 ];
-
-function ShopArtworkCard({ artwork, onOpen, isFavorite, onToggleFavorite }) {
-  const theme = useTheme();
-  const darkMode = theme.palette.mode === "dark";
-  const hasImage = Boolean(artwork.image);
-  const status = String(artwork.status || "").toLowerCase();
-  const soldOut = Number(artwork.is_sold_out) === 1;
-  const badge = soldOut
-    ? "Sold out"
-    : status === "available" || status === "for sale"
-      ? "For Sale"
-      : artwork.genre || "Artwork";
-  const rating = Number(artwork.average_rating ?? artwork.rating);
-  const ratingCount = Number(artwork.rating_count ?? artwork.total_reviews);
-
-  return (
-    <Box
-      sx={{
-        minWidth: 0,
-        overflow: "hidden",
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 2,
-        backgroundColor: "background.paper",
-        transition: "border-color 180ms ease, box-shadow 180ms ease",
-        "&:focus-within": {
-          outline: "2px solid",
-          outlineColor: "primary.main",
-          outlineOffset: 2,
-        },
-        "@media (hover: hover)": {
-          "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: darkMode
-              ? "0 8px 24px rgba(0, 0, 0, 0.42)"
-              : "0 8px 20px rgba(68, 41, 15, 0.07)",
-          },
-        },
-        "@media (prefers-reduced-motion: reduce)": {
-          transition: "none",
-        },
-      }}
-    >
-      <Box
-        component="button"
-        type="button"
-        onClick={() => onOpen(artwork)}
-        aria-label={`View ${artwork.title || "artwork"}`}
-        sx={{
-          position: "relative",
-          display: "flex",
-          width: "100%",
-          aspectRatio: "1.25 / 1",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          border: 0,
-          p: 0,
-          backgroundColor: darkMode ? "#1e293b" : "#eeeae4",
-          backgroundPosition: "center",
-          backgroundSize: "cover",
-          cursor: "pointer",
-        }}
-      >
-        <WatermarkedArtworkImage
-          image={artwork.image}
-          alt={artwork.title || "Artwork"}
-          variant="thumb"
-          sx={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            pointerEvents: "none",
-          }}
-        />
-        {!hasImage && (
-          <ImageOutlinedIcon
-            sx={{
-              color: darkMode ? "text.secondary" : "#d2c8bb",
-              fontSize: 38,
-            }}
-          />
-        )}
-        <Typography
-          component="span"
-          sx={{
-            position: "absolute",
-            top: 7,
-            left: 7,
-            maxWidth: "calc(100% - 52px)",
-            overflow: "hidden",
-            px: 1,
-            py: 0.5,
-            borderRadius: 999,
-            backgroundColor: soldOut ? "text.secondary" : "error.main",
-            color: "#fff",
-            fontSize: 11,
-            fontWeight: 800,
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {badge}
-        </Typography>
-      </Box>
-
-      <Box
-        sx={{
-          p: { xs: 1.5, sm: 2 },
-          display: "flex",
-          flex: 1,
-          flexDirection: "column",
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="flex-start"
-          justifyContent="space-between"
-          gap={1}
-        >
-          <Typography
-            component="button"
-            type="button"
-            onClick={() => onOpen(artwork)}
-            title={artwork.title || "Untitled artwork"}
-            sx={{
-              minWidth: 0,
-              border: 0,
-              p: 0,
-              background: "none",
-              color: "text.primary",
-              font: "inherit",
-              fontSize: { xs: 15, sm: 16 },
-              fontWeight: 800,
-              lineHeight: 1.35,
-              textAlign: "left",
-              display: "-webkit-box",
-              WebkitBoxOrient: "vertical",
-              WebkitLineClamp: 2,
-              overflow: "hidden",
-              cursor: "pointer",
-              "&:focus-visible": {
-                outline: "2px solid",
-                outlineColor: "primary.main",
-                outlineOffset: 3,
-              },
-            }}
-          >
-            {artwork.title || "Untitled artwork"}
-          </Typography>
-          {Number.isFinite(rating) && rating > 0 && (
-            <Typography
-              variant="caption"
-              sx={{ flexShrink: 0, color: "text.secondary", fontSize: 11 }}
-            >
-              ★ {rating.toFixed(2)}{Number.isFinite(ratingCount) && ratingCount > 0 ? ` (${ratingCount})` : ""}
-            </Typography>
-          )}
-        </Stack>
-        <Typography
-          variant="caption"
-          display="block"
-          noWrap
-          sx={{ mt: 0.75, color: "text.secondary", fontSize: 12 }}
-        >
-          {[artwork.artist || "Independent Artist", artwork.genre]
-            .filter(Boolean)
-            .join(" · ")}
-        </Typography>
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ mt: "auto", pt: 1.5 }}
-        >
-          <Typography
-            sx={{ color: "error.main", fontSize: 17, fontWeight: 800 }}
-            noWrap
-          >
-            ₱{Number(artwork.price || 0).toLocaleString()}
-          </Typography>
-          <IconButton
-            aria-label={
-              isFavorite ? "Remove from favorites" : "Add to favorites"
-            }
-            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            onClick={() => onToggleFavorite(artwork.artwork_id || artwork.id)}
-            sx={{
-              width: 44,
-              height: 44,
-              flexShrink: 0,
-              color: isFavorite ? "error.main" : "text.primary",
-              backgroundColor: darkMode ? "#1e293b" : "#fff2dc",
-              "&:hover": {
-                backgroundColor: darkMode ? "#334155" : "#ffebcc",
-              },
-            }}
-          >
-            {isFavorite ? (
-              <FavoriteIcon />
-            ) : (
-              <FavoriteBorderIcon />
-            )}
-          </IconButton>
-        </Stack>
-      </Box>
-    </Box>
-  );
-}
 
 export default function Shop() {
   const theme = useTheme();
@@ -304,53 +92,54 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [cartSnackbarOpen, setCartSnackbarOpen] = useState(false);
+  const [cartSnackbarMessage, setCartSnackbarMessage] = useState("");
+  const [cartSnackbarSeverity, setCartSnackbarSeverity] = useState("success");
+
+  const loadArtworks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError("");
+      const response = recommendationsOnly
+        ? await fetchRecommendations("all")
+        : await fetchArtworks();
+      if (recommendationsOnly && response?.mode === "unavailable") {
+        throw new Error("Unable to load recommendations. Please try again.");
+      }
+      const list = recommendationsOnly
+        ? response?.recommendations || []
+        : Array.isArray(response)
+          ? response
+          : response?.data || [];
+      const availableList = (Array.isArray(list) ? list : []).filter(
+        (artwork) => Number(artwork.is_sold_out) !== 1,
+      );
+      setArtworks(availableList);
+    } catch (err) {
+      setLoadError(err.message || "Failed to load artworks.");
+    } finally {
+      setLoading(false);
+    }
+  }, [recommendationsOnly]);
+
+  const loadFavoriteIds = useCallback(async () => {
+    if (!isAuthenticated("buyer")) {
+      setFavoriteIds(new Set());
+      return;
+    }
+
+    try {
+      const favorites = await fetchFavorites();
+      setFavoriteIds(new Set((favorites || []).map((item) => String(item.artwork_id))));
+    } catch {
+      setFavoriteIds(new Set());
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-
-    const loadArtworks = async () => {
-      try {
-        setLoading(true);
-        setLoadError("");
-        const response = recommendationsOnly
-          ? await fetchRecommendations("all") : await fetchArtworks();
-        if (recommendationsOnly && response?.mode === "unavailable") {
-          throw new Error("Unable to load recommendations. Please try again.");
-        }
-        const list = recommendationsOnly ? response?.recommendations || []
-          : Array.isArray(response) ? response : response?.data || [];
-        const availableList = (Array.isArray(list) ? list : []).filter(
-          (artwork) => Number(artwork.is_sold_out) !== 1,
-        );
-        if (active) setArtworks(availableList);
-      } catch (loadError) {
-        if (active) setLoadError(loadError.message || "Failed to load artworks.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    const loadFavoriteIds = async () => {
-      if (!isAuthenticated("buyer")) {
-        if (active) setFavoriteIds(new Set());
-        return;
-      }
-
-      try {
-        const favorites = await fetchFavorites();
-        if (!active) return;
-        setFavoriteIds(new Set((favorites || []).map((item) => String(item.artwork_id))));
-      } catch {
-        if (active) setFavoriteIds(new Set());
-      }
-    };
-
     loadArtworks();
     loadFavoriteIds();
-    return () => {
-      active = false;
-    };
-  }, [recommendationsOnly]);
+  }, [loadArtworks, loadFavoriteIds]);
 
   const handleFavoriteToggle = async (artworkId) => {
     const artworkKey = String(artworkId);
@@ -413,12 +202,38 @@ export default function Shop() {
     setPage(1);
   }, [searchQuery, selectedGenre, minimumPrice, maximumPrice, recommendationsOnly, searchParams]);
 
-  if (loadError && !loading) {
-    return <ConnectionErrorPanel title="Shop Unavailable" />;
-  }
-
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
+
+  const handleAddToCart = async (artwork) => {
+    const artworkId = artwork.artwork_id || artwork.id;
+    if (!isAuthenticated("buyer")) {
+      navigate("/buyer/login");
+      return;
+    }
+    const isCustomize =
+      String(artwork?.product_type || "").trim().toLowerCase() === "customize";
+    const isProduct =
+      String(artwork?.art_type || "").trim().toLowerCase() === "product";
+    if (isCustomize || isProduct) {
+      navigate(`/buyer/artwork/view/${artworkId}`);
+      return;
+    }
+    try {
+      await addToCart(artworkId, 1);
+      setCartSnackbarMessage(`"${artwork.title || "Artwork"}" added to your cart.`);
+      setCartSnackbarSeverity("success");
+      setCartSnackbarOpen(true);
+    } catch (err) {
+      setCartSnackbarMessage(err.message || "Unable to add to cart.");
+      setCartSnackbarSeverity("error");
+      setCartSnackbarOpen(true);
+    }
+  };
+
+  if (loadError && !loading) {
+    return <ConnectionErrorPanel title="Shop Unavailable" onRetry={loadArtworks} />;
+  }
 
   return (
     <Box
@@ -690,12 +505,13 @@ export default function Shop() {
               }}
             >
               {pageArtworks.map((artwork) => (
-                <ShopArtworkCard
+                <ArtworkCard
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                   onOpen={openArtwork}
                   isFavorite={favoriteIds.has(String(artwork.artwork_id || artwork.id))}
                   onToggleFavorite={handleFavoriteToggle}
+                  onAddToCart={handleAddToCart}
                 />
               ))}
             </Box>
@@ -780,6 +596,26 @@ export default function Shop() {
           </>
         )}
       </Container>
+      <Snackbar
+        open={cartSnackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setCartSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setCartSnackbarOpen(false)}
+          severity={cartSnackbarSeverity}
+          variant="filled"
+          sx={{
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            color: "#fff",
+            fontWeight: 600,
+          }}
+        >
+          {cartSnackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

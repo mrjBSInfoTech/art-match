@@ -8,6 +8,7 @@ import ArchitectureOutlinedIcon from "@mui/icons-material/ArchitectureOutlined";
 import ChairOutlinedIcon from "@mui/icons-material/ChairOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import { fetchProgramContent } from "../../api/programContentAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const defaultPrograms = {
   architecture: {
@@ -63,11 +64,15 @@ export default function Program() {
   const navigate = useNavigate();
   const theme = useTheme();
   const [programs, setPrograms] = useState(defaultPrograms);
-  useEffect(() => {
-    let active = true;
-    fetchProgramContent()
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  const loadProgramContent = () => {
+    setLoading(true);
+    setLoadError("");
+    return fetchProgramContent()
       .then((savedPrograms) => {
-        if (active) {
+        if (savedPrograms && typeof savedPrograms === "object") {
           setPrograms((current) =>
             Object.fromEntries(
               Object.entries(current).map(([key, fallback]) => [
@@ -80,11 +85,17 @@ export default function Program() {
       })
       .catch((error) => {
         console.error("Unable to load saved program content:", error.message);
+        setLoadError(error.message || "Failed to load program details.");
+      })
+      .finally(() => {
+        setLoading(false);
       });
-    return () => {
-      active = false;
-    };
+  };
+
+  useEffect(() => {
+    loadProgramContent();
   }, []);
+
   const details = useMemo(
     () =>
       programs[decodeURIComponent(program || "").toLowerCase()] ||
@@ -92,6 +103,15 @@ export default function Program() {
     [program, programs],
   );
   const Icon = details.icon;
+
+  if (loadError && !loading) {
+    return (
+      <ConnectionErrorPanel
+        title="Program Unavailable"
+        onRetry={loadProgramContent}
+      />
+    );
+  }
 
   return (
     <>

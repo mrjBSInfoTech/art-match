@@ -27,6 +27,7 @@ import CreditScoreIcon from "@mui/icons-material/CreditScore";
 import { fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import PurchaseTable from "../../components/buyer/Purhcase/PurchaseTable";
 import PurchaseInfo from "../../components/buyer/Purhcase/PurchaseInfo";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import {
   getPaymentColor,
   getPaymentLabel,
@@ -314,6 +315,15 @@ export default function Purchases() {
       accent: totalRefunded > 0 ? "error.main" : "text.secondary",
     },
   ];
+
+  if (error && !loading && transactions.length === 0) {
+    return (
+      <ConnectionErrorPanel
+        title="Purchases Unavailable"
+        onRetry={loadData}
+      />
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>

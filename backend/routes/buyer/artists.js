@@ -1,11 +1,12 @@
 import express from "express";
 import db from "../../database/db.js";
-import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
+import { authenticateBuyer, authenticateBuyerOptional } from "../../middleware/buyerAuthMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", authenticateBuyer, (req, res) => {
+router.get("/", authenticateBuyerOptional, (req, res) => {
   res.set("Cache-Control", "no-store");
+  const buyerId = req.user?.customer_id ? Number(req.user.customer_id) : 0;
   db.query(
     `SELECT artist_ratings.student_id,
             COALESCE(ROUND(artist_ratings.average_rating, 1), 0) AS averageRating,
@@ -38,7 +39,7 @@ router.get("/", authenticateBuyer, (req, res) => {
        GROUP BY a.student_id
      ) artist_ratings
      ORDER BY artist_ratings.student_id`,
-    [req.user.customer_id],
+    [buyerId],
     (error, rows) => {
       if (error) {
         console.error("Buyer artist summary query error:", error);

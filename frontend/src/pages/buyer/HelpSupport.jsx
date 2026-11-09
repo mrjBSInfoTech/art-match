@@ -32,6 +32,7 @@ import {
   sendSupportMessage,
 } from "../../api/buyer/supportChatAPI";
 import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import ContactSupportOutlinedIcon from "@mui/icons-material/ContactSupportOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -321,9 +322,17 @@ export default function HelpSupport() {
             <CircularProgress size={28} />
           </Box>
         ) : faqsError ? (
-          <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
-            {faqsError}
-          </Typography>
+          <ConnectionErrorPanel
+            title="FAQs Unavailable"
+            onRetry={() => {
+              setFaqsLoading(true);
+              setFaqsError("");
+              fetchFaqs()
+                .then((items) => setFaqs(items))
+                .catch((error) => setFaqsError(error.message))
+                .finally(() => setFaqsLoading(false));
+            }}
+          />
         ) : !faqs.length ? (
           <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
             No frequently asked questions are available yet.

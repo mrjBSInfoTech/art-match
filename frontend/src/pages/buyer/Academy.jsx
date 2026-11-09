@@ -18,6 +18,7 @@ import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined
 import MailOutlineOutlinedIcon from "@mui/icons-material/MailOutlineOutlined";
 import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import { fetchEvents } from "../../api/buyer/eventAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const academyPages = {
   exhibitions: {
@@ -64,28 +65,24 @@ export default function Academy() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState("");
 
-  useEffect(() => {
-    if (section !== "exhibitions") return undefined;
-
-    let active = true;
+  const loadEvents = () => {
     setEventsLoading(true);
     setEventsError("");
-    fetchEvents()
+    return fetchEvents()
       .then((loadedEvents) => {
-        if (active) setEvents(loadedEvents);
+        setEvents(loadedEvents);
       })
       .catch((error) => {
-        if (active) {
-          setEventsError(error.message || "Unable to load upcoming exhibitions.");
-        }
+        setEventsError(error.message || "Unable to load upcoming exhibitions.");
       })
       .finally(() => {
-        if (active) setEventsLoading(false);
+        setEventsLoading(false);
       });
+  };
 
-    return () => {
-      active = false;
-    };
+  useEffect(() => {
+    if (section !== "exhibitions") return undefined;
+    loadEvents();
   }, [section]);
 
   const formatEventDate = (value) => {
@@ -98,6 +95,15 @@ export default function Academy() {
       year: "numeric",
     });
   };
+
+  if (section === "exhibitions" && eventsError && !eventsLoading && events.length === 0) {
+    return (
+      <ConnectionErrorPanel
+        title="Exhibitions Unavailable"
+        onRetry={loadEvents}
+      />
+    );
+  }
 
   return (
     <>
@@ -182,8 +188,6 @@ export default function Academy() {
             <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
               <CircularProgress aria-label="Loading upcoming exhibitions" />
             </Box>
-          ) : eventsError ? (
-            <Alert severity="error">{eventsError}</Alert>
           ) : events.length ? (
             <Grid container spacing={2}>
               {events.map((event) => (

@@ -25,6 +25,7 @@ import BuyerRoute from "../middleware/BuyerRoute";
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminSystemSetting from "../pages/admin/SystemSetting";
 import AdminMechanicals from "../pages/admin/Mechanicals";
+import AdminProgram from "../pages/admin/Program";
 import AdminFaqEdit from "../pages/admin/FaqEdit";
 import AdminChatSupport from "../pages/admin/ChatSupport";
 import AdminProfile from "../pages/admin/Profile";
@@ -208,7 +209,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="system-settings/mechanicals"
-                  element={<AdminMechanicals title="Mechanicals" />}
+                  element={<AdminMechanicals />}
                 />
                 <Route
                   path="system-settings/faq-edit"
@@ -216,7 +217,7 @@ export default function AppRoutes() {
                 />
                 <Route
                   path="system-settings/program"
-                  element={<AdminMechanicals title="Program" />}
+                  element={<AdminProgram />}
                 />
                 <Route
                   path="system-settings/exhibitions-calendar"

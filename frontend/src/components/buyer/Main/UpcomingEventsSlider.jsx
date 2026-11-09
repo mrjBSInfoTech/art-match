@@ -39,9 +39,14 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
   const [loadError, setLoadError] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slideDirection, setSlideDirection] = useState("left");
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine !== false : true,
+  );
 
-  useEffect(() => {
+  const loadSlides = () => {
     let active = true;
+    setLoading(true);
+    setLoadError("");
     Promise.all([
       fetchPromotionSlides(),
       fetchPromotionHeroEnabled().catch((error) => {
@@ -76,6 +81,27 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
     return () => {
       active = false;
     };
+  };
+
+  useEffect(() => {
+    return loadSlides();
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      loadSlides();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   useEffect(() => {
@@ -96,6 +122,10 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
         : (index === 0 ? slides.length : index) - 1,
     );
   };
+
+  if (!isOnline || loadError) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -119,24 +149,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
   }
 
   if (!slides.length) {
-    if (!loadError) return null;
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          height: { xs: 400, sm: 500, md: 560 },
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 3,
-          color: "#fff",
-          textAlign: "center",
-          background: "linear-gradient(135deg, #1f2937, #111827)",
-        }}
-      >
-        <Typography>{loadError}</Typography>
-      </Box>
-    );
+    return null;
   }
 
   const currentSlide = slides[currentIndex];

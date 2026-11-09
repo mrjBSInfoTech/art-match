@@ -36,6 +36,7 @@ import {
 import ThemeModeSetting from "../../components/buyer/Settings/ThemeModeSetting";
 import ChangePassword from "../../components/buyer/Settings/ChangePassword";
 import DeleteAccount from "../../components/buyer/Settings/DeleteAccount";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -98,11 +99,11 @@ export default function Settings() {
   const passwordsMatch =
     newPassword.length > 0 && newPassword === confirmPassword;
 
-  useEffect(() => {
-    let active = true;
-    getBuyerSecuritySettings()
+  const loadSettings = () => {
+    setPrivacyLoading(true);
+    setPrivacyError("");
+    return getBuyerSecuritySettings()
       .then((profile) => {
-        if (!active) return;
         setUsername(profile.username || "buyer");
         setIsPrivate(Boolean(Number(profile.is_private)));
         setAllowRecommendations(
@@ -110,16 +111,15 @@ export default function Settings() {
         );
       })
       .catch((error) => {
-        if (active)
-          setPrivacyError(error.message || "Unable to load privacy setting.");
+        setPrivacyError(error.message || "Unable to load privacy setting.");
       })
       .finally(() => {
-        if (active) setPrivacyLoading(false);
+        setPrivacyLoading(false);
       });
+  };
 
-    return () => {
-      active = false;
-    };
+  useEffect(() => {
+    loadSettings();
   }, []);
 
   const handlePrivacyChange = async (event) => {
@@ -277,6 +277,15 @@ export default function Settings() {
       setPasswordSaving(false);
     }
   };
+
+  if (privacyError && !privacyLoading && !username) {
+    return (
+      <ConnectionErrorPanel
+        title="Settings Unavailable"
+        onRetry={loadSettings}
+      />
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>

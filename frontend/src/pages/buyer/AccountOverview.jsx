@@ -18,6 +18,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useNavigate } from "react-router-dom";
 import { fetchBuyerOrders } from "../../api/buyer/orderAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const currency = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -123,6 +124,15 @@ export default function AccountOverview() {
       onClick: () => navigate("/buyer/shop"),
     },
   ];
+
+  if (error && !loading && orders.length === 0) {
+    return (
+      <ConnectionErrorPanel
+        title="Account Overview Unavailable"
+        onRetry={loadOrders}
+      />
+    );
+  }
 
   return (
     <Box sx={{ width: "100%" }}>

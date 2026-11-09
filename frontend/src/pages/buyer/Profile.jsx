@@ -16,6 +16,7 @@ import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 import { cacheBuyerProfile, getBuyerSecuritySettings, updateBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 export default function Profile() {
   const [loading, setLoading] = useState(true);
@@ -39,16 +40,23 @@ export default function Profile() {
     cacheBuyerProfile(profile);
   };
 
+  const loadProfile = () => {
+    setLoading(true);
+    setError("");
+    return getBuyerSecuritySettings()
+      .then((profile) => {
+        applyProfile(profile);
+      })
+      .catch((err) => {
+        setError(err.message || "Unable to load profile.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
   useEffect(() => {
-    let active = true;
-    getBuyerSecuritySettings().then((profile) => {
-      if (active) applyProfile(profile);
-    }).catch((err) => {
-      if (active) setError(err.message);
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
-    return () => { active = false; };
+    loadProfile();
   }, []);
 
   const handleSave = async (event) => {
@@ -95,6 +103,15 @@ export default function Profile() {
       setSaving(false);
     }
   };
+
+  if (error && !loading && !username && !email) {
+    return (
+      <ConnectionErrorPanel
+        title="Profile Unavailable"
+        onRetry={loadProfile}
+      />
+    );
+  }
 
   return (
     <Box

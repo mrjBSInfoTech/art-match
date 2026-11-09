@@ -46,6 +46,7 @@ import {
 } from "../../api/admin/eventAPI";
 import PromotionHeader from "./PromotionHeader";
 import PromotionSlides from "./PromotionSlides";
+import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 
 function ExhibitionCalendar({
   events = [],
@@ -576,6 +577,7 @@ export default function Event() {
   const [archivedCount, setArchivedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -587,6 +589,7 @@ export default function Event() {
       ]);
       setEvents(Array.isArray(activeEvents) ? activeEvents : []);
       setArchivedCount(Array.isArray(archived) ? archived.length : 0);
+      setDataLoaded(true);
     } catch (error) {
       setLoadError(error.message || "Unable to load exhibitions.");
     } finally {
@@ -638,6 +641,21 @@ export default function Event() {
         theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.14)" : "#f0fdf4",
     },
   ];
+
+  if (loadError && !loading && (events.length === 0 || !dataLoaded)) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Events Unavailable</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Events Unavailable"
+          message={loadError}
+          onRetry={loadData}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Box

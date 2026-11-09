@@ -43,6 +43,7 @@ import { getSecureTrackingUrl } from "../../../utils/trackingUrl.js";
 import { getShipmentCourier } from "../../../utils/shipmentCouriers.js";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 import OrderTrack from "./OrderTrack";
+import ConnectionErrorPanel from "../ConnectionErrorPanel";
 import OrderReviewDialog from "./OrderReviewDialog";
 import ReturnRequestDialog from "../Message/ReturnRequestDialog.jsx";
 
@@ -307,12 +308,21 @@ export default function BuyerOrderDetail() {
     );
   }
 
-  if (loadError || !order) {
+  if (loadError && !order) {
+    return (
+      <ConnectionErrorPanel
+        title="Order Details Unavailable"
+        onRetry={loadOrderData}
+      />
+    );
+  }
+
+  if (!order) {
     return (
       <Box sx={{ width: "100%", maxWidth: 1200, mx: "auto", p: { xs: 2, md: 3 } }}>
         <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: "1px solid", borderColor: "divider", textAlign: "center" }}>
           <Typography variant="h6" fontWeight={800} gutterBottom>
-            {loadError || "Order Not Found"}
+            Order Not Found
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
             We could not locate this order. It may have been removed or you may have followed an expired link.

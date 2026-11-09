@@ -54,3 +54,54 @@ export const authenticateBuyer = (req, res, next) => {
     },
   );
 };
+
+export const authenticateBuyerOptional = (req, res, next) => {
+  const token =
+    req.cookies?.buyer_token ||
+    (req.headers?.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.split(" ")[1]
+      : req.headers?.authorization?.split(" ")[1]);
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  jwt.verify(
+    token,
+    getJwtSecret(),
+    { algorithms: ["HS256"] },
+    (err, user) => {
+      if (err) {
+        req.user = null;
+        return next();
+      }
+
+      const normalizedRole = String(user?.role || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+      if (user?.role && !["buyer", "customer"].includes(normalizedRole)) {
+        req.user = null;
+        return next();
+      }
+
+      const customerId = user?.customer_id || user?.id;
+      if (!customerId) {
+        req.user = null;
+        return next();
+      }
+
+      getAccountAccess("buyer", customerId)
+        .then((access) => {
+          if (access?.is_banned) {
+            req.user = null;
+            return next();
+          }
+          req.user = { ...user, role: "buyer", customer_id: customerId };
+          next();
+        })
+        .catch(() => {
+          req.user = null;
+          next();
+        });
+    },
+  );
+};

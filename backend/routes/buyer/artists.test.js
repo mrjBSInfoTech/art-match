@@ -49,7 +49,7 @@ const createRouteHarness = () => {
     post: (path, ...callbacks) => routes.set(`POST ${path}`, callbacks),
     delete: (path, ...callbacks) => routes.set(`DELETE ${path}`, callbacks),
   }) };
-  const context = vm.createContext({ express, db, authenticateBuyer: auth, console });
+  const context = vm.createContext({ express, db, authenticateBuyer: auth, authenticateBuyerOptional: auth, console });
   vm.runInContext(routeSource, context);
 
   const invoke = (method, path, {

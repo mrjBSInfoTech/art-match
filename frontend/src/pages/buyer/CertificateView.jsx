@@ -16,6 +16,7 @@ import {
   fetchBuyerCertificate,
   fetchPublicCertificate,
 } from "../../api/buyer/certificateAPI.js";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 export default function CertificateView() {
   const { orderItemId, token } = useParams();
@@ -82,6 +83,15 @@ export default function CertificateView() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [orderItemId, token]);
+
+  if (error && !loading && !svgUrl) {
+    return (
+      <ConnectionErrorPanel
+        title="Certificate Unavailable"
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>

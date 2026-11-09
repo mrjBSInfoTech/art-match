@@ -17,6 +17,7 @@ import {
   MenuItem,
   Paper,
   Select,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -25,6 +26,7 @@ import {
   useTheme,
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { addToCart } from "../../api/buyer/cartAPI";
@@ -126,9 +128,94 @@ function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
 }
 
+function ArtworkCardSkeleton() {
+  const theme = useTheme();
+  const darkMode = theme.palette.mode === "dark";
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        overflow: "hidden",
+        border: "1px solid",
+        borderColor: darkMode
+          ? "rgba(255, 255, 255, 0.08)"
+          : "rgba(15, 23, 42, 0.08)",
+        borderRadius: 3,
+        backgroundColor: "background.paper",
+        boxShadow: darkMode
+          ? "0 4px 16px rgba(0, 0, 0, 0.28)"
+          : "0 4px 16px rgba(15, 23, 42, 0.04)",
+      }}
+    >
+      <Skeleton
+        variant="rectangular"
+        animation="wave"
+        sx={{
+          width: "100%",
+          aspectRatio: "1.05 / 1",
+          transform: "none",
+        }}
+      />
+      <Box
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          display: "flex",
+          flex: 1,
+          flexDirection: "column",
+          gap: 0.75,
+        }}
+      >
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          spacing={1}
+        >
+          <Skeleton
+            variant="text"
+            animation="wave"
+            sx={{ width: "65%", height: 24, borderRadius: 1 }}
+          />
+          <Skeleton
+            variant="rounded"
+            animation="wave"
+            sx={{ width: 36, height: 20, borderRadius: 1 }}
+          />
+        </Stack>
+        <Skeleton
+          variant="text"
+          animation="wave"
+          sx={{ width: "45%", height: 18, borderRadius: 1 }}
+        />
+        <Box sx={{ flex: 1, minHeight: 12 }} />
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ pt: 1 }}
+        >
+          <Skeleton
+            variant="text"
+            animation="wave"
+            sx={{ width: "35%", height: 26, borderRadius: 1 }}
+          />
+          <Skeleton
+            variant="rounded"
+            animation="wave"
+            sx={{ width: 40, height: 40, borderRadius: 2.5 }}
+          />
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
 export default function Main() {
   const [artworks, setArtworks] = useState([]);
-  const [artworksLoading, setArtworksLoading] = useState(false);
+  const [artworksLoading, setArtworksLoading] = useState(true);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [followedArtists, setFollowedArtists] = useState([]);
   const [followingLoading, setFollowingLoading] = useState(true);
@@ -443,6 +530,20 @@ export default function Main() {
     }
   };
 
+  const handleRetry = () => {
+    loadArtworks();
+    loadRecommendations();
+  };
+
+  if (artworkErrorMessage && !artworksLoading && artworks.length === 0) {
+    return (
+      <ConnectionErrorPanel
+        title="Gallery Temporarily Unavailable"
+        onRetry={handleRetry}
+      />
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -509,40 +610,48 @@ export default function Main() {
       </Box>
 
       {/* Recently Added Artworks */}
-      {!artworksLoading && !artworkErrorMessage && (
+      <Box
+        sx={{
+          px: { xs: 2, sm: 4, lg: 6 },
+          py: { xs: 4, md: 6 },
+          backgroundColor: warmSurface,
+        }}
+      >
+        <SectionHeader title="Recently Added Artworks" to="/buyer/shop" />
         <Box
           sx={{
-            px: { xs: 2, sm: 4, lg: 6 },
-            py: { xs: 4, md: 6 },
-            backgroundColor: warmSurface,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(1,1fr)",
+              sm: "repeat(2,1fr)",
+              md: "repeat(4,1fr)",
+              lg: "repeat(4,1fr)",
+            },
+            gap: { xs: 2, md: 2.5 },
           }}
         >
-          <SectionHeader title="Recently Added Artworks" to="/buyer/shop" />
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "repeat(1,1fr)",
-                sm: "repeat(3,1fr)",
-                md: "repeat(4,1fr)",
-                lg: "repeat(4,1fr)",
-              },
-              gap: { xs: 2, md: 2.5 },
-            }}
-          >
-            {availableArtworks.slice(0, 4).map((artwork) => (
+          {artworksLoading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <ArtworkCardSkeleton key={`recent-skeleton-${index}`} />
+            ))
+          ) : availableArtworks.length > 0 ? (
+            availableArtworks.slice(0, 4).map((artwork) => (
               <ArtworkCard
                 onAddToCart={handleAddToCart}
                 key={artwork.artwork_id || artwork.id}
                 artwork={artwork}
               />
-            ))}
-          </Box>
+            ))
+          ) : (
+            <Typography color="text.secondary" sx={{ gridColumn: "1 / -1", py: 2 }}>
+              No artworks available right now.
+            </Typography>
+          )}
         </Box>
-      )}
+      </Box>
 
       {/* Recently Added Artworks From the Users Followings */}
-      {Boolean(isAuthenticated("buyer")) && !artworksLoading && !artworkErrorMessage && (
+      {Boolean(isAuthenticated("buyer")) && (
         <Box
           sx={{
             px: { xs: 2, sm: 4, lg: 6 },
@@ -554,34 +663,54 @@ export default function Main() {
             title="Recently Added Artworks from your Followed Artists"
             to="/buyer/shop"
           />
-          {followingLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}><CircularProgress aria-label="Loading followed artists' artworks" /></Box>
+          {followingLoading || artworksLoading ? (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(1,1fr)",
+                  sm: "repeat(2,1fr)",
+                  md: "repeat(4,1fr)",
+                  lg: "repeat(4,1fr)",
+                },
+                gap: { xs: 2, md: 2.5 },
+              }}
+            >
+              {Array.from({ length: 4 }).map((_, index) => (
+                <ArtworkCardSkeleton key={`following-skeleton-${index}`} />
+              ))}
+            </Box>
           ) : followingError ? (
             <Alert severity="warning">{followingError}</Alert>
           ) : followedArtworks.length === 0 ? (
             <Typography color="text.secondary">
-              No artworks from followed artists yet. <Button component={RouterLink} to="/buyer/artist">Explore artists</Button>
+              No artworks from followed artists yet.{" "}
+              <Button component={RouterLink} to="/buyer/artist">
+                Explore artists
+              </Button>
             </Typography>
-          ) : <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "repeat(1,1fr)",
-                sm: "repeat(3,1fr)",
-                md: "repeat(4,1fr)",
-                lg: "repeat(4,1fr)",
-              },
-              gap: { xs: 2, md: 2.5 },
-            }}
-          >
-            {followedArtworks.map((artwork) => (
-              <ArtworkCard
-                onAddToCart={handleAddToCart}
-                key={artwork.artwork_id || artwork.id}
-                artwork={artwork}
-              />
-            ))}
-          </Box>}
+          ) : (
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(1,1fr)",
+                  sm: "repeat(2,1fr)",
+                  md: "repeat(4,1fr)",
+                  lg: "repeat(4,1fr)",
+                },
+                gap: { xs: 2, md: 2.5 },
+              }}
+            >
+              {followedArtworks.map((artwork) => (
+                <ArtworkCard
+                  onAddToCart={handleAddToCart}
+                  key={artwork.artwork_id || artwork.id}
+                  artwork={artwork}
+                />
+              ))}
+            </Box>
+          )}
         </Box>
       )}
 
@@ -696,287 +825,444 @@ export default function Main() {
           </Button>
         </Stack>
 
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              md: "minmax(260px, 0.85fr) 1.5fr",
-            },
-            gap: { xs: 3, md: 5 },
-            alignItems: "center",
-            p: { xs: 1.5, sm: 3 },
-            mb: 3,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: 3,
-            backgroundColor:
-              theme.palette.mode === "light"
-                ? "#fff1d7"
-                : theme.palette.background.paper,
-          }}
-        >
-          <Box
-            sx={{
-              position: "relative",
-              height: { xs: 220, md: 280 },
-              borderRadius: 2,
-              backgroundImage:
-                !featuredArtist?.featuredArtwork?.image && featuredArtist?.image
-                  ? `url(${featuredArtist.image})`
-                  : !featuredArtist?.featuredArtwork?.image && !featuredArtist?.image
-                    ? theme.palette.mode === "light"
-                      ? "linear-gradient(135deg, #f8dfc7, #f2c8bc 48%, #e5d7ee)"
-                      : "linear-gradient(135deg, #334155, #475569 48%, #312e81)"
-                    : "none",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              border: `1px solid ${theme.palette.divider}`,
-              boxShadow: theme.shadows[2],
-              backgroundColor: theme.palette.background.default,
-            }}
-          >
-            {!featuredArtist?.featuredArtwork?.image && !featuredArtist?.image && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "grid",
-                  placeContent: "center",
-                  justifyItems: "center",
-                  color: theme.palette.text.primary,
-                }}
-              >
-                <ImageOutlinedIcon sx={{ fontSize: 44, opacity: 0.65 }} />
-                <Typography sx={{ mt: 1, fontWeight: 700 }}>
-                  Featured studio work
-                </Typography>
-              </Box>
-            )}
-            <WatermarkedArtworkImage
-              image={
-                featuredArtist?.featuredArtwork?.image || availableArtworks[0]?.image
-              }
-              alt={
-                featuredArtist?.featuredArtwork?.title ||
-                availableArtworks[0]?.title ||
-                "Featured artwork"
-              }
-              variant="web"
-              hideWhenBlurred
-              sx={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          </Box>
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "inline-block",
-                px: 1,
-                py: 0.35,
-                borderRadius: 999,
-                color: "#fff",
-                backgroundColor: theme.palette.error.main,
-                fontWeight: 800,
-              }}
-            >
-              STUDIO CHOICE
-            </Typography>
-            <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-              {featuredArtist?.name || "Artist"}
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              {featuredArtist?.department || "Independent Artist"}, Class of
-              2026
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 2, maxWidth: 620 }}>
-              {featuredArtist?.bio ||
-                "Live artist profile pulled from the gallery database."}
-            </Typography>
-            <Stack direction="row" spacing={{ xs: 2, sm: 5 }} sx={{ mt: 2.5 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  ARTWORKS
-                </Typography>
-                <Typography fontWeight={800}>
-                  {featuredArtist?.worksLabel || "0 works"}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  LISTED
-                </Typography>
-                <Typography fontWeight={800}>
-                  {featuredArtist?.sales || 0} pieces
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  RATING
-                </Typography>
-                <Typography fontWeight={800}>
-                  <Box component="span" sx={{ color: "#eab308" }}>
-                    ★
-                  </Box>{" "}
-                  {featuredArtist?.rating || "4.8"}
-                </Typography>
-              </Box>
-            </Stack>
-            <Button
-              onClick={() => navigate("/buyer/artist")}
-              variant="contained"
-              endIcon={<ArrowForwardIcon />}
-              sx={{
-                mt: 2,
-                minHeight: 44,
-                borderRadius: 999,
-                backgroundColor: theme.palette.text.primary,
-                color: theme.palette.background.paper,
-              }}
-            >
-              View Artists
-            </Button>
-          </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
-            gap: 2,
-          }}
-        >
-          {galleryArtists.map((artist, index) => (
-            <Box
-              key={artist.student_id || index}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                minWidth: 0,
-                px: { xs: 1.5, sm: 2 },
-                py: 1.5,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                backgroundColor: theme.palette.background.paper,
-              }}
-            >
-              <Avatar
-                src={artist.image || undefined}
-                alt={artist.name}
-                sx={{
-                  width: 56,
-                  height: 56,
-                  flexShrink: 0,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: `2px solid ${theme.palette.background.default}`,
-                }}
-              >
-                {!artist.image && getProfileInitials(artist.name)}
-              </Avatar>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="body2" noWrap sx={{ fontWeight: 800 }}>
-                  <Box
-                    component="span"
-                    sx={{ color: theme.palette.error.main, mr: 0.75 }}
-                  >
-                    #{index + 2}
-                  </Box>
-                  {artist.name}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                  display="block"
-                >
-                  {artist.department}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {artist.works} works&nbsp;&nbsp;{" "}
-                  <Box component="span" sx={{ color: "#eab308" }}>
-                    ★
-                  </Box>{" "}
-                  {artist.rating}
-                </Typography>
-              </Box>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => navigate(`/buyer/seller/${artist.student_id}`)}
-                sx={{
-                  flexShrink: 0,
-                  minWidth: 76,
-                  minHeight: 44,
-                  borderRadius: 999,
-                  borderColor: theme.palette.text.primary,
-                  color: theme.palette.text.primary,
-                  fontSize: 13,
-                }}
-              >
-                Open
-              </Button>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-
-      {/* Featured Artworks */}
-      {!artworksLoading && !artworkErrorMessage && (
-        <>
-          <Box
-            sx={{
-              width: "100%",
-              overflow: "hidden",
-              mt: { xs: 0, md: -1 },
-              backgroundColor: warmSurface,
-              px: { xs: 2, sm: 4, lg: 6 },
-              py: { xs: 4, md: 6 },
-            }}
-            id="featured"
-          >
-            <SectionHeader title="Featured Artworks" to="/buyer/shop" />
-            {/* Loading / Error States */}
-            {artworksLoading && (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress />
-              </Box>
-            )}
-
-            {artworkErrorMessage && (
-              <Typography align="center" color="error" sx={{ py: 3 }}>
-                {artworkErrorMessage}
-              </Typography>
-            )}
+        {artworksLoading ? (
+          <>
             <Box
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
-                  xs: "repeat(1,1fr)",
-                  sm: "repeat(3,1fr)",
-                  md: "repeat(4,1fr)",
-                  lg: "repeat(4,1fr)",
+                  xs: "1fr",
+                  md: "minmax(260px, 0.85fr) 1.5fr",
                 },
-                gap: { xs: 2, md: 2.5 },
+                gap: { xs: 3, md: 5 },
+                alignItems: "center",
+                p: { xs: 1.5, sm: 3 },
+                mb: 3,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+                backgroundColor:
+                  theme.palette.mode === "light"
+                    ? "#fff1d7"
+                    : theme.palette.background.paper,
               }}
             >
-              {availableArtworks.slice(0, 12).map((artwork) => (
-                <ArtworkCard
-                  onAddToCart={handleAddToCart}
-                  key={artwork.artwork_id || artwork.id}
-                  artwork={artwork}
+              <Skeleton
+                variant="rectangular"
+                animation="wave"
+                sx={{
+                  height: { xs: 220, md: 280 },
+                  borderRadius: 2,
+                  transform: "none",
+                }}
+              />
+              <Box>
+                <Skeleton
+                  variant="rounded"
+                  animation="wave"
+                  width={110}
+                  height={24}
+                  sx={{ borderRadius: 999, mb: 1.5 }}
                 />
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  width="65%"
+                  height={36}
+                  sx={{ mb: 0.5 }}
+                />
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  width="40%"
+                  height={20}
+                  sx={{ mb: 2 }}
+                />
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  width="95%"
+                  height={16}
+                />
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  width="80%"
+                  height={16}
+                  sx={{ mb: 2.5 }}
+                />
+                <Stack direction="row" spacing={{ xs: 2, sm: 5 }} sx={{ mb: 2 }}>
+                  <Skeleton
+                    variant="rounded"
+                    animation="wave"
+                    width={80}
+                    height={40}
+                  />
+                  <Skeleton
+                    variant="rounded"
+                    animation="wave"
+                    width={80}
+                    height={40}
+                  />
+                  <Skeleton
+                    variant="rounded"
+                    animation="wave"
+                    width={80}
+                    height={40}
+                  />
+                </Stack>
+                <Skeleton
+                  variant="rounded"
+                  animation="wave"
+                  width={130}
+                  height={44}
+                  sx={{ borderRadius: 999 }}
+                />
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
+            >
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    minWidth: 0,
+                    px: { xs: 1.5, sm: 2 },
+                    py: 1.5,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                  }}
+                >
+                  <Skeleton
+                    variant="circular"
+                    animation="wave"
+                    width={56}
+                    height={56}
+                    sx={{ flexShrink: 0 }}
+                  />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Skeleton
+                      variant="text"
+                      animation="wave"
+                      width="55%"
+                      height={20}
+                    />
+                    <Skeleton
+                      variant="text"
+                      animation="wave"
+                      width="40%"
+                      height={16}
+                    />
+                    <Skeleton
+                      variant="text"
+                      animation="wave"
+                      width="30%"
+                      height={16}
+                    />
+                  </Box>
+                  <Skeleton
+                    variant="rounded"
+                    animation="wave"
+                    width={76}
+                    height={40}
+                    sx={{ borderRadius: 999 }}
+                  />
+                </Box>
               ))}
             </Box>
-          </Box>
-        </>
-      )}
+          </>
+        ) : (
+          <>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "minmax(260px, 0.85fr) 1.5fr",
+                },
+                gap: { xs: 3, md: 5 },
+                alignItems: "center",
+                p: { xs: 1.5, sm: 3 },
+                mb: 3,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+                backgroundColor:
+                  theme.palette.mode === "light"
+                    ? "#fff1d7"
+                    : theme.palette.background.paper,
+              }}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  height: { xs: 220, md: 280 },
+                  borderRadius: 2,
+                  backgroundImage:
+                    !featuredArtist?.featuredArtwork?.image && featuredArtist?.image
+                      ? `url(${featuredArtist.image})`
+                      : !featuredArtist?.featuredArtwork?.image && !featuredArtist?.image
+                        ? theme.palette.mode === "light"
+                          ? "linear-gradient(135deg, #f8dfc7, #f2c8bc 48%, #e5d7ee)"
+                          : "linear-gradient(135deg, #334155, #475569 48%, #312e81)"
+                        : "none",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: theme.shadows[2],
+                  backgroundColor: theme.palette.background.default,
+                }}
+              >
+                {!featuredArtist?.featuredArtwork?.image && !featuredArtist?.image && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "grid",
+                      placeContent: "center",
+                      justifyItems: "center",
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    <ImageOutlinedIcon sx={{ fontSize: 44, opacity: 0.65 }} />
+                    <Typography sx={{ mt: 1, fontWeight: 700 }}>
+                      Featured studio work
+                    </Typography>
+                  </Box>
+                )}
+                <WatermarkedArtworkImage
+                  image={
+                    featuredArtist?.featuredArtwork?.image || availableArtworks[0]?.image
+                  }
+                  alt={
+                    featuredArtist?.featuredArtwork?.title ||
+                    availableArtworks[0]?.title ||
+                    "Featured artwork"
+                  }
+                  variant="web"
+                  hideWhenBlurred
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              </Box>
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "inline-block",
+                    px: 1,
+                    py: 0.35,
+                    borderRadius: 999,
+                    color: "#fff",
+                    backgroundColor: theme.palette.error.main,
+                    fontWeight: 800,
+                  }}
+                >
+                  STUDIO CHOICE
+                </Typography>
+                <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
+                  {featuredArtist?.name || "Artist"}
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                  {featuredArtist?.department || "Independent Artist"}, Class of
+                  2026
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 2, maxWidth: 620 }}>
+                  {featuredArtist?.bio ||
+                    "Live artist profile pulled from the gallery database."}
+                </Typography>
+                <Stack direction="row" spacing={{ xs: 2, sm: 5 }} sx={{ mt: 2.5 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      ARTWORKS
+                    </Typography>
+                    <Typography fontWeight={800}>
+                      {featuredArtist?.worksLabel || "0 works"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      LISTED
+                    </Typography>
+                    <Typography fontWeight={800}>
+                      {featuredArtist?.sales || 0} pieces
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      RATING
+                    </Typography>
+                    <Typography fontWeight={800}>
+                      <Box component="span" sx={{ color: "#eab308" }}>
+                        ★
+                      </Box>{" "}
+                      {featuredArtist?.rating || "4.8"}
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Button
+                  onClick={() => navigate("/buyer/artist")}
+                  variant="contained"
+                  endIcon={<ArrowForwardIcon />}
+                  sx={{
+                    mt: 2,
+                    minHeight: 44,
+                    borderRadius: 999,
+                    backgroundColor: theme.palette.text.primary,
+                    color: theme.palette.background.paper,
+                  }}
+                >
+                  View Artists
+                </Button>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+                gap: 2,
+              }}
+            >
+              {galleryArtists.map((artist, index) => (
+                <Box
+                  key={artist.student_id || index}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    minWidth: 0,
+                    px: { xs: 1.5, sm: 2 },
+                    py: 1.5,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                  }}
+                >
+                  <Avatar
+                    src={artist.image || undefined}
+                    alt={artist.name}
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      flexShrink: 0,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: `2px solid ${theme.palette.background.default}`,
+                    }}
+                  >
+                    {!artist.image && getProfileInitials(artist.name)}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" noWrap sx={{ fontWeight: 800 }}>
+                      <Box
+                        component="span"
+                        sx={{ color: theme.palette.error.main, mr: 0.75 }}
+                      >
+                        #{index + 2}
+                      </Box>
+                      {artist.name}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      noWrap
+                      display="block"
+                    >
+                      {artist.department}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {artist.works} works&nbsp;&nbsp;{" "}
+                      <Box component="span" sx={{ color: "#eab308" }}>
+                        ★
+                      </Box>{" "}
+                      {artist.rating}
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate(`/buyer/seller/${artist.student_id}`)}
+                    sx={{
+                      flexShrink: 0,
+                      minWidth: 76,
+                      minHeight: 44,
+                      borderRadius: 999,
+                      borderColor: theme.palette.text.primary,
+                      color: theme.palette.text.primary,
+                      fontSize: 13,
+                    }}
+                  >
+                    Open
+                  </Button>
+                </Box>
+              ))}
+            </Box>
+          </>
+        )}
+      </Box>
+
+      {/* Featured Artworks */}
+      <Box
+        sx={{
+          width: "100%",
+          overflow: "hidden",
+          mt: { xs: 0, md: -1 },
+          backgroundColor: warmSurface,
+          px: { xs: 2, sm: 4, lg: 6 },
+          py: { xs: 4, md: 6 },
+        }}
+        id="featured"
+      >
+        <SectionHeader title="Featured Artworks" to="/buyer/shop" />
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(1,1fr)",
+              sm: "repeat(2,1fr)",
+              md: "repeat(4,1fr)",
+              lg: "repeat(4,1fr)",
+            },
+            gap: { xs: 2, md: 2.5 },
+          }}
+        >
+          {artworksLoading ? (
+            Array.from({ length: 8 }).map((_, index) => (
+              <ArtworkCardSkeleton key={`featured-skeleton-${index}`} />
+            ))
+          ) : availableArtworks.length > 0 ? (
+            availableArtworks.slice(0, 12).map((artwork) => (
+              <ArtworkCard
+                onAddToCart={handleAddToCart}
+                key={artwork.artwork_id || artwork.id}
+                artwork={artwork}
+              />
+            ))
+          ) : (
+            <Typography color="text.secondary" sx={{ gridColumn: "1 / -1", py: 2 }}>
+              No featured artworks available.
+            </Typography>
+          )}
+        </Box>
+      </Box>
+
       {/* Recommended Artworks */}
       {(recommendationsLoading || visibleRecommendedArtworks.length > 0) && (
         <Box
@@ -1017,39 +1303,31 @@ export default function Main() {
             />
           </Box>
 
-          {recommendationsLoading ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                py: 5,
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                  xs: "repeat(1, 1fr)",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(4, 1fr)",
-                },
-
-                gap: { xs: 2, md: 2.5 },
-              }}
-            >
-              {visibleRecommendedArtworks.map((artwork) => (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(1, 1fr)",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(4, 1fr)",
+              },
+              gap: { xs: 2, md: 2.5 },
+            }}
+          >
+            {recommendationsLoading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <ArtworkCardSkeleton key={`recommended-skeleton-${index}`} />
+              ))
+            ) : (
+              visibleRecommendedArtworks.map((artwork) => (
                 <ArtworkCard
                   onAddToCart={handleAddToCart}
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                 />
-              ))}
-            </Box>
-          )}
+              ))
+            )}
+          </Box>
         </Box>
       )}
       <Snackbar

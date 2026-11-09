@@ -45,6 +45,7 @@ import { canResumePayment, isOrderPaid, calculateProcessingFee } from "../../uti
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import CheckoutVoucher from "../../components/buyer/Checkout/CheckoutVoucher";
 import AddressForm from "../../components/buyer/Address/AddressForm";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const currency = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(value || 0));
 
@@ -715,6 +716,10 @@ export default function Checkout() {
   const paymentNeedsReview = String(payment?.payment_status).toLowerCase() === "paid" &&
     paymentOrders.length > 0 && paymentOrders.every((order) => String(order.status).toLowerCase() === "cancelled");
   const paymentClosed = paymentOrders.length > 0 && paymentOrders.every((order) => String(order.status).toLowerCase() === "cancelled") || ["expired", "refunded"].includes(String(payment?.payment_status).toLowerCase());
+
+  if (error && !pageLoading && !paymentReference && cartItems.length === 0) {
+    return <ConnectionErrorPanel title="Checkout Unavailable" />;
+  }
 
   return (
     <Container
