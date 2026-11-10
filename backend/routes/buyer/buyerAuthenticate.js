@@ -5,7 +5,7 @@ import db from "../../database/db.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
 import multer from "multer";
-import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import { uploadToB2, deleteFromB2, isB2Configured } from "../../utils/b2Storage.js";
 import {
   getAuthCookieOptions,
   clearAuthCookieOptions,
@@ -15,7 +15,11 @@ import { getJwtSecret } from "../../utils/jwtSecret.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { encodeSafeWebp, safeWebpFilename } from "../../utils/safeImageUpload.js";
+import {
+  encodeSafeWebp,
+  safeWebpFilename,
+  replaceUploadWithSafeWebp,
+} from "../../utils/safeImageUpload.js";
 
 const router = express.Router();
 
@@ -29,7 +33,10 @@ const auditBuyerPasswordChange = async (req, status, information) => {
       information,
     });
   } catch (auditError) {
-    console.error("Unable to record buyer password change audit:", auditError.message);
+    console.error(
+      "Unable to record buyer password change audit:",
+      auditError.message,
+    );
   }
 };
 
@@ -94,7 +101,10 @@ router.post("/register", authRateLimiter, (req, res) => {
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const policyVersion = String(consent_version || "1.0").trim().slice(0, 20) || "1.0";
+  const policyVersion =
+    String(consent_version || "1.0")
+      .trim()
+      .slice(0, 20) || "1.0";
 
   const sql =
     "INSERT INTO customer (username, first_name, last_name, email, phone_number, password, consent_given_at, consent_version) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)";
@@ -245,9 +255,13 @@ router.put(
   authenticateBuyer,
   (req, res, next) => {
     profileUpload.single("profile_image")(req, res, (error) => {
-      if (error) return res.status(400).json({
-        message: error.code === "LIMIT_FILE_SIZE" ? "Image must be 2MB or smaller." : error.message,
-      });
+      if (error)
+        return res.status(400).json({
+          message:
+            error.code === "LIMIT_FILE_SIZE"
+              ? "Image must be 2MB or smaller."
+              : error.message,
+        });
       next();
     });
   },
@@ -255,25 +269,44 @@ router.put(
     let uploadedKey = null;
     let committed = false;
     const removeCloudImage = async (key) => {
-      try { await deleteFromB2(key); }
-      catch (error) { console.warn("Buyer profile image cleanup failed:", error.message); }
+      if (!isB2Configured() || !key) return;
+      try {
+        await deleteFromB2(key);
+      } catch (error) {
+        console.warn("Buyer profile image cleanup failed:", error.message);
+      }
     };
     try {
-      const fields = ["username", "first_name", "last_name", "email", "phone_number"];
+      const fields = [
+        "username",
+        "first_name",
+        "last_name",
+        "email",
+        "phone_number",
+      ];
       const updates = fields.filter((field) => Object.hasOwn(req.body, field));
       for (const field of updates) {
         if (typeof req.body[field] !== "string" || !req.body[field].trim()) {
-          return res.status(400).json({ message: "Personal information fields cannot be empty." });
+          return res
+            .status(400)
+            .json({ message: "Personal information fields cannot be empty." });
         }
         req.body[field] = req.body[field].trim();
       }
-      if (updates.includes("email") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email)) {
-        return res.status(400).json({ message: "Enter a valid email address." });
+      if (
+        updates.includes("email") &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email)
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Enter a valid email address." });
       }
       const values = updates.map((field) => req.body[field]);
       if (Object.hasOwn(req.body, "is_private")) {
         if (typeof req.body.is_private !== "boolean") {
-          return res.status(400).json({ message: "Privacy setting must be a boolean." });
+          return res
+            .status(400)
+            .json({ message: "Privacy setting must be a boolean." });
         }
         updates.push("is_private");
         values.push(req.body.is_private ? 1 : 0);
@@ -288,39 +321,60 @@ router.put(
         values.push(req.body.allow_personalized_recommendations ? 1 : 0);
       }
       if (!updates.length && !req.file) {
-        return res.status(400).json({ message: "No profile changes supplied." });
+        return res
+          .status(400)
+          .json({ message: "No profile changes supplied." });
       }
-      const [rows] = await db.promise().query(
-        "SELECT profile_image FROM customer WHERE customer_id = ? LIMIT 1",
-        [req.user.customer_id],
-      );
-      if (!rows.length) return res.status(404).json({ message: "Buyer not found." });
+      const [rows] = await db
+        .promise()
+        .query(
+          "SELECT profile_image FROM customer WHERE customer_id = ? LIMIT 1",
+          [req.user.customer_id],
+        );
+      if (!rows.length)
+        return res.status(404).json({ message: "Buyer not found." });
       if (req.file) {
-        const profileImage = await encodeSafeWebp(req.file.path);
-        const profileImageName = safeWebpFilename(req.file.filename);
+        const profileImageBuffer = await replaceUploadWithSafeWebp(
+          req.file,
+          profileUploadDir,
+        );
+        const profileImageName = req.file.filename;
         const key = `app-uploads/buyer/uploadProfile/${profileImageName}`;
-        try {
-          await uploadToB2({ key, body: profileImage, contentType: "image/webp" });
-          uploadedKey = key;
-        } catch (error) {
-          console.error("Buyer profile upload failed:", error.message);
-          return res.status(502).json({ message: "Profile image could not be uploaded to cloud storage." });
+
+        if (isB2Configured()) {
+          try {
+            await uploadToB2({
+              key,
+              body: profileImageBuffer,
+              contentType: "image/webp",
+            });
+            uploadedKey = key;
+          } catch (error) {
+            console.warn(
+              "Buyer profile B2 upload failed, continuing with local storage:",
+              error.message,
+            );
+          }
         }
+
         updates.push("profile_image");
         values.push(profileImageName);
         req.file.safeFilename = profileImageName;
       }
-      await db.promise().query(
-        `UPDATE customer SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`,
-        [...values, req.user.customer_id],
-      );
+      await db
+        .promise()
+        .query(
+          `UPDATE customer SET ${updates.map((field) => `${field} = ?`).join(", ")} WHERE customer_id = ?`,
+          [...values, req.user.customer_id],
+        );
       committed = true;
       if (req.body.allow_personalized_recommendations === false) {
         await db
           .promise()
-          .query("DELETE FROM recommendation_interaction WHERE customer_id = ?", [
-            req.user.customer_id,
-          ])
+          .query(
+            "DELETE FROM recommendation_interaction WHERE customer_id = ?",
+            [req.user.customer_id],
+          )
           .catch(() => {});
         await logAudit({
           action: "OPT_OUT_RECOMMENDATION_PROFILING",
@@ -341,19 +395,47 @@ router.put(
         }).catch(() => {});
       }
       if (req.file && rows[0].profile_image) {
-        await removeCloudImage(`app-uploads/buyer/uploadProfile/${path.basename(rows[0].profile_image)}`);
+        await removeCloudImage(
+          `app-uploads/buyer/uploadProfile/${path.basename(rows[0].profile_image)}`,
+        );
+        const oldLocalPath = path.join(
+          profileUploadDir,
+          path.basename(rows[0].profile_image),
+        );
+        if (fs.existsSync(oldLocalPath)) {
+          fs.unlinkSync(oldLocalPath);
+        }
       }
-      await logAudit({ action: "UPDATE_ACCOUNT_INFORMATION", actor: req.user.customer_id,
-        role: "Customer", status: "SUCCESS", information: "Buyer profile updated successfully." }).catch(() => {});
-      res.json({ message: "Buyer profile updated successfully.", profile_image: req.file?.safeFilename });
+      await logAudit({
+        action: "UPDATE_ACCOUNT_INFORMATION",
+        actor: req.user.customer_id,
+        role: "Customer",
+        status: "SUCCESS",
+        information: "Buyer profile updated successfully.",
+      }).catch(() => {});
+      res.json({
+        message: "Buyer profile updated successfully.",
+        profile_image: req.file?.safeFilename,
+      });
     } catch (error) {
       if (uploadedKey && !committed) await removeCloudImage(uploadedKey);
+      if (req.file?.path && !committed && fs.existsSync(req.file.path)) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+      }
       console.error("Buyer profile update failed:", error.message);
-      res.status(error.status || (error.code === "ER_DUP_ENTRY" ? 409 : 500)).json({
-        message: error.status ? error.message : error.code === "ER_DUP_ENTRY" ? "Username or email already exists." : "Unable to update buyer profile.",
-      });
+      res
+        .status(error.status || (error.code === "ER_DUP_ENTRY" ? 409 : 500))
+        .json({
+          message: error.status
+            ? error.message
+            : error.code === "ER_DUP_ENTRY"
+              ? "Username or email already exists."
+              : "Unable to update buyer profile.",
+        });
     } finally {
-      if (req.file) await fs.promises.unlink(req.file.path).catch(() => {});
+      if (req.file?.path && !committed && fs.existsSync(req.file.path)) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+      }
     }
   },
 );
@@ -369,15 +451,17 @@ router.put("/change-password", authenticateBuyer, async (req, res) => {
       "Buyer password change failed: required password values were missing or the new password length was invalid.",
     );
     return res.status(400).json({
-      message: "Enter your current password and a new password of at least 8 characters.",
+      message:
+        "Enter your current password and a new password of at least 8 characters.",
     });
   }
 
   try {
-    const [rows] = await db.promise().query(
-      "SELECT password FROM customer WHERE customer_id = ? LIMIT 1",
-      [req.user.customer_id],
-    );
+    const [rows] = await db
+      .promise()
+      .query("SELECT password FROM customer WHERE customer_id = ? LIMIT 1", [
+        req.user.customer_id,
+      ]);
     if (!rows.length) {
       await auditBuyerPasswordChange(
         req,
@@ -392,14 +476,18 @@ router.put("/change-password", authenticateBuyer, async (req, res) => {
         "FAILED",
         "Buyer password change failed: current password was incorrect.",
       );
-      return res.status(400).json({ message: "Current password is incorrect." });
+      return res
+        .status(400)
+        .json({ message: "Current password is incorrect." });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await db.promise().query(
-      "UPDATE customer SET password = ? WHERE customer_id = ?",
-      [passwordHash, req.user.customer_id],
-    );
+    await db
+      .promise()
+      .query("UPDATE customer SET password = ? WHERE customer_id = ?", [
+        passwordHash,
+        req.user.customer_id,
+      ]);
     await auditBuyerPasswordChange(
       req,
       "SUCCESS",
@@ -519,7 +607,8 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
 
   if (!password) {
     return res.status(400).json({
-      message: "Please enter your current password to confirm account deletion.",
+      message:
+        "Please enter your current password to confirm account deletion.",
     });
   }
 
@@ -594,10 +683,8 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
         .catch(() => {}),
     ]);
 
-    await db
-      .promise()
-      .query(
-        `UPDATE customer
+    await db.promise().query(
+      `UPDATE customer
          SET username = ?,
              first_name = 'Deleted',
              last_name = 'Buyer',
@@ -608,8 +695,8 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
              is_private = 1,
              allow_personalized_recommendations = 0
          WHERE customer_id = ?`,
-        [anonymizedUsername, anonymizedEmail, unusablePasswordHash, customerId],
-      );
+      [anonymizedUsername, anonymizedEmail, unusablePasswordHash, customerId],
+    );
 
     await db
       .promise()
@@ -653,10 +740,14 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
 router.post("/logout", async (req, res) => {
   try {
     res.clearCookie("buyer_token", clearAuthCookieOptions());
-    const token = req.cookies?.buyer_token || req.headers?.authorization?.replace(/^Bearer\s+/i, "");
+    const token =
+      req.cookies?.buyer_token ||
+      req.headers?.authorization?.replace(/^Bearer\s+/i, "");
     if (token) {
       try {
-        const user = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
+        const user = jwt.verify(token, getJwtSecret(), {
+          algorithms: ["HS256"],
+        });
         await logAudit({
           action: "LOGOUT",
           actor: user.username || user.customer_id || "Customer",

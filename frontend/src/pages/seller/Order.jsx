@@ -43,6 +43,7 @@ import { isPlacedOrder, isSellerSale } from "../../utils/orderPayments.js";
 import OrderCard from "../../components/seller/Order/OrderCard";
 import OrderTable from "../../components/seller/Order/OrderTable";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
 
 const orderStatuses = [
@@ -134,6 +135,15 @@ export default function SellerOrder() {
       shipped,
     };
   }, [orders]);
+
+  if (loading && orders.length === 0) {
+    return (
+      <SellerLoadingPanel
+        title="Orders"
+        subtitle="Manage paid online orders and cash on delivery orders."
+      />
+    );
+  }
 
   if (error) {
     return (

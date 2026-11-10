@@ -2,15 +2,20 @@ import express from "express";
 import multer from "multer";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import db from "../database/db.js";
 import { getProgramContent, saveProgramContent } from "../database/programContent.js";
 import { authenticateAdmin } from "../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../middleware/adminPermissionMiddleware.js";
 import { logAudit } from "../utils/auditLogger.js";
-import { deleteFromB2, uploadToB2 } from "../utils/b2Storage.js";
+import { deleteFromB2, uploadToB2, isB2Configured } from "../utils/b2Storage.js";
 
 const router = express.Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const localProgramDir = path.resolve(__dirname, "../uploads/admin/program");
 const imagePrefix = "app-uploads/admin/program/";
 const imageTypes = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
 const upload = multer({
@@ -159,11 +164,21 @@ router.put(
       }
       const extension = format === "jpeg" ? "jpg" : format;
       uploadedKey = `${imagePrefix}${targetProgram}-${randomUUID()}.${extension}`;
-      await uploadToB2({
-        key: uploadedKey,
-        body: req.file.buffer,
-        contentType: imageTypes[format],
-      });
+      const filename = path.basename(uploadedKey);
+      await fs.promises.mkdir(localProgramDir, { recursive: true });
+      await fs.promises.writeFile(path.join(localProgramDir, filename), req.file.buffer);
+
+      if (isB2Configured()) {
+        try {
+          await uploadToB2({
+            key: uploadedKey,
+            body: req.file.buffer,
+            contentType: imageTypes[format],
+          });
+        } catch (b2Error) {
+          console.warn("B2 upload failed, keeping local program image:", b2Error.message);
+        }
+      }
       content[targetProgram].image = `/uploads/admin/program/${encodeURIComponent(
         uploadedKey.slice(imagePrefix.length),
       )}`;
@@ -178,10 +193,14 @@ router.put(
     });
   } catch (error) {
     if (uploadedKey) {
-      try {
-        await deleteFromB2(uploadedKey);
-      } catch (cleanupError) {
-        console.error("Unable to clean failed Program image upload:", cleanupError.message);
+      const filename = path.basename(uploadedKey);
+      await fs.promises.unlink(path.join(localProgramDir, filename)).catch(() => {});
+      if (isB2Configured()) {
+        try {
+          await deleteFromB2(uploadedKey);
+        } catch (cleanupError) {
+          console.error("Unable to clean failed Program image upload from B2:", cleanupError.message);
+        }
       }
     }
     console.error("Unable to save Program page content:", error.message);

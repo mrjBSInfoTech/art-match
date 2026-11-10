@@ -45,6 +45,7 @@ const sectionTitleSx = {
   fontWeight: 800,
   letterSpacing: "-0.02em",
 };
+const sectionScrollMargin = "calc(var(--buyer-header-height, 160px) + 16px)";
 
 function InfoCard({ title, children }) {
   return (
@@ -156,8 +157,8 @@ export default function AboutUs() {
             elevation={0}
             sx={{
               display: "block",
-              position: { xs: "relative", md: "sticky" },
-              top: { md: 24 },
+              position: "sticky",
+              top: "calc(var(--buyer-header-height, 160px) + 12px)",
               flex: { md: "0 0 240px" },
               width: { xs: "100%", md: 240 },
               minWidth: 0,
@@ -225,6 +226,7 @@ export default function AboutUs() {
             component="main"
             id="about-us"
             sx={{
+              scrollMarginTop: sectionScrollMargin,
               width: "100%",
               maxWidth: 960,
               mx: { xs: "auto", md: 0 },
@@ -270,7 +272,7 @@ export default function AboutUs() {
             </Typography>
           </Box>
 
-          <Box component="section" id="vision-mission" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
+          <Box component="section" id="vision-mission" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: sectionScrollMargin }}>
             <Typography sx={sectionTitleSx}>Vision &amp; Mission</Typography>
             <Grid container spacing={2} sx={{ mt: 0.4 }}>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -286,7 +288,7 @@ export default function AboutUs() {
             </Grid>
           </Box>
 
-          <Box component="section" id="goals-objectives" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
+          <Box component="section" id="goals-objectives" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: sectionScrollMargin }}>
             <Typography sx={sectionTitleSx}>Goals</Typography>
             <Grid container spacing={1.5} sx={{ mt: 0.4 }}>
               {content.goals.map((goal, index) => (
@@ -313,7 +315,7 @@ export default function AboutUs() {
             </Grid>
           </Box>
 
-          <Box component="section" id="objectives" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
+          <Box component="section" id="objectives" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: sectionScrollMargin }}>
             <Typography sx={sectionTitleSx}>Objectives</Typography>
             <List dense disablePadding sx={{ mt: 0.5 }}>
               {content.objectives.map((objective, index) => (
@@ -330,7 +332,7 @@ export default function AboutUs() {
             </List>
           </Box>
 
-          <Box component="section" id="history" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
+          <Box component="section" id="history" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: sectionScrollMargin }}>
             <Typography sx={sectionTitleSx}>Brief History or Background</Typography>
             <Paper elevation={0} sx={{ mt: 1.25, p: { xs: 2, md: 2.5 }, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
               {content.history.split(/\n{2,}/).map((paragraph, index) => (
@@ -341,7 +343,7 @@ export default function AboutUs() {
             </Paper>
           </Box>
 
-          <Box component="section" id="academic-offerings" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
+          <Box component="section" id="academic-offerings" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: sectionScrollMargin }}>
             <Typography sx={sectionTitleSx}>Academic Offerings</Typography>
             <Grid container spacing={1.5} sx={{ mt: 0.4 }}>
               {content.offerings.map(({ title, description }, index) => (
@@ -352,7 +354,7 @@ export default function AboutUs() {
             </Grid>
           </Box>
 
-          <Box component="section" id="contact-details" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: 24 }}>
+          <Box component="section" id="contact-details" sx={{ mt: { xs: 3, md: 4 }, scrollMarginTop: sectionScrollMargin }}>
             <Typography sx={sectionTitleSx}>Contact Details</Typography>
             <Grid container spacing={1.5} sx={{ mt: 0.4 }}>
               {content.contacts.map(({ label, value }, index) => (

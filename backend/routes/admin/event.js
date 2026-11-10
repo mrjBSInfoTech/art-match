@@ -1,15 +1,20 @@
 import express from "express";
 import multer from "multer";
 import sharp from "sharp";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import db from "../../database/db.js";
 import { listEvents, findEvent, insertEvent, saveEvent, removeEvent } from "../../database/events.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
-import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import { uploadToB2, deleteFromB2, isB2Configured } from "../../utils/b2Storage.js";
 import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const localEventsDir = path.resolve(__dirname, "../../uploads/admin/events");
 const imagePrefix = "app-uploads/admin/events/";
 const imageTypes = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
 const upload = multer({
@@ -65,7 +70,7 @@ function validateEvent(body = {}) {
 
 async function validateEventDates(connection, eventData) {
   const [rows] = await connection.query(
-    "SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:00') AS current_datetime",
+    "SELECT DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 10 MINUTE), '%Y-%m-%d %H:%i:00') AS current_datetime",
   );
   const currentDateTime = rows[0]?.current_datetime;
   if (!currentDateTime) {
@@ -91,10 +96,28 @@ function serializeEvent(event) {
     ? `/uploads/admin/events/${encodeURIComponent(filename)}` : null };
 }
 
+async function storeEventImage(key, buffer, contentType) {
+  const filename = path.basename(key);
+  await fs.promises.mkdir(localEventsDir, { recursive: true });
+  await fs.promises.writeFile(path.join(localEventsDir, filename), buffer);
+
+  if (isB2Configured()) {
+    try {
+      await uploadToB2({ key, body: buffer, contentType });
+    } catch (b2Error) {
+      console.warn("B2 upload failed, keeping local event image:", b2Error.message);
+    }
+  }
+}
+
 async function cleanImage(key) {
   if (!key?.startsWith(imagePrefix)) return;
-  try { await deleteFromB2(key); }
-  catch (error) { console.error("Unable to clean up event image:", error.name); }
+  const filename = path.basename(key);
+  await fs.promises.unlink(path.join(localEventsDir, filename)).catch(() => {});
+  if (isB2Configured()) {
+    try { await deleteFromB2(key); }
+    catch (error) { console.error("Unable to clean up event image from B2:", error.name); }
+  }
 }
 
 async function audit(req, action, title) {
@@ -143,7 +166,7 @@ async function persistEvent(req, res) {
     const saved = { ...previous, ...data };
     if (req.file) {
       const key = `${imagePrefix}${Date.now()}-${randomUUID()}.${format === "jpeg" ? "jpg" : format}`;
-      await uploadToB2({ key, body: req.file.buffer, contentType: imageTypes[format] });
+      await storeEventImage(key, req.file.buffer, imageTypes[format]);
       uploadedKey = key;
       Object.assign(saved, { image_key: key, image_original_name: req.file.originalname.slice(0, 255),
         image_content_type: imageTypes[format], image_size: req.file.size });
@@ -159,8 +182,11 @@ async function persistEvent(req, res) {
   } catch (error) {
     if (connection && !committed) await connection.rollback().catch(() => {});
     if (uploadedKey && !committed) await cleanImage(uploadedKey);
-    console.error("Unable to save event:", error.code || error.name);
-    res.status(error.status === 400 ? 400 : 500).json({ message: error.status === 400 ? error.message : "Unable to save event. Please try again." });
+    console.error("Unable to save event:", error);
+    res.status(error.status === 400 ? 400 : 500).json({
+      message: error.status === 400 ? error.message : (error.message || "Unable to save event. Please try again."),
+      error: error.message,
+    });
   } finally { connection?.release(); }
 }
 

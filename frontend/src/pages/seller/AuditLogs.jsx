@@ -26,6 +26,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { fetchSellerAuditLogs } from "../../api/seller/auditLogsAPI";
 
 const getOrderNumberFromLog = (log) => {
@@ -141,6 +142,17 @@ export default function SellerAuditLogs() {
       return true;
     });
   }, [logs, search, date, period, activityCategory]);
+
+  if (loading && !logs.length) {
+    return (
+      <SellerLoadingPanel
+        title="My Activity"
+        subtitle="Review all activities associated with your account, including artwork sales, order deliveries, payments confirmed, earnings recorded, payouts, and account updates."
+        helmetTitle="Audit Logs"
+        showMetrics={false}
+      />
+    );
+  }
 
   if (errorMessage && !logs.length) {
     return (

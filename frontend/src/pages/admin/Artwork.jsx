@@ -24,6 +24,7 @@ import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
 import ArtworkVerify from "../../components/admin/Artwork/ArtworkVerify";
 import ArtworkReject from "../../components/admin/Artwork/ArtworkReject";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   fetchArtworks,
   verifyArtwork,
@@ -176,6 +177,19 @@ export default function Artwork() {
         return "primary.light";
     }
   };
+
+  if (loading && artworks.length === 0 && allArtworks.length === 0) {
+    return (
+      <AdminLoadingPanel
+        title={isVerifiedSection ? "Verified Artworks" : "Art Verification"}
+        subtitle={
+          isVerifiedSection
+            ? "Browse all approved and verified student artworks."
+            : "Review and manage the artwork catalog"
+        }
+      />
+    );
+  }
 
   if (errorMessage) {
     return (

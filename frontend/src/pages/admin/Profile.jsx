@@ -26,6 +26,7 @@ import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 // Icons
 import HomeIcon from "@mui/icons-material/Home";
 import PersonIcon from "@mui/icons-material/Person";
@@ -71,6 +72,7 @@ export default function Profile() {
   const [role, setRole] = useState("Administrator");
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [imagePreview, setImagePreview] = useState(null);
@@ -100,6 +102,7 @@ export default function Profile() {
       setEmail(profile.email || "");
       setUsername(profile.username || "");
       setImage(profile.image || "");
+      if (profile.image) localStorage.setItem("admin_image", profile.image);
       setRole(profile.role || "");
       setCreatedAt(profile.created_at || localStorage.getItem("admin_created_at") || "");
       setUpdatedAt(profile.updated_at || localStorage.getItem("admin_updated_at") || "");
@@ -112,6 +115,12 @@ export default function Profile() {
       setCreatedAt("");
       setUpdatedAt("");
     });
+
+    const handleUpdated = () => {
+      setImage(localStorage.getItem("admin_image") || "");
+    };
+    window.addEventListener("admin-profile-updated", handleUpdated);
+    return () => window.removeEventListener("admin-profile-updated", handleUpdated);
   }, []);
 
   const formatDate = (dateString) => {
@@ -174,16 +183,30 @@ export default function Profile() {
 
   const checkConnection = useCallback(async () => {
     try {
+      setLoading(true);
       setError("");
       await fetchDashboard();
     } catch (err) {
       setError(err.message || "Failed to load profile.");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     checkConnection();
   }, [checkConnection]);
+
+  if (loading) {
+    return (
+      <AdminLoadingPanel
+        title="Admin Profile"
+        subtitle="View and manage your administrator profile details."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (error) {
     return (
@@ -274,9 +297,7 @@ export default function Profile() {
                 boxShadow: 2,
               }}
               src={
-                localStorage.getItem("admin_image")
-                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
-                  : "http://localhost:5000/uploads/profile.jpg"
+                getImageUrl(image || localStorage.getItem("admin_image"))
               }
               alt={role}
             />

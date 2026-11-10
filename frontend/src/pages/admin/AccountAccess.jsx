@@ -27,6 +27,7 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import { fetchAccountAccess, fetchAccountAccessReport } from "../../api/admin/accountAccessAPI";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -146,6 +147,16 @@ export default function AccountAccess() {
       setReportLoading(false);
     }
   };
+  if (loading && accounts.length === 0) {
+    return (
+      <AdminLoadingPanel
+        title="Account List"
+        subtitle="Monitor and manage the accounts students and customers of the platform"
+        showMetrics={false}
+      />
+    );
+  }
+
   if (error) {
     return (
       <Box sx={{ minWidth: 0 }}>

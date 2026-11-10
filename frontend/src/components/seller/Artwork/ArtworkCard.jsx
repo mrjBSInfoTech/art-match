@@ -47,7 +47,10 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
   };
 
   const getRequestStatus = (artwork) => {
-    const raw = artwork?.request_status ?? artwork?.status ?? "";
+    const raw = artwork?.request_status;
+    if (!raw || String(raw).trim() === "" || String(raw).trim().toLowerCase() === "available") {
+      return "Unverified";
+    }
     return String(raw).trim();
   };
 

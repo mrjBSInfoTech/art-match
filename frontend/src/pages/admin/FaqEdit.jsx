@@ -16,6 +16,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchFaqs, saveFaqs } from "../../api/admin/systemSettingsAPI";
 
 const emptyFaq = () => ({ question: "", answer: "" });
@@ -90,24 +91,12 @@ export default function FaqEdit() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          p: { xs: 1.5, sm: 2.5 },
-          minHeight: "100vh",
-          backgroundColor: (theme) => theme.palette.background.default,
-          color: (theme) => theme.palette.text.primary,
-        }}
-      >
-        <Helmet titleTemplate="%s - ArtMatch">
-          <title>FAQ Edit</title>
-        </Helmet>
-        <Typography sx={{ fontSize: { xs: 28, sm: 38 }, fontWeight: 800, lineHeight: 1.1 }}>
-          FAQ Edit
-        </Typography>
-        <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
-          <CircularProgress />
-        </Box>
-      </Box>
+      <AdminLoadingPanel
+        title="FAQ Edit"
+        subtitle="Manage the frequently asked questions displayed on the buyer Help & Support page."
+        showMetrics={false}
+        showFilters={false}
+      />
     );
   }
 

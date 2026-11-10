@@ -35,6 +35,7 @@ import VoucherCard from "../../components/seller/Voucher/VoucherCard";
 import VoucherDelete from "../../components/seller/Voucher/VoucherDelete";
 import VoucherForm from "../../components/seller/Voucher/VoucherForm";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import {
   createSellerVoucher,
   deleteSellerVoucher,
@@ -238,6 +239,15 @@ export default function Voucher() {
       setDeleting(false);
     }
   };
+
+  if (loading && !vouchers.length) {
+    return (
+      <SellerLoadingPanel
+        title="Vouchers"
+        subtitle="Create and manage discount codes for your artwork listings."
+      />
+    );
+  }
 
   if (error && !vouchers.length) {
     return (

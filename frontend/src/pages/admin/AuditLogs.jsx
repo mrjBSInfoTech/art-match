@@ -30,6 +30,7 @@ import { fetchAuditLogs } from "../../api/admin/auditLogsAPI";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -124,6 +125,16 @@ export default function AuditLogs() {
       .filter(Boolean);
     return formatted.length > 0 ? formatted.join(", ") : "N/A";
   };
+
+  if (loading && logs.length === 0) {
+    return (
+      <AdminLoadingPanel
+        title="System Audit Logs"
+        subtitle="Review recorded activity across the system, including admins, students and sellers, and customers."
+        showMetrics={false}
+      />
+    );
+  }
 
   if (logsErrorMessage) {
     return (

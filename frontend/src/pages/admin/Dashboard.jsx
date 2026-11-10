@@ -40,6 +40,7 @@ import { fetchStudents } from "../../api/admin/studentAPI";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 import { buildProgramDistribution } from "../../utils/adminDashboard";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import Export from "../../components/admin/Dashboard/Export";
@@ -242,6 +243,23 @@ export default function Dashboard() {
         return "primary.light";
     }
   };
+
+  if (
+    (artworksLoading || logsLoading || (!statistics && !statisticsError)) &&
+    artworks.length === 0 &&
+    logs.length === 0 &&
+    !statisticsError &&
+    !artworkErrorMessage &&
+    !logsErrorMessage
+  ) {
+    return (
+      <AdminLoadingPanel
+        title="Dashboard"
+        subtitle="Monitor the overall performance of the platform"
+        showFilters={false}
+      />
+    );
+  }
 
   if (statisticsError || artworkErrorMessage || logsErrorMessage) {
     return (

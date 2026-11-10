@@ -24,6 +24,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchAboutContent, saveAboutContent } from "../../api/aboutContentAPI";
 import { fetchFooterContent, saveFooterContent } from "../../api/footerContentAPI";
 
@@ -360,30 +361,12 @@ export default function SystemSetting() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          p: { xs: 1.5, sm: 2.5 },
-          minHeight: "100vh",
-          backgroundColor: (theme) => theme.palette.background.default,
-          color: (theme) => theme.palette.text.primary,
-        }}
-      >
-        <Helmet titleTemplate="%s - ArtMatch">
-          <title>System Content</title>
-        </Helmet>
-        <Typography
-          sx={{
-            fontSize: { xs: 28, sm: 38 },
-            fontWeight: 800,
-            lineHeight: 1.1,
-          }}
-        >
-          System Content
-        </Typography>
-        <Box sx={{ display: "grid", placeItems: "center", minHeight: 300 }}>
-          <CircularProgress />
-        </Box>
-      </Box>
+      <AdminLoadingPanel
+        title="System Content"
+        subtitle="Edit and publish the About Us and Footer content shown to buyers."
+        showMetrics={false}
+        showFilters={false}
+      />
     );
   }
 

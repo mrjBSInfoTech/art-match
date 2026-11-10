@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -41,7 +40,6 @@ export default function PromotionHeaderReviewDialog({
   onClose,
   requests = [],
   loading = false,
-  error = "",
   onReview,
   reviewingRequestId = null,
   canEdit = true,
@@ -60,6 +58,7 @@ export default function PromotionHeaderReviewDialog({
         sx: {
           width: "min(100% - 24px, 580px)",
           maxWidth: "580px",
+          maxHeight: "calc(100% - 32px)",
           borderRadius: 3,
           overflow: "hidden",
           backgroundColor: theme.palette.background.paper,
@@ -98,13 +97,14 @@ export default function PromotionHeaderReviewDialog({
         </Button>
       </DialogTitle>
 
-      <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 } }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
+      <DialogContent
+        dividers
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          minHeight: 0,
+          overflowY: "auto",
+        }}
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
             <CircularProgress size={36} />
@@ -179,9 +179,9 @@ export default function PromotionHeaderReviewDialog({
                           sx={{
                             fontWeight: 600,
                             fontSize: 12.5,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
+                            minWidth: 0,
+                            overflowWrap: "anywhere",
+                            whiteSpace: "normal",
                           }}
                         >
                           {request.message}
@@ -207,7 +207,11 @@ export default function PromotionHeaderReviewDialog({
                         </Button>
                       </Box>
 
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", overflowWrap: "anywhere" }}
+                      >
                         Destination: <strong>{request.button_url}</strong>
                       </Typography>
 
@@ -288,4 +292,3 @@ export default function PromotionHeaderReviewDialog({
     </Dialog>
   );
 }
-

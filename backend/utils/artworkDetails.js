@@ -138,7 +138,7 @@ export function validateArtworkDetails(rawDetails, artType, product, productType
     material_composition: materialTags(details.material_composition),
     ...(isPremade && hasStockable ? { stockable } : {}),
   };
-  if (!isCustomizable && !(category === "product" && normalize(artType) === "product") && stockable) {
+  if (isPremade && !(category === "product" && normalize(artType) === "product") && stockable) {
     commonDetails.stock_available = integerValue(details.stock_available, 0, "Stock available");
   }
   if (category === "fine_art") {
@@ -153,7 +153,7 @@ export function validateArtworkDetails(rawDetails, artType, product, productType
     if (normalize(artType) !== "product") {
       return commonDetails;
     }
-    if (isCustomizable) {
+    if (!isPremade) {
       return commonDetails;
     }
     let options;

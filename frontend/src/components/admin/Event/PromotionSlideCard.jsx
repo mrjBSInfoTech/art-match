@@ -1,4 +1,4 @@
-import React from "react";
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -6,18 +6,17 @@ import {
   CardContent,
   Chip,
   IconButton,
-  Stack,
-  Tooltip,
+  Menu,
+  MenuItem,
   Typography,
 } from "@mui/material";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
-
-const safeAlpha = (color, opacity) =>
-  typeof alpha === "function" ? alpha(color, opacity) : color;
+import PromotionSlideInfo from "./PromotionSlideInfo";
 
 export default function PromotionSlideCard({
   slides = [],
@@ -31,10 +30,23 @@ export default function PromotionSlideCard({
   unpublishingSlideId = null,
 }) {
   const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedSlide, setSelectedSlide] = useState(null);
+  const [infoOpen, setInfoOpen] = useState(false);
 
-  if (!slides || slides.length === 0) {
-    return null;
-  }
+  const handleMenuOpen = (event, slide) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedSlide(slide);
+  };
+
+  const handleMenuClose = () => setAnchorEl(null);
+
+  const handleInfoOpen = (slide) => {
+    setSelectedSlide(slide);
+    setInfoOpen(true);
+  };
+
+  if (!slides.length) return null;
 
   return (
     <Box
@@ -43,9 +55,10 @@ export default function PromotionSlideCard({
         gridTemplateColumns: {
           xs: "1fr",
           sm: "repeat(2, minmax(0, 1fr))",
-          lg: "repeat(3, minmax(0, 1fr))",
+          md: "repeat(3, minmax(0, 1fr))",
+          lg: "repeat(5, minmax(0, 1fr))",
         },
-        gap: 2.5,
+        gap: 2,
       }}
     >
       {slides.map((slide) => {
@@ -53,92 +66,97 @@ export default function PromotionSlideCard({
         const isStudent = Boolean(slide.student_id);
         const isPublishing = publishingSlideId === slide.slide_id;
         const isUnpublishing = unpublishingSlideId === slide.slide_id;
+        const hasActions = canEdit || canDelete;
 
         return (
           <Card
             key={slide.slide_id}
-            elevation={0}
             sx={{
-              borderRadius: 3.5,
-              border: "1px solid",
-              borderColor: "divider",
-              bgcolor: "background.paper",
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
-              transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
+              minWidth: 0,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2.5,
+              boxShadow: "none",
+              transition: "border-color 0.2s, box-shadow 0.2s",
               "&:hover": {
-                boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)",
-                borderColor: "primary.light",
-                transform: "translateY(-1px)",
+                borderColor: "text.secondary",
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
               },
             }}
           >
-            {/* Slide Cover Image */}
-            <Box sx={{ position: "relative", width: "100%", height: 190, bgcolor: "background.default" }}>
+            <Box
+              sx={{
+                width: "100%",
+                aspectRatio: "5 / 4",
+                position: "relative",
+                backgroundColor: theme.palette.background.default,
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               {slide.image_url ? (
                 <Box
                   component="img"
                   src={slide.image_url}
-                  alt={slide.title}
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
+                  alt={slide.title || "Promotion slide"}
+                  sx={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "text.secondary",
-                  }}
-                >
-                  <Typography variant="caption">No image available</Typography>
-                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  No image available
+                </Typography>
               )}
-
-              {/* Floating Position and Status Badges */}
               <Box
                 sx={{
                   position: "absolute",
                   top: 10,
                   left: 10,
+                  right: 10,
                   display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
                   gap: 0.75,
-                  flexWrap: "wrap",
                 }}
               >
                 <Chip
                   size="small"
-                  label={`Position ${slide.sort_order}`}
+                  label={`Position ${slide.sort_order ?? "—"}`}
                   sx={{
-                    bgcolor: "rgba(15, 23, 42, 0.75)",
-                    color: "#fff",
+                    height: 22,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.secondary,
+                    fontSize: 10,
                     fontWeight: 700,
-                    fontSize: 10.5,
-                    backdropFilter: "blur(4px)",
+                    boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
                   }}
                 />
                 <Chip
                   size="small"
-                  label={slide.status}
-                  color={isPublished ? "success" : "default"}
+                  label={(slide.status || "Draft").toUpperCase()}
                   sx={{
+                    height: 22,
+                    borderRadius: 2,
+                    backgroundColor: isPublished
+                      ? theme.palette.success.main
+                      : theme.palette.action.selected,
+                    color:"#fff",
+                    border: `1px solid ${
+                      isPublished
+                        ? theme.palette.success.main
+                        : theme.palette.divider
+                    }`,
+                    fontSize: 10,
                     fontWeight: 700,
-                    fontSize: 10.5,
-                    backdropFilter: "blur(4px)",
-                    ...(isPublished
-                      ? { bgcolor: "rgba(22, 163, 74, 0.9)", color: "#fff" }
-                      : { bgcolor: "rgba(100, 116, 139, 0.8)", color: "#fff" }),
+                    boxShadow: "0 1px 4px rgba(15, 23, 42, 0.14)",
                   }}
                 />
               </Box>
-
               {isStudent && (
                 <Chip
                   size="small"
@@ -147,129 +165,168 @@ export default function PromotionSlideCard({
                     position: "absolute",
                     bottom: 10,
                     left: 10,
-                    bgcolor: "rgba(15, 23, 42, 0.75)",
+                    maxWidth: "calc(100% - 20px)",
+                    height: 22,
+                    backgroundColor: "rgba(15, 23, 42, 0.78)",
                     color: "#fff",
                     fontSize: 10,
-                    backdropFilter: "blur(4px)",
+                    fontWeight: 700,
+                    "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" },
                   }}
                 />
               )}
             </Box>
 
-            {/* Card Content */}
-            <CardContent sx={{ p: 2, flex: 1, display: "flex", flexDirection: "column" }}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 800,
-                  color: "text.primary",
-                  lineHeight: 1.3,
-                  mb: 0.75,
-                }}
-              >
-                {slide.title}
-              </Typography>
-
-              {slide.description && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    fontSize: 12.5,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    mb: 1.5,
-                    flex: 1,
-                  }}
-                >
-                  {slide.description}
-                </Typography>
-              )}
-
-              {/* Action Button Link Preview */}
-              {slide.button_label && (
-                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 1.5 }}>
-                  <LinkOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: "primary.main" }}>
-                    {slide.button_label}
-                  </Typography>
-                  {slide.button_url && (
-                    <Typography variant="caption" color="text.secondary">
-                      ({slide.button_url})
-                    </Typography>
-                  )}
-                </Stack>
-              )}
-
-              {/* Card Action Buttons */}
+            <CardContent
+              sx={{
+                p: 2,
+                "&:last-child": { pb: 2 },
+                flex: 1,
+                minHeight: 150,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <Box
                 sx={{
-                  pt: 1.5,
-                  mt: "auto",
-                  borderTop: "1px solid",
-                  borderColor: "divider",
                   display: "flex",
+                  alignItems: "flex-start",
                   justifyContent: "space-between",
-                  alignItems: "center",
+                  mb: 1,
+                  minWidth: 0,
+                  gap: 1,
                 }}
               >
-                {canEdit && (
-                  <Button
-                    size="small"
-                    variant={isPublished ? "outlined" : "contained"}
-                    color={isPublished ? "inherit" : "primary"}
-                    disabled={isPublishing || isUnpublishing}
-                    onClick={() => (isPublished ? onUnpublish(slide) : onPublish(slide))}
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="subtitle2"
                     sx={{
-                      fontSize: 11.5,
+                      color: theme.palette.text.primary,
                       fontWeight: 700,
-                      borderRadius: 2,
-                      textTransform: "none",
-                      color: isPublished ? "text.primary" : "#fff",
+                      lineHeight: 1.25,
                     }}
+                    noWrap
+                    title={slide.title}
                   >
+                    {slide.title || "Untitled promotion"}
+                  </Typography>
+                  {slide.button_label && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        mt: 1.25,
+                        color: theme.palette.error.main,
+                        fontWeight: 700,
+                      }}
+                      noWrap
+                      title={slide.button_label}
+                    >
+                      {slide.button_label}
+                    </Typography>
+                  )}
+                </Box>
+                {hasActions && (
+                  <IconButton
+                    size="small"
+                    aria-label={`Actions for ${slide.title || "promotion slide"}`}
+                    onClick={(event) => handleMenuOpen(event, slide)}
+                    sx={{ ml: "auto", flexShrink: 0, "&:hover": { backgroundColor: "action.hover" } }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+
+              <Button
+                variant="contained"
+                size="small"
+                fullWidth
+                startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
+                onClick={() => handleInfoOpen(slide)}
+                sx={{
+                  mt: "auto",
+                  minHeight: 40,
+                  py: 0.55,
+                  backgroundColor:
+                    theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: "none",
+                  fontSize: 11,
+                  textTransform: "none",
+                  "& .MuiButton-startIcon": { color: theme.palette.error.main },
+                  "&:hover": {
+                    backgroundColor: theme.palette.action.hover,
+                    borderColor: theme.palette.text.secondary,
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                View Information
+              </Button>
+
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl) && selectedSlide?.slide_id === slide.slide_id}
+                onClose={handleMenuClose}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+              >
+                {canEdit && (
+                  <MenuItem
+                    onClick={() => {
+                      onEdit?.(selectedSlide);
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "success.main" }}
+                  >
+                    <EditOutlinedIcon sx={{ mr: 1, fontSize: 20 }} />
+                    Edit
+                  </MenuItem>
+                )}
+                {canEdit && (
+                  <MenuItem
+                    disabled={isPublishing || isUnpublishing}
+                    onClick={() => {
+                      (isPublished ? onUnpublish : onPublish)?.(selectedSlide);
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "warning.main" }}
+                  >
+                    <PublishOutlinedIcon sx={{ mr: 1, fontSize: 20 }} />
                     {isPublishing
                       ? "Publishing..."
                       : isUnpublishing
-                      ? "Unpublishing..."
-                      : isPublished
-                      ? "Unpublish"
-                      : "Publish to Buyer"}
-                  </Button>
+                        ? "Unpublishing..."
+                        : isPublished
+                          ? "Unpublish"
+                          : "Publish to Buyer"}
+                  </MenuItem>
                 )}
-
-                <Stack direction="row" spacing={0.5} sx={{ ml: "auto" }}>
-                  {canEdit && (
-                    <Tooltip title="Edit Slide">
-                      <IconButton
-                        size="small"
-                        onClick={() => onEdit(slide)}
-                        sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
-                      >
-                        <EditOutlinedIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {canDelete && (
-                    <Tooltip title="Delete Slide">
-                      <IconButton
-                        size="small"
-                        onClick={() => onDelete(slide)}
-                        sx={{ color: "text.secondary", "&:hover": { color: "error.main" } }}
-                      >
-                        <DeleteOutlineIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Stack>
-              </Box>
+                {canDelete && (
+                  <MenuItem
+                    onClick={() => {
+                      onDelete?.(selectedSlide);
+                      handleMenuClose();
+                    }}
+                    sx={{ color: "error.main" }}
+                  >
+                    <DeleteOutlineIcon sx={{ mr: 1, fontSize: 20 }} />
+                    Delete
+                  </MenuItem>
+                )}
+              </Menu>
             </CardContent>
           </Card>
         );
       })}
+
+      <PromotionSlideInfo
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        selectedSlide={selectedSlide}
+      />
     </Box>
   );
 }
-

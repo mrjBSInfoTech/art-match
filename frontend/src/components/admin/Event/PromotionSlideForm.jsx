@@ -145,13 +145,6 @@ export default function PromotionSlideForm({
     if (file) handleFileProcess(file);
   };
 
-  const handleRemoveImage = (e) => {
-    e.stopPropagation();
-    setImagePreview("");
-    setFormData((prev) => ({ ...prev, file: null }));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
@@ -192,6 +185,9 @@ export default function PromotionSlideForm({
         sx: {
           width: "min(100% - 24px, 490px)",
           maxWidth: "490px",
+          maxHeight: "calc(100% - 32px)",
+          display: "flex",
+          flexDirection: "column",
           borderRadius: 3,
           overflow: "hidden",
           backgroundColor: theme.palette.background.paper,
@@ -230,8 +226,18 @@ export default function PromotionSlideForm({
         </Button>
       </DialogTitle>
 
-      <form onSubmit={handleSubmit}>
-        <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 } }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", minHeight: 0 }}
+      >
+        <DialogContent
+          dividers
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            minHeight: 0,
+            overflowY: "auto",
+          }}
+        >
           {formError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {formError}
@@ -365,23 +371,6 @@ export default function PromotionSlideForm({
                         borderColor: "divider",
                       }}
                     />
-                    <Stack direction="row" spacing={1} justifyContent="center" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        Replace Image
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="text"
-                        onClick={handleRemoveImage}
-                      >
-                        Remove
-                      </Button>
-                    </Stack>
                   </Box>
                 ) : (
                   <>
@@ -395,6 +384,21 @@ export default function PromotionSlideForm({
                   </>
                 )}
               </DropZone>
+              <Button
+                type="button"
+                fullWidth
+                variant="outlined"
+                onClick={() => fileInputRef.current?.click()}
+                sx={{
+                  mt: 1.5,
+                  minHeight: 48,
+                  borderRadius: 1,
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Choose file
+              </Button>
               {uploadError && (
                 <Typography variant="caption" color="error.main" sx={{ mt: 0.5, display: "block" }}>
                   {uploadError}
@@ -404,7 +408,7 @@ export default function PromotionSlideForm({
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 2.5, py: 1.75 }}>
+        <DialogActions sx={{ px: 2.5, py: 1.75, flexShrink: 0 }}>
           <Button onClick={onClose} disabled={saving} color="inherit">
             Cancel
           </Button>
@@ -432,4 +436,3 @@ export default function PromotionSlideForm({
     </Dialog>
   );
 }
-

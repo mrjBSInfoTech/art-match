@@ -8,7 +8,12 @@ import {
   TextField,
   Stack,
   Typography,
+  Snackbar,
+  Slide,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import ProfileConfirm from "../../components/buyer/Profile/ProfileConfirm";
+import ChangeProfileImage from "../../components/buyer/Profile/ChangeProfileImage";
 // Icons
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
@@ -18,11 +23,19 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { cacheBuyerProfile, getBuyerSecuritySettings, updateBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
+
 export default function Profile() {
+  const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
+  const [pendingProfile, setPendingProfile] = useState(null);
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -61,34 +74,39 @@ export default function Profile() {
 
   const handleSave = async (event) => {
     event.preventDefault();
+    setError("");
+    setSuccess("");
+    setPendingProfile({
+      username: username.trim(), first_name: firstName.trim(),
+      last_name: lastName.trim(), email: email.trim(), phone_number: phoneNumber.trim(),
+    });
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!pendingProfile || saving) return;
     setSaving(true);
     setError("");
     setSuccess("");
-    const profile = {
-      username: username.trim(), first_name: firstName.trim(),
-      last_name: lastName.trim(), email: email.trim(), phone_number: phoneNumber.trim(),
-    };
     try {
-      await updateBuyerProfile(profile);
-      applyProfile({ ...profile, profile_image: profileImage });
+      await updateBuyerProfile(pendingProfile);
+      applyProfile({ ...pendingProfile, profile_image: profileImage });
       setSuccess("Personal information updated successfully.");
+      setConfirmOpen(false);
+      setPendingProfile(null);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Unable to update personal information.");
+      setConfirmOpen(false);
+      setPendingProfile(null);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUpload = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const handleUpload = async (file) => {
     if (!file) return;
     setError("");
     setSuccess("");
-    if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) {
-      setError("Choose an image of 2MB or smaller.");
-      return;
-    }
     setSaving(true);
     try {
       const form = new FormData();
@@ -98,9 +116,28 @@ export default function Profile() {
       cacheBuyerProfile({ profile_image: result.profile_image });
       setSuccess("Profile photo updated successfully.");
     } catch (err) {
-      setError(err.message);
+      throw new Error(err.message || "Unable to update profile image.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setError("");
+    setSuccess("");
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "error":
+        return theme.palette.error.main;
+      case "warning":
+        return theme.palette.warning.main;
+      case "info":
+        return theme.palette.info.main;
+      default:
+        return theme.palette.success.main;
     }
   };
 
@@ -125,8 +162,6 @@ export default function Profile() {
       </Helmet>
 
       <Box sx={{ maxWidth: 1120, mx: "auto" }}>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
         <Typography
           variant="overline"
           sx={{ color: "error.main", fontWeight: 800, letterSpacing: 1.5 }}
@@ -183,9 +218,14 @@ export default function Profile() {
               >
                 {username ? username.charAt(0).toUpperCase() : "U"}
               </Avatar>
-              <Button component="label" variant="outlined" color="inherit" disabled={loading || saving}>
+              <Button
+                type="button"
+                variant="outlined"
+                color="inherit"
+                disabled={loading || saving}
+                onClick={() => setProfileImageDialogOpen(true)}
+              >
                 {saving ? "Saving..." : "Upload photo"}
-                <input hidden type="file" accept="image/*" onChange={handleUpload} disabled={loading || saving} />
               </Button>
               <Typography variant="caption">Images up to 2MB</Typography>
               <Box>
@@ -330,6 +370,64 @@ export default function Profile() {
           </Box>
         </Box>
       </Box>
+      <Snackbar
+        open={Boolean(error || success)}
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+        sx={{
+          "& .MuiSnackbar-root": {
+            width: "auto",
+          },
+        }}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={error ? "error" : "success"}
+          variant="filled"
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor: getSeverityColor(error ? "error" : "success"),
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
+        >
+          {error || success}
+        </Alert>
+      </Snackbar>
+      <ProfileConfirm
+        open={confirmOpen}
+        handleClose={() => {
+          setConfirmOpen(false);
+          setPendingProfile(null);
+        }}
+        onConfirm={handleConfirmSave}
+        confirming={saving}
+      />
+      <ChangeProfileImage
+        open={profileImageDialogOpen}
+        handleClose={() => setProfileImageDialogOpen(false)}
+        onSubmit={handleUpload}
+      />
     </Box>
   );
 }

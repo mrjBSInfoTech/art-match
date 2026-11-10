@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useLayoutEffect } from "react";
 import {
   AppBar,
   Badge,
@@ -100,7 +100,28 @@ function BuyerLayoutContent({ children }) {
   const { theme, mode } = useThemeMode();
   const inlineSearch = useMediaQuery(theme.breakpoints.up("md"));
   const searchInputRef = useRef(null);
+  const appBarRef = useRef(null);
+  const headerRootRef = useRef(null);
+  const headerSpacerRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    const appBar = appBarRef.current;
+    const headerRoot = headerRootRef.current;
+    const headerSpacer = headerSpacerRef.current;
+    if (!appBar || !headerRoot || !headerSpacer) return undefined;
+
+    const updateHeaderHeight = () => {
+      const height = `${appBar.getBoundingClientRect().height}px`;
+      headerRoot.style.setProperty("--buyer-header-height", height);
+      headerSpacer.style.height = height;
+    };
+
+    updateHeaderHeight();
+    const observer = new ResizeObserver(updateHeaderHeight);
+    observer.observe(appBar);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (searchOpen && !inlineSearch) {
@@ -502,9 +523,10 @@ function BuyerLayoutContent({ children }) {
   };
 
   return (
-    <>
+    <Box ref={headerRootRef} sx={{ "--buyer-header-height": "160px" }}>
       <AppBar
-        position="sticky"
+        ref={appBarRef}
+        position="fixed"
         sx={{
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
@@ -1148,6 +1170,7 @@ function BuyerLayoutContent({ children }) {
           </Box>
         </Box>
       </AppBar>
+      <Box ref={headerSpacerRef} aria-hidden="true" sx={{ height: 0 }} />
 
       <Popover
         open={Boolean(categoriesAnchorPosition)}
@@ -1533,7 +1556,7 @@ function BuyerLayoutContent({ children }) {
           <Footer />
         </Container>
       </Box>
-    </>
+    </Box>
   );
 }
 

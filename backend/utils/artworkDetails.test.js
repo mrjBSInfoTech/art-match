@@ -112,6 +112,29 @@ test("digital details use positive integer dimensions and exclude physical attri
   }
 });
 
+test("Digital product type does not require or retain stock", () => {
+  const digitalWithoutStock = { ...digital };
+  delete digitalWithoutStock.stock_available;
+  assert.deepEqual(
+    validateArtworkDetails(digitalWithoutStock, "Digital", "painting", "Digital"),
+    digitalWithoutStock,
+  );
+  assert.deepEqual(
+    validateArtworkDetails({
+      ...digitalWithoutStock,
+      stock_available: 5,
+      stockable: true,
+    }, "Digital", "painting", "Digital"),
+    digitalWithoutStock,
+  );
+  assert.deepEqual(
+    validateArtworkDetails({
+      material_composition: ["Digital"],
+    }, "Product", "3d_object", "Digital"),
+    { material_composition: ["Digital"] },
+  );
+});
+
 test("Photography supports RAW and rejects Digital-only formats", () => {
   assert.equal(validateArtworkDetails({ ...digital, file_format: "RAW" }, "Photography", "image").file_format, "RAW");
   assert.equal(validateArtworkDetails({ ...digital, file_format: "RAW" }, "Physical", "image").file_format, "RAW");

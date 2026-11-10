@@ -36,6 +36,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AddIcon from "@mui/icons-material/Add";
 import InventoryCard from "../../components/seller/Inventory/InventoryCard";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import {
   adjustProductOptionStock,
   adjustInventoryStock,
@@ -255,6 +256,15 @@ export default function Inventory() {
       accent: theme.palette.error.main,
     },
   ];
+
+  if (loading && !products.length) {
+    return (
+      <SellerLoadingPanel
+        title="Inventory"
+        subtitle="Manage the stock available for your artwork listings."
+      />
+    );
+  }
 
   if (errorMessage && !products.length) {
     return (

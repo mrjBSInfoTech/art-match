@@ -28,6 +28,7 @@ import {
   sendSupportReply,
 } from "../../api/admin/supportChatAPI";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 
 const POLL_INTERVAL = 5000;
 
@@ -137,6 +138,17 @@ export default function ChatSupport() {
       setSending(false);
     }
   };
+
+  if (loadingInbox && !conversations.length && !thread) {
+    return (
+      <AdminLoadingPanel
+        title="Chat Support"
+        subtitle="Reply to buyers who contacted support from the Help & Support page."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (error && !conversations.length && !thread) {
     return (

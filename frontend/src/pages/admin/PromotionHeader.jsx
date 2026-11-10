@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
@@ -48,30 +47,25 @@ const canEditPromotionHeader = () => {
   );
 };
 
-export default function PromotionHeader() {
+export default function PromotionHeader({ registerActions, onNotify }) {
   const theme = useTheme();
   const [header, setHeader] = useState(initialHeader);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [requestError, setRequestError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [noticeSeverity, setNoticeSeverity] = useState("success");
-
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("card");
   const [formOpen, setFormOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewingRequestId, setReviewingRequestId] = useState(null);
+  const retryActionsRef = useRef({});
 
   const canEdit = canEditPromotionHeader();
 
   const loadHeader = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
       const loadedHeader = await fetchPromotionHeader();
       setHeader({
         message: loadedHeader?.message || "",
@@ -79,39 +73,67 @@ export default function PromotionHeader() {
         button_url: loadedHeader?.button_url || "",
       });
     } catch (loadError) {
-      setError(loadError.message || "Unable to load promo header.");
+      onNotify?.(loadError.message || "Unable to load promo header.", "error", {
+        label: "Retry",
+        onClick: () => retryActionsRef.current.loadHeader?.(),
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onNotify]);
 
   const loadRequests = useCallback(async () => {
     try {
       setRequestsLoading(true);
-      setRequestError("");
       const loadedRequests = await fetchPromotionHeaderRequests();
       setRequests(Array.isArray(loadedRequests) ? loadedRequests : []);
     } catch (loadError) {
-      setRequestError(
+      onNotify?.(
         loadError.message || "Unable to load promo header requests.",
+        "error",
+        {
+          label: "Retry",
+          onClick: () => retryActionsRef.current.loadRequests?.(),
+        },
       );
     } finally {
       setRequestsLoading(false);
     }
-  }, []);
+  }, [onNotify]);
+  retryActionsRef.current.loadHeader = loadHeader;
+  retryActionsRef.current.loadRequests = loadRequests;
 
   useEffect(() => {
     loadHeader();
     loadRequests();
   }, [loadHeader, loadRequests]);
 
+  useEffect(() => {
+    if (!canEdit) {
+      onNotify?.("You have view-only access to promo header management.", "info");
+    }
+  }, [canEdit, onNotify]);
+
+  useEffect(() => {
+    if (typeof registerActions === "function") {
+      registerActions({
+        openEdit: () => setFormOpen(true),
+        openReview: () => {
+          setReviewOpen(true);
+          loadRequests();
+        },
+        requestsCount: requests.length,
+        canEdit,
+      });
+    }
+  }, [registerActions, requests.length, canEdit, loadRequests]);
+
   const handleSaveHeader = async (headerData) => {
     setSaving(true);
     try {
       const savedHeader = await savePromotionHeader(headerData);
       setHeader(savedHeader);
-      setNotice("Promo header updated successfully. Live for buyers.");
-      setNoticeSeverity("success");
+      onNotify?.("Promo header updated successfully. Live for buyers.", "success");
       setFormOpen(false);
     } catch (saveError) {
       throw saveError;
@@ -122,7 +144,6 @@ export default function PromotionHeader() {
 
   const handleReviewRequest = async (request, decision) => {
     setReviewingRequestId(request.request_id);
-    setRequestError("");
     try {
       await reviewPromotionHeaderRequest(request.request_id, decision);
       setRequests((current) =>
@@ -134,14 +155,18 @@ export default function PromotionHeader() {
           button_label: request.button_label,
           button_url: request.button_url,
         });
-        setNotice("Promo header request approved and now live on buyer banner.");
+        onNotify?.(
+          "Promo header request approved and now live on buyer banner.",
+          "success",
+        );
       } else {
-        setNotice("Promo header request rejected.");
+        onNotify?.("Promo header request rejected.", "success");
       }
-      setNoticeSeverity("success");
     } catch (reviewError) {
-      setNotice(reviewError.message || "Unable to review promo header request.");
-      setNoticeSeverity("error");
+      onNotify?.(
+        reviewError.message || "Unable to review promo header request.",
+        "error",
+      );
     } finally {
       setReviewingRequestId(null);
     }
@@ -161,38 +186,7 @@ export default function PromotionHeader() {
 
   return (
     <Box>
-      {/* Notice & Error Alerts */}
-      {notice && (
-        <Alert
-          severity={noticeSeverity}
-          onClose={() => setNotice("")}
-          sx={{ mb: 2 }}
-        >
-          {notice}
-        </Alert>
-      )}
-
-      {error && (
-        <Alert
-          severity="error"
-          sx={{ mb: 2 }}
-          action={
-            <Button color="inherit" size="small" onClick={loadHeader}>
-              Retry
-            </Button>
-          }
-        >
-          {error}
-        </Alert>
-      )}
-
-      {!canEdit && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          You have view-only access to promo header management.
-        </Alert>
-      )}
-
-      {/* Search & Actions Bar matching other admin pages */}
+      {/* Search Bar */}
       <Paper
         variant="outlined"
         sx={{
@@ -214,8 +208,9 @@ export default function PromotionHeader() {
             placeholder="Search student header requests..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            fullWidth={Boolean(registerActions)}
             sx={{
-              width: { xs: "100%", sm: 360 },
+              width: registerActions ? "100%" : { xs: "100%", sm: 360 },
               "& .MuiInputBase-input": { fontSize: 13 },
             }}
             InputProps={{
@@ -227,53 +222,55 @@ export default function PromotionHeader() {
             }}
           />
 
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Button
-              variant="outlined"
-              startIcon={<RateReviewOutlinedIcon />}
-              onClick={() => {
-                setReviewOpen(true);
-                loadRequests();
-              }}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: 13,
-                height: 40,
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.primary,
-                "&:hover": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              }}
-            >
-              Requests ({requests.length})
-            </Button>
-            {canEdit && (
+          {!registerActions && (
+            <Stack direction="row" spacing={1} flexWrap="wrap">
               <Button
-                variant="contained"
-                startIcon={<EditOutlinedIcon />}
-                onClick={() => setFormOpen(true)}
+                variant="outlined"
+                startIcon={<RateReviewOutlinedIcon />}
+                onClick={() => {
+                  setReviewOpen(true);
+                  loadRequests();
+                }}
                 sx={{
                   borderRadius: 2,
                   textTransform: "none",
                   fontWeight: 700,
                   fontSize: 13,
                   height: 40,
-                  backgroundColor: "error.main",
-                  color: "#fff",
-                  boxShadow: "none",
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.primary,
                   "&:hover": {
-                    backgroundColor: "error.dark",
-                    boxShadow: "none",
+                    borderColor: theme.palette.text.secondary,
                   },
                 }}
               >
-                Edit Promo Header
+                Requests ({requests.length})
               </Button>
-            )}
-          </Stack>
+              {canEdit && (
+                <Button
+                  variant="contained"
+                  startIcon={<EditOutlinedIcon />}
+                  onClick={() => setFormOpen(true)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    height: 40,
+                    backgroundColor: "error.main",
+                    color: "#fff",
+                    boxShadow: "none",
+                    "&:hover": {
+                      backgroundColor: "error.dark",
+                      boxShadow: "none",
+                    },
+                  }}
+                >
+                  Edit Promo Header
+                </Button>
+              )}
+            </Stack>
+          )}
         </Stack>
       </Paper>
 
@@ -390,7 +387,6 @@ export default function PromotionHeader() {
         }}
         requests={requests}
         loading={requestsLoading}
-        error={requestError}
         onReview={handleReviewRequest}
         reviewingRequestId={reviewingRequestId}
         canEdit={canEdit}

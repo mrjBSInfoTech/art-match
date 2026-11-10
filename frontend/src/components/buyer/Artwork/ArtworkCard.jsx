@@ -280,7 +280,7 @@ export default function ArtworkCard({
               onClick={handleFavoriteClick}
               sx={{
                 width: 36,
-                height: 46,
+                height: 36,
                 borderRadius: 999,
                 backgroundColor: darkMode
                   ? "rgba(30, 41, 59, 0.92)"

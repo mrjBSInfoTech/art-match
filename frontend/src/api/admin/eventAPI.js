@@ -9,12 +9,9 @@ const api = axios.create({
 // HttpOnly cookies handle authentication automatically
 
 const handleError = (error) => {
-  if (error.response?.data?.message) {
-    throw new Error(error.response.data.message);
-  }
-
-  if (error.response?.data?.error) {
-    throw new Error(error.response.data.error);
+  const serverMsg = error.response?.data?.error || error.response?.data?.message;
+  if (serverMsg) {
+    throw new Error(serverMsg);
   }
 
   if (error.request) {

@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -189,7 +188,7 @@ export default function PromotionSlideReviewDialog({
                           color="success"
                           startIcon={<CheckCircleOutlinedIcon />}
                           disabled={isReviewing}
-                          onClick={() => onReview(slide, "Approved")}
+                          onClick={() => onReview(slide, "accept")}
                           sx={{ fontWeight: 700, borderRadius: 1.5, textTransform: "none" }}
                         >
                           Approve
@@ -200,7 +199,7 @@ export default function PromotionSlideReviewDialog({
                           color="error"
                           startIcon={<CancelOutlinedIcon />}
                           disabled={isReviewing}
-                          onClick={() => onReview(slide, "Rejected")}
+                          onClick={() => onReview(slide, "reject")}
                           sx={{ fontWeight: 700, borderRadius: 1.5, textTransform: "none" }}
                         >
                           Reject
@@ -223,4 +222,3 @@ export default function PromotionSlideReviewDialog({
     </Dialog>
   );
 }
-

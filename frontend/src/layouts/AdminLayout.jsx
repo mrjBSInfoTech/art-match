@@ -138,9 +138,11 @@ function AdminLayoutContent() {
 
     loadAdminProfile();
     window.addEventListener("storage", loadAdminProfile);
+    window.addEventListener("admin-profile-updated", loadAdminProfile);
 
     return () => {
       window.removeEventListener("storage", loadAdminProfile);
+      window.removeEventListener("admin-profile-updated", loadAdminProfile);
     };
   }, []);
 

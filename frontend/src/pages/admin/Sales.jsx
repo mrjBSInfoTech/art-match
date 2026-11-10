@@ -23,6 +23,7 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 import SalesTable from "../../components/admin/Sales/SalesTable";
 import SalesCard from "../../components/admin/Sales/SalesCard";
@@ -61,14 +62,18 @@ export default function Sales() {
   const theme = useTheme();
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("table");
 
   const checkConnection = useCallback(async () => {
     try {
+      setLoading(true);
       setError("");
       await fetchDashboard();
     } catch (err) {
       setError(err.message || "Failed to load sales.");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -158,6 +163,15 @@ export default function Sales() {
       background: theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
     },
   ];
+
+  if (loading) {
+    return (
+      <AdminLoadingPanel
+        title="Sales"
+        subtitle="Track completed artwork transactions and export sales reports."
+      />
+    );
+  }
 
   if (error) {
     return (

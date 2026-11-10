@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { fetchSellerNotifications, markSellerNotificationsRead } from "../../api/seller/messageAPI";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 
 const formatNotificationDate = (value) => {
   if (!value) return "Just now";
@@ -49,22 +50,22 @@ export default function SellerNotifications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadNotifications = async () => {
+  const loadNotifications = async ({ silent = false } = {}) => {
     try {
       setError("");
-      setLoading(true);
+      if (!silent) setLoading(true);
       const rows = await fetchSellerNotifications();
       setNotifications(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
       setError(loadError.message || "Unable to load notifications");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 4000);
+    const intervalId = window.setInterval(() => loadNotifications({ silent: true }), 4000);
     return () => window.clearInterval(intervalId);
   }, []);
 
@@ -78,6 +79,17 @@ export default function SellerNotifications() {
       setError(markError.message || "Unable to update notifications");
     }
   };
+
+  if (loading && notifications.length === 0) {
+    return (
+      <SellerLoadingPanel
+        title="Notifications"
+        subtitle="See artwork review decisions, order updates, and account alerts."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>

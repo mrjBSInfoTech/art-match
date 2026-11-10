@@ -36,6 +36,7 @@ import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import AutoDeleteOutlinedIcon from "@mui/icons-material/AutoDeleteOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 
 // Slide Transition for Snackbar
@@ -52,13 +53,17 @@ export default function Settings() {
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [openPasswordForm, setOpenPasswordForm] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const checkConnection = useCallback(async () => {
     try {
+      setLoading(true);
       setError("");
       await fetchDashboard();
     } catch (err) {
       setError(err.message || "Failed to load settings.");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -79,19 +84,26 @@ export default function Settings() {
   const [passwordVerificationError, setPasswordVerificationError] =
     useState("");
   const [profileImageDialogOpen, setProfileImageDialogOpen] = useState(false);
+  const [adminImage, setAdminImage] = useState(
+    () => localStorage.getItem("admin_image") || "",
+  );
   const [runningRetention, setRunningRetention] = useState(false);
   const [breachDialogOpen, setBreachDialogOpen] = useState(false);
 
   useEffect(() => {
     getAdminProfile()
-      .then((profile) =>
+      .then((profile) => {
         setAccountInformation({
           username: profile.username || "",
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
           email: profile.email || "",
-        }),
-      )
+        });
+        if (profile.image) {
+          setAdminImage(profile.image);
+          localStorage.setItem("admin_image", profile.image);
+        }
+      })
       .catch(() =>
         setAccountInformation({
           username: "",
@@ -100,6 +112,15 @@ export default function Settings() {
           email: "",
         }),
       );
+  }, []);
+
+  useEffect(() => {
+    const handleProfileUpdated = () => {
+      setAdminImage(localStorage.getItem("admin_image") || "");
+    };
+    window.addEventListener("admin-profile-updated", handleProfileUpdated);
+    return () =>
+      window.removeEventListener("admin-profile-updated", handleProfileUpdated);
   }, []);
 
   const handleOpenPasswordEdit = () => {
@@ -112,6 +133,7 @@ export default function Settings() {
 
     const response = await updateAdmin(adminId, { file });
     const image = response.image || file.name;
+    setAdminImage(image);
     localStorage.setItem("admin_image", image);
     window.dispatchEvent(new Event("admin-profile-updated"));
     showSnackbar("Profile image updated successfully.");
@@ -230,6 +252,17 @@ export default function Settings() {
       : "0 4px 20px rgba(15, 23, 42, 0.04)",
   };
 
+  if (loading) {
+    return (
+      <AdminLoadingPanel
+        title="Settings"
+        subtitle="Manage administrator credentials, personal account security, and data privacy operations."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
+
   if (error) {
     return (
       <Box sx={{ minWidth: 0 }}>
@@ -330,8 +363,8 @@ export default function Settings() {
             <Box
               component="img"
               src={
-                localStorage.getItem("admin_image")
-                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(localStorage.getItem("admin_image"))}`
+                adminImage
+                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(adminImage)}`
                   : "http://localhost:5000/uploads/profile.jpg"
               }
               alt="Admin profile"

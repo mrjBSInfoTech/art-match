@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -53,12 +52,11 @@ const hasPermission = (permission) => {
   );
 };
 
-export default function PromotionSlides() {
+export default function PromotionSlides({ registerActions, onNotify }) {
   const theme = useTheme();
   const [slides, setSlides] = useState([]);
   const [slideRequests, setSlideRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("card");
 
@@ -67,9 +65,6 @@ export default function PromotionSlides() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [notice, setNotice] = useState("");
-  const [noticeSeverity, setNoticeSeverity] = useState("success");
-
   const [publishingSlideId, setPublishingSlideId] = useState(null);
   const [unpublishingSlideId, setUnpublishingSlideId] = useState(null);
   const [reviewingSlideId, setReviewingSlideId] = useState(null);
@@ -77,6 +72,7 @@ export default function PromotionSlides() {
   const [heroEnabled, setHeroEnabled] = useState(true);
   const [placementLoading, setPlacementLoading] = useState(true);
   const [placementSaving, setPlacementSaving] = useState(false);
+  const loadSlidesRef = useRef(null);
 
   const canAdd = hasPermission("can_add");
   const canEdit = hasPermission("can_edit");
@@ -85,7 +81,6 @@ export default function PromotionSlides() {
   const loadSlides = useCallback(async () => {
     try {
       setLoading(true);
-      setLoadError("");
       const loadedSlides = await fetchPromotionSlides();
       setSlides(
         loadedSlides.filter(
@@ -94,15 +89,33 @@ export default function PromotionSlides() {
       );
       setSlideRequests(await fetchPromotionSlideRequests());
     } catch (error) {
-      setLoadError(error.message || "Unable to load promotion slides.");
+      onNotify?.(error.message || "Unable to load promotion slides.", "error", {
+        label: "Retry",
+        onClick: () => loadSlidesRef.current?.(),
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onNotify]);
+  loadSlidesRef.current = loadSlides;
 
   useEffect(() => {
     loadSlides();
   }, [loadSlides]);
+
+  useEffect(() => {
+    if (typeof registerActions === "function") {
+      registerActions({
+        openAdd: () => {
+          setSelectedSlide(null);
+          setFormOpen(true);
+        },
+        openReview: () => setReviewOpen(true),
+        requestsCount: slideRequests.length,
+        canAdd,
+      });
+    }
+  }, [registerActions, slideRequests.length, canAdd]);
 
   useEffect(() => {
     let active = true;
@@ -112,8 +125,10 @@ export default function PromotionSlides() {
       })
       .catch((error) => {
         if (active) {
-          setNotice(error.message || "Unable to load the default hero setting.");
-          setNoticeSeverity("error");
+          onNotify?.(
+            error.message || "Unable to load the default hero setting.",
+            "error",
+          );
         }
       })
       .finally(() => {
@@ -122,22 +137,21 @@ export default function PromotionSlides() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [onNotify]);
 
   const handleHeroChange = async (_event, enabled) => {
     setPlacementSaving(true);
     try {
       const result = await savePromotionHeroEnabled(enabled);
       setHeroEnabled(result.enabled);
-      setNotice(
+      onNotify?.(
         result.enabled
           ? "The default hero slide is enabled."
           : "The default hero slide is hidden.",
+        "success",
       );
-      setNoticeSeverity("success");
     } catch (error) {
-      setNotice(error.message || "Unable to update the default hero setting.");
-      setNoticeSeverity("error");
+      onNotify?.(error.message || "Unable to update the default hero setting.", "error");
     } finally {
       setPlacementSaving(false);
     }
@@ -148,12 +162,11 @@ export default function PromotionSlides() {
     try {
       if (selectedSlide) {
         await updatePromotionSlide(selectedSlide.slide_id, formData);
-        setNotice("Promotion slide updated successfully.");
+        onNotify?.("Promotion slide updated successfully.", "success");
       } else {
         await addPromotionSlide(formData);
-        setNotice("Promotion slide created successfully.");
+        onNotify?.("Promotion slide created successfully.", "success");
       }
-      setNoticeSeverity("success");
       setFormOpen(false);
       setSelectedSlide(null);
       await loadSlides();
@@ -168,12 +181,10 @@ export default function PromotionSlides() {
     if (!window.confirm(`Delete the promotion slide "${slide.title}"?`)) return;
     try {
       await deletePromotionSlide(slide.slide_id);
-      setNotice("Promotion slide deleted.");
-      setNoticeSeverity("success");
+      onNotify?.("Promotion slide deleted.", "success");
       await loadSlides();
     } catch (error) {
-      setNotice(error.message || "Unable to delete promotion slide.");
-      setNoticeSeverity("error");
+      onNotify?.(error.message || "Unable to delete promotion slide.", "error");
     }
   };
 
@@ -193,11 +204,9 @@ export default function PromotionSlides() {
           item.slide_id === publishedSlide.slide_id ? publishedSlide : item,
         ),
       );
-      setNotice("Promotion slide published to buyer panel.");
-      setNoticeSeverity("success");
+      onNotify?.("Promotion slide published to buyer panel.", "success");
     } catch (error) {
-      setNotice(error.message || "Unable to publish promotion slide.");
-      setNoticeSeverity("error");
+      onNotify?.(error.message || "Unable to publish promotion slide.", "error");
     } finally {
       setPublishingSlideId(null);
     }
@@ -218,12 +227,10 @@ export default function PromotionSlides() {
           sort_order: slide.sort_order,
         });
       }
-      setNotice("Promotion slide unpublished from buyer panel.");
-      setNoticeSeverity("success");
+      onNotify?.("Promotion slide unpublished from buyer panel.", "success");
       await loadSlides();
     } catch (error) {
-      setNotice(error.message || "Unable to unpublish promotion slide.");
-      setNoticeSeverity("error");
+      onNotify?.(error.message || "Unable to unpublish promotion slide.", "error");
     } finally {
       setUnpublishingSlideId(null);
     }
@@ -233,19 +240,18 @@ export default function PromotionSlides() {
     setReviewingSlideId(slide.slide_id);
     try {
       await reviewPromotionSlideRequest(slide.slide_id, decision);
-      setNotice(
+      onNotify?.(
         decision === "accept"
           ? "Student promotion accepted and published for 3 days."
           : "Student promotion request rejected.",
+        "success",
       );
-      setNoticeSeverity("success");
       setSlideRequests((requests) =>
         requests.filter((request) => request.slide_id !== slide.slide_id),
       );
       await loadSlides();
     } catch (error) {
-      setNotice(error.message || "Unable to review student promotion.");
-      setNoticeSeverity("error");
+      onNotify?.(error.message || "Unable to review student promotion.", "error");
     } finally {
       setReviewingSlideId(null);
     }
@@ -265,31 +271,6 @@ export default function PromotionSlides() {
 
   return (
     <Box>
-      {/* Notice & Error Alerts */}
-      {notice && (
-        <Alert
-          severity={noticeSeverity}
-          onClose={() => setNotice("")}
-          sx={{ mb: 2 }}
-        >
-          {notice}
-        </Alert>
-      )}
-
-      {loadError && (
-        <Alert
-          severity="error"
-          sx={{ mb: 2 }}
-          action={
-            <Button color="inherit" size="small" onClick={loadSlides}>
-              Retry
-            </Button>
-          }
-        >
-          {loadError}
-        </Alert>
-      )}
-
       {/* Hero Slide Placement Control Card */}
       <Paper
         variant="outlined"
@@ -333,7 +314,7 @@ export default function PromotionSlides() {
         </Stack>
       </Paper>
 
-      {/* Search & Actions Bar matching Event calendar and other admin pages */}
+      {/* Search Bar */}
       <Paper
         variant="outlined"
         sx={{
@@ -355,8 +336,9 @@ export default function PromotionSlides() {
             placeholder="Search slides by headline, details, or CTA..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            fullWidth={Boolean(registerActions)}
             sx={{
-              width: { xs: "100%", sm: 360 },
+              width: registerActions ? "100%" : { xs: "100%", sm: 360 },
               "& .MuiInputBase-input": { fontSize: 13 },
             }}
             InputProps={{
@@ -368,53 +350,55 @@ export default function PromotionSlides() {
             }}
           />
 
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Button
-              variant="outlined"
-              startIcon={<RateReviewOutlinedIcon />}
-              onClick={() => setReviewOpen(true)}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: 13,
-                height: 40,
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.primary,
-                "&:hover": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              }}
-            >
-              Requests ({slideRequests.length})
-            </Button>
-            {canAdd && (
+          {!registerActions && (
+            <Stack direction="row" spacing={1} flexWrap="wrap">
               <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => {
-                  setSelectedSlide(null);
-                  setFormOpen(true);
-                }}
+                variant="outlined"
+                startIcon={<RateReviewOutlinedIcon />}
+                onClick={() => setReviewOpen(true)}
                 sx={{
                   borderRadius: 2,
                   textTransform: "none",
                   fontWeight: 700,
                   fontSize: 13,
                   height: 40,
-                  backgroundColor: "error.main",
-                  color: "#fff",
-                  boxShadow: "none",
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.primary,
                   "&:hover": {
-                    backgroundColor: "error.dark",
-                    boxShadow: "none",
+                    borderColor: theme.palette.text.secondary,
                   },
                 }}
               >
-                Add Slide
+                Requests ({slideRequests.length})
               </Button>
-            )}
-          </Stack>
+              {canAdd && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setSelectedSlide(null);
+                    setFormOpen(true);
+                  }}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    height: 40,
+                    backgroundColor: "error.main",
+                    color: "#fff",
+                    boxShadow: "none",
+                    "&:hover": {
+                      backgroundColor: "error.dark",
+                      boxShadow: "none",
+                    },
+                  }}
+                >
+                  Add Slide
+                </Button>
+              )}
+            </Stack>
+          )}
         </Stack>
       </Paper>
 
@@ -493,7 +477,7 @@ export default function PromotionSlides() {
         <Paper
           variant="outlined"
           sx={{
-            border: "1px dashed",
+            border: "1px solid",
             borderColor: "divider",
             borderRadius: 2.5,
             py: 8,
@@ -513,7 +497,7 @@ export default function PromotionSlides() {
         <Paper
           variant="outlined"
           sx={{
-            border: "1px dashed",
+            border: "1px solid",
             borderColor: "divider",
             borderRadius: 2.5,
             py: 8,
@@ -582,7 +566,7 @@ export default function PromotionSlides() {
         onClose={() => {
           if (reviewingSlideId === null) setReviewOpen(false);
         }}
-        requests={slideRequests}
+        slideRequests={slideRequests}
         onReview={handleReviewRequest}
         reviewingSlideId={reviewingSlideId}
         canEdit={canEdit}

@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import {
   fetchSellerReviews,
   saveSellerReviewResponse,
@@ -384,6 +385,15 @@ export default function SellerReviews() {
       accent: theme.palette.success.main,
     },
   ];
+
+  if (loading && !reviews.length) {
+    return (
+      <SellerLoadingPanel
+        title="Reviews & Ratings"
+        subtitle="Buyer feedback for your artwork and seller experience."
+      />
+    );
+  }
 
   if (error && !reviews.length) {
     return (

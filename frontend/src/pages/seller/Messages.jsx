@@ -38,6 +38,7 @@ import MessageMediaPreview from "../../components/seller/Message/MessageMediaPre
 import MessageDelete from "../../components/seller/Message/MessageDelete";
 import MessageBlock from "../../components/seller/Message/MessageBlock";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { useSearchParams } from "react-router-dom";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
@@ -838,6 +839,23 @@ export default function Messages() {
       setError(err.message || "Unable to send message");
     }
   };
+
+  if (
+    loading &&
+    !conversations.length &&
+    !selectedConversationId &&
+    !pinDialogOpen &&
+    !recoveryMode
+  ) {
+    return (
+      <SellerLoadingPanel
+        title="Messages"
+        subtitle="Communicate securely with buyers and manage return requests."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (error && !conversations.length && !selectedConversationId) {
     return (

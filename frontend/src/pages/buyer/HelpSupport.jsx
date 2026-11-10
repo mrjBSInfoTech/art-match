@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -10,11 +7,7 @@ import {
   CardContent,
   CircularProgress,
   Container,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   Grid,
-  IconButton,
   MenuItem,
   Stack,
   TextField,
@@ -23,8 +16,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { fetchFaqs } from "../../api/buyer/faqAPI";
 import {
@@ -32,7 +23,7 @@ import {
   sendSupportMessage,
 } from "../../api/buyer/supportChatAPI";
 import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
-import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import FAQInfo from "../../components/buyer/HelpSupport/FAQInfo";
 import ContactSupportOutlinedIcon from "@mui/icons-material/ContactSupportOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -107,6 +98,15 @@ export default function HelpSupport() {
       .then((profile) => setProfileEmail(profile.email || ""))
       .catch(() => setProfileEmail(""));
   }, []);
+
+  const retryLoadFaqs = () => {
+    setFaqsLoading(true);
+    setFaqsError("");
+    fetchFaqs()
+      .then((items) => setFaqs(items))
+      .catch((error) => setFaqsError(error.message))
+      .finally(() => setFaqsLoading(false));
+  };
 
   useEffect(() => {
     let active = true;
@@ -290,103 +290,14 @@ export default function HelpSupport() {
         })}
       </Grid>
 
-      <Dialog
+      <FAQInfo
         open={faqDialogOpen}
-        onClose={() => setFaqDialogOpen(false)}
-        fullWidth
-        maxWidth="md"
-        scroll="paper"
-      >
-        <DialogTitle
-          sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 2,
-            fontWeight: 800,
-            fontSize: { xs: "1.15rem", sm: "1.35rem" },
-          }}
-        >
-          Frequently Asked Questions
-          <IconButton
-            aria-label="Close frequently asked questions"
-            onClick={() => setFaqDialogOpen(false)}
-            size="small"
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          {faqsLoading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress size={28} />
-          </Box>
-        ) : faqsError ? (
-          <ConnectionErrorPanel
-            title="FAQs Unavailable"
-            onRetry={() => {
-              setFaqsLoading(true);
-              setFaqsError("");
-              fetchFaqs()
-                .then((items) => setFaqs(items))
-                .catch((error) => setFaqsError(error.message))
-                .finally(() => setFaqsLoading(false));
-            }}
-          />
-        ) : !faqs.length ? (
-          <Typography color="text.secondary" sx={{ fontSize: "0.9rem" }}>
-            No frequently asked questions are available yet.
-          </Typography>
-        ) : (
-          <Box
-            sx={{
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 3,
-              overflow: "hidden",
-              backgroundColor: theme.palette.background.paper,
-            }}
-          >
-            {faqs.map((faq, index) => (
-              <Accordion
-                key={faq.faq_id ?? index}
-                disableGutters
-                elevation={0}
-                sx={{
-                  backgroundColor: "transparent",
-                  "&:before": { display: "none" },
-                  "&:not(:last-of-type)": {
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                  },
-                }}
-              >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography
-                    sx={{
-                      fontWeight: 700,
-                      fontSize: { xs: "0.95rem", sm: "1.05rem" },
-                    }}
-                  >
-                    {faq.question}
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography
-                    color="text.secondary"
-                    sx={{
-                      whiteSpace: "pre-line",
-                      lineHeight: 1.7,
-                      fontSize: { xs: "0.85rem", sm: "0.95rem" },
-                    }}
-                  >
-                    {faq.answer}
-                  </Typography>
-                </AccordionDetails>
-              </Accordion>
-            ))}
-          </Box>
-          )}
-        </DialogContent>
-      </Dialog>
+        handleClose={() => setFaqDialogOpen(false)}
+        faqs={faqs}
+        loading={faqsLoading}
+        error={faqsError}
+        onRetry={retryLoadFaqs}
+      />
 
       <Box
         id="contact-support-form"

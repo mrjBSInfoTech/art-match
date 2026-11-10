@@ -29,6 +29,7 @@ import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { createElement, useEffect, useState, useCallback } from "react";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { fetchSellerOrders } from "../../api/seller/orderAPI";
 import { getSellerSalesData } from "../../utils/sellerSales";
 
@@ -59,6 +60,17 @@ export default function Sales() {
 
   const sales = getSellerSalesData(orders);
   const { monthlySales, bestSellers, recentSales } = sales;
+
+  if (loading && orders.length === 0) {
+    return (
+      <SellerLoadingPanel
+        title="Sales Dashboard"
+        subtitle="Your shop performance and recent transactions."
+        helmetTitle="Sales"
+        showFilters={false}
+      />
+    );
+  }
 
   if (error) {
     return (

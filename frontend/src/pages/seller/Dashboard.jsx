@@ -26,6 +26,7 @@ import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { fetchSellerOrders } from "../../api/seller/orderAPI";
 import { getSellerSalesData } from "../../utils/sellerSales";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
@@ -80,6 +81,22 @@ export default function Dashboard() {
   const artworkCount = artworks.length;
   const sales = getSellerSalesData(orders);
   const salesData = sales.monthlySales;
+
+  if (
+    (loading || salesLoading) &&
+    artworks.length === 0 &&
+    orders.length === 0 &&
+    !artworkError &&
+    !salesError
+  ) {
+    return (
+      <SellerLoadingPanel
+        title="Dashboard"
+        subtitle="Overview of your seller performance and sales activity."
+        showFilters={false}
+      />
+    );
+  }
 
   if (artworkError || salesError) {
     return (

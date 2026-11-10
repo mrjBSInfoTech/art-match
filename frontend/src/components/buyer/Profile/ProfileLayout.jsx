@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Avatar,
@@ -138,11 +138,32 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const layoutRootRef = useRef(null);
+  const mobileHeaderRef = useRef(null);
 
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [, refreshProfile] = useState(0);
+
+  useLayoutEffect(() => {
+    const root = layoutRootRef.current;
+    const mobileHeader = mobileHeaderRef.current;
+    if (!root || !mobileHeader) return undefined;
+
+    const updateMobileHeaderHeight = () => {
+      root.style.setProperty(
+        "--buyer-profile-header-height",
+        `${mobileHeader.getBoundingClientRect().height}px`,
+      );
+    };
+
+    updateMobileHeaderHeight();
+    const observer = new ResizeObserver(updateMobileHeaderHeight);
+    observer.observe(mobileHeader);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const refresh = () => refreshProfile((value) => value + 1);
     window.addEventListener("buyer-profile-updated", refresh);
@@ -180,8 +201,17 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary" }}>
+    <Box
+      ref={layoutRootRef}
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "background.default",
+        color: "text.primary",
+        "--buyer-profile-header-height": "120px",
+      }}
+    >
       <Box
+        ref={mobileHeaderRef}
         sx={{
           borderBottom: 1, borderColor: "divider",
           display: { xs: "block", md: "none" },
@@ -238,17 +268,26 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
         >
           {isDesktop && (
             <Box
-              component="aside"
-              sx={{ width: 270, flexShrink: 0, position: "sticky", top: 24 }}
+              sx={{
+                width: 270,
+                flexShrink: 0,
+              }}
             >
               <Box
+                component="aside"
                 sx={{
+                  position: "fixed",
+                  left: "max(24px, calc((100vw - 1536px) / 2 + 24px))",
+                  top: "calc(var(--buyer-header-height, 160px) + 12px)",
+                  zIndex: theme.zIndex.appBar - 1,
+                  width: 270,
+                  height: "min(70vh, calc(100dvh - var(--buyer-header-height, 160px) - 24px))",
+                  overflowY: "auto",
                   bgcolor: "background.paper",
                   border: "1px solid",
                   borderColor: "divider",
                   borderRadius: 3,
                   p: 2,
-                  minHeight: "70vh",
                   display: "flex",
                   flexDirection: "column",
                 }}
@@ -329,7 +368,12 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
 
           <Box component="main" sx={{ flex: 1, minWidth: 0, width: "100%" }}>
             {!isDesktop && (
-              <Box sx={{ mb: 3 }}>
+              <Box
+                sx={{
+                  height: 56,
+                  mb: 3,
+                }}
+              >
                 <Select
                   fullWidth
                   size="small"
@@ -337,6 +381,12 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
                   value={activeItem?.path || ""}
                   onChange={(event) => handleNavigate(event.target.value)}
                   sx={{
+                    position: "fixed",
+                    top: "calc(var(--buyer-header-height, 160px) + var(--buyer-profile-header-height, 120px) + 8px)",
+                    left: 16,
+                    right: 16,
+                    width: "auto",
+                    zIndex: theme.zIndex.appBar - 1,
                     borderRadius: 3,
                     bgcolor: "background.paper",
                     "& .MuiOutlinedInput-notchedOutline": {

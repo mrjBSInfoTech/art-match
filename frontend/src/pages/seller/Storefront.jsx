@@ -7,10 +7,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Paper,
   Rating,
   Snackbar,
@@ -21,6 +17,9 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import StorefrontSpecialty from "../../components/seller/Storefront/StorefrontSpecialty";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
@@ -31,6 +30,7 @@ import {
 import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
 import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -97,7 +97,7 @@ export default function Storefront() {
   const [profileError, setProfileError] = useState("");
   const [sellerReviews, setSellerReviews] = useState([]);
   const [reviewsError, setReviewsError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -390,6 +390,17 @@ export default function Storefront() {
     }
   };
 
+  if (loading && !artworks.length && !settings.shopName) {
+    return (
+      <SellerLoadingPanel
+        title="Storefront"
+        subtitle="Customize your shop identity, featured artworks, and artist specialties."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
+
   if (error && !artworks.length) {
     return (
       <Box sx={{ minWidth: 0 }}>
@@ -408,65 +419,109 @@ export default function Storefront() {
   return (
     <Box
       sx={{
-        p: { xs: 1.5, sm: 2.5 },
-        minHeight: "100vh",
-        backgroundColor: theme.palette.background.default,
+        width: "100%",
+        minWidth: 0,
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Storefront</title>
       </Helmet>
 
-      <Stack spacing={3}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
-            Store Profile
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Edit how your artist profile appears to buyers and choose which
-            verified artworks to feature.
-          </Typography>
+      <Stack spacing={2.5}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            color: "#fff",
+            background: `linear-gradient(115deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 68%, ${theme.palette.warning.dark} 145%)`,
+          }}
+        >
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              flexShrink: 0,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: 2,
+              color: "#fff",
+              backgroundColor: "rgba(255,255,255,0.16)",
+            }}
+          >
+            <StorefrontOutlinedIcon />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.1, opacity: 0.82 }}>
+              CREATOR STUDIO / 01
+            </Typography>
+            <Typography variant="h5" sx={{ mt: 0.25, fontWeight: 800, lineHeight: 1.15 }}>
+              Shape your storefront
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(255,255,255,0.82)" }}>
+              Tune your artist identity and choose the work buyers see first.
+            </Typography>
+          </Box>
         </Box>
 
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 2, md: 3 },
-            border: "1px solid",
-            borderColor: "divider",
+            overflow: "hidden",
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 3,
+            backgroundColor: theme.palette.background.paper,
           }}
         >
-          <Stack spacing={2.5}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              alignItems={{ xs: "stretch", sm: "flex-start" }}
-              justifyContent="space-between"
-              spacing={1}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              justifyContent: "space-between",
+              gap: 1.5,
+              p: { xs: 2, sm: 2.5 },
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "rgba(255,255,255,0.025)"
+                  : "rgba(15,23,42,0.025)",
+            }}
+          >
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <PaletteOutlinedIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
+                <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "text.secondary" }}>
+                  YOUR PUBLIC CANVAS
+                </Typography>
+              </Stack>
+              <Typography variant="h6" sx={{ mt: 0.5, fontWeight: 800 }}>
+                Profile preview
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Updates as you edit your name, description, and specialties.
+              </Typography>
+            </Box>
+            <Button
+              color="error"
+              onClick={resetSettings}
+              sx={{
+                minHeight: 44,
+                alignSelf: { xs: "flex-start", sm: "center" },
+                px: 1.5,
+                borderRadius: 1.75,
+                textTransform: "none",
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
             >
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Public profile preview
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Preview updates as you edit your shop name, description, and specialties.
-                </Typography>
-              </Box>
-              <Button
-                color="error"
-                size="small"
-                onClick={resetSettings}
-                sx={{
-                  alignSelf: { xs: "flex-end", sm: "flex-start" },
-                  textTransform: "none",
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Reset Store Profile
-              </Button>
-            </Stack>
+              Reset Store Profile
+            </Button>
+          </Box>
 
+          <Stack spacing={2.5} sx={{ p: { xs: 1.5, sm: 2.5 } }}>
             {profileError && (
               <Alert severity="warning">
                 {profileError} Showing saved account details where available.
@@ -485,6 +540,7 @@ export default function Storefront() {
                 sx={{
                   p: { xs: 2, sm: 3 },
                   borderRadius: 3,
+                  borderColor: theme.palette.divider,
                   display: "flex",
                   gap: { xs: 2, sm: 3 },
                   flexDirection: { xs: "column", sm: "row" },
@@ -604,6 +660,7 @@ export default function Storefront() {
                   </Stack>
                   <Button
                     variant="contained"
+                    color="error"
                     onClick={saveSettings}
                     disabled={savingProfile}
                     sx={{
@@ -632,14 +689,22 @@ export default function Storefront() {
                   </Typography>
                   <Button
                     size="small"
+                    color="error"
                     onClick={() => navigate("/seller/settings")}
-                    sx={{ px: 0, textTransform: "none", fontWeight: 700 }}
+                    sx={{ px: 0, minHeight: 44, textTransform: "none", fontWeight: 700 }}
                   >
                     Edit photo and account details
                   </Button>
                 </Paper>
 
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 3,
+                    borderColor: theme.palette.divider,
+                  }}
+                >
                   <Stack
                     direction="row"
                     alignItems="center"
@@ -652,8 +717,9 @@ export default function Storefront() {
                     </Typography>
                     <Button
                       size="small"
+                      color="error"
                       onClick={openSpecialtyDialog}
-                      sx={{ textTransform: "none", fontWeight: 700 }}
+                      sx={{ minHeight: 44, textTransform: "none", fontWeight: 700 }}
                     >
                       Edit
                     </Button>
@@ -675,107 +741,23 @@ export default function Storefront() {
           </Stack>
         </Paper>
 
-        <Dialog
+        <StorefrontSpecialty
           open={specialtyDialogOpen}
           onClose={() => {
             if (!savingSpecialties) setSpecialtyDialogOpen(false);
           }}
-          fullWidth
-          maxWidth="sm"
-        >
-          <DialogTitle>Edit specialties</DialogTitle>
-          <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select up to 3 listed specialties, or add your own.
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-              {specialtyOptions.map((specialty) => {
-                const isSelected = draftSpecialties.includes(specialty);
-                return (
-                  <Chip
-                    key={specialty}
-                    label={specialty}
-                    clickable
-                    color={isSelected ? "primary" : "default"}
-                    variant={isSelected ? "filled" : "outlined"}
-                    disabled={
-                      savingSpecialties ||
-                      (!isSelected && draftSpecialties.length >= 3)
-                    }
-                    onClick={() => toggleDraftSpecialty(specialty)}
-                  />
-                );
-              })}
-            </Stack>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Custom specialty"
-                value={customSpecialty}
-                onChange={(event) => setCustomSpecialty(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addDraftSpecialty();
-                  }
-                }}
-                disabled={savingSpecialties || draftSpecialties.length >= 3}
-              />
-              <Button
-                variant="outlined"
-                onClick={addDraftSpecialty}
-                disabled={
-                  savingSpecialties ||
-                  !customSpecialty.trim() ||
-                  draftSpecialties.length >= 3
-                }
-              >
-                Add
-              </Button>
-            </Stack>
-            {!!draftSpecialties.length && (
-              <Stack
-                direction="row"
-                spacing={1}
-                flexWrap="wrap"
-                useFlexGap
-                sx={{ mt: 2 }}
-              >
-                {draftSpecialties.map((specialty) => (
-                  <Chip
-                    key={specialty}
-                    label={specialty}
-                    color="primary"
-                    onDelete={() => toggleDraftSpecialty(specialty)}
-                    disabled={savingSpecialties}
-                  />
-                ))}
-              </Stack>
-            )}
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
-              {3 - draftSpecialties.length} specialty slots remaining.
-            </Typography>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button
-              onClick={() => setSpecialtyDialogOpen(false)}
-              disabled={savingSpecialties}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              disabled={savingSpecialties}
-              onClick={async () => {
-                const saved = await saveSpecialties(draftSpecialties);
-                if (saved) setSpecialtyDialogOpen(false);
-              }}
-            >
-              {savingSpecialties ? "Saving..." : "Save specialties"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+          specialtyOptions={specialtyOptions}
+          draftSpecialties={draftSpecialties}
+          customSpecialty={customSpecialty}
+          saving={savingSpecialties}
+          onToggleSpecialty={toggleDraftSpecialty}
+          onCustomSpecialtyChange={setCustomSpecialty}
+          onAddSpecialty={addDraftSpecialty}
+          onSave={async () => {
+            const saved = await saveSpecialties(draftSpecialties);
+            if (saved) setSpecialtyDialogOpen(false);
+          }}
+        />
 
         <Paper
           elevation={0}
@@ -808,10 +790,9 @@ export default function Storefront() {
                 label={`${visiblePinnedCount} pinned`}
                 color={visiblePinnedCount > 0 ? "primary" : "default"}
                 variant={visiblePinnedCount > 0 ? "filled" : "outlined"}
-                sx={{color: "text.primary", fontWeight: 700, borderRadius: 999}}
+                sx={{ color: "text.primary", fontWeight: 700, borderRadius: 999 }}
               />
             </Box>
-
             {error && (
               <Alert severity="error" sx={{ borderRadius: 2 }}>
                 {error}

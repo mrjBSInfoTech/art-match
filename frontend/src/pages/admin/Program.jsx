@@ -27,6 +27,7 @@ import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   fetchProgramContent,
   saveProgramContent,
@@ -245,6 +246,18 @@ export default function Program() {
       setSaving(false);
     }
   };
+
+  if (loading && !dataLoaded) {
+    return (
+      <AdminLoadingPanel
+        title="CAFA Programs"
+        subtitle="Manage promotional landing pages, curriculum focus points, and showcases for college departments."
+        helmetTitle="Program Content"
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (loadError && !loading && !dataLoaded) {
     return (

@@ -21,6 +21,7 @@ import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import { useNavigate } from "react-router-dom";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 
 const profileFields = [
@@ -120,6 +121,17 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  if (loading && !profile.student_number && !profile.email) {
+    return (
+      <SellerLoadingPanel
+        title="Account Overview"
+        subtitle="View your student artist profile, academic details, and registration status."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (error) {
     return (

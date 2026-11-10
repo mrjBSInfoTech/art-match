@@ -150,7 +150,10 @@ function ArtworkInfo({
     : Array.isArray(artwork?.artwork_details?.product_options)
       ? artwork.artwork_details.product_options
       : [];
-  const requestStatus = String(artwork?.request_status || artwork?.status || "Unverified").trim().toLowerCase();
+  const rawStatus = artwork?.request_status;
+  const requestStatus = (!rawStatus || String(rawStatus).trim().toLowerCase() === "available")
+    ? "unverified"
+    : String(rawStatus).trim().toLowerCase();
   const statusShade = theme.palette.mode === "dark" ? "light" : "dark";
   const statusColor = ["verified", "approved"].includes(requestStatus)
     ? theme.palette.success[statusShade]

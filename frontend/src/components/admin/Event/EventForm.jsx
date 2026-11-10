@@ -256,7 +256,19 @@ export default function EventForm({
       return;
     }
 
-    const minimumDateTime = getCurrentDateTimeInput();
+    const bufferDate = new Date(Date.now() - 5 * 60 * 1000);
+    const pad = (number) => String(number).padStart(2, "0");
+    const minimumDateTime = [
+      bufferDate.getFullYear(),
+      "-",
+      pad(bufferDate.getMonth() + 1),
+      "-",
+      pad(bufferDate.getDate()),
+      "T",
+      pad(bufferDate.getHours()),
+      ":",
+      pad(bufferDate.getMinutes()),
+    ].join("");
     if (formData.start_at < minimumDateTime) {
       setError("Event start date and time must be now or in the future.");
       return;

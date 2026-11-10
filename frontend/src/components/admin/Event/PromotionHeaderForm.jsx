@@ -16,6 +16,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
+import PromotionHeaderPreview from "../../common/PromotionHeaderPreview";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -144,54 +145,12 @@ export default function PromotionHeaderForm({
             <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: "block", mb: 0.75, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Live Strip Preview
             </Typography>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 1.5,
-                px: 2,
-                py: 1.25,
-                borderRadius: 2,
-                bgcolor: "#ef3340",
-                color: "#fff",
-                boxShadow: "0 2px 8px rgba(239, 51, 64, 0.25)",
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: 13,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {formData.message || "Your announcement message will appear here..."}
-              </Typography>
-              <Button
-                type="button"
-                size="small"
-                sx={{
-                  color: "#fff",
-                  bgcolor: "rgba(255, 255, 255, 0.2)",
-                  textTransform: "none",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  px: 1.5,
-                  py: 0.25,
-                  borderRadius: 1.5,
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  "&:hover": {
-                    bgcolor: "rgba(255, 255, 255, 0.3)",
-                  },
-                }}
-                endIcon={<span aria-hidden="true">›</span>}
-              >
-                {formData.button_label || "Action"}
-              </Button>
+            <Box sx={{ overflow: "hidden", borderRadius: 1 }}>
+              <PromotionHeaderPreview
+                message={formData.message}
+                buttonLabel={formData.button_label}
+                messageFallback="Your announcement message will appear here..."
+              />
             </Box>
           </Box>
 
@@ -270,4 +229,3 @@ export default function PromotionHeaderForm({
     </Dialog>
   );
 }
-

@@ -42,6 +42,7 @@ import PayoutForm from "../../components/admin/Payout/PayoutForm";
 import AccountRequestsTable from "../../components/admin/Payout/AccountRequestsTable";
 import AdminPermissionsPanel from "../../components/admin/Payout/AdminPermissionsPanel";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
 import PayoutCard from "../../components/seller/Payout/PayoutCard";
@@ -96,7 +97,11 @@ export default function AdminPayout() {
   const [permissionRequests, setPermissionRequests] = useState([]);
   const actionInFlight = useRef(false);
 
-  const adminRole = String(localStorage.getItem("admin_role") || "").toLowerCase();
+  const adminRole = String(
+    typeof localStorage !== "undefined" && typeof localStorage.getItem === "function"
+      ? localStorage.getItem("admin_role") || ""
+      : "",
+  ).toLowerCase();
   const isSuperAdmin = adminRole === "super admin";
 
   const showSnackbar = (message, severity = "success") => {
@@ -130,17 +135,24 @@ export default function AdminPayout() {
 
       try {
         // Fetch permission status for current admin
-        const permResult = await fetchAdminPermissionStatus().catch(() => null);
+        const permResult =
+          typeof fetchAdminPermissionStatus === "function"
+            ? await fetchAdminPermissionStatus().catch(() => null)
+            : null;
         if (!active) return;
         setPermissionStatus(permResult);
 
-        // If authorized (or admin/super admin), load transactions and account change requests
-        const isAuthorized = permResult?.isAuthorized ?? (adminRole === "admin" || adminRole === "super admin");
+        // If authorized (or admin/super admin, or no explicit restriction returned), load transactions and account change requests
+        const isAuthorized =
+          permResult?.isAuthorized ??
+          (adminRole ? adminRole === "admin" || adminRole === "super admin" : true);
 
         if (isAuthorized) {
           const [payoutsRes, requestsRes] = await Promise.all([
             fetchAdminPayouts(),
-            fetchAccountChangeRequests().catch(() => ({ requests: [] })),
+            typeof fetchAccountChangeRequests === "function"
+              ? fetchAccountChangeRequests().catch(() => ({ requests: [] }))
+              : Promise.resolve({ requests: [] }),
           ]);
 
           if (!active) return;
@@ -159,7 +171,7 @@ export default function AdminPayout() {
         }
 
         // If super admin, fetch admin permission requests
-        if (isSuperAdmin) {
+        if (isSuperAdmin && typeof fetchAdminPermissionRequests === "function") {
           const permReqs = await fetchAdminPermissionRequests().catch(() => ({ requests: [] }));
           if (!active) return;
           setPermissionRequests(permReqs.requests || []);
@@ -185,6 +197,15 @@ export default function AdminPayout() {
   const reload = () => {
     setRefresh((value) => value + 1);
   };
+
+  if (loading && !data && !permissionStatus) {
+    return (
+      <AdminLoadingPanel
+        title="Seller Payouts"
+        subtitle="Review eligible earnings, approve payout method changes, and manage transfer authorizations."
+      />
+    );
+  }
 
   if (error) {
     return (
@@ -353,7 +374,9 @@ export default function AdminPayout() {
 
   const pendingAccountRequestsCount = accountRequests.filter((r) => r.status === "Pending").length;
   const pendingPermissionsCount = permissionRequests.filter((r) => r.status === "Pending").length;
-  const isAuthorizedAdmin = permissionStatus?.isAuthorized ?? (adminRole === "admin" || adminRole === "super admin");
+  const isAuthorizedAdmin =
+    permissionStatus?.isAuthorized ??
+    (adminRole ? adminRole === "admin" || adminRole === "super admin" : true);
 
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
@@ -564,10 +587,10 @@ export default function AdminPayout() {
                       transition: "all 150ms ease",
                     },
                     "& .MuiToggleButton-root.Mui-selected": {
-                      backgroundColor: theme.palette.error.main,
+                      backgroundColor: theme.palette?.error?.main || "#ef4444",
                       color: "#fff",
                       "&:hover": {
-                        backgroundColor: theme.palette.error.dark,
+                        backgroundColor: theme.palette?.error?.dark || "#dc2626",
                       },
                     },
                   }}

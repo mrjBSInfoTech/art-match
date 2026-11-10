@@ -46,6 +46,8 @@ import OrderParcelPhoto from "./OrderParcelPhoto";
 import OrderTrack from "./OrderTrack";
 import OrderReceived from "./OrderReceived";
 import OrderReceipt from "./OrderReceipt";
+import ConnectionErrorPanel from "../ConnectionErrorPanel";
+import SellerLoadingPanel from "../SellerLoadingPanel";
 
 const parcelHandlingOptions = [
   { value: "fragile", label: "Fragile — artwork or breakable items" },
@@ -377,9 +379,12 @@ export default function OrderDetail() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "grid", placeItems: "center", minHeight: "60vh", p: 3 }}>
-        <CircularProgress />
-      </Box>
+      <SellerLoadingPanel
+        title="Order Details"
+        subtitle="Loading order summary, buyer shipping details, and fulfillment status."
+        showMetrics={false}
+        showFilters={false}
+      />
     );
   }
 

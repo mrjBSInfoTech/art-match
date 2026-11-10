@@ -36,6 +36,7 @@ import ArtworkWarning from "../../components/seller/Artwork/ArtworkWarning";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
 import { getMissingSellerProfileFields } from "../../utils/sellerProfile";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import {
   fetchArtworks,
   addArtwork,
@@ -71,7 +72,7 @@ export default function Artwork() {
   const [sellerProfileLoading, setSellerProfileLoading] = useState(true);
   const [sellerProfileError, setSellerProfileError] = useState("");
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -102,15 +103,16 @@ export default function Artwork() {
 
     if (statusFilter !== "all") {
       list = list.filter((artwork) => {
-        const status = String(
-          artwork.request_status || artwork.status || "Unverified",
-        )
-          .trim()
-          .toLowerCase();
+        const raw = artwork.request_status || "";
+        const status = (!raw || raw.toLowerCase() === "available")
+          ? "unverified"
+          : raw.trim().toLowerCase();
         if (statusFilter === "approved")
           return ["verified", "approved"].includes(status);
         if (statusFilter === "pending")
           return ["pending", "requested"].includes(status);
+        if (statusFilter === "unverified")
+          return status === "unverified";
         return status === statusFilter;
       });
     }
@@ -160,10 +162,20 @@ export default function Artwork() {
       setLoading(true);
       setArtworkErrorMessage("");
       const response = await fetchArtworks();
-      if (response && Array.isArray(response)) {
-        setArtworks(response);
-      } else if (response && response.data && Array.isArray(response.data)) {
-        setArtworks(response.data);
+      const rawList = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : null;
+      if (rawList) {
+        setArtworks(
+          rawList.map((art) => ({
+            ...art,
+            request_status: (!art.request_status || String(art.request_status).trim().toLowerCase() === "available")
+              ? "Unverified"
+              : String(art.request_status).trim(),
+          }))
+        );
       } else {
         setArtworks([]);
         setArtworkErrorMessage("No data received from server.");
@@ -312,19 +324,26 @@ export default function Artwork() {
     }
   };
 
-  const normalizeStatus = (artwork) =>
-    String(artwork.request_status || artwork.status || "Unverified")
-      .trim()
-      .toLowerCase();
+  const normalizeStatus = (artwork) => {
+    const raw = artwork.request_status || "";
+    return (!raw || raw.toLowerCase() === "available")
+      ? "unverified"
+      : raw.trim().toLowerCase();
+  };
 
-  const totalPending = artworks.filter((artwork) => {
+  const totalUnverified = artworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
     return s === "unverified";
   }).length;
 
+  const totalPending = artworks.filter((artwork) => {
+    const s = normalizeStatus(artwork);
+    return s === "pending" || s === "requested";
+  }).length;
+
   const totalVerified = artworks.filter((artwork) => {
     const s = normalizeStatus(artwork);
-    return s === "verified" || s === "approved" || s === "approved";
+    return s === "verified" || s === "approved";
   }).length;
 
   const accountStatus = String(sellerProfile?.register_status || "").toLowerCase();
@@ -353,6 +372,15 @@ export default function Artwork() {
         return theme.palette.success.main;
     }
   };
+
+  if (loading && artworks.length === 0) {
+    return (
+      <SellerLoadingPanel
+        title="Artwork"
+        subtitle="Add, edit, and submit your artwork for verification."
+      />
+    );
+  }
 
   if (artworkErrorMessage) {
     return (
@@ -433,7 +461,11 @@ export default function Artwork() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(4, 1fr)",
+          },
           gap: 2,
           mb: 2.5,
         }}
@@ -446,9 +478,15 @@ export default function Artwork() {
             icon: PaletteOutlinedIcon,
           },
           {
+            label: "UNVERIFIED",
+            value: totalUnverified,
+            caption: "Awaiting submission",
+            icon: PendingActionsOutlinedIcon,
+          },
+          {
             label: "PENDING REVIEW",
             value: totalPending,
-            caption: "Awaiting verification",
+            caption: "Under admin review",
             icon: PendingActionsOutlinedIcon,
           },
           {

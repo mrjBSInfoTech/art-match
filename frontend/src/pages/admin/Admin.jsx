@@ -22,6 +22,7 @@ import AdminCard from "../../components/admin/Admin/AdminCard";
 import AdminForm from "../../components/admin/Admin/AdminForm";
 import AdminDelete from "../../components/admin/Admin/AdminDelete";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   addAdmin,
   deleteAdmin,
@@ -45,7 +46,7 @@ export default function Admin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortOption, setSortOption] = useState("az");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -185,6 +186,16 @@ export default function Admin() {
   const canAddAdmin =
     localStorage.getItem("admin_can_add") === "1" ||
     localStorage.getItem("admin_role") === "super admin";
+
+  if (loading && admins.length === 0) {
+    return (
+      <AdminLoadingPanel
+        title="Admin Accounts"
+        subtitle="Monitor and manage the admin accounts of the platform"
+        showMetrics={false}
+      />
+    );
+  }
 
   if (adminErrorMessage) {
     return (

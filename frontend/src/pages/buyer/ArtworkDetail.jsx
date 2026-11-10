@@ -683,7 +683,7 @@ export default function ArtworkDetail() {
               <Stack direction="column" spacing={1} sx={{ mt: 2 }}>
                 <Button
                   variant="contained"
-                  color="primary"
+                  color="error"
                   fullWidth
                   disabled={
                     addingToCart ||

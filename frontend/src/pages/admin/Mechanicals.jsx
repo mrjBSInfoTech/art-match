@@ -24,6 +24,7 @@ import CloudDownloadOutlinedIcon from "@mui/icons-material/CloudDownloadOutlined
 import { Helmet } from "react-helmet-async";
 import ThemeModeSetting from "../../components/admin/Settings/ThemeModeSetting";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   fetchAccountExpirationDate,
   downloadSystemBackup,
@@ -213,6 +214,17 @@ export default function Mechanicals() {
       setImportingBackup(false);
     }
   };
+
+  if (loadingExpiration && !expirationLoaded) {
+    return (
+      <AdminLoadingPanel
+        title="Mechanicals"
+        subtitle="Configure global platform mechanics, automated account lifecycles, and full system backups."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (expirationError && !loadingExpiration && !expirationLoaded) {
     return (

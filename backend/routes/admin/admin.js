@@ -16,8 +16,12 @@ import {
   roleRank,
 } from "../../middleware/adminPermissionMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
-import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
-import { encodeSafeWebp, safeWebpFilename } from "../../utils/safeImageUpload.js";
+import { uploadToB2, deleteFromB2, isB2Configured } from "../../utils/b2Storage.js";
+import {
+  encodeSafeWebp,
+  safeWebpFilename,
+  replaceUploadWithSafeWebp,
+} from "../../utils/safeImageUpload.js";
 
 const router = express.Router();
 
@@ -31,14 +35,16 @@ async function withAdminTransaction(work) {
     return result;
   } catch (error) {
     await connection.rollback().catch((rollbackError) => {
-      console.error("Admin transaction rollback failed:", rollbackError.message);
+      console.error(
+        "Admin transaction rollback failed:",
+        rollbackError.message,
+      );
     });
     throw error;
   } finally {
     connection.release();
   }
 }
-
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,7 +94,9 @@ const toBoolean = (value) =>
   ["1", "true"].includes(String(value).toLowerCase());
 
 const rolePermissions = (role, values = {}) => {
-  const normalizedRole = String(role || "admin").trim().toLowerCase();
+  const normalizedRole = String(role || "admin")
+    .trim()
+    .toLowerCase();
   if (
     !["super admin", "admin", "moderator", "customize"].includes(normalizedRole)
   ) {
@@ -140,16 +148,22 @@ const auditAdminManagement = async (req, action, status, information) => {
       information,
     });
   } catch (auditError) {
-    console.error("Unable to record admin management audit:", auditError.message);
+    console.error(
+      "Unable to record admin management audit:",
+      auditError.message,
+    );
   }
 };
 
 const changeRole = (direction) => (req, res) => {
   const roleOrder = ["customize", "moderator", "admin", "super admin"];
   const targetId = req.params.id;
-  const action = direction > 0 ? "PROMOTE_ADMIN_ACCOUNT" : "DEMOTE_ADMIN_ACCOUNT";
+  const action =
+    direction > 0 ? "PROMOTE_ADMIN_ACCOUNT" : "DEMOTE_ADMIN_ACCOUNT";
   if (String(targetId) === String(req.user.admin_id)) {
-    return res.status(403).json({ error: "You cannot change your own admin role." });
+    return res
+      .status(403)
+      .json({ error: "You cannot change your own admin role." });
   }
 
   db.query(
@@ -157,11 +171,21 @@ const changeRole = (direction) => (req, res) => {
     [targetId],
     async (error, results) => {
       if (error) {
-        await auditAdminManagement(req, action, "FAILED", `Role change failed for admin ID ${targetId}: ${error.message}`);
+        await auditAdminManagement(
+          req,
+          action,
+          "FAILED",
+          `Role change failed for admin ID ${targetId}: ${error.message}`,
+        );
         return res.status(500).json({ error: error.message });
       }
       if (!results.length) {
-        await auditAdminManagement(req, action, "FAILED", `Role change failed: admin role not found for ID ${targetId}.`);
+        await auditAdminManagement(
+          req,
+          action,
+          "FAILED",
+          `Role change failed: admin role not found for ID ${targetId}.`,
+        );
         return res.status(404).json({ error: "Admin role not found." });
       }
 
@@ -169,7 +193,12 @@ const changeRole = (direction) => (req, res) => {
       const currentIndex = roleOrder.indexOf(currentRole);
       const nextIndex = currentIndex + direction;
       if (nextIndex < 0 || nextIndex >= roleOrder.length) {
-        await auditAdminManagement(req, action, "FAILED", `Admin ID ${targetId} cannot be ${direction > 0 ? "promoted" : "demoted"} further.`);
+        await auditAdminManagement(
+          req,
+          action,
+          "FAILED",
+          `Admin ID ${targetId} cannot be ${direction > 0 ? "promoted" : "demoted"} further.`,
+        );
         return res.status(400).json({
           error: `Admin cannot be ${direction > 0 ? "promoted" : "demoted"} further.`,
         });
@@ -185,18 +214,23 @@ const changeRole = (direction) => (req, res) => {
           `Role change was rejected because ${actorRole || "unknown"} cannot assign ${newRole}.`,
         );
         return res.status(403).json({
-          error: "You cannot assign an admin role equal to or higher than your own.",
+          error:
+            "You cannot assign an admin role equal to or higher than your own.",
         });
       }
 
       if (direction < 0 && currentRole === "super admin") {
         try {
-          const [countResults] = await db.promise().query(
-            "SELECT COUNT(*) AS super_admin_count FROM admin_role WHERE LOWER(TRIM(role)) = ?",
-            ["super admin"],
-          );
+          const [countResults] = await db
+            .promise()
+            .query(
+              "SELECT COUNT(*) AS super_admin_count FROM admin_role WHERE LOWER(TRIM(role)) = ?",
+              ["super admin"],
+            );
           if (Number(countResults[0]?.super_admin_count || 0) <= 1) {
-            return res.status(403).json({ error: "The last super-admin cannot be demoted." });
+            return res
+              .status(403)
+              .json({ error: "The last super-admin cannot be demoted." });
           }
         } catch (countError) {
           return res.status(500).json({ error: countError.message });
@@ -213,7 +247,12 @@ const changeRole = (direction) => (req, res) => {
           ["super admin", targetId],
           async (findError, superAdminResults) => {
             if (findError) {
-              await auditAdminManagement(req, action, "FAILED", `Role change failed for admin ID ${targetId}: ${findError.message}`);
+              await auditAdminManagement(
+                req,
+                action,
+                "FAILED",
+                `Role change failed for admin ID ${targetId}: ${findError.message}`,
+              );
               return res.status(500).json({ error: findError.message });
             }
 
@@ -268,13 +307,28 @@ const changeRole = (direction) => (req, res) => {
 
             const finishUpdate = async () => {
               if (updateErrors.length > 0) {
-                await auditAdminManagement(req, action, "FAILED", `Promotion of admin ID ${targetId} to Super Admin failed: ${updateErrors[0].message}`);
+                await auditAdminManagement(
+                  req,
+                  action,
+                  "FAILED",
+                  `Promotion of admin ID ${targetId} to Super Admin failed: ${updateErrors[0].message}`,
+                );
                 return res.status(500).json({ error: updateErrors[0].message });
               }
               if (existingSuperAdminId !== null) {
-                await auditAdminManagement(req, "DEMOTE_ADMIN_ACCOUNT", "SUCCESS", `Admin ID ${existingSuperAdminId} was demoted to admin after admin ID ${targetId} was promoted to Super Admin.`);
+                await auditAdminManagement(
+                  req,
+                  "DEMOTE_ADMIN_ACCOUNT",
+                  "SUCCESS",
+                  `Admin ID ${existingSuperAdminId} was demoted to admin after admin ID ${targetId} was promoted to Super Admin.`,
+                );
               }
-              await auditAdminManagement(req, action, "SUCCESS", `Admin ID ${targetId} was promoted from ${results[0].role} to ${newRole}.`);
+              await auditAdminManagement(
+                req,
+                action,
+                "SUCCESS",
+                `Admin ID ${targetId} was promoted from ${results[0].role} to ${newRole}.`,
+              );
               res.json({
                 message: `Admin promoted to Super Admin successfully. Previous Super Admin has been demoted to Admin.`,
                 role: newRole,
@@ -299,10 +353,20 @@ const changeRole = (direction) => (req, res) => {
           ],
           async (updateError) => {
             if (updateError) {
-              await auditAdminManagement(req, action, "FAILED", `Role change failed for admin ID ${targetId}: ${updateError.message}`);
+              await auditAdminManagement(
+                req,
+                action,
+                "FAILED",
+                `Role change failed for admin ID ${targetId}: ${updateError.message}`,
+              );
               return res.status(500).json({ error: updateError.message });
             }
-            await auditAdminManagement(req, action, "SUCCESS", `Admin ID ${targetId} was ${direction > 0 ? "promoted" : "demoted"} from ${results[0].role} to ${newRole}.`);
+            await auditAdminManagement(
+              req,
+              action,
+              "SUCCESS",
+              `Admin ID ${targetId} was ${direction > 0 ? "promoted" : "demoted"} from ${results[0].role} to ${newRole}.`,
+            );
             res.json({
               message: `Admin ${direction > 0 ? "promoted" : "demoted"} successfully.`,
               role: newRole,
@@ -483,33 +547,31 @@ router.post(
       }
 
       /*
-       * Upload image to B2 first.
+       * Process image and save WebP locally. Sync to B2 if configured.
        */
       if (req.file) {
-        const imageBuffer = await encodeSafeWebp(req.file.path);
-        req.file.safeFilename = safeWebpFilename(req.file.filename);
+        const imageBuffer = await replaceUploadWithSafeWebp(
+          req.file,
+          uploadDir,
+        );
+        req.file.safeFilename = req.file.filename;
         uploadedB2Key = `${ADMIN_B2_PREFIX}/${req.file.safeFilename}`;
 
-        try {
-          await uploadToB2({
-            key: uploadedB2Key,
-            body: imageBuffer,
-            contentType: "image/webp",
-          });
+        if (isB2Configured()) {
+          try {
+            await uploadToB2({
+              key: uploadedB2Key,
+              body: imageBuffer,
+              contentType: "image/webp",
+            });
 
-          console.log("Admin image uploaded to B2:", uploadedB2Key);
-        } catch (b2Error) {
-          console.error("Admin B2 upload failed:", b2Error.message);
-          await auditAdminManagement(
-            req,
-            "CREATE_ADMIN_ACCOUNT",
-            "FAILED",
-            `Admin account creation failed because its image upload failed: ${b2Error.message}`,
-          );
-
-          return res.status(502).json({
-            error: "Admin image could not be uploaded to cloud storage.",
-          });
+            console.log("Admin image uploaded to B2:", uploadedB2Key);
+          } catch (b2Error) {
+            console.warn(
+              "Admin B2 upload failed, continuing with local storage:",
+              b2Error.message,
+            );
+          }
         }
       }
 
@@ -526,14 +588,28 @@ router.post(
           `INSERT INTO admin
             (username, password, first_name, last_name, email, password_changed, image)
            VALUES (?, ?, ?, ?, ?, 0, ?)`,
-          [username.trim(), hashedPassword, first_name.trim(), last_name.trim(), email.trim(), imageName],
+          [
+            username.trim(),
+            hashedPassword,
+            first_name.trim(),
+            last_name.trim(),
+            email.trim(),
+            imageName,
+          ],
         );
         await connection.query(
           `INSERT INTO admin_role
             (admin_id, role, can_add, can_edit, can_delete, can_promote, can_demote)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [result.insertId, normalizedRole, permissions.can_add, permissions.can_edit,
-            permissions.can_delete, permissions.can_promote, permissions.can_demote],
+          [
+            result.insertId,
+            normalizedRole,
+            permissions.can_add,
+            permissions.can_edit,
+            permissions.can_delete,
+            permissions.can_promote,
+            permissions.can_demote,
+          ],
         );
         return result.insertId;
       });
@@ -586,9 +662,9 @@ router.post(
       });
     } finally {
       /*
-       * Admin image is temporary locally.
+       * Clean up temporary file only if admin creation failed.
        */
-      if (req.file?.path) {
+      if (req.file?.path && !transactionCommitted && fs.existsSync(req.file.path)) {
         await fs.promises.unlink(req.file.path).catch(() => {});
       }
     }
@@ -663,28 +739,31 @@ router.put(
       const currentAdmin = currentRows[0];
 
       /*
-       * Upload replacement image to B2
-       * before changing MySQL.
+       * Process replacement image and save WebP locally. Sync to B2 if configured.
        */
       if (req.file) {
-        const imageBuffer = await encodeSafeWebp(req.file.path);
-        req.file.safeFilename = safeWebpFilename(req.file.filename);
+        const imageBuffer = await replaceUploadWithSafeWebp(
+          req.file,
+          uploadDir,
+        );
+        req.file.safeFilename = req.file.filename;
         uploadedB2Key = `${ADMIN_B2_PREFIX}/${req.file.safeFilename}`;
 
-        try {
-          await uploadToB2({
-            key: uploadedB2Key,
-            body: imageBuffer,
-            contentType: "image/webp",
-          });
+        if (isB2Configured()) {
+          try {
+            await uploadToB2({
+              key: uploadedB2Key,
+              body: imageBuffer,
+              contentType: "image/webp",
+            });
 
-          console.log("Updated admin image uploaded to B2:", uploadedB2Key);
-        } catch (b2Error) {
-          console.error("Admin B2 image upload failed:", b2Error.message);
-
-          return res.status(502).json({
-            error: "Admin image could not be uploaded to cloud storage.",
-          });
+            console.log("Updated admin image uploaded to B2:", uploadedB2Key);
+          } catch (b2Error) {
+            console.warn(
+              "Admin B2 image upload failed, continuing with local storage:",
+              b2Error.message,
+            );
+          }
         }
       }
 
@@ -751,7 +830,8 @@ router.put(
 
         if (!canAssignAdminRole(actorRole, normalizedRole)) {
           return res.status(403).json({
-            error: "You cannot assign an admin role equal to or higher than your own.",
+            error:
+              "You cannot assign an admin role equal to or higher than your own.",
           });
         }
 
@@ -822,15 +902,16 @@ router.put(
           currentAdmin.image,
         )}`;
 
-        try {
-          await deleteFromB2(oldB2Key);
-
-          console.log("Old admin image deleted from B2:", oldB2Key);
-        } catch (deleteError) {
-          console.warn(
-            "Could not delete old admin B2 image:",
-            deleteError.message,
-          );
+        if (isB2Configured()) {
+          try {
+            await deleteFromB2(oldB2Key);
+            console.log("Old admin image deleted from B2:", oldB2Key);
+          } catch (deleteError) {
+            console.warn(
+              "Could not delete old admin B2 image:",
+              deleteError.message,
+            );
+          }
         }
 
         /*
@@ -866,7 +947,7 @@ router.put(
        * New cloud image should not remain
        * if MySQL rejected the update.
        */
-      if (uploadedB2Key && !transactionCommitted) {
+      if (uploadedB2Key && !transactionCommitted && isB2Configured()) {
         try {
           await deleteFromB2(uploadedB2Key);
         } catch (cleanupError) {
@@ -884,11 +965,13 @@ router.put(
 
       await auditAdminUpdate(req, id, "FAILED", message);
 
-      return res.status(error.status || (error.code === "ER_DUP_ENTRY" ? 400 : 500)).json({
-        error: message,
-      });
+      return res
+        .status(error.status || (error.code === "ER_DUP_ENTRY" ? 400 : 500))
+        .json({
+          error: message,
+        });
     } finally {
-      if (req.file?.path) {
+      if (req.file?.path && !transactionCommitted && fs.existsSync(req.file.path)) {
         await fs.promises.unlink(req.file.path).catch(() => {});
       }
     }
@@ -926,13 +1009,17 @@ router.delete(
 
       const imageName = rows[0].image;
       if (String(id) === String(req.user.admin_id)) {
-        return res.status(403).json({ error: "You cannot delete your own admin account." });
+        return res
+          .status(403)
+          .json({ error: "You cannot delete your own admin account." });
       }
       if (
         normalizeAdminRole(rows[0].role) === "super admin" &&
         Number(rows[0].super_admin_count || 0) <= 1
       ) {
-        return res.status(403).json({ error: "The last super-admin cannot be deleted." });
+        return res
+          .status(403)
+          .json({ error: "The last super-admin cannot be deleted." });
       }
 
       /*

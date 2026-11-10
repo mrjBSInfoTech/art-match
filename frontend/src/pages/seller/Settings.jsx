@@ -45,6 +45,7 @@ import {
   requiredSellerProfileFields,
 } from "../../utils/sellerProfile";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 // Icons
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LockResetIcon from "@mui/icons-material/LockReset";
@@ -365,6 +366,17 @@ export default function Settings() {
       setDeletingAccount(false);
     }
   };
+
+  if (loadingAccountInformation && !accountInformation.student_number && !accountInformation.email) {
+    return (
+      <SellerLoadingPanel
+        title="Settings"
+        subtitle="Manage your student artist profile, credentials, appearance, and privacy"
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (accountInformationError) {
     return (

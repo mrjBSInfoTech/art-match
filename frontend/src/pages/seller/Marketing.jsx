@@ -9,21 +9,21 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
+  Paper,
   Snackbar,
   Stack,
   Tab,
   Tabs,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import SellerStorefront from "./Storefront";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import PromotionSlideForm from "../../components/seller/Marketing/PromotionSlideForm";
+import PromotionHeaderForm from "../../components/seller/Marketing/PromotionHeaderForm";
+import PromotionHeaderCard from "../../components/seller/Marketing/PromotionHeaderCard";
+import PromotionSliderDelete from "../../components/seller/Marketing/PromotionSliderDelete";
 import {
   createSellerPromotionSlide,
   deleteSellerPromotionSlide,
@@ -36,10 +36,13 @@ import {
 } from "../../api/seller/promotionSlideAPI";
 // Icons
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import ViewCarouselOutlinedIcon from "@mui/icons-material/ViewCarouselOutlined";
+import PromotionHeaderPreview from "../../components/common/PromotionHeaderPreview";
 
 const emptyForm = { title: "", description: "", button_label: "", button_url: "", file: null };
 const emptyHeaderForm = {
@@ -48,22 +51,6 @@ const emptyHeaderForm = {
   button_url: "/buyer/shop",
 };
 const slideLimit = 3;
-
-const statusDetails = (slide) => {
-  if (slide.review_status === "pending") return ["Awaiting admin review", "warning"];
-  if (slide.review_status === "rejected") return ["Rejected - edit and resubmit", "error"];
-  if (slide.review_status === "accepted") {
-    const end = new Date(slide.published_until);
-    if (Number(slide.is_currently_published) === 1) {
-      return [
-        `Approved until ${end.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}`,
-        "success",
-      ];
-    }
-    return ["Publication ended", "default"];
-  }
-  return ["Draft", "default"];
-};
 
 export default function Marketing() {
   const theme = useTheme();
@@ -79,8 +66,12 @@ export default function Marketing() {
   const [headerLoading, setHeaderLoading] = useState(true);
   const [headerSaving, setHeaderSaving] = useState(false);
   const [error, setError] = useState("");
-  const [headerError, setHeaderError] = useState("");
+  const [headerLoadError, setHeaderLoadError] = useState("");
+  const [headerFormError, setHeaderFormError] = useState("");
+  const [headerDialogOpen, setHeaderDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [slideToDelete, setSlideToDelete] = useState(null);
   const [selectedSlide, setSelectedSlide] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [preview, setPreview] = useState("");
@@ -88,6 +79,12 @@ export default function Marketing() {
   const [saving, setSaving] = useState(false);
   const [busySlideId, setBusySlideId] = useState(null);
   const [notice, setNotice] = useState("");
+  const [noticeSeverity, setNoticeSeverity] = useState("success");
+
+  const showNotice = (message, severity = "success") => {
+    setNoticeSeverity(severity);
+    setNotice(message);
+  };
 
   const loadSlides = useCallback(async () => {
     setLoading(true);
@@ -107,11 +104,11 @@ export default function Marketing() {
 
   const loadHeaderRequests = useCallback(async () => {
     setHeaderLoading(true);
-    setHeaderError("");
+    setHeaderLoadError("");
     try {
       setHeaderRequests(await fetchSellerPromotionHeaderRequests());
     } catch (loadError) {
-      setHeaderError(
+      setHeaderLoadError(
         loadError.message || "Unable to load your promo header requests.",
       );
     } finally {
@@ -153,8 +150,9 @@ export default function Marketing() {
   };
 
   const handleImage = (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+    const isFile = typeof File !== "undefined" && event instanceof File;
+    const file = isFile ? event : event.target.files?.[0];
+    if (!isFile) event.target.value = "";
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setFormError("Choose a JPEG, PNG, or WebP image.");
@@ -184,7 +182,11 @@ export default function Marketing() {
         await createSellerPromotionSlide(form);
       }
       setDialogOpen(false);
-      setNotice(selectedSlide ? "Promotion slide updated." : "Promotion slide saved as a draft.");
+      showNotice(
+        selectedSlide
+          ? "Promotion slide updated."
+          : "Promotion slide saved as a draft.",
+      );
       await loadSlides();
     } catch (saveError) {
       setFormError(saveError.message || "Unable to save your promotion.");
@@ -195,14 +197,15 @@ export default function Marketing() {
 
   const handleHeaderRequest = async (event) => {
     event.preventDefault();
-    setHeaderError("");
+    setHeaderFormError("");
     setHeaderSaving(true);
     try {
       const request = await createSellerPromotionHeaderRequest(headerForm);
       setHeaderRequests((current) => [request, ...current]);
-      setNotice("Promo header request sent to the admin for review.");
+      showNotice("Promo header request sent to the admin for review.");
+      setHeaderDialogOpen(false);
     } catch (requestError) {
-      setHeaderError(
+      setHeaderFormError(
         requestError.message || "Unable to request a promo header.",
       );
     } finally {
@@ -214,10 +217,13 @@ export default function Marketing() {
     setBusySlideId(slide.slide_id);
     try {
       await requestSellerPromotionSlideReview(slide.slide_id);
-      setNotice("Your slide was sent to the admin for review.");
+      showNotice("Your slide was sent to the admin for review.");
       await loadSlides();
     } catch (requestError) {
-      setNotice(requestError.message || "Unable to request admin review.");
+      showNotice(
+        requestError.message || "Unable to request admin review.",
+        "error",
+      );
     } finally {
       setBusySlideId(null);
     }
@@ -227,24 +233,39 @@ export default function Marketing() {
     setBusySlideId(slide.slide_id);
     try {
       await withdrawSellerPromotionSlideRequest(slide.slide_id);
-      setNotice("Your promotion request was withdrawn. You can submit it again when ready.");
+      showNotice(
+        "Your promotion request was withdrawn. You can submit it again when ready.",
+      );
       await loadSlides();
     } catch (withdrawError) {
-      setNotice(withdrawError.message || "Unable to withdraw your promotion request.");
+      showNotice(
+        withdrawError.message || "Unable to withdraw your promotion request.",
+        "error",
+      );
     } finally {
       setBusySlideId(null);
     }
   };
 
+  const openDelete = (slide) => {
+    setSlideToDelete(slide);
+    setDeleteDialogOpen(true);
+  };
+
   const handleDelete = async (slide) => {
-    if (!window.confirm(`Delete "${slide.title}"?`)) return;
+    if (!slide?.slide_id) return;
     setBusySlideId(slide.slide_id);
     try {
       await deleteSellerPromotionSlide(slide.slide_id);
-      setNotice("Promotion slide deleted.");
+      showNotice("Promotion slide deleted.");
+      setDeleteDialogOpen(false);
+      setSlideToDelete(null);
       await loadSlides();
     } catch (deleteError) {
-      setNotice(deleteError.message || "Unable to delete promotion slide.");
+      showNotice(
+        deleteError.message || "Unable to delete promotion slide.",
+        "error",
+      );
     } finally {
       setBusySlideId(null);
     }
@@ -256,7 +277,55 @@ export default function Marketing() {
     return Number(slide.is_currently_published) !== 1;
   };
 
-  if (error || (activeTab === "header" && headerError)) {
+  const pendingReviewCount =
+    slides.filter((slide) => slide.review_status === "pending").length +
+    headerRequests.filter((request) => request.status === "pending").length;
+  const activeSection =
+    activeTab === "store-profile"
+      ? "Store Profile"
+      : activeTab === "header"
+        ? "Promo Header"
+        : "Slides";
+  const metrics = [
+    {
+      label: "PROMOTION SLIDES",
+      value: loading ? "—" : `${slides.length}/${slideLimit}`,
+      caption: `Custom slides for your storefront (up to ${slideLimit})`,
+      icon: CampaignOutlinedIcon,
+      color: theme.palette.error.main,
+      background:
+        theme.palette.mode === "dark" ? "rgba(239, 68, 68, 0.14)" : "#fff5f5",
+    },
+    {
+      label: "PENDING REVIEWS",
+      value: loading || headerLoading ? "—" : pendingReviewCount,
+      caption: "Slide and promo header requests awaiting review",
+      icon: RateReviewOutlinedIcon,
+      color: theme.palette.info.main,
+      background:
+        theme.palette.mode === "dark" ? "rgba(2, 136, 209, 0.14)" : "#f0f9ff",
+    },
+    {
+      label: "ACTIVE SECTION",
+      value: activeSection,
+      caption: "Current marketing workspace",
+      icon: StorefrontOutlinedIcon,
+      color: theme.palette.success.main,
+      background:
+        theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.14)" : "#f0fdf4",
+    },
+  ];
+
+  if (loading && headerLoading && !slides.length && !headerRequests.length) {
+    return (
+      <SellerLoadingPanel
+        title="Marketing"
+        subtitle="Manage your storefront profile, promotion slides, and announcement banner requests."
+      />
+    );
+  }
+
+  if (error || (activeTab === "header" && headerLoadError)) {
     return (
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
@@ -264,7 +333,7 @@ export default function Marketing() {
         </Helmet>
         <ConnectionErrorPanel
           title="Promotions Unavailable"
-          message={error || headerError}
+          message={error || headerLoadError}
           onRetry={() => {
             loadSlides();
             loadHeaderRequests();
@@ -275,65 +344,306 @@ export default function Marketing() {
   }
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, width: "100%", minWidth: 0 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minHeight: "100vh",
+        width: "100%",
+        minWidth: 0,
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+      }}
+    >
       <Helmet><title>Marketing | Red Nexus Seller</title></Helmet>
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        alignItems={{ xs: "stretch", sm: "center" }}
+        alignItems={{ xs: "flex-start", sm: "center" }}
         justifyContent="space-between"
         spacing={2}
-        sx={{ mb: 3 }}
+        sx={{ mb: 2.5, flexWrap: "wrap" }}
       >
         <Box>
-          <Typography variant="h4" fontWeight={700}>Marketing</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography
+            sx={{
+              fontSize: { xs: 28, sm: 38 },
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Marketing
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: 13 }}>
             Create promotional slides or request a custom buyer promo header.
           </Typography>
         </Box>
-        {activeTab === "slides" && (
+        {activeTab === "slides" ? (
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             disabled={slides.length >= slideLimit || loading}
             onClick={openCreate}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: 13,
+              height: 44,
+              width: { xs: "100%", sm: "auto" },
+              backgroundColor: "error.main",
+              color:"#fff",
+            }}
           >
             Create slide ({slides.length}/{slideLimit})
           </Button>
-        )}
+        ) : activeTab === "header" ? (
+          <Button
+            variant="contained"
+            startIcon={<PublishOutlinedIcon />}
+            disabled={
+              headerLoading ||
+              headerRequests.some((request) => request.status === "pending")
+            }
+            onClick={() => {
+              setHeaderFormError("");
+              setHeaderDialogOpen(true);
+            }}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              fontSize: 13,
+              height: 44,
+              width: { xs: "100%", sm: "auto" },
+              backgroundColor: "error.main",
+              color: "#fff",
+              boxShadow: "none",
+              "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
+            }}
+          >
+            {headerRequests.some((request) => request.status === "pending")
+              ? "Request pending review"
+              : "Request promo header"}
+          </Button>
+        ) : null}
       </Stack>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+          },
+          gap: 2,
+          mb: 2.5,
+        }}
+      >
+        {metrics.map((metric) => {
+          const MetricIcon = metric.icon;
+          return (
+            <Card
+              key={metric.label}
+              sx={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2.5,
+                boxShadow: "none",
+              }}
+            >
+              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      {metric.label}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 0.5,
+                        color: theme.palette.text.primary,
+                        fontSize: 28,
+                        fontWeight: 800,
+                        lineHeight: 1.15,
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {metric.value}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        color: theme.palette.text.secondary,
+                        fontSize: 12,
+                      }}
+                    >
+                      {metric.caption}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      width: 50,
+                      height: 50,
+                      flexShrink: 0,
+                      display: "grid",
+                      placeItems: "center",
+                      borderRadius: 2,
+                      backgroundColor: metric.background,
+                      color: metric.color,
+                    }}
+                  >
+                    <MetricIcon sx={{ fontSize: 24 }} />
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </Box>
 
       <Tabs
         value={activeTab}
         onChange={(_, value) => {
           const nextParams = new URLSearchParams(searchParams);
-          if (value === "slides") {
-            nextParams.delete("tab");
-          } else {
-            nextParams.set("tab", value);
-          }
+          nextParams.set("tab", value);
           setSearchParams(nextParams);
         }}
         aria-label="Seller marketing options"
         sx={{ mb: 2 }}
       >
         <Tab value="store-profile" label="Store Profile" />
-        <Tab value="header" label="Promo Header" />
         <Tab value="slides" label="Promotion Slides" />
+        <Tab value="header" label="Promo Header" />
       </Tabs>
 
       {activeTab === "store-profile" ? (
-        <SellerStorefront />
+        <Box sx={{ minWidth: 0 }}>
+          <SellerStorefront />
+        </Box>
       ) : activeTab === "header" ? (
-        <Stack spacing={2.5} sx={{ maxWidth: 760 }}>
-          <Typography color="text.secondary">
-            Submit your own message and button for the red buyer-panel promo
-            header. It will only appear after admin approval.
-          </Typography>
-          {headerError && <Alert severity="error">{headerError}</Alert>}
-          {headerLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-              <CircularProgress />
+        <Stack spacing={2.5}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr)",
+              gap: { xs: 1.5, sm: 2 },
+            }}
+          >
+            <Box
+              sx={{
+                position: "relative",
+                overflow: "hidden",
+                p: { xs: 2.5, sm: 3.5 },
+                borderRadius: 3,
+                color: "#fff",
+                background: `linear-gradient(125deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 62%, ${theme.palette.warning.dark} 140%)`,
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  width: 220,
+                  height: 220,
+                  right: -75,
+                  top: -105,
+                  border: "1px solid rgba(255,255,255,0.22)",
+                  borderRadius: "50%",
+                  boxShadow: "0 0 0 24px rgba(255,255,255,0.06), 0 0 0 48px rgba(255,255,255,0.04)",
+                  pointerEvents: "none",
+                },
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                <AutoAwesomeOutlinedIcon sx={{ fontSize: 18 }} />
+                <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.2 }}>
+                  CAMPAIGN STUDIO / 01
+                </Typography>
+              </Stack>
+              <Typography
+                variant="h4"
+                sx={{
+                  position: "relative",
+                  zIndex: 1,
+                  maxWidth: 540,
+                  fontSize: { xs: 25, sm: 32 },
+                  fontWeight: 800,
+                  lineHeight: 1.12,
+                }}
+              >
+                Make your next announcement stand out.
+              </Typography>
+              <Typography
+                sx={{
+                  position: "relative",
+                  zIndex: 1,
+                  mt: 1,
+                  maxWidth: 560,
+                  color: "rgba(255,255,255,0.82)",
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                }}
+              >
+                Write a short buyer-facing message and call to action. Your
+                custom promo header goes live after admin approval.
+              </Typography>
             </Box>
+
+            <Paper
+              variant="outlined"
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                minHeight: 170,
+                p: 2.5,
+                borderRadius: 3,
+                borderColor: theme.palette.divider,
+                backgroundColor: theme.palette.background.paper,
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "text.secondary" }}>
+                  BUYER PANEL PREVIEW
+                </Typography>
+                <Chip size="small" label="LIVE PREVIEW" color="error" variant="outlined" />
+              </Stack>
+              <Box sx={{ mt: 2, overflow: "hidden", borderRadius: 1 }}>
+                <PromotionHeaderPreview
+                  message={headerForm.message}
+                  buttonLabel={headerForm.button_label}
+                />
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1.25 }}>
+                Preview only · Requires admin approval
+              </Typography>
+            </Paper>
+          </Box>
+
+          {headerLoading ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                display: "grid",
+                placeItems: "center",
+                minHeight: 180,
+                borderRadius: 3,
+                borderColor: theme.palette.divider,
+              }}
+            >
+              <CircularProgress />
+            </Paper>
           ) : (
             <>
               {headerRequests[0]?.status === "pending" && (
@@ -341,105 +651,78 @@ export default function Marketing() {
                   Your latest promo header request is awaiting admin review.
                 </Alert>
               )}
-              <Card
-                component="form"
-                variant="outlined"
-                onSubmit={handleHeaderRequest}
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                spacing={0.75}
+                sx={{ mt: 1 }}
               >
-                <CardContent>
-                  <Stack spacing={2}>
-                    <TextField
-                      label="Announcement message"
-                      value={headerForm.message}
-                      onChange={(event) =>
-                        setHeaderForm((current) => ({
-                          ...current,
-                          message: event.target.value,
-                        }))
-                      }
-                      required
-                      fullWidth
-                      multiline
-                      minRows={2}
-                      inputProps={{ maxLength: 200 }}
-                      helperText={`${headerForm.message.length}/200 characters`}
-                      disabled={
-                        headerSaving ||
-                        headerRequests.some((request) => request.status === "pending")
-                      }
-                    />
-                    <TextField
-                      label="Button label"
-                      value={headerForm.button_label}
-                      onChange={(event) =>
-                        setHeaderForm((current) => ({
-                          ...current,
-                          button_label: event.target.value,
-                        }))
-                      }
-                      required
-                      fullWidth
-                      inputProps={{ maxLength: 60 }}
-                      disabled={
-                        headerSaving ||
-                        headerRequests.some((request) => request.status === "pending")
-                      }
-                    />
-                    <TextField
-                      label="Button destination"
-                      value={headerForm.button_url}
-                      onChange={(event) =>
-                        setHeaderForm((current) => ({
-                          ...current,
-                          button_url: event.target.value,
-                        }))
-                      }
-                      required
-                      fullWidth
-                      placeholder="/buyer/shop"
-                      helperText="Use a site path, for example /buyer/shop."
-                      disabled={
-                        headerSaving ||
-                        headerRequests.some((request) => request.status === "pending")
-                      }
-                    />
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      disabled={
-                        headerSaving ||
-                        headerRequests.some((request) => request.status === "pending")
-                      }
-                      startIcon={
-                        headerSaving ? (
-                          <CircularProgress size={18} color="inherit" />
-                        ) : (
-                          <PublishOutlinedIcon />
-                        )
-                      }
-                    >
-                      {headerSaving ? "Sending request..." : "Request promo header"}
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-              <Typography variant="h6" fontWeight={700}>
-                Your recent header requests
-              </Typography>
+                <Box>
+                  <Typography variant="h6" fontWeight={800}>
+                    Request history
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Track admin decisions for your buyer announcements.
+                  </Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`${headerRequests.length} ${headerRequests.length === 1 ? "request" : "requests"}`}
+                />
+              </Stack>
               {headerRequests.length === 0 ? (
-                <Alert severity="info">You have not requested a promo header yet.</Alert>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2.5,
+                    borderColor: theme.palette.divider,
+                    borderLeft: `4px solid ${theme.palette.warning.main}`,
+                    backgroundColor: theme.palette.background.paper,
+                  }}
+                >
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <RateReviewOutlinedIcon color="error" />
+                    <Box>
+                      <Typography fontWeight={700}>No announcements submitted yet</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Your submitted messages and review updates will appear here.
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Paper>
               ) : (
                 <Stack spacing={1.5}>
                   {headerRequests.map((request) => (
-                    <Card key={request.request_id} variant="outlined">
-                      <CardContent>
+                    <Card
+                      key={request.request_id}
+                      variant="outlined"
+                      sx={{
+                        borderRadius: 2.5,
+                        borderColor: theme.palette.divider,
+                        borderLeft: `4px solid ${
+                          request.status === "accepted"
+                            ? theme.palette.success.main
+                            : request.status === "rejected"
+                              ? theme.palette.error.main
+                              : theme.palette.warning.main
+                        }`,
+                        backgroundColor: theme.palette.background.paper,
+                      }}
+                    >
+                      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
                         <Stack
-                          direction="row"
+                          direction={{ xs: "column", sm: "row" }}
                           justifyContent="space-between"
-                          alignItems="flex-start"
+                          alignItems={{ xs: "flex-start", sm: "center" }}
                           spacing={1}
                         >
-                          <Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 0.8 }}>
+                              ANNOUNCEMENT
+                            </Typography>
                             <Typography fontWeight={700}>
                               {request.message}
                             </Typography>
@@ -470,153 +753,231 @@ export default function Marketing() {
       ) : (
         <>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <Paper
+        variant="outlined"
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: { xs: "flex-start", sm: "center" },
+          justifyContent: "space-between",
+          gap: 2,
+          p: { xs: 2, sm: 2.5 },
+          mb: 2,
+          overflow: "hidden",
+          position: "relative",
+          borderRadius: 3,
+          borderColor: theme.palette.divider,
+          backgroundColor: theme.palette.background.paper,
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: "0 auto 0 0",
+            width: 5,
+            background: `linear-gradient(180deg, ${theme.palette.error.main}, ${theme.palette.warning.main})`,
+          },
+        }}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              flexShrink: 0,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: 1.75,
+              color: theme.palette.error.main,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "rgba(239,68,68,0.14)"
+                  : "#fff5f5",
+            }}
+          >
+            <ViewCarouselOutlinedIcon />
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "text.secondary" }}>
+              CAMPAIGN STUDIO / 02
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              Promotion carousel
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Build a visual moment for buyers on the shop home.
+            </Typography>
+          </Box>
+        </Stack>
+        <Box sx={{ minWidth: { sm: 190 } }}>
+          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+              {loading ? "Loading your slots" : "SLIDE CAPACITY"}
+            </Typography>
+            <Typography variant="caption" aria-live="polite" sx={{ fontWeight: 800 }}>
+              {slides.length}/{slideLimit}
+            </Typography>
+          </Stack>
+          <Box
+            role="progressbar"
+            aria-label="Promotion slide capacity"
+            aria-valuemin={0}
+            aria-valuemax={slideLimit}
+            aria-valuenow={Math.min(slides.length, slideLimit)}
+            sx={{
+              display: "flex",
+              gap: 0.6,
+              "& > span": {
+                height: 7,
+                flex: 1,
+                borderRadius: 99,
+                backgroundColor: "action.disabledBackground",
+              },
+            }}
+          >
+            {[0, 1, 2].map((slot) => (
+              <Box
+                key={slot}
+                component="span"
+                sx={{
+                  backgroundColor:
+                    slot < slides.length
+                      ? theme.palette.error.main
+                      : theme.palette.action.disabledBackground,
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
+      </Paper>
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
           <CircularProgress />
         </Box>
       ) : slides.length === 0 ? (
-        <Alert severity="info">You have no promotional slides yet.</Alert>
+        <Paper
+          variant="outlined"
+          sx={{
+            borderColor: theme.palette.divider,
+            overflow: "hidden",
+            position: "relative",
+            borderRadius: 3,
+            py: { xs: 5, sm: 7 },
+            px: 3,
+            textAlign: "center",
+            backgroundColor: theme.palette.background.paper,
+            "&::before, &::after": {
+              content: '""',
+              position: "absolute",
+              width: 180,
+              height: 180,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: "50%",
+              pointerEvents: "none",
+            },
+            "&::before": { top: -110, left: -90 },
+            "&::after": { bottom: -120, right: -80 },
+          }}
+        >
+          <Box sx={{ position: "relative", zIndex: 1 }}>
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                display: "grid",
+                placeItems: "center",
+                mx: "auto",
+                mb: 2,
+                borderRadius: 2.5,
+                color: theme.palette.error.main,
+                backgroundColor:
+                  theme.palette.mode === "dark"
+                    ? "rgba(239,68,68,0.14)"
+                    : "#fff5f5",
+                transform: "rotate(-4deg)",
+              }}
+            >
+              <CampaignOutlinedIcon sx={{ fontSize: 31 }} />
+            </Box>
+            <Typography
+              sx={{
+                mb: 0.75,
+                color: "text.secondary",
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: 1.1,
+              }}
+            >
+              YOUR NEXT FEATURE STARTS HERE
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+              The carousel is yours to fill.
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: 14 }}>
+              Add a strong image and a short message to introduce your work to buyers.
+            </Typography>
+          </Box>
+        </Paper>
       ) : (
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(3, minmax(0, 1fr))",
+              lg: "repeat(5, minmax(0, 1fr))",
+            },
             gap: 2,
           }}
         >
-          {slides.map((slide) => {
-            const [statusLabel, statusColor] = statusDetails(slide);
-            const locked = !canEditSlide(slide);
-            return (
-              <Card key={slide.slide_id} variant="outlined" sx={{ overflow: "hidden" }}>
-                <Box
-                  component="img"
-                  src={slide.image_url}
-                  alt={slide.title}
-                  sx={{ width: "100%", height: 190, objectFit: "cover", display: "block" }}
-                />
-                <CardContent>
-                  <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
-                    <Typography variant="h6" fontWeight={700}>{slide.title}</Typography>
-                    <Chip size="small" color={statusColor} label={statusLabel} />
-                  </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, minHeight: 40 }}>
-                    {slide.description || "No description"}
-                  </Typography>
-                  {slide.review_status === "rejected" && slide.reviewed_at && (
-                    <Typography variant="caption" color="text.secondary">
-                      You can edit the slide and submit it for review again.
-                    </Typography>
-                  )}
-                  {slide.review_status === "accepted" && slide.published_until && (
-                    <Typography variant="caption" color="text.secondary">
-                      Published for three days after admin approval.
-                    </Typography>
-                  )}
-                  <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
-                    {slide.review_status === "pending" && (
-                      <Button
-                        size="small"
-                        color="warning"
-                        onClick={() => handleWithdrawRequest(slide)}
-                        disabled={busySlideId === slide.slide_id}
-                      >
-                        {busySlideId === slide.slide_id
-                          ? "Withdrawing..."
-                          : "Withdraw request"}
-                      </Button>
-                    )}
-                    {!locked && (
-                      <>
-                        <Button
-                          size="small"
-                          startIcon={<EditOutlinedIcon />}
-                          onClick={() => openEdit(slide)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<PublishOutlinedIcon />}
-                          onClick={() => handleRequestReview(slide)}
-                          disabled={busySlideId === slide.slide_id}
-                        >
-                          Request publish
-                        </Button>
-                        <IconButton
-                          aria-label={`Delete ${slide.title}`}
-                          color="error"
-                          onClick={() => handleDelete(slide)}
-                          disabled={busySlideId === slide.slide_id}
-                        >
-                          <DeleteOutlineIcon />
-                        </IconButton>
-                      </>
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {slides.map((slide) => (
+            <PromotionHeaderCard
+              key={slide.slide_id}
+              slide={slide}
+              canEdit={canEditSlide(slide)}
+              busy={busySlideId === slide.slide_id}
+              onEdit={() => openEdit(slide)}
+              onRequestReview={() => handleRequestReview(slide)}
+              onWithdrawRequest={() => handleWithdrawRequest(slide)}
+              onDelete={() => openDelete(slide)}
+            />
+          ))}
         </Box>
       )}
 
-      <Dialog
+      <PromotionSlideForm
         open={dialogOpen}
-        onClose={() => !saving && setDialogOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{ component: "form", onSubmit: handleSave }}
-      >
-        <DialogTitle>{selectedSlide ? "Edit promotional slide" : "Create promotional slide"}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ pt: 0.5 }}>
-            {formError && <Alert severity="error">{formError}</Alert>}
-            <TextField
-              label="Headline"
-              value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              required
-              inputProps={{ maxLength: 200 }}
-            />
-            <TextField
-              label="Description"
-              value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              multiline
-              minRows={3}
-            />
-            <TextField
-              label="Button label (optional)"
-              value={form.button_label}
-              onChange={(event) => setForm((current) => ({ ...current, button_label: event.target.value }))}
-              inputProps={{ maxLength: 60 }}
-            />
-            <TextField
-              label="Button link (optional)"
-              value={form.button_url}
-              onChange={(event) => setForm((current) => ({ ...current, button_url: event.target.value }))}
-              placeholder="/buyer/shop"
-            />
-            <Button component="label" variant="outlined" startIcon={<ImageOutlinedIcon />} sx={{ alignSelf: "flex-start" }}>
-              {selectedSlide ? "Replace image" : "Choose slide image"}
-              <input hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImage} />
-            </Button>
-            {preview && (
-              <Box component="img" src={preview} alt="Promotion preview" sx={{ maxHeight: 240, width: "100%", objectFit: "cover" }} />
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={saving}>
-            {saving ? "Saving..." : selectedSlide ? "Save changes" : "Create draft"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleSave}
+        selectedSlide={selectedSlide}
+        form={form}
+        setForm={setForm}
+        preview={preview}
+        formError={formError}
+        saving={saving}
+        onImageChange={handleImage}
+      />
+      <PromotionSliderDelete
+        open={deleteDialogOpen}
+        handleClose={() => {
+          setDeleteDialogOpen(false);
+          setSlideToDelete(null);
+        }}
+        onSubmit={handleDelete}
+        selectedSlide={slideToDelete}
+        deleting={busySlideId === slideToDelete?.slide_id}
+      />
         </>
       )}
+      <PromotionHeaderForm
+        open={headerDialogOpen}
+        onClose={() => setHeaderDialogOpen(false)}
+        onSubmit={handleHeaderRequest}
+        form={headerForm}
+        setForm={setHeaderForm}
+        error={headerFormError}
+        setError={setHeaderFormError}
+        saving={headerSaving}
+      />
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={4000}
@@ -624,7 +985,7 @@ export default function Marketing() {
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert
-          severity="info"
+          severity={noticeSeverity}
           variant="filled"
           onClose={() => setNotice("")}
           sx={{
@@ -632,7 +993,7 @@ export default function Marketing() {
             minHeight: 48,
             borderRadius: 2,
             boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
-            backgroundColor: theme.palette.info.main,
+            backgroundColor: theme.palette[noticeSeverity].main,
             color: "#fff",
             alignItems: "center",
             "& .MuiAlert-icon": {

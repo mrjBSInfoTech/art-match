@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createElement,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { Helmet } from "react-helmet-async";
+import { useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -7,13 +15,10 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
   InputAdornment,
   Paper,
+  Slide,
+  Snackbar,
   Stack,
   Tab,
   Tabs,
@@ -23,546 +28,42 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useSearchParams } from "react-router-dom";
+
+// Icons
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import ViewCarouselOutlinedIcon from "@mui/icons-material/ViewCarouselOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import CloseIcon from "@mui/icons-material/Close";
 
+// Child Components
 import EventCard from "../../components/admin/Event/EventCard";
 import EventTable from "../../components/admin/Event/EventTable";
 import EventDelete from "../../components/admin/Event/EventDelete";
 import EventForm from "../../components/admin/Event/EventForm";
-import {
-  addEvent,
-  deleteEvent,
-  fetchEvents,
-  updateEvent,
-} from "../../api/admin/eventAPI";
+import EventArchives from "../../components/admin/Event/EventArchives";
 import PromotionHeader from "./PromotionHeader";
 import PromotionSlides from "./PromotionSlides";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 
-function ExhibitionCalendar({
-  events = [],
-  loading = false,
-  loadError = "",
-  archivedCount = 0,
-  onRefresh,
-}) {
-  const theme = useTheme();
-  const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState("card");
-  const [actionError, setActionError] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+// API
+import {
+  fetchEvents,
+  addEvent,
+  updateEvent,
+  deleteEvent,
+} from "../../api/admin/eventAPI";
 
-  const [archivedOpen, setArchivedOpen] = useState(false);
-  const [archivedEvents, setArchivedEvents] = useState([]);
-  const [archivedLoading, setArchivedLoading] = useState(false);
-  const [archivedError, setArchivedError] = useState("");
-  const [archivedSearch, setArchivedSearch] = useState("");
-  const [archivedViewMode, setArchivedViewMode] = useState("table");
-
-  const filteredEvents = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return events;
-    return events.filter((e) =>
-      [e.title, e.location, e.description]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [events, search]);
-
-  const loadArchivedEvents = useCallback(async () => {
-    try {
-      setArchivedLoading(true);
-      setArchivedError("");
-      const data = await fetchEvents({ archived: true });
-      setArchivedEvents(Array.isArray(data) ? data : []);
-    } catch (error) {
-      setArchivedError(error.message || "Unable to load archived exhibitions.");
-    } finally {
-      setArchivedLoading(false);
-    }
-  }, []);
-
-  const handleArchivedOpen = () => {
-    setArchivedOpen(true);
-    loadArchivedEvents();
-  };
-
-  const handleSave = async (eventData) => {
-    setActionError("");
-    if (selectedEvent) {
-      await updateEvent(selectedEvent.event_id, eventData);
-    } else {
-      await addEvent(eventData);
-    }
-    setFormOpen(false);
-    setSelectedEvent(null);
-    if (onRefresh) await onRefresh();
-    if (archivedOpen) await loadArchivedEvents();
-  };
-
-  const handleDelete = async (eventId) => {
-    try {
-      setDeleting(true);
-      setActionError("");
-      await deleteEvent(eventId);
-      setDeleteOpen(false);
-      setSelectedEvent(null);
-      if (onRefresh) await onRefresh();
-      if (archivedOpen) await loadArchivedEvents();
-    } catch (error) {
-      setActionError(error.message || "Unable to delete the event.");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const filteredArchived = useMemo(() => {
-    const query = archivedSearch.trim().toLowerCase();
-    if (!query) return archivedEvents;
-    return archivedEvents.filter((e) =>
-      [e.title, e.location, e.description]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [archivedEvents, archivedSearch]);
-
-  return (
-    <Box>
-      {/* Search & Actions Bar matching other admin pages */}
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 1.5, sm: 2 },
-          borderRadius: 2.5,
-          backgroundColor: theme.palette.background.paper,
-          borderColor: theme.palette.divider,
-          mb: 2,
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
-          gap={1.5}
-        >
-          <TextField
-            size="small"
-            placeholder="Search exhibitions by title, venue, or description..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{
-              width: { xs: "100%", sm: 360 },
-              "& .MuiInputBase-input": { fontSize: 13 },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Button
-              variant="outlined"
-              startIcon={<HistoryOutlinedIcon />}
-              onClick={handleArchivedOpen}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: 13,
-                height: 40,
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.primary,
-                "&:hover": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              }}
-            >
-              Archived ({archivedCount})
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                setSelectedEvent(null);
-                setFormOpen(true);
-              }}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 700,
-                fontSize: 13,
-                height: 40,
-                backgroundColor: "error.main",
-                color: "#fff",
-                boxShadow: "none",
-                "&:hover": {
-                  backgroundColor: "error.dark",
-                  boxShadow: "none",
-                },
-              }}
-            >
-              Add Exhibition
-            </Button>
-          </Stack>
-        </Stack>
-      </Paper>
-
-      {/* View Mode Switcher & Summary Count */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 1.5,
-          mt: 0.5,
-          mb: 1.5,
-        }}
-      >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          aria-live="polite"
-          sx={{ fontWeight: 600 }}
-        >
-          Showing {filteredEvents.length} of {events.length} exhibitions
-        </Typography>
-
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(e, next) => {
-            if (next) setViewMode(next);
-          }}
-          size="small"
-          aria-label="Exhibition presentation mode"
-          sx={{
-            backgroundColor: theme.palette.background.paper,
-            borderRadius: 2.5,
-            border: `1px solid ${theme.palette.divider}`,
-            p: 0.3,
-            "& .MuiToggleButton-root": {
-              border: "none",
-              borderRadius: 2,
-              px: 1.5,
-              py: 0.5,
-              fontSize: 12,
-              fontWeight: 700,
-              textTransform: "none",
-              color: theme.palette.text.secondary,
-              gap: 0.75,
-              transition: "all 150ms ease",
-            },
-            "& .MuiToggleButton-root.Mui-selected": {
-              backgroundColor: theme.palette.error.main,
-              color: "#fff",
-              "&:hover": {
-                backgroundColor: theme.palette.error.dark,
-              },
-            },
-          }}
-        >
-          <ToggleButton value="card" aria-label="Card view">
-            <ViewModuleIcon sx={{ fontSize: 18 }} />
-            Cards
-          </ToggleButton>
-          <ToggleButton value="table" aria-label="Table view">
-            <ViewListIcon sx={{ fontSize: 18 }} />
-            Table
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-
-      {actionError && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setActionError("")}>
-          {actionError}
-        </Alert>
-      )}
-
-      {loadError && (
-        <Alert
-          severity="error"
-          sx={{ mb: 2 }}
-          action={
-            <Button color="inherit" size="small" onClick={onRefresh}>
-              Retry
-            </Button>
-          }
-        >
-          {loadError}
-        </Alert>
-      )}
-
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-          <CircularProgress aria-label="Loading exhibition calendar" />
-        </Box>
-      ) : events.length === 0 ? (
-        <Paper
-          variant="outlined"
-          sx={{
-            border: "1px dashed",
-            borderColor: "divider",
-            borderRadius: 2.5,
-            py: 8,
-            px: 3,
-            textAlign: "center",
-          }}
-        >
-          <EventOutlinedIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            No exhibitions scheduled
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
-            Add the first exhibition to start building the public calendar.
-          </Typography>
-        </Paper>
-      ) : filteredEvents.length === 0 ? (
-        <Paper
-          variant="outlined"
-          sx={{
-            border: "1px dashed",
-            borderColor: "divider",
-            borderRadius: 2.5,
-            py: 8,
-            px: 3,
-            textAlign: "center",
-          }}
-        >
-          <EventOutlinedIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            No matching exhibitions found
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
-            Try adjusting your search keywords.
-          </Typography>
-        </Paper>
-      ) : viewMode === "card" ? (
-        <EventCard
-          events={filteredEvents}
-          onEdit={(event) => {
-            setSelectedEvent(event);
-            setFormOpen(true);
-          }}
-          onDelete={(event) => {
-            setSelectedEvent(event);
-            setDeleteOpen(true);
-          }}
-        />
-      ) : (
-        <EventTable
-          events={filteredEvents}
-          onEdit={(event) => {
-            setSelectedEvent(event);
-            setFormOpen(true);
-          }}
-          onDelete={(event) => {
-            setSelectedEvent(event);
-            setDeleteOpen(true);
-          }}
-        />
-      )}
-
-      {/* Archived Exhibitions Dialog */}
-      <Dialog
-        open={archivedOpen}
-        onClose={() => setArchivedOpen(false)}
-        fullWidth
-        maxWidth="lg"
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            backgroundColor: theme.palette.background.paper,
-          },
-        }}
-        aria-labelledby="archived-events-title"
-      >
-        <DialogTitle
-          id="archived-events-title"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            py: 2,
-            px: 3,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <HistoryOutlinedIcon sx={{ color: "info.main" }} />
-            <Typography variant="h6" fontWeight={700}>
-              Archived Exhibitions
-            </Typography>
-          </Stack>
-          <IconButton
-            aria-label="Close archived exhibitions"
-            onClick={() => setArchivedOpen(false)}
-            size="small"
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
-          <Stack spacing={2}>
-            {/* Search & Switcher inside Archived dialog */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 1.5,
-              }}
-            >
-              <TextField
-                size="small"
-                placeholder="Search archived exhibitions..."
-                value={archivedSearch}
-                onChange={(e) => setArchivedSearch(e.target.value)}
-                sx={{ width: { xs: "100%", sm: 300 } }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              <ToggleButtonGroup
-                value={archivedViewMode}
-                exclusive
-                onChange={(e, next) => {
-                  if (next) setArchivedViewMode(next);
-                }}
-                size="small"
-                sx={{
-                  backgroundColor: theme.palette.background.default,
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.divider}`,
-                  p: 0.3,
-                  "& .MuiToggleButton-root": {
-                    border: "none",
-                    borderRadius: 1.5,
-                    px: 1.25,
-                    py: 0.4,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textTransform: "none",
-                  },
-                }}
-              >
-                <ToggleButton value="card">Cards</ToggleButton>
-                <ToggleButton value="table">Table</ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-
-            {archivedLoading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-                <CircularProgress aria-label="Loading archived exhibitions" />
-              </Box>
-            ) : archivedError ? (
-              <Alert
-                severity="error"
-                action={
-                  <Button color="inherit" size="small" onClick={loadArchivedEvents}>
-                    Retry
-                  </Button>
-                }
-              >
-                {archivedError}
-              </Alert>
-            ) : filteredArchived.length === 0 ? (
-              <Box sx={{ py: 8, textAlign: "center" }}>
-                <EventOutlinedIcon sx={{ fontSize: 44, color: "text.disabled", mb: 1 }} />
-                <Typography sx={{ fontWeight: 700 }}>
-                  {archivedSearch ? "No matching archived exhibitions" : "No archived exhibitions"}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
-                  Concluded exhibitions appear here automatically.
-                </Typography>
-              </Box>
-            ) : archivedViewMode === "card" ? (
-              <EventCard
-                events={filteredArchived}
-                onEdit={(event) => {
-                  setSelectedEvent(event);
-                  setFormOpen(true);
-                }}
-                onDelete={(event) => {
-                  setSelectedEvent(event);
-                  setDeleteOpen(true);
-                }}
-              />
-            ) : (
-              <EventTable
-                events={filteredArchived}
-                onEdit={(event) => {
-                  setSelectedEvent(event);
-                  setFormOpen(true);
-                }}
-                onDelete={(event) => {
-                  setSelectedEvent(event);
-                  setDeleteOpen(true);
-                }}
-              />
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-          <Button
-            variant="outlined"
-            onClick={() => setArchivedOpen(false)}
-            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 700 }}
-          >
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <EventForm
-        open={formOpen}
-        handleClose={() => {
-          setFormOpen(false);
-          setSelectedEvent(null);
-        }}
-        onSubmit={handleSave}
-        selectedEvent={selectedEvent}
-      />
-      <EventDelete
-        open={deleteOpen}
-        handleClose={() => {
-          if (!deleting) {
-            setDeleteOpen(false);
-            setSelectedEvent(null);
-          }
-        }}
-        onSubmit={handleDelete}
-        selectedEvent={selectedEvent}
-        deleting={deleting}
-        error={actionError}
-      />
-    </Box>
-  );
+// Slide Transition for Snackbar
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
 }
 
 export default function Event() {
@@ -573,12 +74,52 @@ export default function Event() {
     ? requestedTab
     : "calendar";
 
+  // Main Events State
   const [events, setEvents] = useState([]);
   const [archivedCount, setArchivedCount] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
+  // Modal Open States
+  const [openForm, setOpenForm] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openArchived, setOpenArchived] = useState(false);
+  const [promotionActions, setPromotionActions] = useState({});
+  const registerPromotionActions = useCallback(
+    (actions) => setPromotionActions({ ...actions, tab: activeTab }),
+    [activeTab],
+  );
+  const actionsForTab =
+    promotionActions.tab === activeTab ? promotionActions : {};
+
+  // Search & View Mode States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("card");
+
+  // Archived Exhibitions States
+  const [archivedEvents, setArchivedEvents] = useState([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archivedError, setArchivedError] = useState("");
+
+  // Snackbar Notification State
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [snackbarAction, setSnackbarAction] = useState(null);
+  const retryActionsRef = useRef({});
+
+
+  const showSnackbar = useCallback((message, severity = "success", action = null) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarAction(action);
+    setSnackbarOpen(true);
+  }, []);
+
+  // Load Main Events & Archive Count
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -592,21 +133,118 @@ export default function Event() {
       setDataLoaded(true);
     } catch (error) {
       setLoadError(error.message || "Unable to load exhibitions.");
+      showSnackbar(error.message || "Unable to load exhibitions.", "error", {
+        label: "Retry",
+        onClick: () => retryActionsRef.current.loadData?.(),
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showSnackbar]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // Load Concluded Archived Exhibitions
+  const loadArchivedEvents = useCallback(async () => {
+    try {
+      setArchivedLoading(true);
+      setArchivedError("");
+      const data = await fetchEvents({ archived: true });
+      setArchivedEvents(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setArchivedError(error.message || "Unable to load archived exhibitions.");
+      showSnackbar(error.message || "Unable to load archived exhibitions.", "error", {
+        label: "Retry",
+        onClick: () => retryActionsRef.current.loadArchivedEvents?.(),
+      });
+    } finally {
+      setArchivedLoading(false);
+    }
+  }, [showSnackbar]);
+
+  retryActionsRef.current.loadData = loadData;
+  retryActionsRef.current.loadArchivedEvents = loadArchivedEvents;
+
+  // Filtered Active Exhibitions
+  const filteredEvents = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return events;
+    return events.filter((e) =>
+      [e.title, e.location, e.description]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [events, searchQuery]);
+
+  // Modal Open Handlers
+  const handleOpenAdd = () => {
+    setSelectedEvent(null);
+    setOpenForm(true);
+  };
+
+  const handleOpenEdit = (event) => {
+    setSelectedEvent(event);
+    setOpenForm(true);
+  };
+
+  const handleOpenDelete = (event) => {
+    setSelectedEvent(event);
+    setOpenDelete(true);
+  };
+
+  const handleOpenArchived = () => {
+    setOpenArchived(true);
+    loadArchivedEvents();
+  };
+
+  // Submit (Create or Update) Event
+  const handleSubmitEvent = async (eventData) => {
+    try {
+      if (selectedEvent) {
+        await updateEvent(selectedEvent.event_id, eventData);
+        showSnackbar("Exhibition updated successfully.", "success");
+      } else {
+        await addEvent(eventData);
+        showSnackbar("Exhibition added successfully.", "success");
+      }
+      setOpenForm(false);
+      setSelectedEvent(null);
+      await loadData();
+      if (openArchived) await loadArchivedEvents();
+    } catch (error) {
+      showSnackbar(error.message || "Failed to save exhibition.", "error");
+    }
+  };
+
+  // Delete Event Handler
+  const handleDeleteEvent = async (eventId) => {
+    try {
+      setDeleting(true);
+      await deleteEvent(eventId);
+      setOpenDelete(false);
+      setSelectedEvent(null);
+      showSnackbar("Exhibition deleted successfully.", "success");
+      await loadData();
+      if (openArchived) await loadArchivedEvents();
+    } catch (error) {
+      showSnackbar(error.message || "Unable to delete the exhibition.", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Tab Change Handler
   const handleTabChange = (_event, value) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", value);
     setSearchParams(nextParams);
   };
 
+  // Top Summary Metric Cards Configuration
   const metrics = [
     {
       label: "SCHEDULED EXHIBITIONS",
@@ -642,6 +280,17 @@ export default function Event() {
     },
   ];
 
+  // Initial Page Loading State
+  if (loading && !dataLoaded) {
+    return (
+      <AdminLoadingPanel
+        title="Events"
+        subtitle="Manage upcoming exhibitions, promotional slides, and announcement banners."
+      />
+    );
+  }
+
+  // Server Connection Failure Fallback
   if (loadError && !loading && (events.length === 0 || !dataLoaded)) {
     return (
       <Box sx={{ minWidth: 0 }}>
@@ -676,7 +325,7 @@ export default function Event() {
         </title>
       </Helmet>
 
-      {/* Standard Admin Header */}
+      {/* Top Header Banner matching seller Artwork.jsx */}
       <Box
         sx={{
           display: "flex",
@@ -708,9 +357,120 @@ export default function Event() {
             Manage upcoming exhibitions, promotional slides, and announcement banners.
           </Typography>
         </Box>
+        {activeTab === "calendar" ? (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<HistoryOutlinedIcon />}
+              onClick={handleOpenArchived}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: 13,
+                height: 44,
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.primary,
+                "&:hover": { borderColor: theme.palette.text.secondary },
+              }}
+            >
+              Archived ({archivedCount})
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAdd}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: 13,
+                height: 44,
+                backgroundColor: "error.main",
+                color: "#fff",
+                boxShadow: "none",
+                "&:hover": {
+                  backgroundColor: "error.dark",
+                  boxShadow: "none",
+                },
+              }}
+            >
+              Add Exhibition
+            </Button>
+          </Stack>
+        ) : (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ width: { xs: "100%", sm: "auto" } }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<RateReviewOutlinedIcon />}
+              onClick={actionsForTab.openReview}
+              disabled={!actionsForTab.openReview}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 700,
+                fontSize: 13,
+                height: 44,
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.primary,
+                "&:hover": { borderColor: theme.palette.text.secondary },
+              }}
+            >
+              Requests ({actionsForTab.requestsCount || 0})
+            </Button>
+            {activeTab === "promotions" && actionsForTab.canAdd && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={actionsForTab.openAdd}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  height: 44,
+                  backgroundColor: "error.main",
+                  color: "#fff",
+                  boxShadow: "none",
+                  "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
+                }}
+              >
+                Add Slide
+              </Button>
+            )}
+            {activeTab === "header" && actionsForTab.canEdit && (
+              <Button
+                variant="contained"
+                startIcon={<EditIcon />}
+                onClick={actionsForTab.openEdit}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  height: 44,
+                  backgroundColor: "error.main",
+                  color: "#fff",
+                  boxShadow: "none",
+                  "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
+                }}
+              >
+                Edit Promo Header
+              </Button>
+            )}
+          </Stack>
+        )}
       </Box>
 
-      {/* Top Summary Metric Cards matching Sales & Artwork */}
+      {/* Top Summary Metric Cards matching seller Artwork.jsx */}
       <Box
         sx={{
           display: "grid",
@@ -788,7 +548,7 @@ export default function Event() {
                       color: metric.color,
                     }}
                   >
-                    <MetricIcon sx={{ fontSize: 24 }} />
+                    {createElement(MetricIcon, { sx: { fontSize: 24 } })}
                   </Box>
                 </Box>
               </CardContent>
@@ -821,19 +581,291 @@ export default function Event() {
         <Tab value="header" label="Promo Header" />
       </Tabs>
 
+      {/* Main Tab Content */}
       {activeTab === "calendar" ? (
-        <ExhibitionCalendar
-          events={events}
-          loading={loading}
-          loadError={loadError}
-          archivedCount={archivedCount}
-          onRefresh={loadData}
-        />
+        <Box>
+          {/* Filter & Search Bar */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2, md: 2.5 },
+              borderRadius: 2.5,
+              backgroundColor: theme.palette.background.paper,
+              borderColor: theme.palette.divider,
+              containerType: "inline-size",
+              containerName: "event-filters",
+              minWidth: 0,
+              mb: 1.5,
+            }}
+          >
+            <Box sx={{ display: "flex", width: "100%", minWidth: 0 }}>
+              <TextField
+                variant="outlined"
+                placeholder="Search exhibitions by title, venue, or description..."
+                size="small"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+                sx={{
+                  minWidth: 0,
+                  "& .MuiInputBase-input": { fontSize: 13 },
+                  "& .MuiInputBase-input::placeholder": {
+                    color: theme.palette.text.secondary,
+                    opacity: 1,
+                  },
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </Paper>
+
+          {/* View Mode Switcher & Summary Count (Outside Filter Group) */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 1.5,
+              mb: 2,
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              aria-live="polite"
+              sx={{ fontWeight: 600 }}
+            >
+              Showing {filteredEvents.length} of {events.length} exhibitions
+            </Typography>
+
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_e, next) => {
+                if (next) setViewMode(next);
+              }}
+              size="small"
+              aria-label="Exhibition presentation mode"
+              sx={{
+                backgroundColor: theme.palette.background.paper,
+                borderRadius: 2.5,
+                border: `1px solid ${theme.palette.divider}`,
+                p: 0.3,
+                "& .MuiToggleButton-root": {
+                  border: "none",
+                  borderRadius: 2,
+                  px: 1.5,
+                  py: 0.5,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textTransform: "none",
+                  color: theme.palette.text.secondary,
+                  gap: 0.75,
+                  transition: "all 150ms ease",
+                },
+                "& .MuiToggleButton-root.Mui-selected": {
+                  backgroundColor: theme.palette.error.main,
+                  color: "#fff",
+                  "&:hover": {
+                    backgroundColor: theme.palette.error.dark,
+                  },
+                },
+              }}
+            >
+              <ToggleButton value="card" aria-label="Card view">
+                <ViewModuleIcon sx={{ fontSize: 18 }} />
+                Cards
+              </ToggleButton>
+              <ToggleButton value="table" aria-label="Table view">
+                <ViewListIcon sx={{ fontSize: 18 }} />
+                Table
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Exhibition List Presentation */}
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress aria-label="Loading exhibition calendar" />
+            </Box>
+          ) : events.length === 0 ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2.5,
+                py: 8,
+                px: 3,
+                textAlign: "center",
+              }}
+            >
+              <EventOutlinedIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                No exhibitions scheduled
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
+                Add the first exhibition to start building the public calendar.
+              </Typography>
+            </Paper>
+          ) : filteredEvents.length === 0 ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2.5,
+                py: 8,
+                px: 3,
+                textAlign: "center",
+              }}
+            >
+              <EventOutlinedIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                No matching exhibitions found
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
+                Try adjusting your search keywords.
+              </Typography>
+            </Paper>
+          ) : viewMode === "card" ? (
+            <EventCard
+              events={filteredEvents}
+              onEdit={handleOpenEdit}
+              onDelete={handleOpenDelete}
+            />
+          ) : (
+            <EventTable
+              events={filteredEvents}
+              onEdit={handleOpenEdit}
+              onDelete={handleOpenDelete}
+            />
+          )}
+        </Box>
       ) : activeTab === "header" ? (
-        <PromotionHeader />
+        <PromotionHeader
+          registerActions={registerPromotionActions}
+          onNotify={showSnackbar}
+        />
       ) : (
-        <PromotionSlides />
+        <PromotionSlides
+          registerActions={registerPromotionActions}
+          onNotify={showSnackbar}
+        />
       )}
+
+      {/* Archived Exhibitions Dialog */}
+      <EventArchives
+        open={openArchived}
+        handleClose={() => setOpenArchived(false)}
+        events={archivedEvents}
+        loading={archivedLoading}
+        error={archivedError}
+        onRetry={loadArchivedEvents}
+        onEdit={handleOpenEdit}
+        onDelete={handleOpenDelete}
+      />
+
+      {/* Create / Edit Event Form Dialog */}
+      <EventForm
+        open={openForm}
+        handleClose={() => {
+          setOpenForm(false);
+          setSelectedEvent(null);
+        }}
+        onSubmit={handleSubmitEvent}
+        selectedEvent={selectedEvent}
+      />
+
+      {/* Delete Event Confirmation Dialog */}
+      <EventDelete
+        open={openDelete}
+        handleClose={() => {
+          if (!deleting) {
+            setOpenDelete(false);
+            setSelectedEvent(null);
+          }
+        }}
+        onSubmit={handleDeleteEvent}
+        selectedEvent={selectedEvent}
+        deleting={deleting}
+      />
+
+      {/* Floating Snackbar Notifications matching seller Artwork.jsx */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={(_event, reason) => {
+          if (reason === "clickaway") return;
+          setSnackbarOpen(false);
+        }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+        sx={{
+          "& .MuiSnackbar-root": {
+            width: "auto",
+          },
+        }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          variant="filled"
+          action={snackbarAction ? (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                const action = snackbarAction;
+                setSnackbarOpen(false);
+                action.onClick();
+              }}
+            >
+              {snackbarAction.label}
+            </Button>
+          ) : undefined}
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor:
+              snackbarSeverity === "error"
+                ? theme.palette.error.main
+                : snackbarSeverity === "warning"
+                  ? theme.palette.warning.main
+                  : snackbarSeverity === "info"
+                    ? theme.palette.info.main
+                    : theme.palette.success.main,
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

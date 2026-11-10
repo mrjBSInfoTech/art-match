@@ -193,14 +193,7 @@ export default function ChangeProfileImage({ open, handleClose, onSubmit }) {
                 component="img"
                 src={imagePreview}
                 alt="Profile preview"
-                sx={{
-                  maxWidth: "100%",
-                  maxHeight: 160,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  width: 120,
-                  height: 120,
-                }}
+                sx={{ maxWidth: "100%", maxHeight: 160, objectFit: "contain" }}
               />
             ) : (
               <>

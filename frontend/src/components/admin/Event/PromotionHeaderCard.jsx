@@ -18,6 +18,7 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import PromotionHeaderPreview from "../../common/PromotionHeaderPreview";
 
 export default function PromotionHeaderCard({
   header = { message: "", button_label: "", button_url: "" },
@@ -138,53 +139,13 @@ export default function PromotionHeaderCard({
               >
                 Live Buyer Preview
               </Typography>
-              <Paper
-                elevation={0}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 2,
-                  p: { xs: 1.5, sm: 2 },
-                  borderRadius: 2.5,
-                  bgcolor: "#ef3340",
-                  color: "#fff",
-                  boxShadow: "0 4px 14px rgba(239, 51, 64, 0.25)",
-                  flexWrap: { xs: "wrap", sm: "nowrap" },
-                }}
-              >
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: { xs: 13, sm: 14 },
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {header.message || "No announcement text configured."}
-                </Typography>
-                <Button
-                  size="small"
-                  sx={{
-                    color: "#fff",
-                    bgcolor: "rgba(255, 255, 255, 0.22)",
-                    textTransform: "none",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    px: 2,
-                    py: 0.5,
-                    borderRadius: 2,
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                    "&:hover": {
-                      bgcolor: "rgba(255, 255, 255, 0.35)",
-                    },
-                  }}
-                  endIcon={<span aria-hidden="true">›</span>}
-                >
-                  {header.button_label || "Explore"}
-                </Button>
-              </Paper>
+              <Box sx={{ overflow: "hidden", borderRadius: 1 }}>
+                <PromotionHeaderPreview
+                  message={header.message}
+                  buttonLabel={header.button_label}
+                  messageFallback="No announcement text configured."
+                />
+              </Box>
             </Box>
 
             {/* Banner Details Breakdown */}
@@ -280,7 +241,7 @@ export default function PromotionHeaderCard({
               px: 3,
               borderRadius: 3.5,
               textAlign: "center",
-              border: "1px dashed",
+              border: "1px solid",
               borderColor: "divider",
               bgcolor: "background.paper",
             }}
@@ -451,4 +412,3 @@ export default function PromotionHeaderCard({
     </Stack>
   );
 }
-

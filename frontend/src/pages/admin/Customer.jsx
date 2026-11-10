@@ -24,6 +24,7 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import CustomerDelete from "../../components/admin/Customer/CustomerDelete";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -156,6 +157,16 @@ export default function Customer() {
       ),
     );
   }, [customers, searchQuery]);
+
+  if (loading && customers.length === 0) {
+    return (
+      <AdminLoadingPanel
+        title="Manage Customers"
+        subtitle="Monitor and manage the customer accounts of the platform"
+        showMetrics={false}
+      />
+    );
+  }
 
   if (customerErrorMessage) {
     return (

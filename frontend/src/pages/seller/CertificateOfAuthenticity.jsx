@@ -27,6 +27,7 @@ import {
 
 import { createCertificateQr } from "../../utils/certificateQr.js";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 
 const today = () => {
   const date = new Date();
@@ -337,6 +338,17 @@ export default function CertificateOfAuthenticity() {
       templateData,
       qrData,
     });
+
+  if (loading && !artworks.length) {
+    return (
+      <SellerLoadingPanel
+        title="Certificate of Authenticity"
+        subtitle="Generate, customize, and publish QR-verified certificates of authenticity for your approved artworks."
+        showMetrics={false}
+        showFilters={false}
+      />
+    );
+  }
 
   if (error && !artworks.length) {
     return (

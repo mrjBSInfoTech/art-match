@@ -19,6 +19,7 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { fetchSellerPayouts } from "../../api/seller/payoutAPI";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import PayoutAccount from "../../components/seller/Payout/PayoutAccount";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
 import PayoutTable from "../../components/seller/Payout/PayoutTable";
@@ -79,6 +80,16 @@ export default function SellerPayout() {
     setLoading(true);
     setRefresh((value) => value + 1);
   };
+
+  if (loading && !data) {
+    return (
+      <SellerLoadingPanel
+        title="Settlement and Payout"
+        subtitle="Track earnings from online buyer payments and payouts to your nominated account."
+        showFilters={false}
+      />
+    );
+  }
 
   if (error) {
     return (

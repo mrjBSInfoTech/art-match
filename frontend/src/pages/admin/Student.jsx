@@ -25,6 +25,7 @@ import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
 import StudentDelete from "../../components/admin/Student/StudentDelete";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
+import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { courseOptions, yearLevelOptions } from "../../components/admin/Student/studentOptions";
 import {
   addStudents,
@@ -77,7 +78,7 @@ export default function Student() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
@@ -239,6 +240,16 @@ export default function Student() {
         return "primary.light";
     }
   };
+
+  if (loading && students.length === 0) {
+    return (
+      <AdminLoadingPanel
+        title="Manage Students"
+        subtitle="Monitor and manage the student accounts of the platform"
+        showMetrics={false}
+      />
+    );
+  }
 
   if (error) {
     return (

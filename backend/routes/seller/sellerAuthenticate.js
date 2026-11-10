@@ -9,7 +9,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { logAudit } from "../../utils/auditLogger.js";
-import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
+import { uploadToB2, deleteFromB2, isB2Configured } from "../../utils/b2Storage.js";
 import {
   encodeSafeWebp,
   replaceUploadWithSafeWebp,
@@ -82,73 +82,80 @@ const profileUpload = multer({
 });
 
 // Register route
-router.post("/register", authRateLimiter, upload.single("cor"), async (req, res) => {
-  const {
-    first_name,
-    middle_name,
-    last_name,
-    birthdate,
-    email,
-    address,
-    phone_number,
-    student_number,
-    year_level,
-    course,
-    status,
-    password,
-    consent_accepted,
-    consent_version,
-  } = req.body;
+router.post(
+  "/register",
+  authRateLimiter,
+  upload.single("cor"),
+  async (req, res) => {
+    const {
+      first_name,
+      middle_name,
+      last_name,
+      birthdate,
+      email,
+      address,
+      phone_number,
+      student_number,
+      year_level,
+      course,
+      status,
+      password,
+      consent_accepted,
+      consent_version,
+    } = req.body;
 
-  if (
-    !first_name ||
-    !middle_name ||
-    !last_name ||
-    !birthdate ||
-    !email ||
-    !address ||
-    !phone_number ||
-    !student_number ||
-    !year_level ||
-    !course ||
-    !password
-  ) {
+    if (
+      !first_name ||
+      !middle_name ||
+      !last_name ||
+      !birthdate ||
+      !email ||
+      !address ||
+      !phone_number ||
+      !student_number ||
+      !year_level ||
+      !course ||
+      !password
+    ) {
+      if (req.file) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+      }
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const isConsentAccepted =
+      consent_accepted === true ||
+      consent_accepted === "true" ||
+      consent_accepted === 1 ||
+      consent_accepted === "1";
+
+    if (!isConsentAccepted) {
+      if (req.file) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+      }
+      return res.status(400).json({
+        message:
+          "You must agree to the Terms of Service and Privacy Policy to register.",
+      });
+    }
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const policyVersion =
+      String(consent_version || "1.0")
+        .trim()
+        .slice(0, 20) || "1.0";
+    let corPath = null;
     if (req.file) {
-      await fs.promises.unlink(req.file.path).catch(() => {});
+      try {
+        await replaceUploadWithSafeWebp(req.file, uploadDir);
+        corPath = req.file.filename;
+      } catch (error) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+        return res.status(error.status || 400).json({ message: error.message });
+      }
     }
-    return res.status(400).json({ message: "All fields are required" });
-  }
 
-  const isConsentAccepted =
-    consent_accepted === true ||
-    consent_accepted === "true" ||
-    consent_accepted === 1 ||
-    consent_accepted === "1";
-
-  if (!isConsentAccepted) {
-    if (req.file) {
-      await fs.promises.unlink(req.file.path).catch(() => {});
-    }
-    return res.status(400).json({
-      message:
-        "You must agree to the Terms of Service and Privacy Policy to register.",
-    });
-  }
-
-  const hashedPassword = bcrypt.hashSync(password, 10);
-  const policyVersion = String(consent_version || "1.0").trim().slice(0, 20) || "1.0";
-  let corPath = null;
-  if (req.file) {
-    try {
-      await replaceUploadWithSafeWebp(req.file, uploadDir);
-      corPath = req.file.filename;
-    } catch (error) {
-      await fs.promises.unlink(req.file.path).catch(() => {});
-      return res.status(error.status || 400).json({ message: error.message });
-    }
-  }
-
-  const sql = `
+    const sql = `
     INSERT INTO student (
       first_name, middle_name, last_name, birthdate, email, address,
       phone_number, cor, year_level, course, student_number, password,
@@ -160,71 +167,74 @@ router.post("/register", authRateLimiter, upload.single("cor"), async (req, res)
     )
   `;
 
-  getAccountExpirationDate((settingsError, expirationDate) => {
-    if (settingsError) {
-      console.error("Unable to load student expiration date:", settingsError);
-      return res.status(500).json({ message: "Unable to load account expiration date." });
-    }
+    getAccountExpirationDate((settingsError, expirationDate) => {
+      if (settingsError) {
+        console.error("Unable to load student expiration date:", settingsError);
+        return res
+          .status(500)
+          .json({ message: "Unable to load account expiration date." });
+      }
 
-    db.query(
-      sql,
-      [
-        first_name,
-        middle_name,
-        last_name,
-        birthdate,
-        email,
-        address,
-        phone_number,
-        corPath,
-        year_level,
-        course,
-        student_number,
-        hashedPassword,
-        policyVersion,
-        expirationDate,
-      ],
-      (err, result) => {
-        if (err) {
-          if (err.code === "ER_DUP_ENTRY") {
-            return res
-              .status(409)
-              .json({ message: "Email or student number already exists" });
+      db.query(
+        sql,
+        [
+          first_name,
+          middle_name,
+          last_name,
+          birthdate,
+          email,
+          address,
+          phone_number,
+          corPath,
+          year_level,
+          course,
+          student_number,
+          hashedPassword,
+          policyVersion,
+          expirationDate,
+        ],
+        (err, result) => {
+          if (err) {
+            if (err.code === "ER_DUP_ENTRY") {
+              return res
+                .status(409)
+                .json({ message: "Email or student number already exists" });
+            }
+            console.error("Database error:", err);
+            return res.status(500).json({ message: "Database error" });
           }
-          console.error("Database error:", err);
-          return res.status(500).json({ message: "Database error" });
-        }
 
-        const studentId = result.insertId;
-        const registeredDate = new Date();
+          const studentId = result.insertId;
+          const registeredDate = new Date();
 
-        const accSql = `
+          const accSql = `
           INSERT INTO accregistration (student_id, registered_date, register_status)
           VALUES (?, ?, 'pending')
         `;
 
-        db.query(accSql, [studentId, registeredDate], (accErr) => {
-          if (accErr) {
-            console.error("AccRegistration DB error:", accErr);
-            return res
-              .status(500)
-              .json({ message: "Database error recording registration" });
-          }
+          db.query(accSql, [studentId, registeredDate], (accErr) => {
+            if (accErr) {
+              console.error("AccRegistration DB error:", accErr);
+              return res
+                .status(500)
+                .json({ message: "Database error recording registration" });
+            }
 
-          logAudit({
-            action: "REGISTER_CONSENT",
-            actor: student_number,
-            role: "Student",
-            status: "SUCCESS",
-            information: `Student seller registered and accepted Privacy Policy v${policyVersion}`,
-          }).catch(() => {});
+            logAudit({
+              action: "REGISTER_CONSENT",
+              actor: student_number,
+              role: "Student",
+              status: "SUCCESS",
+              information: `Student seller registered and accepted Privacy Policy v${policyVersion}`,
+            }).catch(() => {});
 
-          res.status(201).json({ message: "User registered successfully" });
-        });
-      },
-    );
-  });
-});
+            res.status(201).json({ message: "User registered successfully" });
+          });
+        },
+      );
+    });
+  },
+);
 
 // Login route
 router.post("/login", authRateLimiter, (req, res) => {
@@ -314,10 +324,17 @@ router.post("/login", authRateLimiter, (req, res) => {
         [user.student_id],
         (updateError) => {
           if (updateError) {
-            console.error("Unable to mark student account as expired:", updateError);
-            return res.status(500).json({ message: "Unable to verify account status." });
+            console.error(
+              "Unable to mark student account as expired:",
+              updateError,
+            );
+            return res
+              .status(500)
+              .json({ message: "Unable to verify account status." });
           }
-          return res.status(403).json({ message: "Student account has expired." });
+          return res
+            .status(403)
+            .json({ message: "Student account has expired." });
         },
       );
       return;
@@ -336,7 +353,9 @@ router.post("/login", authRateLimiter, (req, res) => {
 
     res.cookie("seller_token", token, getAuthCookieOptions(1));
 
-    const defaultPassword = String(user.last_name || "").trim().toUpperCase();
+    const defaultPassword = String(user.last_name || "")
+      .trim()
+      .toUpperCase();
     const isUsingDefaultPassword =
       Boolean(defaultPassword) && String(password).trim() === defaultPassword;
     const mustChangePassword = Boolean(
@@ -399,11 +418,16 @@ router.get("/me", authenticateSeller, (req, res) => {
         return res.status(404).json({ message: "Seller not found" });
 
       const row = result[0];
-      const defaultPassword = String(row.last_name || "").trim().toUpperCase();
+      const defaultPassword = String(row.last_name || "")
+        .trim()
+        .toUpperCase();
       let isUsingDefaultPassword = false;
       if (defaultPassword && row.password) {
         try {
-          isUsingDefaultPassword = bcrypt.compareSync(defaultPassword, row.password);
+          isUsingDefaultPassword = bcrypt.compareSync(
+            defaultPassword,
+            row.password,
+          );
         } catch {
           isUsingDefaultPassword = false;
         }
@@ -530,23 +554,12 @@ router.put(
     { name: "cor", maxCount: 1 },
   ]),
   async (req, res) => {
-    const actor =
-      req.user?.student_number ||
-      req.user?.student_id ||
-      "Unknown";
+    const actor = req.user?.student_number || req.user?.student_id || "Unknown";
 
-    const studentId =
-      req.user?.student_id;
+    const studentId = req.user?.student_id;
 
     const profileImageFile = req.files?.profile_image?.[0];
     const corFile = req.files?.cor?.[0];
-    const temporaryProfilePath =
-      profileImageFile
-        ? path.join(
-            profileUploadDir,
-            profileImageFile.filename,
-          )
-        : null;
     let temporaryCorPath = corFile
       ? path.join(uploadDir, corFile.filename)
       : null;
@@ -556,8 +569,11 @@ router.put(
 
     try {
       if (profileImageFile) {
-        profileImageBuffer = await encodeSafeWebp(profileImageFile.path);
-        profileImageFile.safeFilename = safeWebpFilename(profileImageFile.filename);
+        profileImageBuffer = await replaceUploadWithSafeWebp(
+          profileImageFile,
+          profileUploadDir,
+        );
+        profileImageFile.safeFilename = profileImageFile.filename;
       }
       if (corFile) {
         await replaceUploadWithSafeWebp(corFile, uploadDir);
@@ -569,104 +585,59 @@ router.put(
        * We need this so we can remove the old
        * B2 image after the database update succeeds.
        */
-      const currentStudent =
-        await new Promise(
-          (resolve, reject) => {
-            db.query(
-              `SELECT profile_image, cor
+      const currentStudent = await new Promise((resolve, reject) => {
+        db.query(
+          `SELECT profile_image, cor
                FROM student
                WHERE student_id = ?
                LIMIT 1`,
-              [studentId],
-              (error, rows) => {
-                if (error) {
-                  reject(error);
-                  return;
-                }
+          [studentId],
+          (error, rows) => {
+            if (error) {
+              reject(error);
+              return;
+            }
 
-                resolve(
-                  rows?.[0] || null,
-                );
-              },
-            );
+            resolve(rows?.[0] || null);
           },
         );
+      });
 
       if (!currentStudent) {
-        if (
-          temporaryProfilePath &&
-          fs.existsSync(
-            temporaryProfilePath,
-          )
-        ) {
-          fs.unlinkSync(
-            temporaryProfilePath,
-          );
+        if (profileImageFile?.path && fs.existsSync(profileImageFile.path)) {
+          fs.unlinkSync(profileImageFile.path);
         }
         if (temporaryCorPath && fs.existsSync(temporaryCorPath)) {
           fs.unlinkSync(temporaryCorPath);
         }
 
         return res.status(404).json({
-          message:
-            "Seller not found.",
+          message: "Seller not found.",
         });
       }
 
       /*
-       * Upload the new profile image
-       * to B2 before changing the database.
+       * Sync the new profile image to B2 if configured.
+       * Local copy in profileUploadDir is always retained.
        */
       if (profileImageFile) {
-        newB2Key =
-          `app-uploads/seller/uploadProfile/${profileImageFile.safeFilename}`;
+        newB2Key = `app-uploads/seller/uploadProfile/${profileImageFile.safeFilename}`;
 
-        try {
-          await uploadToB2({
-            key: newB2Key,
+        if (isB2Configured()) {
+          try {
+            await uploadToB2({
+              key: newB2Key,
+              body: profileImageBuffer,
+              contentType: "image/webp",
+            });
 
-            body: profileImageBuffer,
-            contentType: "image/webp",
-          });
-
-          console.log(
-            "Seller profile uploaded to B2:",
-            newB2Key,
-          );
-        } catch (b2Error) {
-          console.error(
-            "Seller profile B2 upload failed:",
-            b2Error.message,
-          );
-
-          if (
-            temporaryProfilePath &&
-            fs.existsSync(
-              temporaryProfilePath,
-            )
-          ) {
-            fs.unlinkSync(
-              temporaryProfilePath,
+            console.log("Seller profile uploaded to B2:", newB2Key);
+          } catch (b2Error) {
+            console.warn(
+              "Seller profile B2 upload failed, continuing with local storage:",
+              b2Error.message,
             );
           }
-          if (temporaryCorPath && fs.existsSync(temporaryCorPath)) {
-            fs.unlinkSync(temporaryCorPath);
-          }
-
-          await logAudit({
-            action:
-              "UPDATE_ACCOUNT_INFORMATION",
-            actor,
-            role: "Student",
-            status: "FAILED",
-            information:
-              "Seller profile image could not be uploaded to cloud storage.",
-          }).catch(() => {});
-
-          return res.status(502).json({
-            message:
-              "Profile image could not be uploaded to cloud storage.",
-          });
         }
       }
 
@@ -683,19 +654,9 @@ router.put(
         "course",
       ];
 
-      const updates =
-        fields.filter((field) =>
-          Object.hasOwn(
-            req.body,
-            field,
-          ),
-        );
+      const updates = fields.filter((field) => Object.hasOwn(req.body, field));
 
-      const values =
-        updates.map(
-          (field) =>
-            req.body[field],
-        );
+      const values = updates.map((field) => req.body[field]);
 
       if (corFile) {
         updates.push("cor");
@@ -703,48 +664,30 @@ router.put(
       }
 
       if (profileImageFile) {
-        updates.push(
-          "profile_image",
-        );
+        updates.push("profile_image");
 
-        values.push(
-          profileImageFile.safeFilename,
-        );
+        values.push(profileImageFile.safeFilename);
       }
 
       if (req.body.password) {
-        updates.push(
-          "password",
-        );
+        updates.push("password");
 
-        values.push(
-          bcrypt.hashSync(
-            req.body.password,
-            10,
-          ),
-        );
+        values.push(bcrypt.hashSync(req.body.password, 10));
       }
 
       if (!updates.length) {
         await logAudit({
-          action:
-            "UPDATE_ACCOUNT_INFORMATION",
+          action: "UPDATE_ACCOUNT_INFORMATION",
           actor,
           role: "Student",
           status: "FAILED",
-          information:
-            "No profile changes supplied for seller account update.",
-        }).catch(
-          (auditError) =>
-            console.error(
-              "Unable to record update audit:",
-              auditError.message,
-            ),
+          information: "No profile changes supplied for seller account update.",
+        }).catch((auditError) =>
+          console.error("Unable to record update audit:", auditError.message),
         );
 
         return res.status(400).json({
-          message:
-            "No profile changes supplied.",
+          message: "No profile changes supplied.",
         });
       }
 
@@ -752,32 +695,22 @@ router.put(
        * Update MySQL only after the
        * new cloud image is available.
        */
-      await new Promise(
-        (resolve, reject) => {
-          db.query(
-            `UPDATE student
-             SET ${updates
-               .map(
-                 (field) =>
-                   `${field} = ?`,
-               )
-               .join(", ")}
+      await new Promise((resolve, reject) => {
+        db.query(
+          `UPDATE student
+             SET ${updates.map((field) => `${field} = ?`).join(", ")}
              WHERE student_id = ?`,
-            [
-              ...values,
-              studentId,
-            ],
-            (error, result) => {
-              if (error) {
-                reject(error);
-                return;
-              }
+          [...values, studentId],
+          (error, result) => {
+            if (error) {
+              reject(error);
+              return;
+            }
 
-              resolve(result);
-            },
-          );
-        },
-      );
+            resolve(result);
+          },
+        );
+      });
 
       /*
        * Database now points to the new
@@ -787,48 +720,33 @@ router.put(
       if (
         profileImageFile &&
         currentStudent.profile_image &&
-        currentStudent.profile_image !==
-          profileImageFile.safeFilename
+        currentStudent.profile_image !== profileImageFile.safeFilename
       ) {
-        const oldB2Key =
-          `app-uploads/seller/uploadProfile/${currentStudent.profile_image}`;
+        const oldB2Key = `app-uploads/seller/uploadProfile/${currentStudent.profile_image}`;
 
-        try {
-          await deleteFromB2(
-            oldB2Key,
-          );
-
-          console.log(
-            "Old seller profile deleted from B2:",
-            oldB2Key,
-          );
-        } catch (
-          deleteError
-        ) {
-          console.warn(
-            "Could not delete old seller profile from B2:",
-            deleteError.message,
-          );
+        if (isB2Configured()) {
+          try {
+            await deleteFromB2(oldB2Key);
+            console.log("Old seller profile deleted from B2:", oldB2Key);
+          } catch (deleteError) {
+            console.warn(
+              "Could not delete old seller profile from B2:",
+              deleteError.message,
+            );
+          }
         }
 
         /*
          * Clean an old local copy too,
          * if one still exists.
          */
-        const oldLocalPath =
-          path.join(
-            profileUploadDir,
-            currentStudent.profile_image,
-          );
+        const oldLocalPath = path.join(
+          profileUploadDir,
+          currentStudent.profile_image,
+        );
 
-        if (
-          fs.existsSync(
-            oldLocalPath,
-          )
-        ) {
-          fs.unlinkSync(
-            oldLocalPath,
-          );
+        if (fs.existsSync(oldLocalPath)) {
+          fs.unlinkSync(oldLocalPath);
         }
       }
 
@@ -844,64 +762,34 @@ router.put(
         if (fs.existsSync(oldCorPath)) fs.unlinkSync(oldCorPath);
       }
 
-      /*
-       * New image was only temporarily
-       * stored locally for multer.
-       */
-      if (
-        temporaryProfilePath &&
-        fs.existsSync(
-          temporaryProfilePath,
-        )
-      ) {
-        fs.unlinkSync(
-          temporaryProfilePath,
-        );
-      }
-
       await logAudit({
-        action:
-          "UPDATE_ACCOUNT_INFORMATION",
+        action: "UPDATE_ACCOUNT_INFORMATION",
         actor,
         role: "Student",
         status: "SUCCESS",
         information:
           "Seller account information updated successfully from settings.",
-      }).catch(
-        (auditError) =>
-          console.error(
-            "Unable to record update audit:",
-            auditError.message,
-          ),
+      }).catch((auditError) =>
+        console.error("Unable to record update audit:", auditError.message),
       );
 
       return res.json({
-        message:
-          "Seller profile updated successfully.",
-
-        profile_image:
-          profileImageFile?.safeFilename,
+        message: "Seller profile updated successfully.",
+        profile_image: profileImageFile?.safeFilename,
         cor: corFile?.filename,
       });
     } catch (error) {
-      console.error(
-        "Seller profile update error:",
-        error,
-      );
+      console.error("Seller profile update error:", error);
 
       /*
        * If B2 upload succeeded but the
        * database update failed, clean up
        * the newly uploaded B2 file.
        */
-      if (newB2Key) {
+      if (newB2Key && isB2Configured()) {
         try {
-          await deleteFromB2(
-            newB2Key,
-          );
-        } catch (
-          cleanupError
-        ) {
+          await deleteFromB2(newB2Key);
+        } catch (cleanupError) {
           console.warn(
             "Unable to clean failed B2 profile upload:",
             cleanupError.message,
@@ -909,64 +797,40 @@ router.put(
         }
       }
 
-      if (
-        temporaryProfilePath &&
-        fs.existsSync(
-          temporaryProfilePath,
-        )
-      ) {
-        fs.unlinkSync(
-          temporaryProfilePath,
-        );
+      if (profileImageFile?.path && fs.existsSync(profileImageFile.path)) {
+        fs.unlinkSync(profileImageFile.path);
       }
       if (temporaryCorPath && fs.existsSync(temporaryCorPath)) {
         fs.unlinkSync(temporaryCorPath);
       }
 
       await logAudit({
-        action:
-          "UPDATE_ACCOUNT_INFORMATION",
+        action: "UPDATE_ACCOUNT_INFORMATION",
         actor,
         role: "Student",
         status: "FAILED",
-        information:
-          `Seller account update failed: ${
-            error.code ===
-            "ER_DUP_ENTRY"
-              ? "Student number or email already exists."
-              : error.message ||
-                "Database error"
-          }`,
-      }).catch(
-        (auditError) =>
-          console.error(
-            "Unable to record update audit:",
-            auditError.message,
-          ),
+        information: `Seller account update failed: ${
+          error.code === "ER_DUP_ENTRY"
+            ? "Student number or email already exists."
+            : error.message || "Database error"
+        }`,
+      }).catch((auditError) =>
+        console.error("Unable to record update audit:", auditError.message),
       );
 
-      if (
-        error.code ===
-        "ER_DUP_ENTRY"
-      ) {
-        return res
-          .status(409)
-          .json({
-            message:
-              "Student number or email already exists.",
-          });
+      if (error.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({
+          message: "Student number or email already exists.",
+        });
       }
 
       if (error.status === 400) {
         return res.status(400).json({ message: error.message });
       }
 
-      return res
-        .status(500)
-        .json({
-          message:
-            "Unable to update seller profile.",
-        });
+      return res.status(500).json({
+        message: "Unable to update seller profile.",
+      });
     }
   },
 );
@@ -1147,7 +1011,9 @@ router.post("/first-login-setup", authenticateSeller, async (req, res) => {
   }
 
   const policyVersion =
-    String(consent_version || "1.0").trim().slice(0, 20) || "1.0";
+    String(consent_version || "1.0")
+      .trim()
+      .slice(0, 20) || "1.0";
 
   try {
     const user = await new Promise((resolve, reject) => {
@@ -1167,7 +1033,9 @@ router.post("/first-login-setup", authenticateSeller, async (req, res) => {
       return res.status(404).json({ message: "Seller account not found." });
     }
 
-    const defaultPassword = String(user.last_name || "").trim().toUpperCase();
+    const defaultPassword = String(user.last_name || "")
+      .trim()
+      .toUpperCase();
     let isUsingDefaultPassword = false;
     if (defaultPassword && user.password) {
       try {
@@ -1182,8 +1050,8 @@ router.post("/first-login-setup", authenticateSeller, async (req, res) => {
 
     const requiresPasswordChange = Boolean(
       Number(user.must_change_password) ||
-        isUsingDefaultPassword ||
-        Boolean(newPassword),
+      isUsingDefaultPassword ||
+      Boolean(newPassword),
     );
 
     if (requiresPasswordChange) {
@@ -1418,15 +1286,13 @@ router.post("/delete-account", authenticateSeller, async (req, res) => {
       });
     }
 
-    await db
-      .promise()
-      .query(
-        `UPDATE student
+    await db.promise().query(
+      `UPDATE student
          SET account_status = 'expired',
              expire_date = CURRENT_TIMESTAMP
          WHERE student_id = ?`,
-        [studentId],
-      );
+      [studentId],
+    );
 
     await db
       .promise()

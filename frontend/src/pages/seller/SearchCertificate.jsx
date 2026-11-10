@@ -28,6 +28,7 @@ import { searchSellerCertificates } from "../../api/seller/certificateAPI.js";
 import CertificateCard from "../../components/seller/Certificate/CertificateCard";
 import CertificateImage from "../../components/seller/Certificate/CertificateImage";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 
 export default function SearchCertificate() {
   const theme = useTheme();
@@ -160,6 +161,16 @@ export default function SearchCertificate() {
 
     return list;
   }, [certificates, statusFilter, sortOption, priceOption]);
+
+  if (loading && !certificates.length && !activeQuery) {
+    return (
+      <SellerLoadingPanel
+        title="Check Artwork Authenticity"
+        subtitle="Search and verify certificates of other sellers"
+        showMetrics={false}
+      />
+    );
+  }
 
   if (error && !certificates.length) {
     return (

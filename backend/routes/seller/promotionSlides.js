@@ -1,7 +1,10 @@
 import express from "express";
+import fs from "node:fs";
 import multer from "multer";
+import path from "node:path";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import db from "../../database/db.js";
 import {
   deleteStudentPromotionSlide,
@@ -21,9 +24,18 @@ import {
 } from "../../database/promotionHeaderRequests.js";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
-import { deleteFromB2, uploadToB2 } from "../../utils/b2Storage.js";
+import {
+  deleteFromB2,
+  isB2Configured,
+  uploadToB2,
+} from "../../utils/b2Storage.js";
 
 const router = express.Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const localPromotionSlidesDir = path.resolve(
+  __dirname,
+  "../../uploads/admin/promotion-slides",
+);
 const imagePrefix = "app-uploads/admin/promotion-slides/";
 const imageTypes = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
 const upload = multer({
@@ -157,12 +169,30 @@ const activitySnapshot = (slide) => ({
   image_original_name: slide.image_original_name,
 });
 
+const storePromotionImage = async (key, buffer, contentType) => {
+  const filename = path.basename(key);
+  await fs.promises.mkdir(localPromotionSlidesDir, { recursive: true });
+  await fs.promises.writeFile(path.join(localPromotionSlidesDir, filename), buffer);
+
+  if (isB2Configured()) {
+    try {
+      await uploadToB2({ key, body: buffer, contentType });
+    } catch (error) {
+      console.warn("B2 upload failed, keeping local seller promotion image:", error.message);
+    }
+  }
+};
+
 const cleanImage = async (key) => {
   if (!key?.startsWith(imagePrefix)) return;
-  try {
-    await deleteFromB2(key);
-  } catch (error) {
-    console.error("Unable to clean up student promotion image:", error.name);
+  const filename = path.basename(key);
+  await fs.promises.unlink(path.join(localPromotionSlidesDir, filename)).catch(() => {});
+  if (isB2Configured()) {
+    try {
+      await deleteFromB2(key);
+    } catch (error) {
+      console.error("Unable to clean up student promotion image:", error.name);
+    }
   }
 };
 
@@ -292,8 +322,8 @@ const saveStudentSlide = async (req, res) => {
         };
     if (req.file) {
       const key = `${imagePrefix}${Date.now()}-${randomUUID()}.${format === "jpeg" ? "jpg" : format}`;
-      await uploadToB2({ key, body: req.file.buffer, contentType: imageTypes[format] });
       uploadedKey = key;
+      await storePromotionImage(key, req.file.buffer, imageTypes[format]);
       image = {
         image_key: key,
         image_original_name: req.file.originalname.slice(0, 255),

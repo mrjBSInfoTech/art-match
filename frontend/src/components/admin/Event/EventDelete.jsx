@@ -7,7 +7,6 @@ import {
   Button,
   Slide,
   Typography,
-  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 // Icons
@@ -30,7 +29,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function EventDelete({ open, handleClose, onSubmit, selectedEvent, deleting = false, error = "" }) {
+function EventDelete({ open, handleClose, onSubmit, selectedEvent, deleting = false }) {
   const theme = useTheme();
   const closeDialog = () => { if (!deleting) handleClose(); };
   const handleDelete = () => {
@@ -93,7 +92,6 @@ function EventDelete({ open, handleClose, onSubmit, selectedEvent, deleting = fa
             Are you sure you want to delete this event? This action cannot be
             undone.
           </Typography>
-          {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={closeDialog} disabled={deleting} sx={{ color: "text.secondary" }}>
