@@ -317,6 +317,21 @@ test("missing order or split does not fabricate earnings", async () => {
   assert.equal(await fixture({ missingSplit: true }).load(), null);
 });
 
+test("orders with buyer-charged PayMongo processing fee become Eligible for net seller payout", async () => {
+  const current = fixture({
+    order: { subtotal: "100.00", shipping_fee: "0.00", processing_fee: "17.00", total_amount: "117.00" },
+    split: { gross_amount: "117.00", commission_amount: "0.00", processing_fee_amount: "17.00", net_amount: "100.00" },
+    items: [{ order_item_id: 51, order_id: 41, unit_price: "100.00", quantity: 1, line_total: "100.00" }],
+  });
+  const [result] = await current.refresh({ sellerId: 17 });
+  assert.equal(result.nextStatus, "Eligible");
+  assert.equal(result.grossAmountCentavos, 11700);
+  assert.equal(result.payoutAmountCentavos, 10000);
+  assert.equal(current.state.split.payout_status, "Eligible");
+  assert.equal(current.state.split.payout_amount, 100);
+  assert.equal(result.canSend, true);
+});
+
 test("amount conversion rejects unsafe, negative and fractional-cent money", () => {
   assert.equal(payoutToCentavos("123.45"), 12345);
   assert.equal(payoutToCentavos("0.00"), 0);

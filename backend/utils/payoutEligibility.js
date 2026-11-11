@@ -87,7 +87,7 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
   const [split] = await query(executor, `SELECT * FROM seller_payment_split
     WHERE order_id = ?${lock ? " FOR UPDATE" : ""}`, [id]);
   if (!split) return null;
-  const items = await query(executor, `SELECT order_item_id, order_id, unit_price, quantity
+  const items = await query(executor, `SELECT order_item_id, order_id, unit_price, quantity, line_total
     FROM marketplace_order_item WHERE order_id = ? ORDER BY order_item_id`, [id]);
   const returnRows = await query(executor, `SELECT r.return_request_id, r.order_id, r.customer_id, r.seller_id, r.status,
       ri.order_item_id, ri.quantity AS return_quantity
@@ -144,12 +144,16 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
 
     const subtotal = payoutToCentavos(order.subtotal, { allowZero: false });
     const shipping = payoutToCentavos(order.shipping_fee);
+    const orderFee = payoutToCentavos(order.processing_fee ?? 0);
     const total = payoutToCentavos(order.total_amount, { allowZero: false });
     result.grossAmountCentavos = gross;
     // Current ArtMatch policy charges no shipping or commission. Gateway processing
     // fees are attributed to the seller payment split.
+    const validTotal = total === safeAdd(subtotal, shipping) ||
+      total === safeAdd(safeAdd(subtotal, shipping), orderFee) ||
+      total === safeAdd(safeAdd(subtotal, shipping), fee);
     if (Number(split.seller_id) !== Number(order.seller_id) || split.currency !== "PHP" ||
-        gross !== total || total !== safeAdd(subtotal, shipping) ||
+        gross !== total || !validTotal ||
         gross !== safeAdd(safeAdd(net, commission), fee) || shipping || commission || fee < 0 || fee > gross) {
       return finish("Held", "Order accounting requires administrator review.");
     }
@@ -160,12 +164,14 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
       const itemId = positiveId(item.order_item_id);
       const quantity = Number(item.quantity);
       const unitPrice = payoutToCentavos(item.unit_price, { allowZero: false });
-      const amount = unitPrice * quantity;
+      const amount = item.line_total != null && String(item.line_total).trim() !== ""
+        ? payoutToCentavos(item.line_total, { allowZero: false })
+        : unitPrice * quantity;
       if (Number(item.order_id) !== id || itemMap.has(itemId) || !Number.isSafeInteger(quantity) || quantity <= 0 || !Number.isSafeInteger(amount)) {
         return finish("Held", "Order item accounting requires administrator review.");
       }
       itemTotal = safeAdd(itemTotal, amount);
-      itemMap.set(itemId, { quantity, unitPrice });
+      itemMap.set(itemId, { quantity, unitPrice, lineTotal: amount });
     }
     if (itemTotal !== subtotal) return finish("Held", "Order item accounting requires administrator review.");
     result.payoutAmountCentavos = net;
