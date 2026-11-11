@@ -61,7 +61,10 @@ import { ensurePaymentSplitTable } from "./database/paymentSplits.js";
 import { ensureBuyerPrivacyColumn } from "./database/buyerPrivacy.js";
 import { ensureFavoriteTable } from "./database/favorites.js";
 import { ensureArtistFollowTable } from "./database/artistFollows.js";
-import { ensureArtworkSchema } from "./database/artwork.js";
+import {
+  ensureArtworkSchema,
+  restoreLegacyProductInventory,
+} from "./database/artwork.js";
 import { ensureCartItemSchema } from "./database/cart.js";
 import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
@@ -482,6 +485,24 @@ const serveB2Cached =
 
 const getUploadToken = (req) => {
   if (req.query?.token) return null;
+  const accountType = String(req.query?.account_type || "").toLowerCase();
+  if (accountType === "buyer") {
+    return (
+      req.cookies?.buyer_token ||
+      (req.headers?.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.split(" ")[1]
+        : null)
+    );
+  }
+  if (accountType === "seller") {
+    return (
+      req.cookies?.seller_token ||
+      (req.headers?.authorization?.startsWith("Bearer ")
+        ? req.headers.authorization.split(" ")[1]
+        : null)
+    );
+  }
+  if (accountType) return null;
   return (
     req.cookies?.admin_token ||
     req.cookies?.seller_token ||
@@ -925,6 +946,7 @@ ensureAccountAccessTable()
   .then(() => ensureStorefrontTable())
   .then(() => ensureOrderTables())
   .then(() => ensureArtworkSchema())
+  .then(() => restoreLegacyProductInventory())
   .then(() => ensureCartItemSchema())
   .then(() => ensureVoucherTables())
   .then(() => ensureStudentAccountSchema())

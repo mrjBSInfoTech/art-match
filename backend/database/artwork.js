@@ -83,3 +83,51 @@ export const ensureArtworkSchema = async () => {
     throw error;
   }
 };
+
+export const restoreLegacyProductInventory = async () => {
+  let connection;
+  let restoredCount = 0;
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS application_migrations (
+        migration_key VARCHAR(191) NOT NULL PRIMARY KEY,
+        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB
+    `);
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+    const [migration] = await connection.query(
+      "INSERT IGNORE INTO application_migrations (migration_key) VALUES (?)",
+      ["restore-legacy-product-inventory-v1"],
+    );
+    if (migration.affectedRows === 1) {
+      const [result] = await connection.query(`
+        UPDATE artwork
+        SET artwork_details = JSON_SET(
+          COALESCE(artwork_details, JSON_OBJECT()),
+          '$.stockable',
+          JSON_EXTRACT('true', '$')
+        )
+        WHERE LOWER(TRIM(COALESCE(art_type, ''))) = 'product'
+          AND LOWER(TRIM(COALESCE(product_type, ''))) NOT IN ('digital', 'customize')
+          AND LOWER(JSON_UNQUOTE(JSON_EXTRACT(artwork_details, '$.stockable')))
+            IN ('false', '0')
+      `);
+      restoredCount = result.affectedRows;
+    }
+    await connection.commit();
+    return restoredCount;
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Legacy product inventory migration rollback error:", rollbackError.message);
+      }
+    }
+    console.error("Failed to restore legacy product inventory:", error.message);
+    throw error;
+  } finally {
+    connection?.release();
+  }
+};

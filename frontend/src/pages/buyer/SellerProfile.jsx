@@ -128,6 +128,7 @@ export default function SellerProfile() {
   const [sellerReviews, setSellerReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewsError, setReviewsError] = useState("");
+  const [reviewRetry, setReviewRetry] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -286,7 +287,7 @@ export default function SellerProfile() {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, reviewRetry]);
 
   if (loading) {
     return (
@@ -299,7 +300,7 @@ export default function SellerProfile() {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 300px" },
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) 280px" },
             gap: 3,
           }}
         >
@@ -323,10 +324,6 @@ export default function SellerProfile() {
         <Alert severity="error">This seller could not be found.</Alert>
       </Container>
     );
-  }
-
-  if (reviewsError && !reviewsLoading) {
-    return <ConnectionErrorPanel title="Seller profile unavailable" />;
   }
 
   const specialties = selectedSeller.specialties || [];
@@ -375,26 +372,28 @@ export default function SellerProfile() {
       <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            alignItems: "flex-start",
-            gap: 3,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(0, 1fr) 280px",
+            },
+            alignItems: "start",
+            gap: { xs: 2, md: 2.5 },
           }}
         >
           {/* Main Profile Info Section */}
-          <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
+          <Box sx={{ minWidth: 0, width: "100%" }}>
             <Box
               sx={{
                 background: colors.card,
                 border: `1px solid ${colors.border}`,
                 borderRadius: { xs: 3, md: 4 },
-                p: { xs: 2.5, sm: 3, md: 3.5 },
+                p: { xs: 2, sm: 2.5, md: 3 },
                 display: "flex",
                 flexDirection: { xs: "column", sm: "row" },
                 alignItems: { xs: "center", sm: "flex-start" },
                 textAlign: { xs: "center", sm: "left" },
-                gap: { xs: 2.5, sm: 3 },
-                minHeight: 220,
+                gap: { xs: 2, sm: 2.5 },
                 boxShadow: isDark
                   ? "0 16px 40px rgba(0, 0, 0, 0.18)"
                   : "0 16px 40px rgba(68, 41, 15, 0.06)",
@@ -404,8 +403,8 @@ export default function SellerProfile() {
                 src={selectedSeller.image}
                 alt={selectedSeller.name}
                 sx={{
-                  width: { xs: 112, sm: 144, md: 156 },
-                  height: { xs: 112, sm: 144, md: 156 },
+                  width: { xs: 88, sm: 104, md: 116 },
+                  height: { xs: 88, sm: 104, md: 116 },
                   borderRadius: "50%",
                   objectFit: "cover",
                   border: `2px solid ${colors.border}`,
@@ -418,21 +417,16 @@ export default function SellerProfile() {
               </Avatar>
 
               <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  alignItems="center"
-                  spacing={1.5}
-                  sx={{ mb: 0.5, justifyContent: { xs: "center", sm: "flex-start" } }}
-                >
+                <Stack alignItems={{ xs: "center", sm: "flex-start" }} spacing={0.75} sx={{ mb: 1 }}>
                   <Typography
-                    variant="h3"
+                    component="h1"
                     sx={{
                       fontWeight: 800,
-                      letterSpacing: "-0.05em",
-                      lineHeight: 1.1,
+                      letterSpacing: "-0.04em",
+                      lineHeight: 1.08,
                       color: colors.text,
-                      fontSize: { xs: "1.9rem", sm: "2.3rem", md: "2.8rem" },
-                      wordBreak: "break-word",
+                      fontSize: { xs: "1.75rem", sm: "2.1rem", md: "2.45rem" },
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {selectedSeller.shopName || selectedSeller.name}
@@ -441,9 +435,10 @@ export default function SellerProfile() {
                     <Typography
                       variant="body2"
                       sx={{
+                        fontSize: "0.75rem",
                         fontWeight: 600,
                         color: colors.muted,
-                        letterSpacing: "0.04em",
+                        letterSpacing: "0.06em",
                         textTransform: "uppercase",
                       }}
                     >
@@ -457,7 +452,7 @@ export default function SellerProfile() {
                   alignItems="center"
                   justifyContent={{ xs: "center", sm: "flex-start" }}
                   spacing={1}
-                  sx={{ mb: 1.5, minHeight: 24 }}
+                  sx={{ mb: 1.25, minHeight: 24 }}
                   aria-label={
                     averageRating === null
                       ? "Seller rating"
@@ -501,8 +496,8 @@ export default function SellerProfile() {
                   sx={{
                     color: colors.muted,
                     maxWidth: 620,
-                    lineHeight: 1.7,
-                    mb: 2,
+                    lineHeight: 1.6,
+                    mb: 1.75,
                     mx: { xs: "auto", sm: 0 },
                     fontSize: { xs: "0.95rem", sm: "1rem" },
                   }}
@@ -513,34 +508,39 @@ export default function SellerProfile() {
 
                 <Stack
                   direction="row"
-                  spacing={3}
+                  spacing={1}
                   justifyContent={{ xs: "center", sm: "flex-start" }}
-                  sx={{ flexWrap: "wrap", rowGap: 1.5 }}
+                  sx={{ flexWrap: "wrap", rowGap: 1 }}
                 >
-                  <Box>
-                    <Typography
-                      variant="h5"
-                      sx={{ fontWeight: 800, color: colors.text }}
+                  {[
+                    { label: "Artworks", value: sellerArtworks.length },
+                    {
+                      label: "Sales",
+                      value: selectedSeller.sales == null ? "—" : selectedSeller.sales,
+                    },
+                  ].map((stat) => (
+                    <Box
+                      key={stat.label}
+                      sx={{
+                        minWidth: 92,
+                        px: 1.5,
+                        py: 1,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 2,
+                        backgroundColor: colors.cardAlt,
+                      }}
                     >
-                      {sellerArtworks.length}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: colors.subtle }}>
-                      Artworks
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography
-                      variant="h5"
-                      sx={{ fontWeight: 800, color: colors.text }}
-                    >
-                      {selectedSeller.sales == null
-                        ? "—"
-                        : selectedSeller.sales}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: colors.subtle }}>
-                      Sales
-                    </Typography>
-                  </Box>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 800, lineHeight: 1.1, color: colors.text }}
+                      >
+                        {stat.value}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: colors.subtle }}>
+                        {stat.label}
+                      </Typography>
+                    </Box>
+                  ))}
                 </Stack>
 
                 <Button
@@ -552,7 +552,7 @@ export default function SellerProfile() {
                     )
                   }
                   sx={{
-                    mt: 2,
+                    mt: 1.5,
                     minHeight: 44,
                     textTransform: "none",
                     fontWeight: 700,
@@ -569,18 +569,28 @@ export default function SellerProfile() {
           </Box>
 
           {/* Sidebar Info Section (Member Since & Specialties) */}
-          <Box sx={{ width: { xs: "100%", md: 300 }, flexShrink: 0 }}>
-            <Stack spacing={2.5} sx={{ height: "100%" }}>
+          <Box sx={{ minWidth: 0, width: "100%" }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  lg: "minmax(0, 1fr)",
+                },
+                gap: { xs: 1.5, md: 2 },
+              }}
+            >
               <Paper
                 elevation={0}
                 sx={{
-                  p: { xs: 2, sm: 2.5 },
+                  p: { xs: 2, sm: 2.25 },
                   borderRadius: 3,
                   background: colors.sideCard,
                   border: `1px solid ${colors.border}`,
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
+                <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 800, mb: 0.75 }}>
                   Member Since
                 </Typography>
                 <Typography variant="body2" sx={{ color: colors.muted }}>
@@ -591,13 +601,13 @@ export default function SellerProfile() {
               <Paper
                 elevation={0}
                 sx={{
-                  p: { xs: 2, sm: 2.5 },
+                  p: { xs: 2, sm: 2.25 },
                   borderRadius: 3,
                   background: colors.sideCard,
                   border: `1px solid ${colors.border}`,
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5 }}>
+                <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 800, mb: 0.75 }}>
                   Specialties
                 </Typography>
                 {specialtiesLoadError ? (
@@ -631,7 +641,7 @@ export default function SellerProfile() {
                   </Typography>
                 )}
               </Paper>
-            </Stack>
+            </Box>
           </Box>
         </Box>
 
@@ -643,8 +653,9 @@ export default function SellerProfile() {
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
+            aria-label="Seller profile sections"
             sx={{
-              mt: 4,
+              mt: { xs: 2.5, md: 3 },
               borderBottom: `1px solid ${colors.border}`,
               "& .MuiTab-root": {
                 color: colors.muted,
@@ -656,13 +667,31 @@ export default function SellerProfile() {
               "& .MuiTabs-indicator": { backgroundColor: colors.accent },
             }}
           >
-            <Tab label={`Artworks (${sellerArtworks.length})`} />
-            <Tab label="About" />
-            <Tab label={`Reviews (${sellerReviews.length})`} />
+            <Tab
+              id="seller-profile-tab-0"
+              aria-controls="seller-profile-panel-0"
+              label={`Artworks (${sellerArtworks.length})`}
+            />
+            <Tab
+              id="seller-profile-tab-1"
+              aria-controls="seller-profile-panel-1"
+              label="About"
+            />
+            <Tab
+              id="seller-profile-tab-2"
+              aria-controls="seller-profile-panel-2"
+              label={`Reviews (${sellerReviews.length})`}
+            />
           </Tabs>
 
           {activeTab === 0 && (
-            <>
+            <Box
+              role="tabpanel"
+              id="seller-profile-panel-0"
+              aria-labelledby="seller-profile-tab-0"
+              tabIndex={0}
+              sx={{ minWidth: 0 }}
+            >
               <ToggleButtonGroup
                 exclusive
                 value={availabilityFilter}
@@ -746,10 +775,14 @@ export default function SellerProfile() {
                 ))
               )}
               </Grid>
-            </>
+            </Box>
           )}
           {activeTab === 1 && (
             <Paper
+              role="tabpanel"
+              id="seller-profile-panel-1"
+              aria-labelledby="seller-profile-tab-1"
+              tabIndex={0}
               elevation={0}
               sx={{
                 mt: 2.5,
@@ -777,13 +810,33 @@ export default function SellerProfile() {
             </Paper>
           )}
           {activeTab === 2 && (
-            <Stack spacing={2} sx={{ mt: 2.5 }}>
+            <Stack
+              role="tabpanel"
+              id="seller-profile-panel-2"
+              aria-labelledby="seller-profile-tab-2"
+              tabIndex={0}
+              spacing={2}
+              sx={{ mt: 2.5 }}
+            >
               {reviewsLoading ? (
                 <Box sx={{ display: "grid", placeItems: "center", py: 5 }}>
                   <CircularProgress size={28} />
                 </Box>
               ) : reviewsError ? (
-                <Alert severity="error">{reviewsError}</Alert>
+                <Alert
+                  severity="error"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => setReviewRetry((current) => current + 1)}
+                    >
+                      Try again
+                    </Button>
+                  }
+                >
+                  {reviewsError}
+                </Alert>
               ) : sellerReviews.length === 0 ? (
                 <Paper
                   elevation={0}

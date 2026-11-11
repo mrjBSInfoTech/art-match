@@ -46,7 +46,7 @@ export default function MessageCard({
               }}
             >
               <video
-                src={msg.image}a
+                src={msg.image}
                 controls
                 onClick={(event) => event.stopPropagation()}
                 style={{

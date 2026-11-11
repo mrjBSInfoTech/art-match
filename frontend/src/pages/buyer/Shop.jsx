@@ -21,7 +21,8 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
-import { addToCart } from "../../api/buyer/cartAPI";
+import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
+import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
 
 import { getSearchColor } from "../../utils/artworkColors";
 
@@ -88,6 +89,7 @@ export default function Shop() {
   const selectedGenre = genre ? decodeURIComponent(genre).toLowerCase() : "";
   const [artworks, setArtworks] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const [cartArtworkIds, setCartArtworkIds] = useState(new Set());
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -140,6 +142,34 @@ export default function Shop() {
     loadArtworks();
     loadFavoriteIds();
   }, [loadArtworks, loadFavoriteIds]);
+
+  useEffect(() => {
+    let active = true;
+    const loadCartArtworkIds = async () => {
+      if (!isAuthenticated("buyer")) {
+        setCartArtworkIds(new Set());
+        return;
+      }
+      try {
+        const cart = await fetchCart();
+        if (active) {
+          setCartArtworkIds(
+            new Set((Array.isArray(cart) ? cart : []).map((item) => String(item.artwork_id))),
+          );
+        }
+      } catch (cartError) {
+        console.error("Unable to load cart status for artworks:", cartError);
+      }
+    };
+    loadCartArtworkIds();
+    window.addEventListener("cart-updated", loadCartArtworkIds);
+    window.addEventListener("focus", loadCartArtworkIds);
+    return () => {
+      active = false;
+      window.removeEventListener("cart-updated", loadCartArtworkIds);
+      window.removeEventListener("focus", loadCartArtworkIds);
+    };
+  }, []);
 
   const handleFavoriteToggle = async (artworkId) => {
     const artworkKey = String(artworkId);
@@ -205,27 +235,66 @@ export default function Shop() {
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
 
-  const handleAddToCart = async (artwork) => {
-    const artworkId = artwork.artwork_id || artwork.id;
+  const handleAddToCart = async (
+    artworkId,
+    quantity = 1,
+    selectedProducts,
+    orderNote,
+    artwork,
+  ) => {
     if (!isAuthenticated("buyer")) {
       navigate("/buyer/login");
       return;
     }
-    const isCustomize =
-      String(artwork?.product_type || "").trim().toLowerCase() === "customize";
-    const isProduct =
-      String(artwork?.art_type || "").trim().toLowerCase() === "product";
-    if (isCustomize || isProduct) {
-      navigate(`/buyer/artwork/view/${artworkId}`);
-      return;
-    }
     try {
-      await addToCart(artworkId, 1);
-      setCartSnackbarMessage(`"${artwork.title || "Artwork"}" added to your cart.`);
-      setCartSnackbarSeverity("success");
+      const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
+      setCartArtworkIds((previous) => new Set(previous).add(String(artworkId)));
+      let message = result?.message || `"${artwork?.title || "Artwork"}" added to your cart.`;
+      let severity = "success";
+      if (typeof orderNote === "string" && orderNote.trim()) {
+        try {
+          const { previewFailed } = await sendOrderNoteToSeller({
+            artwork,
+            artworkId,
+            quantity,
+            selectedProducts,
+            orderNote,
+          });
+          if (previewFailed) {
+            message += " The order note was sent, but its preview could not be attached.";
+            severity = "warning";
+          } else {
+            message += " The order note and product preview were sent to the seller chat.";
+          }
+        } catch (chatError) {
+          console.error("Unable to send order note to seller chat:", chatError);
+          message += ` The note was saved in your cart but could not be sent to seller chat: ${chatError.message}`;
+          severity = "warning";
+        }
+      }
+      setCartSnackbarMessage(message);
+      setCartSnackbarSeverity(severity);
       setCartSnackbarOpen(true);
     } catch (err) {
       setCartSnackbarMessage(err.message || "Unable to add to cart.");
+      setCartSnackbarSeverity("error");
+      setCartSnackbarOpen(true);
+    }
+  };
+
+  const handleRemoveFromCart = async (artworkId) => {
+    try {
+      const result = await removeFromCart(artworkId);
+      setCartArtworkIds((previous) => {
+        const next = new Set(previous);
+        next.delete(String(artworkId));
+        return next;
+      });
+      setCartSnackbarMessage(result?.message || "Artwork removed from cart.");
+      setCartSnackbarSeverity("success");
+      setCartSnackbarOpen(true);
+    } catch (err) {
+      setCartSnackbarMessage(err.message || "Unable to remove from cart.");
       setCartSnackbarSeverity("error");
       setCartSnackbarOpen(true);
     }
@@ -512,6 +581,8 @@ export default function Shop() {
                   isFavorite={favoriteIds.has(String(artwork.artwork_id || artwork.id))}
                   onToggleFavorite={handleFavoriteToggle}
                   onAddToCart={handleAddToCart}
+                  isInCart={cartArtworkIds.has(String(artwork.artwork_id || artwork.id))}
+                  onRemoveFromCart={handleRemoveFromCart}
                 />
               ))}
             </Box>

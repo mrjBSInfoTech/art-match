@@ -109,9 +109,7 @@ export const startSellerConversation = async (buyerId) => {
 
 export const sendSellerMessage = async (buyerId, formData) => {
   try {
-    const res = await api.post(`/seller/conversations/${buyerId}/messages`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const res = await api.post(`/seller/conversations/${buyerId}/messages`, formData);
     return res.data;
   } catch (error) {
     handleError(error);

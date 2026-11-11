@@ -29,7 +29,7 @@ import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
-import { addToCart } from "../../api/buyer/cartAPI";
+import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
@@ -76,7 +76,7 @@ const buildArtistSummaries = (artworks = []) => {
     const studentId = artwork.student_id;
     if (!studentId) return;
 
-    const shopName = artwork.shop_name || "";
+    const shopName = artwork.shop_name?.trim() || "";
     const fallbackArtistName =
       [artwork.first_name, artwork.last_name].filter(Boolean).join(" ") ||
       artwork.artist ||
@@ -112,6 +112,7 @@ const buildArtistSummaries = (artworks = []) => {
   return [...artistMap.values()]
     .map((artist) => ({
       ...artist,
+      artistName: artist.shopName ? "" : artist.artistName,
       department: artist.course,
       image: getProfileImage(artist),
       bio:
@@ -218,6 +219,7 @@ export default function Main() {
   const [artworksLoading, setArtworksLoading] = useState(true);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [followedArtists, setFollowedArtists] = useState([]);
+  const [cartArtworkIds, setCartArtworkIds] = useState(() => new Set());
   const [followingLoading, setFollowingLoading] = useState(true);
   const [followingError, setFollowingError] = useState("");
   const [recommendedArtworks, setRecommendedArtworks] = useState([]);
@@ -246,6 +248,7 @@ export default function Main() {
   ) => {
     try {
       const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
+      setCartArtworkIds((previous) => new Set(previous).add(String(artworkId)));
       let chatNotice = "";
       let chatSeverity = "success";
       if (typeof orderNote === "string" && orderNote.trim()) {
@@ -277,6 +280,20 @@ export default function Main() {
         error.status === 409 ? "warning" : "error",
       );
       throw error;
+    }
+  };
+
+  const handleRemoveFromCart = async (artworkId) => {
+    try {
+      const result = await removeFromCart(artworkId);
+      setCartArtworkIds((previous) => {
+        const next = new Set(previous);
+        next.delete(String(artworkId));
+        return next;
+      });
+      showSnackbar(result?.message || "Artwork removed from cart");
+    } catch (error) {
+      showSnackbar(error.message || "Unable to remove artwork from cart", "error");
     }
   };
 
@@ -343,6 +360,34 @@ export default function Main() {
 
   useEffect(() => {
     loadArtworks();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadCartArtworkIds = async () => {
+      if (!isAuthenticated("buyer")) {
+        setCartArtworkIds(new Set());
+        return;
+      }
+      try {
+        const cart = await fetchCart();
+        if (active) {
+          setCartArtworkIds(
+            new Set((Array.isArray(cart) ? cart : []).map((item) => String(item.artwork_id))),
+          );
+        }
+      } catch (error) {
+        console.error("Unable to load cart status for artworks:", error);
+      }
+    };
+    loadCartArtworkIds();
+    window.addEventListener("cart-updated", loadCartArtworkIds);
+    window.addEventListener("focus", loadCartArtworkIds);
+    return () => {
+      active = false;
+      window.removeEventListener("cart-updated", loadCartArtworkIds);
+      window.removeEventListener("focus", loadCartArtworkIds);
+    };
   }, []);
 
   useEffect(() => {
@@ -638,6 +683,8 @@ export default function Main() {
             availableArtworks.slice(0, 4).map((artwork) => (
               <ArtworkCard
                 onAddToCart={handleAddToCart}
+                isInCart={cartArtworkIds.has(String(artwork.artwork_id || artwork.id))}
+                onRemoveFromCart={handleRemoveFromCart}
                 key={artwork.artwork_id || artwork.id}
                 artwork={artwork}
               />
@@ -705,6 +752,8 @@ export default function Main() {
               {followedArtworks.map((artwork) => (
                 <ArtworkCard
                   onAddToCart={handleAddToCart}
+                  isInCart={cartArtworkIds.has(String(artwork.artwork_id || artwork.id))}
+                  onRemoveFromCart={handleRemoveFromCart}
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                 />
@@ -1251,6 +1300,8 @@ export default function Main() {
             availableArtworks.slice(0, 12).map((artwork) => (
               <ArtworkCard
                 onAddToCart={handleAddToCart}
+                isInCart={cartArtworkIds.has(String(artwork.artwork_id || artwork.id))}
+                onRemoveFromCart={handleRemoveFromCart}
                 key={artwork.artwork_id || artwork.id}
                 artwork={artwork}
               />
@@ -1322,6 +1373,8 @@ export default function Main() {
               visibleRecommendedArtworks.map((artwork) => (
                 <ArtworkCard
                   onAddToCart={handleAddToCart}
+                  isInCart={cartArtworkIds.has(String(artwork.artwork_id || artwork.id))}
+                  onRemoveFromCart={handleRemoveFromCart}
                   key={artwork.artwork_id || artwork.id}
                   artwork={artwork}
                 />

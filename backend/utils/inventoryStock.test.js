@@ -3,10 +3,28 @@ import test from "node:test";
 import {
   calculateStockAdjustment,
   getSelectedOptionSoldQuantities,
+  isLegacyStockableProduct,
   MAX_STOCK_QUANTITY,
   parseStockAdjustment,
   serializeInventoryOptions,
 } from "./inventoryStock.js";
+
+test("legacy physical product listings without stock flags are inventory eligible", () => {
+  assert.equal(isLegacyStockableProduct({ art_type: " Product " }), true);
+  assert.equal(
+    isLegacyStockableProduct({ art_type: "product", product_type: "Premade" }),
+    true,
+  );
+  assert.equal(
+    isLegacyStockableProduct({ art_type: "product", product_type: "Digital" }),
+    false,
+  );
+  assert.equal(
+    isLegacyStockableProduct({ art_type: "product", product_type: "Customize" }),
+    false,
+  );
+  assert.equal(isLegacyStockableProduct({ art_type: "painting" }), false);
+});
 
 test("stock adjustments accept only a direction and a positive whole-number amount", () => {
   assert.deepEqual(parseStockAdjustment("add", "4"), {

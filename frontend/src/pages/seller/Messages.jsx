@@ -655,6 +655,7 @@ export default function Messages() {
                     privateKey: privateKeyRef.current,
                     message: msg,
                     attachmentUrl: toAbsoluteMediaUrl(msg.image),
+                    accountType: "seller",
                     keyAgreementPublicKey:
                       msg.sender_type === "seller"
                         ? recipientPublicKey

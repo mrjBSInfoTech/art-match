@@ -13,6 +13,7 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
+import RemoveShoppingCartOutlinedIcon from "@mui/icons-material/RemoveShoppingCartOutlined";
 import StarRateRoundedIcon from "@mui/icons-material/StarRateRounded";
 
 import { addToCart } from "../../../api/buyer/cartAPI";
@@ -29,6 +30,8 @@ export default function ArtworkCard({
   artwork,
   showAddToCart = true,
   onAddToCart,
+  isInCart = false,
+  onRemoveFromCart,
   onOpen,
   isFavorite: propIsFavorite,
   onToggleFavorite,
@@ -53,7 +56,8 @@ export default function ArtworkCard({
   const hasRating = Number.isFinite(rawRating) && rawRating > 0;
   const ratingCount = Number(artwork.rating_count ?? artwork.total_reviews);
 
-  const artistName = artwork.artist || artwork.shop_name || "Independent Artist";
+  const artistName =
+    artwork.shop_name?.trim() || artwork.artist?.trim() || "Independent Artist";
   const deptOrGenre = artwork.department || artwork.course || artwork.genre;
   const subtitle = deptOrGenre ? `${artistName} (${deptOrGenre})` : artistName;
 
@@ -147,6 +151,11 @@ export default function ArtworkCard({
     if (isAdding || soldOut) return;
     if (!isAuthenticated("buyer")) {
       navigate("/buyer/login");
+      return;
+    }
+    if (isInCart && onRemoveFromCart) {
+      setIsAdding(true);
+      Promise.resolve(onRemoveFromCart(artworkId)).finally(() => setIsAdding(false));
       return;
     }
     if (isProduct && productOptions.length > 0) {
@@ -407,9 +416,9 @@ export default function ArtworkCard({
 
             {showAddToCart && (
               <IconButton
-                aria-label="Add to cart"
-                title={soldOut ? "Sold out" : "Add to cart"}
-                disabled={soldOut || isAdding}
+                aria-label={isInCart ? "Remove from cart" : "Add to cart"}
+                title={soldOut && !isInCart ? "Sold out" : isInCart ? "Remove from cart" : "Add to cart"}
+                disabled={(soldOut && !isInCart) || isAdding}
                 onClick={handleCartClick}
                 sx={{
                   width: 40,
@@ -443,7 +452,9 @@ export default function ArtworkCard({
                 {isAdding ? (
                   <CircularProgress size={18} color="inherit" />
                 ) : (
-                  <ShoppingCartOutlinedIcon sx={{ fontSize: 20 }} />
+                  isInCart
+                    ? <RemoveShoppingCartOutlinedIcon sx={{ fontSize: 20 }} />
+                    : <ShoppingCartOutlinedIcon sx={{ fontSize: 20 }} />
                 )}
               </IconButton>
             )}

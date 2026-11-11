@@ -683,6 +683,7 @@ export default function Messages({ embedded = false }) {
                     privateKey: privateKeyRef.current,
                     message: msg,
                     attachmentUrl: toAbsoluteMediaUrl(msg.image),
+                    accountType: "buyer",
                     keyAgreementPublicKey:
                       msg.sender_type === "buyer"
                         ? recipientPublicKey

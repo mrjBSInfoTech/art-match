@@ -226,7 +226,13 @@ export const encryptChatMessage = async ({ privateKey, recipientPublicKeyJwk, te
   };
 };
 
-export const decryptChatMessage = async ({ privateKey, message, attachmentUrl, keyAgreementPublicKey }) => {
+export const decryptChatMessage = async ({
+  privateKey,
+  message,
+  attachmentUrl,
+  keyAgreementPublicKey,
+  accountType,
+}) => {
   const publicKeyJwk = keyAgreementPublicKey || message.sender_public_key;
   if (!publicKeyJwk || !message.encryption_iv) {
     return {
@@ -246,7 +252,11 @@ export const decryptChatMessage = async ({ privateKey, message, attachmentUrl, k
   let attachmentError = "";
   if (message.image && message.attachment_iv && attachmentUrl) {
     try {
-      const response = await fetch(attachmentUrl, { credentials: "include" });
+      const attachmentRequestUrl = new URL(attachmentUrl);
+      if (accountType) {
+        attachmentRequestUrl.searchParams.set("account_type", accountType);
+      }
+      const response = await fetch(attachmentRequestUrl, { credentials: "include" });
       if (!response.ok) throw new Error("Unable to load encrypted attachment");
       const encryptedAttachment = await response.arrayBuffer();
       const decryptedAttachment = await crypto.subtle.decrypt(

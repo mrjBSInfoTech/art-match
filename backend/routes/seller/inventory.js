@@ -9,6 +9,7 @@ import { logSellerAudit } from "../../utils/auditLogger.js";
 import {
   calculateStockAdjustment,
   getSelectedOptionSoldQuantities,
+  isLegacyStockableProduct,
   MAX_STOCK_QUANTITY,
   parseStockAdjustment,
   parseStockQuantity,
@@ -34,15 +35,17 @@ function readArtworkDetails(rawDetails) {
   }
 }
 
-function isLegacyNonStockable(details = {}) {
-  if (details.stockable === undefined || details.stockable === null) return true;
+function isLegacyNonStockable(details = {}, row = {}) {
+  if (details.stockable === undefined || details.stockable === null) {
+    return !isLegacyStockableProduct(row);
+  }
   if (typeof details.stockable === "string") {
     return ["false", "0"].includes(details.stockable.trim().toLowerCase());
   }
   return details.stockable === false || details.stockable === 0;
 }
 
-function normalizeLegacyStockableDetails(details = {}) {
+function normalizeLegacyStockableDetails(details = {}, row = {}) {
   if (!details || typeof details !== "object" || Array.isArray(details)) {
     return {};
   }
@@ -50,18 +53,21 @@ function normalizeLegacyStockableDetails(details = {}) {
   if (Object.hasOwn(normalized, "stockable") && normalized.stockable !== undefined && normalized.stockable !== null) {
     return normalized;
   }
-  normalized.stockable = false;
+  normalized.stockable = isLegacyStockableProduct(row);
   return normalized;
 }
 
 async function syncLegacyNonStockableRows(executor, sellerId, rows = []) {
   const legacyRows = rows.filter((row) => {
     const details = readArtworkDetails(row.artwork_details);
-    return isLegacyNonStockable(details);
+    return isLegacyNonStockable(details, row);
   });
 
   for (const row of legacyRows) {
-    const details = normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details));
+    const details = normalizeLegacyStockableDetails(
+      readArtworkDetails(row.artwork_details),
+      row,
+    );
     await executor.query(
       "UPDATE artwork SET artwork_details = ? WHERE artwork_id = ? AND student_id = ?",
       [JSON.stringify(details), row.artwork_id, sellerId],
@@ -74,7 +80,10 @@ function getInventoryProductOptions(details) {
 }
 
 function serializeInventoryProduct(row, soldOptionQuantities = new Map()) {
-  const details = normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details));
+  const details = normalizeLegacyStockableDetails(
+    readArtworkDetails(row.artwork_details),
+    row,
+  );
   const rawStock = details.stock_available;
   const recordedStock = rawStock === undefined || rawStock === null
     ? 0
@@ -152,7 +161,10 @@ router.get("/", authenticateSeller, async (req, res) => {
     );
     await syncLegacyNonStockableRows(db.promise(), sellerId, rows);
     const visibleRows = rows.filter((row) => {
-      const details = normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details));
+      const details = normalizeLegacyStockableDetails(
+        readArtworkDetails(row.artwork_details),
+        row,
+      );
       if (
         details.stockable === false ||
         String(details.stockable).toLowerCase() === "false" ||
@@ -171,7 +183,10 @@ router.get("/", authenticateSeller, async (req, res) => {
     res.set("Cache-Control", "no-store");
     return res.json(visibleRows.map((row) => serializeInventoryProduct({
       ...row,
-      artwork_details: normalizeLegacyStockableDetails(readArtworkDetails(row.artwork_details)),
+      artwork_details: normalizeLegacyStockableDetails(
+        readArtworkDetails(row.artwork_details),
+        row,
+      ),
     }, soldOptionQuantities)));
   } catch (error) {
     console.error("Seller inventory query error:", error);
@@ -237,7 +252,10 @@ router.patch("/:artworkId/stock", authenticateSeller, async (req, res) => {
     const soldQuantity = Number.isSafeInteger(Number(product.sold_quantity))
       ? Math.max(0, Number(product.sold_quantity))
       : 0;
-    const details = readArtworkDetails(product.artwork_details);
+    const details = normalizeLegacyStockableDetails(
+      readArtworkDetails(product.artwork_details),
+      product,
+    );
     if (
       details.stockable === false ||
       String(details.stockable).toLowerCase() === "false" ||
@@ -370,7 +388,10 @@ router.patch("/:artworkId/options/stock", authenticateSeller, async (req, res) =
       return res.status(404).json({ message: "Product inventory was not found." });
     }
 
-    const details = readArtworkDetails(product.artwork_details);
+    const details = normalizeLegacyStockableDetails(
+      readArtworkDetails(product.artwork_details),
+      product,
+    );
     if (
       details.stockable === false ||
       String(details.stockable).toLowerCase() === "false" ||

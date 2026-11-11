@@ -98,7 +98,11 @@ test("encrypted message text remains readable when its attachment cannot be open
     text: "Please customize this artwork.",
   });
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response("attachment unavailable", { status: 404 });
+  let requestedUrl;
+  globalThis.fetch = async (url) => {
+    requestedUrl = new URL(url);
+    return new Response("attachment unavailable", { status: 404 });
+  };
 
   try {
     const message = await decryptChatMessage({
@@ -112,11 +116,13 @@ test("encrypted message text remains readable when its attachment cannot be open
         attachment_iv: "AAAAAAAAAAAAAAAA",
         media_type: "image/webp",
       },
+      accountType: "buyer",
     });
 
     assert.equal(message.text, "Please customize this artwork.");
     assert.equal(message.image, null);
     assert.match(message.attachmentError, /attachment could not be opened/i);
+    assert.equal(requestedUrl.searchParams.get("account_type"), "buyer");
   } finally {
     globalThis.fetch = previousFetch;
     if (previousStorage === undefined) delete globalThis.localStorage;

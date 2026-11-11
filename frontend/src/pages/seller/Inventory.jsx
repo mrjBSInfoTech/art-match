@@ -42,7 +42,11 @@ import {
   adjustInventoryStock,
   fetchSellerInventory,
 } from "../../api/seller/inventoryAPI";
-import { getStockStatus, toStockQuantity } from "../../utils/inventory";
+import {
+  getStockStatus,
+  isStockableInventoryProduct,
+  toStockQuantity,
+} from "../../utils/inventory";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -82,25 +86,7 @@ export default function Inventory() {
   }, [loadInventory]);
 
   const stockableProducts = useMemo(
-    () =>
-      products.filter((product) => {
-        const detailsStockable = product.artwork_details?.stockable;
-        const productType = String(product.product_type || "")
-          .trim()
-          .toLowerCase();
-        const isLegacyNonStockable =
-          detailsStockable === undefined ||
-          detailsStockable === null ||
-          String(detailsStockable).toLowerCase() === "false" ||
-          detailsStockable === false ||
-          detailsStockable === "0" ||
-          detailsStockable === 0;
-        return (
-          !isLegacyNonStockable &&
-          productType !== "digital" &&
-          productType !== "customize"
-        );
-      }),
+    () => products.filter(isStockableInventoryProduct),
     [products],
   );
 

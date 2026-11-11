@@ -61,7 +61,7 @@ const buildArtistSummaries = (artworks = [], engagementByArtist = new Map()) => 
     const studentId = artwork.student_id;
     if (!studentId) return;
 
-    const shopName = artwork.shop_name || "";
+    const shopName = artwork.shop_name?.trim() || "";
     const artistName =
       [artwork.first_name, artwork.last_name].filter(Boolean).join(" ") ||
       artwork.artist ||
@@ -106,6 +106,7 @@ const buildArtistSummaries = (artworks = [], engagementByArtist = new Map()) => 
   return [...grouped.values()]
     .map((artist) => ({
       ...artist,
+      artistName: artist.shopName ? "" : artist.artistName,
       ...(engagementByArtist.get(String(artist.student_id)) || {}),
       image: getProfileImage(artist),
       artworks: artist.artworks.slice(0, 3),

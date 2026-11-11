@@ -1,5 +1,15 @@
 export const MAX_STOCK_QUANTITY = 2_147_483_647;
 
+export function isLegacyStockableProduct(row = {}) {
+  const artType = String(row.art_type || "").trim().toLowerCase();
+  const productType = String(row.product_type || "").trim().toLowerCase();
+  return (
+    artType === "product" &&
+    productType !== "digital" &&
+    productType !== "customize"
+  );
+}
+
 export function parseStockQuantity(value) {
   const text =
     typeof value === "number" || typeof value === "string" ? String(value).trim() : "";
