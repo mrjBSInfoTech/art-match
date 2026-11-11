@@ -44,6 +44,17 @@ export const fetchSupportThread = async (conversationId) => {
   }
 };
 
+export const startSupportConversation = async (role, accountId) => {
+  try {
+    const response = await api.post(
+      `/admin/conversations/${role}/${accountId}`,
+    );
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+};
+
 export const sendSupportReply = async (conversationId, message) => {
   try {
     const response = await api.post(

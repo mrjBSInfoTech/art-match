@@ -27,14 +27,17 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
-    "unzipper": "^0.12.3",
     "mysql2": "^3.24.0",
     "nodemon": "^3.1.10",
     "qrcode": "^1.5.4",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "unzipper": "^0.12.3"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
   },
   "devDependencies": {
     "jsqr": "^1.4.0",

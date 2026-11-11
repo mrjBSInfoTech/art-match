@@ -21,6 +21,7 @@ import {
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
+import { useSearchParams } from "react-router-dom";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import {
   fetchSupportInbox,
@@ -54,9 +55,11 @@ const initials = (name) =>
     .join("") || "B";
 
 export default function ChatSupport() {
+  const [searchParams] = useSearchParams();
+  const targetConversationId = searchParams.get("conversation");
   const [conversations, setConversations] = useState([]);
   const [loadingInbox, setLoadingInbox] = useState(true);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(targetConversationId || null);
   const [thread, setThread] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const [reply, setReply] = useState("");
@@ -96,6 +99,10 @@ export default function ChatSupport() {
   useEffect(() => {
     loadInbox();
   }, [loadInbox]);
+
+  useEffect(() => {
+    if (targetConversationId) setSelectedId(targetConversationId);
+  }, [targetConversationId]);
 
   // Keep the inbox and the open thread fresh while the page is visible.
   useEffect(() => {
@@ -143,7 +150,7 @@ export default function ChatSupport() {
     return (
       <AdminLoadingPanel
         title="Chat Support"
-        subtitle="Reply to buyers who contacted support from the Help & Support page."
+        subtitle="Message buyers and sellers from Manage Users, or reply to buyer support requests."
         showMetrics={false}
         showFilters={false}
       />
@@ -199,7 +206,7 @@ export default function ChatSupport() {
             Chat Support
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
-            Reply to buyers who contacted support from the Help &amp; Support page.
+            Message buyers and sellers from Manage Users, or reply to buyer support requests.
           </Typography>
         </Box>
       </Stack>
@@ -251,8 +258,8 @@ export default function ChatSupport() {
             <Stack alignItems="center" spacing={1} sx={{ px: 2, py: 6 }}>
               <ForumOutlinedIcon sx={{ fontSize: 40, color: "text.disabled" }} />
               <Typography variant="body2" color="text.secondary" textAlign="center">
-                No buyer messages yet. Conversations appear here as soon as a
-                buyer sends a support message.
+                No conversations yet. Start a chat from Manage Users or wait for
+                a buyer to contact support.
               </Typography>
             </Stack>
           ) : (
@@ -275,10 +282,10 @@ export default function ChatSupport() {
                       overlap="circular"
                     >
                       <Avatar
-                        src={conversation.buyer_avatar || undefined}
+                        src={conversation.account_avatar || undefined}
                         sx={{ width: 40, height: 40, bgcolor: "error.main", fontSize: 14 }}
                       >
-                        {initials(conversation.buyer_name)}
+                        {initials(conversation.account_name)}
                       </Avatar>
                     </Badge>
                     <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -293,7 +300,7 @@ export default function ChatSupport() {
                           fontWeight={Number(conversation.unread_count) ? 800 : 600}
                           noWrap
                         >
-                          {conversation.buyer_name || "Buyer"}
+                          {conversation.account_name || conversation.account_role || "Account"}
                         </Typography>
                         <Typography
                           variant="caption"
@@ -303,7 +310,7 @@ export default function ChatSupport() {
                           {formatTime(conversation.last_message_time)}
                         </Typography>
                       </Stack>
-                      {conversation.buyer_email && (
+                      {conversation.account_email && (
                         <Typography
                           variant="caption"
                           color="text.secondary"
@@ -311,9 +318,15 @@ export default function ChatSupport() {
                           component="div"
                           sx={{ fontSize: 11 }}
                         >
-                          {conversation.buyer_email}
+                          {conversation.account_email}
                         </Typography>
                       )}
+                      <Chip
+                        size="small"
+                        label={conversation.account_role === "seller" ? "Seller" : "Buyer"}
+                        variant="outlined"
+                        sx={{ height: 20, fontSize: 10.5, my: 0.25 }}
+                      />
                       {conversation.last_issue_type && (
                         <Chip
                           size="small"
@@ -328,8 +341,12 @@ export default function ChatSupport() {
                         noWrap
                         component="div"
                       >
-                        {conversation.last_sender_type === "admin" ? "You: " : ""}
-                        {conversation.last_message || ""}
+                        {conversation.last_sender_type === "admin"
+                          ? "You: "
+                          : conversation.last_message
+                            ? `${conversation.account_role === "seller" ? "Seller" : "Buyer"}: `
+                            : ""}
+                        {conversation.last_message || "No messages yet"}
                       </Typography>
                     </Box>
                   </ListItemButton>
@@ -376,21 +393,31 @@ export default function ChatSupport() {
                   <ArrowBackIcon fontSize="small" />
                 </IconButton>
                 <Avatar
-                  src={selectedConversation?.buyer_avatar || undefined}
+                  src={selectedConversation?.account_avatar || undefined}
                   sx={{ width: 36, height: 36, bgcolor: "error.main", fontSize: 13 }}
                 >
-                  {initials(selectedConversation?.buyer_name)}
+                  {initials(selectedConversation?.account_name)}
                 </Avatar>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography fontWeight={700} noWrap>
-                    {selectedConversation?.buyer_name || "Buyer"}
+                    {selectedConversation?.account_name ||
+                      selectedConversation?.account_role ||
+                      "Account"}
                   </Typography>
-                  {selectedConversation?.buyer_email && (
+                  {selectedConversation?.account_email && (
                     <Typography variant="caption" color="text.secondary" noWrap component="div">
-                      {selectedConversation.buyer_email}
+                      {selectedConversation.account_email}
                     </Typography>
                   )}
                 </Box>
+                {selectedConversation?.account_role && (
+                  <Chip
+                    size="small"
+                    label={selectedConversation.account_role === "seller" ? "Seller" : "Buyer"}
+                    variant="outlined"
+                    sx={{ height: 24, fontSize: 11, flexShrink: 0 }}
+                  />
+                )}
                 {selectedConversation?.last_issue_type && (
                   <Chip
                     size="small"

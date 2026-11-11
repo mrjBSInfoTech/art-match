@@ -185,6 +185,10 @@ export default function Settings() {
       setSavingAccountInformation(true);
       await verifyPassword(confirmationPassword);
       await updateAdmin(localStorage.getItem("admin_id"), accountInformation);
+      localStorage.setItem("admin_username", accountInformation.username.trim());
+      localStorage.setItem("admin_first_name", accountInformation.first_name.trim());
+      localStorage.setItem("admin_last_name", accountInformation.last_name.trim());
+      window.dispatchEvent(new Event("admin-profile-updated"));
       setPasswordDialogOpen(false);
       setConfirmationPassword("");
       showSnackbar("Account information updated successfully", "success");

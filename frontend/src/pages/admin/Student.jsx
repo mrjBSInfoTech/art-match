@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -84,7 +84,7 @@ export default function Student() {
   const [courseFilter, setCourseFilter] = useState("all");
   const [yearLevelFilter, setYearLevelFilter] = useState("all");
 
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -94,11 +94,22 @@ export default function Student() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadStudents();
-  }, []);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadStudents();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("storage", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("storage", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loadStudents]);
 
   const saveStudent = async (id, data) => {
     await updateStudent(id, data);
@@ -516,6 +527,7 @@ export default function Student() {
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
             onReactivate={handleReactivateStudent}
+            onAccessChange={loadStudents}
           />
         )}
       </Paper>

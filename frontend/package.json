@@ -44,7 +44,9 @@
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
-    "@swc/core@1.14.0": true
+    "@swc/core@1.14.0": true,
+    "core-js@3.51.0": true,
+    "fsevents@2.3.3": true
   },
   "overrides": {
     "yaml": "^2.9.0"

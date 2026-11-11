@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -23,10 +24,12 @@ import CustomerForm from "./CustomerForm";
 import AccessReason from "../Access/AccessReason";
 import BlockIcon from '@mui/icons-material/Block';
 import GavelIcon from '@mui/icons-material/Gavel';
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import {
   addAccountStrike,
   setAccountBan,
 } from "../../../api/admin/accountAccessAPI";
+import { startSupportConversation } from "../../../api/admin/supportChatAPI";
 
 const fields = [
   ["username", "Username"],
@@ -44,6 +47,7 @@ export default function CustomerCard({
   onAccessChange,
 }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
@@ -52,6 +56,8 @@ export default function CustomerCard({
   const [accessAction, setAccessAction] = useState("");
   const [operationError, setOperationError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [startingChat, setStartingChat] = useState(false);
 
   const role = (localStorage.getItem("admin_role") || "").toLowerCase();
   const canEdit =
@@ -105,9 +111,30 @@ export default function CustomerCard({
       setOperationError(error.message || "Unable to update customer access.");
     }
   };
+  const openSupportChat = async () => {
+    try {
+      setChatError("");
+      setStartingChat(true);
+      const conversation = await startSupportConversation(
+        "buyer",
+        getId(selectedCustomer),
+      );
+      navigate(`/admin/chat-support?conversation=${conversation.conversation_id}`);
+      setAnchorEl(null);
+    } catch (error) {
+      setChatError(error.message || "Unable to open buyer conversation.");
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   return (
     <Box>
+      {chatError && (
+        <Alert severity="error" onClose={() => setChatError("")} sx={{ mb: 2 }}>
+          {chatError}
+        </Alert>
+      )}
       {operationError && (
         <Alert
           severity="error"
@@ -239,17 +266,15 @@ export default function CustomerCard({
                       }}
                     />
                   </Box>
-                  {(canEdit || canDelete) && (
-                    <IconButton
-                      size="small"
-                      onClick={(event) => {
-                        setAnchorEl(event.currentTarget);
-                        setSelectedCustomer(customer);
-                      }}
-                    >
-                      <MoreVertIcon fontSize="small" />
-                    </IconButton>
-                  )}
+                  <IconButton
+                    size="small"
+                    onClick={(event) => {
+                      setAnchorEl(event.currentTarget);
+                      setSelectedCustomer(customer);
+                    }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
                 </Box>
 
                 <Button
@@ -291,6 +316,13 @@ export default function CustomerCard({
                   anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                   transformOrigin={{ vertical: "top", horizontal: "right" }}
                 >
+                  <MenuItem
+                    onClick={openSupportChat}
+                    disabled={startingChat}
+                  >
+                    <ChatBubbleOutlineIcon sx={{ mr: 1, fontSize: 20 }} />
+                    {startingChat ? "Opening chat..." : "Chat"}
+                  </MenuItem>
                   {canEdit && (
                     <MenuItem
                       onClick={() => openEdit(selectedCustomer)}

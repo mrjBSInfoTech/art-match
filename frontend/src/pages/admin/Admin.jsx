@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -51,7 +51,7 @@ export default function Admin() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
-  const loadAdmins = async () => {
+  const loadAdmins = useCallback(async () => {
     try {
       setLoading(true);
       setAdminErrorMessage("");
@@ -63,11 +63,22 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadAdmins();
-  }, []);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadAdmins();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("storage", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("storage", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loadAdmins]);
 
   const filteredAdmins = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

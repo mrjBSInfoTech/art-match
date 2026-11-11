@@ -62,6 +62,11 @@ import {
 } from "../../api/seller/messageAPI";
 import { subscribeToChatEvents } from "../../api/chatEvents";
 import {
+  fetchSellerSupportConversation,
+  fetchSellerSupportSummary,
+  sendSellerSupportMessage,
+} from "../../api/seller/supportChatAPI";
+import {
   decryptChatMessage,
   encryptChatMessage,
   createChatKeyPair,
@@ -69,6 +74,8 @@ import {
   loadChatKeyPair,
   restoreChatKeyPair,
 } from "../../utils/chatEncryption";
+
+const SUPPORT_CHAT_ID = "support";
 
 const formatMessageTime = (dateString) => {
   if (!dateString) return "";
@@ -144,6 +151,11 @@ export default function Messages() {
     blocked_by_other: false,
   });
   const [blockStatusConversationId, setBlockStatusConversationId] = useState(null);
+  const [supportSummary, setSupportSummary] = useState(null);
+  const [supportMessages, setSupportMessages] = useState([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [sendingSupport, setSendingSupport] = useState(false);
+  const isSupportChat = selectedConversationId === SUPPORT_CHAT_ID;
 
   const fileInputRef = useRef(null);
   const privateKeyRef = useRef(null);
@@ -162,7 +174,7 @@ export default function Messages() {
     if (!shouldScrollToBottomRef.current || !messagesContainerRef.current) return;
     messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     shouldScrollToBottomRef.current = false;
-  }, [messages]);
+  }, [messages, supportMessages]);
 
   useEffect(() => {
     const initializeEncryption = async () => {
@@ -319,6 +331,55 @@ export default function Messages() {
     }
   };
 
+  const loadSupportThread = useCallback(async ({ silent } = {}) => {
+    if (!silent) setSupportLoading(true);
+    try {
+      const data = await fetchSellerSupportConversation();
+      const summary = await fetchSellerSupportSummary();
+      setSupportMessages(
+        data.messages.map((message) => ({
+          id: `support-${message.support_message_id}`,
+          sender: message.sender_type === "seller" ? "seller" : "admin",
+          text: message.message_data,
+          image: null,
+          mediaType: "",
+          time: formatMessageTime(message.created_at),
+        })),
+      );
+      setSupportSummary(summary);
+    } catch (error) {
+      setError(error.message || "Unable to load support messages.");
+    } finally {
+      if (!silent) setSupportLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        setSupportSummary(await fetchSellerSupportSummary());
+      } catch (error) {
+        setError(error.message || "Unable to load support messages.");
+      }
+    };
+    loadSummary();
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") loadSummary();
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (!isSupportChat) return undefined;
+    loadSupportThread();
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadSupportThread({ silent: true });
+      }
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [isSupportChat, loadSupportThread]);
+
   const activeChat = useMemo(
     () =>
       conversations.find(
@@ -326,6 +387,21 @@ export default function Messages() {
       ) || null,
     [conversations, selectedConversationId],
   );
+  const supportChatEntry = useMemo(() => {
+    if (!supportSummary && !isSupportChat) return null;
+    return {
+      conversation_id: SUPPORT_CHAT_ID,
+      other_name: "ArtMatch Support",
+      other_id: null,
+      unread_count: Number(supportSummary?.unread_count || 0),
+      last_message: supportSummary?.last_message || "",
+      last_message_time: supportSummary?.last_message_time,
+      last_message_encrypted: false,
+      is_support: true,
+    };
+  }, [isSupportChat, supportSummary]);
+  const activeSupportChat = isSupportChat && supportChatEntry;
+  const displayedMessages = activeSupportChat ? supportMessages : messages;
   const loadConversationList = useCallback(async () => {
     const conversationList = (await fetchSellerConversations()) || [];
     if (!privateKeyRef.current) return conversationList;
@@ -452,7 +528,7 @@ export default function Messages() {
   }, [encryptionReady, loadConversationList, targetBuyerId, targetConversationId]);
 
   useEffect(() => {
-    if (!selectedConversationId) {
+    if (!selectedConversationId || isSupportChat) {
       setBlockStatusConversationId(null);
       setBlockStatus({ blocked_by_me: false, blocked_by_other: false });
       return undefined;
@@ -472,7 +548,7 @@ export default function Messages() {
     return () => {
       active = false;
     };
-  }, [selectedConversationId]);
+  }, [isSupportChat, selectedConversationId]);
 
   useEffect(() => {
     const loadConversations = async (initialLoad = false) => {
@@ -547,7 +623,7 @@ export default function Messages() {
   }, []);
 
   useEffect(() => {
-    if (!selectedConversationId || !encryptionReady) {
+    if (!selectedConversationId || isSupportChat || !encryptionReady) {
       loadMessagesRef.current = null;
       lastMessageIdsRef.current = null;
       shouldScrollToBottomRef.current = true;
@@ -672,7 +748,7 @@ export default function Messages() {
     return () => {
       if (loadMessagesRef.current === loadMessages) loadMessagesRef.current = null;
     };
-  }, [selectedConversationId, encryptionReady, recoveryVersion, activeChat?.other_id]);
+  }, [selectedConversationId, isSupportChat, encryptionReady, recoveryVersion, activeChat?.other_id]);
 
   const normalizeConversationPreview = (value, chat) => {
     const text = String(value ?? "").trim();
@@ -683,12 +759,13 @@ export default function Messages() {
 
   const activePlaceholder = "Type a message...";
 
-  const filteredConversations = [...conversations]
+  const chatListItems = supportChatEntry
+    ? [supportChatEntry, ...conversations]
+    : conversations;
+  const filteredConversations = [...chatListItems]
     .filter(
       (chat) =>
-        (chat.other_name || "")
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
+        (chat.other_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(chat.other_id || "").includes(searchQuery.trim()),
     )
     .sort((a, b) => {
@@ -715,6 +792,12 @@ export default function Messages() {
   };
 
   const handleSelectChat = async (conversationId) => {
+    if (conversationId === SUPPORT_CHAT_ID) {
+      setInputMessage("");
+      handleRemoveImage();
+      setSelectedConversationId(SUPPORT_CHAT_ID);
+      return;
+    }
     setConversations((current) =>
       clearConversationUnreadCount(current, conversationId),
     );
@@ -788,6 +871,23 @@ export default function Messages() {
   };
 
   const handleSendMessage = async () => {
+    if (isSupportChat) {
+      const message = inputMessage.trim();
+      if (!message || sendingSupport) return;
+      try {
+        setSendingSupport(true);
+        setError("");
+        await sendSellerSupportMessage(message);
+        setInputMessage("");
+        shouldScrollToBottomRef.current = true;
+        await loadSupportThread({ silent: true });
+      } catch (error) {
+        setError(error.message || "Unable to send your message.");
+      } finally {
+        setSendingSupport(false);
+      }
+      return;
+    }
     if ((!inputMessage.trim() && !attachedFile) || !activeChat) return;
     if (!encryptionReady || !privateKeyRef.current) {
       setError("Unlock secure messaging before sending messages");
@@ -844,6 +944,7 @@ export default function Messages() {
     loading &&
     !conversations.length &&
     !selectedConversationId &&
+    !supportChatEntry &&
     !pinDialogOpen &&
     !recoveryMode
   ) {
@@ -857,7 +958,7 @@ export default function Messages() {
     );
   }
 
-  if (error && !conversations.length && !selectedConversationId) {
+  if (error && !conversations.length && !selectedConversationId && !supportChatEntry) {
     return (
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
@@ -1010,8 +1111,8 @@ export default function Messages() {
                     <MessageConversationCard
                       key={chat.conversation_id}
                       chat={chat}
-                      isSelected={chat.conversation_id === selectedConversationId}
-                      avatarSrc={toAbsoluteProfileImageUrl(chat.other_avatar, "buyer")}
+                      isSelected={String(chat.conversation_id) === String(selectedConversationId)}
+                      avatarSrc={chat.is_support ? undefined : toAbsoluteProfileImageUrl(chat.other_avatar, "buyer")}
                       timeLabel={chat.last_message_time ? formatMessageTime(chat.last_message_time) : ""}
                       preview={normalizeConversationPreview(chat.last_message, chat)}
                       onSelect={() => {
@@ -1027,7 +1128,7 @@ export default function Messages() {
         )}
 
         {(!isMobile || selectedConversationId || selectedNotificationId) &&
-        (activeChat || activeNotification) ? (
+        (activeChat || activeSupportChat || activeNotification) ? (
           <Box
             sx={{
               flexGrow: 1,
@@ -1055,23 +1156,27 @@ export default function Messages() {
                   </IconButton>
                 )}
                 <Avatar
-                  src={toAbsoluteProfileImageUrl(activeChat?.other_avatar, "buyer")}
-                  alt={activeChat?.other_name || "Account notice"}
+                  src={activeSupportChat ? undefined : toAbsoluteProfileImageUrl(activeChat?.other_avatar, "buyer")}
+                  alt={activeSupportChat ? "ArtMatch Support" : activeChat?.other_name || "Account notice"}
                 />
                 <Box>
                   <Typography variant="subtitle1" fontWeight={700}>
                     {activeNotification
                       ? "Account notice"
-                      : activeChat?.other_name || "Buyer"}
+                      : activeSupportChat
+                        ? "ArtMatch Support"
+                        : activeChat?.other_name || "Buyer"}
                   </Typography>
-                  <Typography variant="caption" color="success.main">
+                  <Typography variant="caption" color={activeSupportChat ? "text.secondary" : "success.main"}>
                     {activeNotification
                       ? "From ArtMatch administration"
-                      : "Online"}
+                      : activeSupportChat
+                        ? "Admin support"
+                        : "Online"}
                   </Typography>
                 </Box>
               </Stack>
-              {!activeNotification && (
+              {activeChat && (
                 <IconButton
                   size="small"
                   aria-label="Conversation options"
@@ -1152,12 +1257,16 @@ export default function Messages() {
               {activeNotification ? (
                 <MessageCard message={{ sender: "admin", text: activeNotification.message,
                   time: formatMessageTime(activeNotification.created_at) }} onViewMedia={setSelectedMedia} />
-              ) : messages.length === 0 ? (
+              ) : activeSupportChat && supportLoading ? (
                 <Typography color="text.secondary" sx={{ mt: 2 }}>
-                  Start the conversation.
+                  Loading support messages…
+                </Typography>
+              ) : displayedMessages.length === 0 ? (
+                <Typography color="text.secondary" sx={{ mt: 2 }}>
+                  {activeSupportChat ? "Start a conversation with Admin Support." : "Start the conversation."}
                 </Typography>
               ) : (
-                messages.map((message) => (
+                displayedMessages.map((message) => (
                   <MessageCard
                     key={message.id}
                     message={message}
@@ -1226,15 +1335,15 @@ export default function Messages() {
               </Box>
             )}
 
-            {activeChat ? (
+            {activeChat || activeSupportChat ? (
               <Box
                 sx={{
                   p: 2,
-                  borderTop: attachedPreview ? "none" : "1px solid",
+                  borderTop: activeChat && attachedPreview ? "none" : "1px solid",
                   borderColor: "divider",
                 }}
               >
-                {isChatBlocked && (
+                {activeChat && isChatBlocked && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     {blockStatus.blocked_by_me
                       ? "You blocked this user. Unblock them to send messages."
@@ -1242,26 +1351,30 @@ export default function Messages() {
                   </Typography>
                 )}
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    onChange={handleImageChange}
-                  />
-                  <IconButton
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isChatBlocked}
-                  >
-                    <AttachFileIcon />
-                  </IconButton>
+                  {activeChat && (
+                    <>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        ref={fileInputRef}
+                        style={{ display: "none" }}
+                        onChange={handleImageChange}
+                      />
+                      <IconButton
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isChatBlocked}
+                      >
+                        <AttachFileIcon />
+                      </IconButton>
+                    </>
+                  )}
 
                   <TextField
                     fullWidth
                     size="small"
-                    placeholder={activePlaceholder}
+                    placeholder={activeSupportChat ? "Message Admin Support..." : activePlaceholder}
                     value={inputMessage}
-                    disabled={isChatBlocked}
+                    disabled={(activeChat && isChatBlocked) || sendingSupport}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
@@ -1270,7 +1383,11 @@ export default function Messages() {
                   <IconButton
                     color="primary"
                     onClick={handleSendMessage}
-                    disabled={isChatBlocked || !encryptionReady || (!inputMessage.trim() && !attachedFile)}
+                    disabled={
+                      activeChat
+                        ? isChatBlocked || !encryptionReady || (!inputMessage.trim() && !attachedFile)
+                        : sendingSupport || !inputMessage.trim()
+                    }
                     sx={{
                       bgcolor: "primary.main",
                       color: "#fff",
@@ -1338,7 +1455,7 @@ export default function Messages() {
         onReset={handleRecoveryReset}
       />
 
-      {!encryptionReady && (!showChatUnlockDialogs || (!pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh")) && (
+      {!isSupportChat && !encryptionReady && (!showChatUnlockDialogs || (!pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh")) && (
         <Alert
           severity="info"
           icon={<LockOutlinedIcon />}

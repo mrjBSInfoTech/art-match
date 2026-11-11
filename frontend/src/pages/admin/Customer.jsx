@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
@@ -59,7 +59,7 @@ export default function Customer() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
       setCustomerErrorMessage("");
@@ -69,7 +69,7 @@ export default function Customer() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const showSnackbar = (message, severity = "success") => {
     setSnackbarMessage(message);
@@ -95,7 +95,18 @@ export default function Customer() {
 
   useEffect(() => {
     loadCustomers();
-  }, []);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadCustomers();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("storage", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("storage", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [loadCustomers]);
 
   const saveCustomer = async (id, data) => {
     try {

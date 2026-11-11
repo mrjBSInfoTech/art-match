@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
   Card,
   CardContent,
   CardMedia,
+  Alert,
+  Chip,
   IconButton,
   Menu,
   MenuItem,
@@ -16,18 +19,37 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
+import BlockIcon from "@mui/icons-material/Block";
+import GavelIcon from "@mui/icons-material/Gavel";
 import StudentInfo from "./StudentInfo";
+import AccessReason from "../Access/AccessReason";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import { startSupportConversation } from "../../../api/admin/supportChatAPI";
+import {
+  addAccountStrike,
+  setAccountBan,
+} from "../../../api/admin/accountAccessAPI";
 
 export default function StudentCard({
   students = [],
   onEdit,
   onDelete,
   onReactivate,
+  onAccessChange,
 }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
+  const [accessAction, setAccessAction] = useState("");
+  const [operationError, setOperationError] = useState("");
+  const [startingChat, setStartingChat] = useState(false);
+
+  const role = (localStorage.getItem("admin_role") || "").toLowerCase();
+  const canEdit =
+    role === "super admin" ||
+    (role === "admin" && localStorage.getItem("admin_can_edit") === "1");
 
   const getId = (student) => student?.student_id ?? student?.id;
   const getName = (student) =>
@@ -43,8 +65,55 @@ export default function StudentCard({
     setAnchorEl(null);
   };
 
+  const submitAccessAction = async (reason) => {
+    try {
+      setOperationError("");
+      const studentId = getId(selectedStudent);
+      if (accessAction === "strike") {
+        await addAccountStrike("seller", studentId, reason);
+      } else {
+        await setAccountBan(
+          "seller",
+          studentId,
+          accessAction === "ban",
+          reason,
+        );
+      }
+      setAccessAction("");
+      await onAccessChange?.();
+    } catch (error) {
+      setOperationError(error.message || "Unable to update seller access.");
+    }
+  };
+
+  const openSupportChat = async () => {
+    try {
+      setOperationError("");
+      setStartingChat(true);
+      const conversation = await startSupportConversation(
+        "seller",
+        getId(selectedStudent),
+      );
+      navigate(`/admin/chat-support?conversation=${conversation.conversation_id}`);
+      handleMenuClose();
+    } catch (error) {
+      setOperationError(error.message || "Unable to open seller conversation.");
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
   return (
     <Box>
+      {operationError && (
+        <Alert
+          severity="error"
+          onClose={() => setOperationError("")}
+          sx={{ mb: 2 }}
+        >
+          {operationError}
+        </Alert>
+      )}
       <Box
         sx={{
           display: "grid",
@@ -158,6 +227,24 @@ export default function StudentCard({
                     >
                       {student.student_number || "No student number"}
                     </Typography>
+                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.75 }}>
+                      {student.strikes > 0 && (
+                        <Chip
+                          size="small"
+                          label={`${student.strikes} / 3 strikes`}
+                          color="warning"
+                          sx={{ height: 20, fontSize: 10 }}
+                        />
+                      )}
+                      {student.is_banned && (
+                        <Chip
+                          size="small"
+                          label="Banned"
+                          color="error"
+                          sx={{ height: 20, fontSize: 10 }}
+                        />
+                      )}
+                    </Box>
                   </Box>
 
                   <IconButton
@@ -210,6 +297,10 @@ export default function StudentCard({
                   anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                   transformOrigin={{ vertical: "top", horizontal: "right" }}
                 >
+                  <MenuItem onClick={openSupportChat} disabled={startingChat}>
+                    <ChatBubbleOutlineIcon sx={{ mr: 1, fontSize: 20 }} />
+                    {startingChat ? "Opening chat..." : "Chat"}
+                  </MenuItem>
                   <MenuItem
                     onClick={() => {
                       onEdit?.(selectedStudent);
@@ -230,6 +321,38 @@ export default function StudentCard({
                     >
                       <ReplayIcon sx={{ mr: 1, fontSize: 20 }} />
                       Reactivate
+                    </MenuItem>
+                  )}
+                  {canEdit && !selectedStudent?.is_banned && (
+                    <MenuItem
+                      onClick={() => {
+                        setAccessAction("strike");
+                        handleMenuClose();
+                      }}
+                      sx={{ color: "warning.main" }}
+                    >
+                      <GavelIcon sx={{ mr: 1, fontSize: 20 }} />
+                      Add strike
+                    </MenuItem>
+                  )}
+                  {canEdit && (
+                    <MenuItem
+                      onClick={() => {
+                        setAccessAction(
+                          selectedStudent?.is_banned ? "unban" : "ban",
+                        );
+                        handleMenuClose();
+                      }}
+                      sx={{
+                        color: selectedStudent?.is_banned
+                          ? "success.main"
+                          : "error.main",
+                      }}
+                    >
+                      <BlockIcon sx={{ mr: 1, fontSize: 20 }} />
+                      {selectedStudent?.is_banned
+                        ? "Unban account"
+                        : "Ban account"}
                     </MenuItem>
                   )}
                   <MenuItem
@@ -253,6 +376,20 @@ export default function StudentCard({
         open={openInfoDialog}
         handleClose={() => setOpenInfoDialog(false)}
         selectedStudent={selectedStudent}
+      />
+      <AccessReason
+        open={Boolean(accessAction)}
+        handleClose={() => setAccessAction("")}
+        selectedAccount={
+          selectedStudent && {
+            ...selectedStudent,
+            role: "seller",
+            account_id: getId(selectedStudent),
+            username: selectedStudent.student_number,
+          }
+        }
+        action={accessAction}
+        submitAction={submitAccessAction}
       />
     </Box>
   );
