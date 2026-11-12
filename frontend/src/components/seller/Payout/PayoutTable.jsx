@@ -273,7 +273,7 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
                         {sellerName}
                       </Typography>
                       <Typography variant="caption" sx={{ color: textSecondary }} display="block">
-                        ID: #{payout.sellerId}
+                        Student Number: {payout.sellerNumber || "N/A"}
                       </Typography>
                     </TableCell>
                   )}

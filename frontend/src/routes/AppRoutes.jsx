@@ -91,7 +91,7 @@ import BuyerCertificateView from "../pages/buyer/CertificateView";
 import BuyerNotifications from "../pages/buyer/Notifications";
 import BuyerLogin from "../pages/buyer/Login";
 import BuyerRegister from "../pages/buyer/Register";
-import BuyerPrivacyPolicy from "../pages/buyer/PrivacyPolicy";
+import BuyerPrivacyPolicy from "../pages/buyer/BuyerPrivacyPolicy";
 import BuyerTermsOfService from "../pages/buyer/TermsOfService";
 
 function LegacyArtworkRedirect() {

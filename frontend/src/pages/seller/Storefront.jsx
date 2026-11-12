@@ -31,6 +31,7 @@ import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
 import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import MarketingSectionBanner from "../../components/seller/Marketing/MarketingSectionBanner";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -428,43 +429,11 @@ export default function Storefront() {
       </Helmet>
 
       <Stack spacing={2.5}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            p: { xs: 2, sm: 2.5 },
-            borderRadius: 3,
-            color: "#fff",
-            background: `linear-gradient(115deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 68%, ${theme.palette.warning.dark} 145%)`,
-          }}
-        >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              flexShrink: 0,
-              display: "grid",
-              placeItems: "center",
-              borderRadius: 2,
-              color: "#fff",
-              backgroundColor: "rgba(255,255,255,0.16)",
-            }}
-          >
-            <StorefrontOutlinedIcon />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.1, opacity: 0.82 }}>
-              CREATOR STUDIO / 01
-            </Typography>
-            <Typography variant="h5" sx={{ mt: 0.25, fontWeight: 800, lineHeight: 1.15 }}>
-              Shape your storefront
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 0.5, color: "rgba(255,255,255,0.82)" }}>
-              Tune your artist identity and choose the work buyers see first.
-            </Typography>
-          </Box>
-        </Box>
+        <MarketingSectionBanner
+          icon={StorefrontOutlinedIcon}
+          title="Store profile"
+          description="Tune your artist identity and choose the work buyers see first."
+        />
 
         <Paper
           elevation={0}

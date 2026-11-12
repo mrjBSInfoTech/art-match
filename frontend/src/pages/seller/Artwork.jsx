@@ -25,9 +25,12 @@ import {
   Typography,
   Snackbar,
   Slide,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ArtworkCard from "../../components/seller/Artwork/ArtworkCard";
+import ArtworkTable from "../../components/seller/Artwork/ArtworkTable";
 import ArtworkForm from "../../components/seller/Artwork/ArtworkForm";
 import ArtworkDelete from "../../components/seller/Artwork/ArtworkDelete";
 import ArtworkVerify from "../../components/seller/Artwork/ArtworkVerify";
@@ -50,6 +53,8 @@ import SwapVertIcon from "@mui/icons-material/SwapVert";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -81,6 +86,7 @@ export default function Artwork() {
   const [sortOption, setSortOption] = useState("az");
   const [priceOption, setPriceOption] = useState("lthPrice");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("card");
 
   const loadSellerProfile = useCallback(async () => {
     setSellerProfileLoading(true);
@@ -104,15 +110,15 @@ export default function Artwork() {
     if (statusFilter !== "all") {
       list = list.filter((artwork) => {
         const raw = artwork.request_status || "";
-        const status = (!raw || raw.toLowerCase() === "available")
-          ? "unverified"
-          : raw.trim().toLowerCase();
+        const status =
+          !raw || raw.toLowerCase() === "available"
+            ? "unverified"
+            : raw.trim().toLowerCase();
         if (statusFilter === "approved")
           return ["verified", "approved"].includes(status);
         if (statusFilter === "pending")
           return ["pending", "requested"].includes(status);
-        if (statusFilter === "unverified")
-          return status === "unverified";
+        if (statusFilter === "unverified") return status === "unverified";
         return status === statusFilter;
       });
     }
@@ -171,10 +177,12 @@ export default function Artwork() {
         setArtworks(
           rawList.map((art) => ({
             ...art,
-            request_status: (!art.request_status || String(art.request_status).trim().toLowerCase() === "available")
-              ? "Unverified"
-              : String(art.request_status).trim(),
-          }))
+            request_status:
+              !art.request_status ||
+              String(art.request_status).trim().toLowerCase() === "available"
+                ? "Unverified"
+                : String(art.request_status).trim(),
+          })),
         );
       } else {
         setArtworks([]);
@@ -268,7 +276,10 @@ export default function Artwork() {
       setLoading(true);
       if (selectedArtwork) {
         // Update existing artwork
-        await updateArtwork(selectedArtwork.artwork_id ?? selectedArtwork.id, formData);
+        await updateArtwork(
+          selectedArtwork.artwork_id ?? selectedArtwork.id,
+          formData,
+        );
         // refresh list and then close modal
         await loadArtworks();
         showSnackbar("Artwork updated successfully", "success");
@@ -326,7 +337,7 @@ export default function Artwork() {
 
   const normalizeStatus = (artwork) => {
     const raw = artwork.request_status || "";
-    return (!raw || raw.toLowerCase() === "available")
+    return !raw || raw.toLowerCase() === "available"
       ? "unverified"
       : raw.trim().toLowerCase();
   };
@@ -346,7 +357,9 @@ export default function Artwork() {
     return s === "verified" || s === "approved";
   }).length;
 
-  const accountStatus = String(sellerProfile?.register_status || "").toLowerCase();
+  const accountStatus = String(
+    sellerProfile?.register_status || "",
+  ).toLowerCase();
   const isVerified = accountStatus === "verified" || accountStatus === "";
 
   const showSnackbar = (message, severity = "success") => {
@@ -690,11 +703,70 @@ export default function Artwork() {
           </Box>
         </Box>
       </Paper>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 0.5,
+          mb: 0.5,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredArtworks.length} of {artworks.length} artworks
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, next) => next && setViewMode(next)}
+          size="small"
+          aria-label="Artwork presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": { backgroundColor: theme.palette.error.dark },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
       {/* Artwork Display */}
       <Paper
         sx={{
           p: { xs: 2, md: 2.5 },
-          mt: 2.5,
+          mt: 1,
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -705,14 +777,22 @@ export default function Artwork() {
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-
         ) : filteredArtworks.length > 0 ? (
-          <ArtworkCard
-            artworks={filteredArtworks}
-            onEdit={handleOpenArtworkEdit}
-            onVerify={handleOpenArtworkVerify}
-            onDelete={handleOpenArtworkDelete}
-          />
+          viewMode === "table" ? (
+            <ArtworkTable
+              artworks={filteredArtworks}
+              onEdit={handleOpenArtworkEdit}
+              onVerify={handleOpenArtworkVerify}
+              onDelete={handleOpenArtworkDelete}
+            />
+          ) : (
+            <ArtworkCard
+              artworks={filteredArtworks}
+              onEdit={handleOpenArtworkEdit}
+              onVerify={handleOpenArtworkVerify}
+              onDelete={handleOpenArtworkDelete}
+            />
+          )
         ) : (
           <Typography
             color="text.secondary"

@@ -119,41 +119,46 @@ export async function loadPayoutEligibility(executor, orderId, { lock = false } 
   if (order.payment_status !== "Paid") return finish("Held", "Waiting for confirmed buyer payment.");
 
   try {
-    const gross = payoutToCentavos(split.gross_amount, { allowZero: false });
+    let gross = payoutToCentavos(split.gross_amount, { allowZero: false });
     let net = payoutToCentavos(split.net_amount);
     const commission = payoutToCentavos(split.commission_amount);
     let fee = payoutToCentavos(split.processing_fee_amount);
-
-    // If order was paid via PayMongo and processing fee was unrecorded (0), derive and apply it
-    if (order.payment_method === "paymongo" && fee === 0 && gross > 0) {
-      const calculatedFeePesos = calculateProcessingFee(split.gross_amount);
-      const calculatedFeeCentavos = Math.round(calculatedFeePesos * 100);
-      if (calculatedFeeCentavos > 0) {
-        fee = calculatedFeeCentavos;
-        net = Math.max(0, gross - commission - fee);
-        if (!protectedStatuses.has(split.payout_status)) {
-          await query(executor, `UPDATE seller_payment_split
-            SET processing_fee_amount = ?, net_amount = ?
-            WHERE split_id = ? AND payout_status NOT IN ('Processing', 'Paid')`,
-            [fee / 100, net / 100, split.split_id]);
-          split.processing_fee_amount = fee / 100;
-          split.net_amount = net / 100;
-        }
-      }
-    }
 
     const subtotal = payoutToCentavos(order.subtotal, { allowZero: false });
     const shipping = payoutToCentavos(order.shipping_fee);
     const orderFee = payoutToCentavos(order.processing_fee ?? 0);
     const total = payoutToCentavos(order.total_amount, { allowZero: false });
+
+    // If an existing order was created with split gross equal to buyer's total (which included buyer-charged processing fee),
+    // normalize split gross to the artwork subtotal so seller payout is net of processing fee (artwork subtotal - fee).
+    if (order.payment_method === "paymongo" && !protectedStatuses.has(split.payout_status)) {
+      if (gross === total && total > subtotal && (orderFee > 0 || fee > 0)) {
+        const calculatedFeePesos = fee > 0
+          ? (fee / 100)
+          : (orderFee > 0 ? (orderFee / 100) : calculateProcessingFee(subtotal / 100));
+        const calculatedFeeCentavos = Math.round(calculatedFeePesos * 100);
+        gross = subtotal;
+        fee = calculatedFeeCentavos;
+        net = Math.max(0, gross - commission - fee);
+        await query(executor, `UPDATE seller_payment_split
+          SET gross_amount = ?, processing_fee_amount = ?, net_amount = ?
+          WHERE split_id = ? AND payout_status NOT IN ('Processing', 'Paid')`,
+          [gross / 100, fee / 100, net / 100, split.split_id]);
+        split.gross_amount = gross / 100;
+        split.processing_fee_amount = fee / 100;
+        split.net_amount = net / 100;
+      }
+    }
+
     result.grossAmountCentavos = gross;
     // Current ArtMatch policy charges no shipping or commission. Gateway processing
     // fees are attributed to the seller payment split.
+    const validGross = gross === total || gross === subtotal;
     const validTotal = total === safeAdd(subtotal, shipping) ||
       total === safeAdd(safeAdd(subtotal, shipping), orderFee) ||
       total === safeAdd(safeAdd(subtotal, shipping), fee);
     if (Number(split.seller_id) !== Number(order.seller_id) || split.currency !== "PHP" ||
-        gross !== total || !validTotal ||
+        !validGross || !validTotal ||
         gross !== safeAdd(safeAdd(net, commission), fee) || shipping || commission || fee < 0 || fee > gross) {
       return finish("Held", "Order accounting requires administrator review.");
     }

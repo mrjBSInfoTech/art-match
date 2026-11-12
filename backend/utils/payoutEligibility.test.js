@@ -33,14 +33,19 @@ function fixture(overrides = {}) {
       if (/FROM marketplace_return_request/.test(sql)) return [state.returnRows];
       if (/FROM seller_order_refund/.test(sql)) return [state.refunds];
       if (/^UPDATE seller_payment_split/.test(sql)) {
-        assert.equal(params[6], state.split.payout_status);
-        assert.match(sql, /payout_status NOT IN \('Processing', 'Paid'\)/);
-        state.split.payout_status = params[0];
-        state.split.refund_amount = params[1];
-        state.split.payout_amount = params[2];
-        state.split.hold_reason = params[3];
-        state.split.eligible_at = params[4];
-        return [{ affectedRows: 1 }];
+        if (/SET payout_status/.test(sql)) {
+          assert.equal(params[6], state.split.payout_status);
+          assert.match(sql, /payout_status NOT IN \('Processing', 'Paid'\)/);
+          state.split.payout_status = params[0];
+          state.split.refund_amount = params[1];
+          state.split.payout_amount = params[2];
+          state.split.hold_reason = params[3];
+          state.split.eligible_at = params[4];
+          return [{ affectedRows: 1 }];
+        }
+        if (/SET (?:gross_amount|processing_fee_amount)/.test(sql)) {
+          return [{ affectedRows: 1 }];
+        }
       }
       throw new Error(`Unexpected eligibility SQL: ${sql}`);
     },
@@ -320,15 +325,15 @@ test("missing order or split does not fabricate earnings", async () => {
 test("orders with buyer-charged PayMongo processing fee become Eligible for net seller payout", async () => {
   const current = fixture({
     order: { subtotal: "100.00", shipping_fee: "0.00", processing_fee: "17.00", total_amount: "117.00" },
-    split: { gross_amount: "117.00", commission_amount: "0.00", processing_fee_amount: "17.00", net_amount: "100.00" },
+    split: { gross_amount: "100.00", commission_amount: "0.00", processing_fee_amount: "17.00", net_amount: "83.00" },
     items: [{ order_item_id: 51, order_id: 41, unit_price: "100.00", quantity: 1, line_total: "100.00" }],
   });
   const [result] = await current.refresh({ sellerId: 17 });
   assert.equal(result.nextStatus, "Eligible");
-  assert.equal(result.grossAmountCentavos, 11700);
-  assert.equal(result.payoutAmountCentavos, 10000);
+  assert.equal(result.grossAmountCentavos, 10000);
+  assert.equal(result.payoutAmountCentavos, 8300);
   assert.equal(current.state.split.payout_status, "Eligible");
-  assert.equal(current.state.split.payout_amount, 100);
+  assert.equal(current.state.split.payout_amount, 83);
   assert.equal(result.canSend, true);
 });
 

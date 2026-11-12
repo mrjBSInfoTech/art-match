@@ -318,6 +318,11 @@ export default function Dashboard() {
         minHeight: "100vh",
         backgroundColor: theme.palette.background.default,
         color: theme.palette.text.primary,
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
@@ -614,41 +619,96 @@ export default function Dashboard() {
           >
             <Button
               size="small"
-              variant={distributionMode === "students" ? "contained" : "text"}
+              variant={distributionMode === "students" ? "contained" : "outlined"}
               onClick={() => setDistributionMode("students")}
               aria-pressed={distributionMode === "students"}
               sx={{
                 minWidth: 0,
-                px: 1.5,
+                px: 1.75,
+                py: 0.6,
                 flex: { xs: 1, sm: "0 0 auto" },
                 textTransform: "none",
-                bgcolor:
-                  theme.palette.mode === "dark"
-                    ? "rgba(148, 163, 184, 0.14)"
-                    : "#f8fafc",
-                color: "text.primary",
-                boxShadow: "none",
+                fontSize: { xs: 11, sm: 12 },
+                fontWeight: distributionMode === "students" ? 700 : 600,
+                borderRadius: 2,
                 border: "1px solid",
-                borderColor: "divider",
-                fontSize: 11,
-                borderRadius: 1.5,
+                borderColor:
+                  distributionMode === "students" ? "transparent" : "divider",
+                bgcolor:
+                  distributionMode === "students"
+                    ? "error.main"
+                    : theme.palette.mode === "dark"
+                      ? "rgba(148, 163, 184, 0.08)"
+                      : "#ffffff",
+                color:
+                  distributionMode === "students"
+                    ? "#ffffff !important"
+                    : "text.secondary",
+                boxShadow:
+                  distributionMode === "students"
+                    ? "0 2px 8px rgba(211, 47, 47, 0.28)"
+                    : "none",
+                transition: "all 0.15s ease-in-out",
+                "&:hover": {
+                  bgcolor:
+                    distributionMode === "students"
+                      ? "error.dark"
+                      : theme.palette.mode === "dark"
+                        ? "rgba(148, 163, 184, 0.16)"
+                        : "#f1f5f9",
+                  color:
+                    distributionMode === "students"
+                      ? "#ffffff !important"
+                      : "text.primary",
+                },
               }}
             >
               By Artists ({enrolledArtists})
             </Button>
             <Button
               size="small"
-              variant={distributionMode === "artworks" ? "contained" : "text"}
+              variant={distributionMode === "artworks" ? "contained" : "outlined"}
               onClick={() => setDistributionMode("artworks")}
               aria-pressed={distributionMode === "artworks"}
               sx={{
                 minWidth: 0,
-                px: 1.5,
+                px: 1.75,
+                py: 0.6,
                 flex: { xs: 1, sm: "0 0 auto" },
                 textTransform: "none",
-                color: "text.secondary",
-                fontSize: 11,
-                borderRadius: 1.5,
+                fontSize: { xs: 11, sm: 12 },
+                fontWeight: distributionMode === "artworks" ? 700 : 600,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor:
+                  distributionMode === "artworks" ? "transparent" : "divider",
+                bgcolor:
+                  distributionMode === "artworks"
+                    ? "error.main"
+                    : theme.palette.mode === "dark"
+                      ? "rgba(148, 163, 184, 0.08)"
+                      : "#ffffff",
+                color:
+                  distributionMode === "artworks"
+                    ? "#ffffff !important"
+                    : "text.secondary",
+                boxShadow:
+                  distributionMode === "artworks"
+                    ? "0 2px 8px rgba(211, 47, 47, 0.28)"
+                    : "none",
+                transition: "all 0.15s ease-in-out",
+                "&:hover": {
+                  bgcolor:
+                    distributionMode === "artworks"
+                      ? "error.dark"
+                      : theme.palette.mode === "dark"
+                        ? "rgba(148, 163, 184, 0.16)"
+                        : "#f1f5f9",
+                  color:
+                    distributionMode === "artworks"
+                      ? "#ffffff !important"
+                      : "text.primary",
+                },
               }}
             >
               By Artworks ({artworkDistributionCount})
@@ -955,20 +1015,34 @@ export default function Dashboard() {
       </Paper>
       <Box
         sx={{
-          display: "flex",
-          gap: 2,
-          flexDirection: { xs: "column", md: "row" },
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+          },
+          gap: { xs: 2, sm: 2.5 },
           mt: 3,
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         <Paper
-          sx={{
-            p: { xs: 1.5, sm: 2, md: 3 },
-            mt: 3,
-            borderRadius: 2,
-            width: { xs: "100%", md: "50%" },
-          }}
           variant="outlined"
+          sx={{
+            p: { xs: 1.5, sm: 2, md: 2.5 },
+            borderRadius: 3,
+            minWidth: 0,
+            maxWidth: "100%",
+            width: "100%",
+            boxSizing: "border-box",
+            overflow: "hidden",
+            bgcolor: (theme) =>
+              theme.palette.mode === "dark"
+                ? "background.paper"
+                : "#ffffff",
+          }}
         >
           <Box
             sx={{
@@ -976,25 +1050,37 @@ export default function Dashboard() {
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
               mb: 2,
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                fontSize: { xs: 15, sm: 16, md: 17 },
+                lineHeight: 1.3,
+                minWidth: 0,
+              }}
+            >
               Artworks Pending Verification
             </Typography>
             <Button
               onClick={() => navigate("/admin/artwork")}
               endIcon={
-                <ArrowForwardIcon sx={{ fontSize: "18px !important" }} />
+                <ArrowForwardIcon sx={{ fontSize: "16px !important" }} />
               }
               sx={{
                 color: "#980404",
-                fontSize: { xs: 12, sm: 14 },
+                fontSize: { xs: 12, sm: 13 },
                 fontWeight: 600,
                 textTransform: "none",
                 borderRadius: "8px",
-                px: 1.5,
+                px: { xs: 1, sm: 1.5 },
                 py: 0.5,
+                minWidth: 0,
+                flexShrink: 0,
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
                   backgroundColor: "rgba(152, 4, 4, 0.08)",
@@ -1004,7 +1090,7 @@ export default function Dashboard() {
               View all
             </Button>
           </Box>
-          <Stack spacing={1}>
+          <Stack spacing={1} sx={{ minWidth: 0, width: "100%" }}>
             {artworksLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
                 <CircularProgress size={24} aria-label="Loading pending artworks" />
@@ -1020,20 +1106,37 @@ export default function Dashboard() {
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 1.25,
+                    gap: { xs: 1, sm: 1.25 },
                     p: 1,
+                    px: { xs: 1.25, sm: 1.5 },
                     borderRadius: 1.5,
-                    bgcolor: "#f8fafc",
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.04)"
+                        : "#f8fafc",
+                    border: "1px solid",
+                    borderColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.06)"
+                        : "#e2e8f0",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
                   }}
                 >
                   <Box
                     sx={{
-                      width: 48,
-                      height: 48,
+                      width: { xs: 40, sm: 48 },
+                      height: { xs: 40, sm: 48 },
                       flexShrink: 0,
                       borderRadius: 1,
                       overflow: "hidden",
-                      bgcolor: "#e2e8f0",
+                      bgcolor:
+                        theme.palette.mode === "dark"
+                          ? "rgba(255, 255, 255, 0.08)"
+                          : "#e2e8f0",
                     }}
                   >
                     {getArtworkImage(artwork) ? (
@@ -1047,14 +1150,42 @@ export default function Dashboard() {
                         }}
                       />
                     ) : (
-                      <ColorLensRoundedIcon sx={{ m: 1.5, color: "#94a3b8" }} />
+                      <ColorLensRoundedIcon sx={{ m: { xs: 1, sm: 1.5 }, color: "#94a3b8" }} />
                     )}
                   </Box>
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography noWrap sx={{ fontSize: 12, fontWeight: 700 }}>
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      flex: 1,
+                      overflow: "hidden",
+                      width: "100%",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <Typography
+                      noWrap
+                      sx={{
+                        fontSize: { xs: 12, sm: 13 },
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "100%",
+                      }}
+                    >
                       {artwork.title || "Untitled artwork"}
                     </Typography>
-                    <Typography noWrap variant="caption" color="text.secondary">
+                    <Typography
+                      noWrap
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontSize: { xs: 10.5, sm: 11.5 },
+                        maxWidth: "100%",
+                      }}
+                    >
                       By{" "}
                       {artwork.artist_name ||
                         artwork.seller_name ||
@@ -1062,8 +1193,8 @@ export default function Dashboard() {
                         "Student artist"}
                     </Typography>
                   </Box>
-                  <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 700 }}>
+                  <Box sx={{ textAlign: "right", flexShrink: 0, ml: "auto" }}>
+                    <Typography sx={{ fontSize: { xs: 12, sm: 13 }, fontWeight: 700 }}>
                       ₱
                       {Number(
                         artwork.price || artwork.amount || 0,
@@ -1074,9 +1205,18 @@ export default function Dashboard() {
                       sx={{
                         display: "inline-block",
                         px: 0.75,
+                        py: 0.1,
                         borderRadius: 1,
-                        bgcolor: "#fef3c7",
-                        color: "#92400e",
+                        bgcolor:
+                          theme.palette.mode === "dark"
+                            ? "rgba(245, 158, 11, 0.2)"
+                            : "#fef3c7",
+                        color:
+                          theme.palette.mode === "dark"
+                            ? "#fbbf24"
+                            : "#92400e",
+                        fontSize: 10,
+                        fontWeight: 600,
                       }}
                     >
                       Pending
@@ -1096,13 +1236,20 @@ export default function Dashboard() {
           </Stack>
         </Paper>
         <Paper
-          sx={{
-            p: { xs: 1.5, sm: 2, md: 3 },
-            mt: 3,
-            borderRadius: 2,
-            width: { xs: "100%", md: "50%" },
-          }}
           variant="outlined"
+          sx={{
+            p: { xs: 1.5, sm: 2, md: 2.5 },
+            borderRadius: 3,
+            minWidth: 0,
+            maxWidth: "100%",
+            width: "100%",
+            boxSizing: "border-box",
+            overflow: "hidden",
+            bgcolor: (theme) =>
+              theme.palette.mode === "dark"
+                ? "background.paper"
+                : "#ffffff",
+          }}
         >
           <Box
             sx={{
@@ -1110,25 +1257,37 @@ export default function Dashboard() {
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
               mb: 2,
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                fontSize: { xs: 15, sm: 16, md: 17 },
+                lineHeight: 1.3,
+                minWidth: 0,
+              }}
+            >
               Recent System Activity
             </Typography>
             <Button
               onClick={() => navigate("/admin/audit-logs")}
               endIcon={
-                <ArrowForwardIcon sx={{ fontSize: "18px !important" }} />
+                <ArrowForwardIcon sx={{ fontSize: "16px !important" }} />
               }
               sx={{
                 color: "#980404",
-                fontSize: { xs: 12, sm: 14 },
+                fontSize: { xs: 12, sm: 13 },
                 fontWeight: 600,
                 textTransform: "none",
                 borderRadius: "8px",
-                px: 1.5,
+                px: { xs: 1, sm: 1.5 },
                 py: 0.5,
+                minWidth: 0,
+                flexShrink: 0,
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
                   backgroundColor: "rgba(152, 4, 4, 0.08)",
@@ -1138,7 +1297,7 @@ export default function Dashboard() {
               View all
             </Button>
           </Box>
-          <Stack spacing={1}>
+          <Stack spacing={1} sx={{ minWidth: 0, width: "100%" }}>
             {logsLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
                 <CircularProgress size={24} aria-label="Loading recent activity" />
@@ -1153,38 +1312,103 @@ export default function Dashboard() {
                   key={log.id || log.log_id || `${log.datetime}-${index}`}
                   sx={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    p: 1,
-                    px: 2.5,
+                    alignItems: "flex-start",
+                    gap: 1.25,
+                    p: { xs: 1, sm: 1.25 },
+                    px: { xs: 1.25, sm: 1.5 },
                     borderRadius: 1.5,
-                    bgcolor: "#f8fafc",
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.04)"
+                        : "#f8fafc",
+                    border: "1px solid",
+                    borderColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.06)"
+                        : "#e2e8f0",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
                   }}
                 >
                   <Box
                     sx={{
-                      width: 7,
-                      height: 7,
+                      width: 8,
+                      height: 8,
                       borderRadius: "50%",
                       bgcolor: "#10b981",
                       flexShrink: 0,
+                      mt: 0.6,
                     }}
                   />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography noWrap sx={{ fontSize: 12, fontWeight: 700 }}>
-                      {log.action || "System activity"}
-                    </Typography>
-                    <Typography noWrap variant="caption" color="text.secondary">
+                  <Box
+                    sx={{
+                      minWidth: 0,
+                      flex: 1,
+                      overflow: "hidden",
+                      width: "100%",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1,
+                        minWidth: 0,
+                        width: "100%",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <Typography
+                        noWrap
+                        sx={{
+                          fontSize: { xs: 11, sm: 12 },
+                          fontWeight: 700,
+                          minWidth: 0,
+                          flex: 1,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                        title={log.action || "System activity"}
+                      >
+                        {log.action || "System activity"}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          flexShrink: 0,
+                          whiteSpace: "nowrap",
+                          fontSize: { xs: 10.5, sm: 11 },
+                          ml: "auto",
+                        }}
+                      >
+                        {formatActivityDate(log.datetime)}
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: "block",
+                        fontSize: { xs: 11, sm: 11.5 },
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                        whiteSpace: "normal",
+                        lineHeight: 1.4,
+                        mt: 0.35,
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                      }}
+                    >
                       {log.information || log.role || "Admin activity"}
                     </Typography>
                   </Box>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ flexShrink: 0 }}
-                  >
-                    {formatActivityDate(log.datetime)}
-                  </Typography>
                 </Box>
               ))
             ) : (

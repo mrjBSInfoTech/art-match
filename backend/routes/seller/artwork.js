@@ -31,6 +31,7 @@ import {
 } from "../../utils/artworkStorage.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { getProductOptions } from "../../utils/productOptions.js";
+import { getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 
 const router = express.Router();
 
@@ -286,6 +287,8 @@ router.get("/", authenticateSeller, (req, res) => {
         a.upfront_percentage,
         a.product_sample_image,
         a.artwork_details,
+        a.is_sold,
+        ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
         COALESCE(NULLIF(TRIM(au.request_status), ''), 'Unverified') AS request_status,
         au.request_date,
         au.approved_date,
@@ -348,6 +351,8 @@ router.get("/:id", authenticateSeller, (req, res) => {
         a.upfront_percentage,
         a.product_sample_image,
         a.artwork_details,
+        a.is_sold,
+        ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
         COALESCE(NULLIF(TRIM(au.request_status), ''), 'Unverified') AS request_status,
         au.request_date,
         au.approved_date,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -7,8 +7,13 @@ import {
   CardContent,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   MenuItem,
+  Slide,
   Stack,
   TextField,
   Typography,
@@ -17,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CloseIcon from "@mui/icons-material/Close";
 import { fetchFaqs } from "../../api/buyer/faqAPI";
 import {
   fetchProfileEmail,
@@ -29,34 +35,108 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 
+const DialogTransition = React.forwardRef(function DialogTransition(props, ref) {
+  return (
+    <Slide
+      direction="up"
+      ref={ref}
+      {...props}
+      timeout={400}
+      easing={{
+        enter: "cubic-bezier(0.4, 0, 0.2, 1)",
+        exit: "ease-out",
+      }}
+    />
+  );
+});
+
 const supportCards = [
   {
     icon: ContactSupportOutlinedIcon,
     title: "Frequently Asked Questions",
     description:
       "Browse the most common buyer questions about ordering, shipping, registration, and artwork delivery.",
+    cta: "Browse FAQs",
     action: "faqs",
   },
   {
     icon: LocalShippingOutlinedIcon,
     title: "Shipping & Delivery",
     description:
-      "Learn about international shipping, delivery windows, tracked packages, and condition reporting.",
+      "Learn about door-to-door courier shipping, campus studio pickup, parcel photo verification, and the 4-day return window.",
+    cta: "View shipping & return guide",
+    action: "shipping",
   },
   {
     icon: LockOutlinedIcon,
     title: "Payment & Security",
     description:
-      "Review secure payment steps, buyer protection, returns, and verification checks for each listing.",
+      "Review PayMongo checkout protection, 4-day escrow holds, Certificates of Authenticity, and RA 10173 data privacy.",
+    cta: "View payment & security guide",
+    action: "payment",
   },
   {
     icon: ForumOutlinedIcon,
-    title: "Contact the Studio",
+    title: "Studio & Support Inbox",
     description:
-      "Reach out to the Red Nexus support desk for custom requests, account issues, or order follow-ups.",
-    action: "contact",
+      "Open your live message inbox to chat directly with student artists or view replies from the ArtMatch support desk.",
+    cta: "Open Messages",
+    action: "messages",
   },
 ];
+
+const TOPIC_GUIDES = {
+  shipping: {
+    icon: LocalShippingOutlinedIcon,
+    title: "Shipping, Delivery & Returns Guide",
+    subtitle: "How artworks are packed, tracked, delivered, and protected.",
+    items: [
+      {
+        heading: "1. Door-to-Door Delivery & Campus Pickup",
+        body: "Buyers can choose Door-to-Door courier delivery using their saved shipping address or select Campus Studio Pickup to collect artworks directly from the Central Academy of Fine Arts (CAFA) studio.",
+      },
+      {
+        heading: "2. Mandatory Parcel Photo Verification",
+        body: "Before an order can be marked as Shipped, student sellers are required to upload parcel condition photos and handling instructions (such as Fragile or Keep Dry) so you can verify how your artwork was packaged.",
+      },
+      {
+        heading: "3. Live Courier Tracking & Delivery Proof",
+        body: "Once shipped, your order details page displays the courier name, tracking number, and tracking link. Upon arrival, sellers record delivery proof photos and notes to confirm safe receipt.",
+      },
+      {
+        heading: "4. 4-Day Inspection & Return Window",
+        body: "You have 4 calendar days (96 hours) from the recorded delivery timestamp to inspect your artwork and request a return if it arrives damaged, missing components, or not as described.",
+      },
+    ],
+    primaryAction: { label: "Track My Orders", path: "/buyer/profile/orders" },
+    secondaryAction: { label: "Terms & Return Policy", path: "/buyer/terms-of-service" },
+  },
+  payment: {
+    icon: LockOutlinedIcon,
+    title: "Payment Security & Buyer Protection",
+    subtitle: "How your payment, authenticity, and personal data are safeguarded.",
+    items: [
+      {
+        heading: "1. Encrypted PayMongo Checkout",
+        body: "Online payments are processed through PayMongo supporting GCash, Maya, QR Ph, and major cards. ArtMatch never stores your raw card numbers or e-wallet PINs.",
+      },
+      {
+        heading: "2. Escrow Hold Until Delivery & Inspection",
+        body: "Your payment is held securely while the artwork is prepared, shipped, and inspected. Seller payouts only become eligible after delivery is confirmed and the 4-day return window finishes with no unresolved disputes.",
+      },
+      {
+        heading: "3. VerifiedListings & Certificate of Authenticity (COA)",
+        body: "Every listed artwork is reviewed by administrators before appearing in the shop. Completed purchases receive a cryptographic Certificate of Authenticity verifying the student artist and edition.",
+      },
+      {
+        heading: "4. RA 10173 Data Privacy Protection",
+        body: "Your account details, shipping addresses, and order history are protected in compliance with the Philippine Data Privacy Act of 2012 (RA 10173).",
+      },
+    ],
+    primaryAction: { label: "Privacy Policy (RA 10173)", path: "/buyer/privacy-policy" },
+    secondaryAction: { label: "Terms of Service", path: "/buyer/terms-of-service" },
+  },
+};
 
 const ISSUE_TYPES = [
   "Order/Shipping",
@@ -67,12 +147,6 @@ const ISSUE_TYPES = [
   "Other",
 ];
 
-const scrollToContactForm = () => {
-  document
-    .getElementById("contact-support-form")
-    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-};
-
 export default function HelpSupport() {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -80,6 +154,8 @@ export default function HelpSupport() {
   const [faqsLoading, setFaqsLoading] = useState(true);
   const [faqsError, setFaqsError] = useState("");
   const [faqDialogOpen, setFaqDialogOpen] = useState(false);
+  const [activeTopic, setActiveTopic] = useState(null);
+  const selectedGuide = activeTopic ? TOPIC_GUIDES[activeTopic] : null;
 
   // Contact form (the template buyers use to reach admin support).
   // The reply address comes from the buyer's profile, not from this form.
@@ -209,13 +285,16 @@ export default function HelpSupport() {
       </Box>
 
       <Grid container spacing={3} sx={{ mb: { xs: 3, md: 5 } }}>
-        {supportCards.map(({ icon: Icon, title, description, action }) => {
+        {supportCards.map((card) => {
+          const { title, description, cta, action } = card;
           const onClick =
             action === "faqs"
               ? () => setFaqDialogOpen(true)
-              : action === "contact"
-                ? scrollToContactForm
-                : undefined;
+              : action === "shipping" || action === "payment"
+                ? () => setActiveTopic(action)
+                : action === "messages"
+                  ? () => navigate("/buyer/messages?support=1")
+                  : undefined;
           return (
           <Grid size={{ xs: 12, md: 6 }} key={title}>
             <Card
@@ -248,7 +327,7 @@ export default function HelpSupport() {
                 }),
               }}
             >
-              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 }, height: "100%", display: "flex", flexDirection: "column" }}>
                 <Box
                   sx={{
                     display: "inline-flex",
@@ -262,7 +341,7 @@ export default function HelpSupport() {
                     mb: 2,
                   }}
                 >
-                  <Icon fontSize="medium" />
+                  {React.createElement(card.icon, { fontSize: "medium" })}
                 </Box>
                 <Typography
                   variant="h6"
@@ -279,10 +358,24 @@ export default function HelpSupport() {
                   sx={{
                     lineHeight: 1.7,
                     fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                    mb: 2,
                   }}
                 >
                   {description}
                 </Typography>
+                {cta && (
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    alignItems="center"
+                    sx={{ mt: "auto", color: theme.palette.error.main, fontWeight: 700, fontSize: "0.875rem" }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: "inherit" }}>
+                      {cta}
+                    </Typography>
+                    <ArrowForwardIcon sx={{ fontSize: 16 }} />
+                  </Stack>
+                )}
               </CardContent>
             </Card>
           </Grid>
@@ -298,6 +391,128 @@ export default function HelpSupport() {
         error={faqsError}
         onRetry={retryLoadFaqs}
       />
+
+      <Dialog
+        open={Boolean(selectedGuide)}
+        onClose={() => setActiveTopic(null)}
+        TransitionComponent={DialogTransition}
+        scroll="paper"
+        PaperProps={{
+          sx: {
+            width: "min(100% - 24px, 720px)",
+            maxWidth: "720px",
+            maxHeight: "calc(100% - 32px)",
+            borderRadius: 3,
+            overflow: "hidden",
+            backgroundColor: theme.palette.background.paper,
+          },
+        }}
+        aria-labelledby="support-topic-dialog-title"
+      >
+        {selectedGuide && (
+          <>
+            <DialogTitle
+              id="support-topic-dialog-title"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 2.5,
+                py: 1.75,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                fontWeight: 700,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              {selectedGuide.icon &&
+                React.createElement(selectedGuide.icon, {
+                  sx: { color: theme.palette.error.main, fontSize: 22 },
+                })}
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.3 }}>
+                  {selectedGuide.title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                  {selectedGuide.subtitle}
+                </Typography>
+              </Box>
+              <Button
+                aria-label="Close guide"
+                onClick={() => setActiveTopic(null)}
+                sx={{
+                  minWidth: 28,
+                  width: 28,
+                  height: 28,
+                  ml: "auto",
+                  p: 0,
+                  color: theme.palette.text.secondary,
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 18 }} />
+              </Button>
+            </DialogTitle>
+            <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
+              <Stack spacing={2}>
+                {selectedGuide.items.map((item) => (
+                  <Box
+                    key={item.heading}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2.5,
+                      border: `1px solid ${theme.palette.divider}`,
+                      backgroundColor: theme.palette.background.default,
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.75 }}>
+                      {item.heading}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                      {item.body}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ px: 2.5, py: 1.75, justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => {
+                  const target = selectedGuide.secondaryAction.path;
+                  setActiveTopic(null);
+                  navigate(target);
+                }}
+                sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}
+              >
+                {selectedGuide.secondaryAction.label}
+              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  onClick={() => setActiveTopic(null)}
+                  color="inherit"
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  endIcon={<ArrowForwardIcon />}
+                  onClick={() => {
+                    const target = selectedGuide.primaryAction.path;
+                    setActiveTopic(null);
+                    navigate(target);
+                  }}
+                  sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2, color: "#fff" }}
+                >
+                  {selectedGuide.primaryAction.label}
+                </Button>
+              </Stack>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
 
       <Box
         id="contact-support-form"

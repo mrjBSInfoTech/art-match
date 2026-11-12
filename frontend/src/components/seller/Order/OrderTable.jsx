@@ -73,6 +73,7 @@ const getStatusPillStyle = (theme, status) => {
 
 export default function OrderTable({ orders = [], onOrderClick }) {
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
 
   if (!orders || orders.length === 0) {
     return null;
@@ -88,10 +89,39 @@ export default function OrderTable({ orders = [], onOrderClick }) {
         bgcolor: "background.paper",
       }}
     >
-      <TableContainer>
-        <Table size="small" aria-label="Seller orders table" sx={{ minWidth: 880 }}>
-          <TableHead sx={{ bgcolor: "background.default" }}>
-            <TableRow sx={{ "& th": { fontWeight: 700, fontSize: 12, py: 1.5, color: "text.secondary" } }}>
+      <Box sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
+          Seller order activity
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+          Review order items, buyer details, fulfillment status, and earnings.
+        </Typography>
+      </Box>
+
+      <TableContainer sx={{ maxHeight: { xs: 580, md: 720 }, overflowX: "auto" }}>
+        <Table
+          stickyHeader
+          size="small"
+          aria-label="Seller orders table"
+          sx={{ minWidth: 880 }}
+        >
+          <TableHead>
+            <TableRow
+              sx={{
+                "& th": {
+                  bgcolor: isDark ? "background.paper" : "#f8fafc",
+                  fontWeight: 800,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  color: "text.secondary",
+                  py: 1.5,
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  whiteSpace: "nowrap",
+                },
+              }}
+            >
               <TableCell>Order ID & Date</TableCell>
               <TableCell>Artwork</TableCell>
               <TableCell>Customer</TableCell>
@@ -142,7 +172,8 @@ export default function OrderTable({ orders = [], onOrderClick }) {
                   onClick={handleRowClick}
                   sx={{
                     cursor: "pointer",
-                    "& td": { py: 1.5, verticalAlign: "middle" },
+                    "& td": { py: 1.75, verticalAlign: "middle" },
+                    "&:last-child td": { borderBottom: 0 },
                   }}
                 >
                   {/* Order ID & Date */}
@@ -221,14 +252,14 @@ export default function OrderTable({ orders = [], onOrderClick }) {
                   </TableCell>
 
                   {/* Price / Gross */}
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                     <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
                       {formatCurrency(grossAmount)}
                     </Typography>
                   </TableCell>
 
                   {/* Platform Take */}
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                     <Typography
                       variant="body2"
                       sx={{ color: "text.secondary", fontVariantNumeric: "tabular-nums" }}
@@ -243,7 +274,7 @@ export default function OrderTable({ orders = [], onOrderClick }) {
                   </TableCell>
 
                   {/* Net Payout */}
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                     <Typography
                       variant="body2"
                       sx={{
@@ -309,8 +340,8 @@ export default function OrderTable({ orders = [], onOrderClick }) {
                         fontSize: 11,
                         fontWeight: 700,
                         borderRadius: 2,
-                        py: 0.25,
-                        px: 1.25,
+                        minHeight: 40,
+                        px: 1.75,
                       }}
                     >
                       View
@@ -325,4 +356,3 @@ export default function OrderTable({ orders = [], onOrderClick }) {
     </Paper>
   );
 }
-

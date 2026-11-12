@@ -68,6 +68,9 @@ export const priceCheckoutItems = (items, voucher = null, voucherArtworkIds = []
   let discount = 0;
   let minimum = 0;
   if (voucher) {
+    if (Number(voucher.is_expired) === 1) {
+      throw new CheckoutVoucherError("This voucher has expired and can no longer be used.");
+    }
     if (!Number(voucher.is_active)) throw new CheckoutVoucherError("This voucher is not active yet or has expired.");
     if (!["fixed", "percentage"].includes(voucher.discount_type)) {
       throw new CheckoutVoucherError("This freebie voucher does not provide a price discount. Please contact the seller about the free item.");
@@ -110,20 +113,46 @@ export const priceCheckoutItems = (items, voucher = null, voucherArtworkIds = []
   };
 };
 
-export const quoteCheckoutVoucher = async (executor, items, rawCode, { lock = false, required = false } = {}) => {
+export const quoteCheckoutVoucher = async (executor, items, rawCode, { lock = false, required = false, customerId = null } = {}) => {
   const code = normalizeCheckoutVoucherCode(rawCode, { optional: !required });
   if (!code) return priceCheckoutItems(items);
   const [vouchers] = await executor.query(
     `SELECT voucher_id, student_id, code, discount_type, discount_value,
       minimum_purchase, applies_to_all,
-      (starts_on <= CURRENT_DATE() AND expires_on >= CURRENT_DATE()) AS is_active
+      (starts_on <= CURRENT_DATE() AND expires_on >= CURRENT_DATE()) AS is_active,
+      (expires_on < CURRENT_DATE()) AS is_expired,
+      (starts_on > CURRENT_DATE()) AS is_not_started
      FROM seller_voucher WHERE UPPER(code) = ? ORDER BY voucher_id${lock ? " FOR UPDATE" : ""}`,
     [code],
   );
+  if (!vouchers.length) {
+    throw new CheckoutVoucherError("Voucher code is invalid or does not exist.");
+  }
   const active = vouchers.filter((voucher) => Number(voucher.is_active) === 1);
-  if (!active.length) throw new CheckoutVoucherError("Voucher is invalid, has not started yet, or has expired.");
+  if (!active.length) {
+    const expired = vouchers.some((voucher) =>
+      Number(voucher.is_expired) === 1 ||
+      (voucher.is_expired === undefined && Number(voucher.is_active) === 0 && !Number(voucher.is_not_started)),
+    );
+    if (expired) {
+      throw new CheckoutVoucherError("This voucher has expired and can no longer be used.");
+    }
+    throw new CheckoutVoucherError("This voucher has not started yet.");
+  }
   if (active.length !== 1) throw new CheckoutVoucherError("This voucher code matches multiple active vouchers. Please contact the seller for a unique code.");
   const voucher = active[0];
+  if (customerId !== null && customerId !== undefined) {
+    const [usedOrders] = await executor.query(
+      `SELECT order_id FROM marketplace_order
+       WHERE customer_id = ? AND seller_id = ? AND UPPER(voucher_code) = ?
+         AND status <> 'Cancelled' AND COALESCE(payment_status, '') <> 'Failed'
+       LIMIT 1${lock ? " FOR UPDATE" : ""}`,
+      [Number(customerId), Number(voucher.student_id), code],
+    );
+    if (usedOrders.length > 0) {
+      throw new CheckoutVoucherError("You have already used this voucher code. Each voucher can only be used once.");
+    }
+  }
   const [listings] = Number(voucher.applies_to_all) === 1 ? [[]] : await executor.query(
     `SELECT artwork_id FROM seller_voucher_artwork WHERE voucher_id = ?${lock ? " FOR UPDATE" : ""}`, [voucher.voucher_id],
   );

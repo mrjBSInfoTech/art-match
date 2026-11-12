@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Paper,
   Slide,
   Snackbar,
   Stack,
@@ -237,7 +238,13 @@ export default function SellerPayout() {
             {viewMode === "table" ? (
               <PayoutTable orders={data.orders} />
             ) : (
-              <PayoutCard orders={data.orders} />
+              <Paper
+                component="section"
+                variant="outlined"
+                sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2 }}
+              >
+                <PayoutCard orders={data.orders} />
+              </Paper>
             )}
             <Typography variant="caption" color="text.secondary">
               Cash on Delivery orders are handled separately and are not paid

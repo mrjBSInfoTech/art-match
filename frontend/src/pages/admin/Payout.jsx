@@ -25,22 +25,29 @@ import {
   approveAccountChangeRequest,
   approveAdminPermissionRequest,
   approveSellerPayout,
+  approveWalletChange,
+  applyWalletChange,
+  cancelWalletChange,
   fetchAccountChangeRequests,
   fetchAdminPayouts,
   fetchAdminPermissionRequests,
   fetchAdminPermissionStatus,
+  fetchWalletSettings,
   reconcileSellerPayout,
   rejectAccountChangeRequest,
   rejectAdminPermissionRequest,
   rejectSellerPayout,
+  rejectWalletChange,
   releaseSellerPayout,
   requestAdminPayoutPermission,
   requestSellerPayout,
+  requestWalletChange,
   verifySellerPayoutRefund,
 } from "../../api/admin/payoutAPI";
 import PayoutForm from "../../components/admin/Payout/PayoutForm";
 import AccountRequestsTable from "../../components/admin/Payout/AccountRequestsTable";
 import AdminPermissionsPanel from "../../components/admin/Payout/AdminPermissionsPanel";
+import PayMongoWalletPanel from "../../components/admin/Payout/PayMongoWalletPanel";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import PayoutMetrics from "../../components/seller/Payout/PayoutMetrics";
@@ -95,6 +102,7 @@ export default function AdminPayout() {
   const [accountRequests, setAccountRequests] = useState([]);
   const [permissionStatus, setPermissionStatus] = useState(null);
   const [permissionRequests, setPermissionRequests] = useState([]);
+  const [walletData, setWalletData] = useState(null);
   const actionInFlight = useRef(false);
 
   const adminRole = String(
@@ -148,16 +156,20 @@ export default function AdminPayout() {
           (adminRole ? adminRole === "admin" || adminRole === "super admin" : true);
 
         if (isAuthorized) {
-          const [payoutsRes, requestsRes] = await Promise.all([
+          const [payoutsRes, requestsRes, walletRes] = await Promise.all([
             fetchAdminPayouts(),
             typeof fetchAccountChangeRequests === "function"
               ? fetchAccountChangeRequests().catch(() => ({ requests: [] }))
               : Promise.resolve({ requests: [] }),
+            typeof fetchWalletSettings === "function"
+              ? fetchWalletSettings().catch(() => null)
+              : Promise.resolve(null),
           ]);
 
           if (!active) return;
           setData(payoutsRes);
           setAccountRequests(requestsRes.requests || []);
+          setWalletData(walletRes);
           setSelected((current) =>
             current
               ? payoutsRes.orders.find(
@@ -167,6 +179,7 @@ export default function AdminPayout() {
           );
         } else {
           setAccountRequests([]);
+          setWalletData(null);
           setData(null);
         }
 
@@ -237,7 +250,7 @@ export default function AdminPayout() {
         .includes(search.trim().toLowerCase()),
   );
 
-  const act = async (action) => {
+  const act = async (action, payload = {}) => {
     if (!selected || actionInFlight.current || loading || error) return;
     if (
       ["request", "approve", "reject", "reconcile"].includes(action) &&
@@ -262,7 +275,7 @@ export default function AdminPayout() {
         request: () => requestSellerPayout(id),
         approve: () => approveSellerPayout(id, approvalComment.trim()),
         reject: () => rejectSellerPayout(id, approvalComment.trim()),
-        release: () => releaseSellerPayout(id),
+        release: () => releaseSellerPayout(id, payload),
         reconcile: () => reconcileSellerPayout(id),
         refund: () =>
           verifySellerPayoutRefund(
@@ -272,14 +285,14 @@ export default function AdminPayout() {
           ),
       };
       const result = await actions[action]();
-      if (result.payout) setSelected(result.payout);
+      if (result?.payout) setSelected(result.payout);
       const messages = {
         request:
           "Payout approval initiated. One authorized admin approval is required before release.",
         approve: "Payout approved. Release remains a separate action.",
         reject: "Payout request rejected. No payout was released.",
         release:
-          "Payout released to the provider. Paid status requires provider confirmation.",
+          "Payout successfully sent to the seller's wallet and marked as Paid.",
         reconcile: "Payout status checked with the configured provider.",
         refund:
           "Refund evidence checked with PayMongo. The backend recalculated the payout.",
@@ -291,6 +304,7 @@ export default function AdminPayout() {
         setReturnRequestId("");
       }
       reload();
+      return result;
     } catch (actionFailure) {
       setActionError(
         payoutErrorMessage(
@@ -299,6 +313,7 @@ export default function AdminPayout() {
         ),
       );
       reload();
+      throw actionFailure;
     } finally {
       actionInFlight.current = false;
       setBusy(false);
@@ -314,6 +329,45 @@ export default function AdminPayout() {
       reload();
     } catch (err) {
       showSnackbar(payoutErrorMessage(err, "Failed to approve payout method change."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApproveSelectedAccountRequests = async (requests) => {
+    if (busy || !Array.isArray(requests) || requests.length === 0) return [];
+    setBusy(true);
+    const approvedIds = [];
+    const failures = [];
+
+    try {
+      for (const request of requests) {
+        try {
+          await approveAccountChangeRequest(request.requestId);
+          approvedIds.push(request.requestId);
+        } catch (approvalError) {
+          failures.push(
+            `${request.studentName || `Request ${request.requestId}`}: ${payoutErrorMessage(
+              approvalError,
+              "Approval failed.",
+            )}`,
+          );
+        }
+      }
+
+      if (approvedIds.length > 0) reload();
+      if (failures.length > 0) {
+        showSnackbar(
+          `${approvedIds.length ? `Approval recorded for ${approvedIds.length} request${approvedIds.length === 1 ? "" : "s"}. ` : ""}Some requests could not be approved: ${failures.join(" ")}`,
+          "error",
+        );
+      } else if (approvedIds.length > 0) {
+        showSnackbar(
+          `Approval recorded for ${approvedIds.length} payout method request${approvedIds.length === 1 ? "" : "s"}.`,
+          "success",
+        );
+      }
+      return approvedIds;
     } finally {
       setBusy(false);
     }
@@ -367,6 +421,72 @@ export default function AdminPayout() {
       reload();
     } catch (err) {
       showSnackbar(payoutErrorMessage(err, "Failed to reject admin permission."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // PayMongo Wallet handlers (Super Admin exclusive + 3 Admin approvals)
+  const handleRequestWalletChange = async (newWalletId, reason) => {
+    setBusy(true);
+    try {
+      await requestWalletChange(newWalletId, reason);
+      showSnackbar("PayMongo wallet change request submitted. Awaiting 3 admin approvals.", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to submit wallet change request."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApproveWalletChange = async (requestId, comment) => {
+    setBusy(true);
+    try {
+      const res = await approveWalletChange(requestId, comment);
+      showSnackbar(`Wallet change approval recorded (${res.approvalCount}/${res.approvalsRequired}).`, "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to approve wallet change."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRejectWalletChange = async (requestId, comment) => {
+    setBusy(true);
+    try {
+      await rejectWalletChange(requestId, comment);
+      showSnackbar("Wallet change request rejected.", "info");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to reject wallet change."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApplyWalletChange = async (requestId) => {
+    setBusy(true);
+    try {
+      await applyWalletChange(requestId);
+      showSnackbar("PayMongo payout wallet successfully updated!", "success");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to apply wallet change."), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCancelWalletChange = async (requestId) => {
+    setBusy(true);
+    try {
+      await cancelWalletChange(requestId);
+      showSnackbar("Wallet change request cancelled.", "info");
+      reload();
+    } catch (err) {
+      showSnackbar(payoutErrorMessage(err, "Failed to cancel wallet change."), "error");
     } finally {
       setBusy(false);
     }
@@ -429,7 +549,16 @@ export default function AdminPayout() {
       <Tabs
         value={currentTab}
         onChange={(e, val) => setCurrentTab(val)}
-        sx={{ borderBottom: 1, borderColor: "divider", mt: 3, mb: 2.5 }}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          mt: 3,
+          mb: 2.5,
+          "& .MuiTab-root": { minHeight: 48 },
+        }}
       >
         <Tab label="Payout Transactions" />
         <Tab
@@ -458,6 +587,19 @@ export default function AdminPayout() {
             )
           }
         />
+        {isSuperAdmin && (
+          <Tab
+            label={
+              <Badge
+                badgeContent={walletData?.activeRequest ? 1 : 0}
+                color="error"
+                sx={{ "& .MuiBadge-badge": { right: -10, top: 4 } }}
+              >
+                PayMongo Wallet
+              </Badge>
+            }
+          />
+        )}
       </Tabs>
 
       {/* TAB 0: PAYOUT TRANSACTIONS */}
@@ -483,6 +625,73 @@ export default function AdminPayout() {
                     "PayMongo outbound payouts are not enabled. You can review earnings, but sending is blocked."}
                 </Alert>
               )}
+
+              {/* Active Wallet Change Request Banner */}
+              {walletData?.activeRequest && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 2.5,
+                    bgcolor: theme.palette.mode === "dark" ? "rgba(30, 41, 59, 0.4)" : "#eff6ff",
+                    borderColor: walletData.activeRequest.status === "Approved" ? "success.main" : "primary.main",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1.5,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={800} color={walletData.activeRequest.status === "Approved" ? "success.main" : "primary.main"}>
+                      PayMongo Wallet Change Request #{walletData.activeRequest.requestId} ({walletData.activeRequest.approvalCount} / {walletData.activeRequest.approvalsRequired} Approvals)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Proposed new wallet: <code>{walletData.activeRequest.newWalletId}</code>.
+                      {walletData.activeRequest.status === "Approved"
+                        ? " 3 of 3 approvals reached! Ready for Super Admin to apply."
+                        : " Requires 3 administrator approvals before change can be applied."}
+                    </Typography>
+                  </Box>
+                  {isSuperAdmin ? (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      color={walletData.activeRequest.status === "Approved" ? "success" : "primary"}
+                      onClick={() => setCurrentTab(3)}
+                      sx={{ textTransform: "none", fontWeight: 700 }}
+                    >
+                      Manage in Wallet Tab
+                    </Button>
+                  ) : walletData.activeRequest.canCurrentUserApprove ? (
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="success"
+                        onClick={() => handleApproveWalletChange(walletData.activeRequest.requestId, "")}
+                        disabled={busy}
+                        sx={{ textTransform: "none", fontWeight: 700 }}
+                      >
+                        Approve Wallet Change
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        onClick={() => handleRejectWalletChange(walletData.activeRequest.requestId, "Rejected by payout admin")}
+                        disabled={busy}
+                        sx={{ textTransform: "none", fontWeight: 700 }}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Chip size="small" label="Vote recorded" color="default" sx={{ fontWeight: 600 }} />
+                  )}
+                </Paper>
+              )}
+
               <PayoutMetrics totals={data.totals} />
               <Paper
                 sx={{
@@ -619,17 +828,29 @@ export default function AdminPayout() {
                   }}
                 />
               ) : (
-                <PayoutCard
-                  orders={filtered}
-                  admin
-                  onReview={(payout) => {
-                    setSelected(payout);
-                    setActionError("");
-                    setRefundId("");
-                    setReturnRequestId("");
-                    setApprovalComment("");
+                <Paper
+                  component="section"
+                  variant="outlined"
+                  aria-label="Payout transactions card view"
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    borderRadius: 3.5,
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
                   }}
-                />
+                >
+                  <PayoutCard
+                    orders={filtered}
+                    admin
+                    onReview={(payout) => {
+                      setSelected(payout);
+                      setActionError("");
+                      setRefundId("");
+                      setReturnRequestId("");
+                      setApprovalComment("");
+                    }}
+                  />
+                </Paper>
               )}
             </>
           )}
@@ -643,6 +864,7 @@ export default function AdminPayout() {
           loading={loading}
           busy={busy}
           onApprove={handleApproveAccountRequest}
+          onApproveSelected={handleApproveSelectedAccountRequests}
           onReject={handleRejectAccountRequest}
         />
       )}
@@ -658,6 +880,23 @@ export default function AdminPayout() {
           onRequestPermission={handleRequestPermission}
           onApproveRequest={handleApprovePermissionRequest}
           onRejectRequest={handleRejectPermissionRequest}
+        />
+      )}
+
+      {/* TAB 3: PAYMONGO WALLET (SUPER ADMIN EXCLUSIVE) */}
+      {isSuperAdmin && currentTab === 3 && (
+        <PayMongoWalletPanel
+          walletData={walletData}
+          loading={loading}
+          busy={busy}
+          isSuperAdmin={isSuperAdmin}
+          isFinanceAdmin={isAuthorizedAdmin || isSuperAdmin}
+          onRequestChange={handleRequestWalletChange}
+          onApproveChange={handleApproveWalletChange}
+          onRejectChange={handleRejectWalletChange}
+          onApplyChange={handleApplyWalletChange}
+          onCancelChange={handleCancelWalletChange}
+          onRefresh={reload}
         />
       )}
 
@@ -687,10 +926,7 @@ export default function AdminPayout() {
         setReturnRequestId={setReturnRequestId}
         completedReturns={completedReturns}
         canReleasePayout={canReleasePayout}
-        onApprove={() => act("approve")}
-        onReject={() => act("reject")}
-        onRequestPayout={() => act("request")}
-        onRelease={() => act("release")}
+        onRelease={(password) => act("release", { password })}
         onRefund={() => act("refund")}
         onReconcile={() => act("reconcile")}
       />

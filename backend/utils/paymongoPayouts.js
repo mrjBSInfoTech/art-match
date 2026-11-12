@@ -22,10 +22,16 @@ export class PayoutProviderError extends Error {
 }
 const fail = (message, options) => { throw new PayoutProviderError(message, options); };
 const validInteger = value => Number.isSafeInteger(value) && value >= 0;
+let customWalletId = null;
+export const setCustomWalletId = (id) => {
+  customWalletId = id ? String(id).trim() : null;
+};
+export const getCustomWalletId = () => customWalletId;
+
 const config = () => {
   const key = String(process.env.PAYMONGO_SECRET_KEY || "").trim();
   const mode = /^sk_test_\S+$/.test(key) ? "test" : /^sk_live_\S+$/.test(key) ? "live" : "unconfigured";
-  const walletId = String(process.env.PAYMONGO_PAYOUT_WALLET_ID || "").trim();
+  const walletId = customWalletId || String(process.env.PAYMONGO_PAYOUT_WALLET_ID || "").trim();
   const feeText = String(process.env.PAYMONGO_PAYOUT_FEE_RESERVE_CENTAVOS || "").trim();
   const feeReserveCentavos = /^\d+$/.test(feeText) && validInteger(Number(feeText)) ? Number(feeText) : null;
   let message = null;

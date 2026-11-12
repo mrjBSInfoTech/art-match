@@ -6,8 +6,8 @@ test("REQUIRED_PAYOUT_APPROVALS is 1 for immediate transaction approval", () => 
   assert.equal(REQUIRED_PAYOUT_APPROVALS, 1);
 });
 
-test("REQUIRED_PAYOUT_ACCOUNT_APPROVALS is 3 for student payout method change", () => {
-  assert.equal(REQUIRED_PAYOUT_ACCOUNT_APPROVALS, 3);
+test("REQUIRED_PAYOUT_ACCOUNT_APPROVALS is 1 for student payout method change", () => {
+  assert.equal(REQUIRED_PAYOUT_ACCOUNT_APPROVALS, 1);
 });
 
 test("isFinanceAdmin authorization rules", () => {

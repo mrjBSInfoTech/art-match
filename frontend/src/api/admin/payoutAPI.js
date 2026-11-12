@@ -19,7 +19,7 @@ export const fetchAdminPayouts = async () => (await api.get("/")).data;
 export const requestSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/request`, {})).data;
 export const approveSellerPayout = async (payoutId, comment = "") => (await api.post(`/${encodeURIComponent(payoutId)}/approve`, comment.trim() ? { comment: comment.trim() } : {})).data;
 export const rejectSellerPayout = async (payoutId, comment) => (await api.post(`/${encodeURIComponent(payoutId)}/reject`, { comment: comment.trim() })).data;
-export const releaseSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/release`, {})).data;
+export const releaseSellerPayout = async (payoutId, payload = {}) => (await api.post(`/${encodeURIComponent(payoutId)}/release`, payload)).data;
 export const fetchSellerPayoutApprovals = async (payoutId) => (await api.get(`/${encodeURIComponent(payoutId)}/approvals`)).data;
 export const reconcileSellerPayout = async (payoutId) => (await api.post(`/${encodeURIComponent(payoutId)}/reconcile`, {})).data;
 export const verifySellerPayoutRefund = async (payoutId, providerRefundId, returnRequestId) => (await api.post(
@@ -38,4 +38,17 @@ export const requestAdminPayoutPermission = async (reason = "") => (await api.po
 export const fetchAdminPermissionRequests = async () => (await api.get("/permissions")).data;
 export const approveAdminPermissionRequest = async (requestId) => (await api.post(`/permissions/${encodeURIComponent(requestId)}/approve`, {})).data;
 export const rejectAdminPermissionRequest = async (requestId, reason = "") => (await api.post(`/permissions/${encodeURIComponent(requestId)}/reject`, { reason: reason.trim() })).data;
+
+// PayMongo Wallet Management (Super Admin exclusive + 3 Admin Approvals)
+export const fetchWalletSettings = async () => (await api.get("/wallet")).data;
+export const requestWalletChange = async (newWalletId, reason = "") =>
+  (await api.post("/wallet/request", { newWalletId: newWalletId.trim(), reason: reason.trim() })).data;
+export const approveWalletChange = async (requestId, comment = "") =>
+  (await api.post(`/wallet/request/${encodeURIComponent(requestId)}/approve`, { comment: comment.trim() })).data;
+export const rejectWalletChange = async (requestId, comment = "") =>
+  (await api.post(`/wallet/request/${encodeURIComponent(requestId)}/reject`, { comment: comment.trim() })).data;
+export const applyWalletChange = async (requestId) =>
+  (await api.post(`/wallet/request/${encodeURIComponent(requestId)}/apply`, {})).data;
+export const cancelWalletChange = async (requestId) =>
+  (await api.post(`/wallet/request/${encodeURIComponent(requestId)}/cancel`, {})).data;
 

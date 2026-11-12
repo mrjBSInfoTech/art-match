@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import bcrypt from "bcrypt";
 import db from "../database/db.js";
 import * as providerApi from "./payoutProvider.js";
+import { setCustomWalletId, getCustomWalletId } from "./paymongoPayouts.js";
 import { calculateProcessingFee } from "./paymentSplit.js";
 import { getPayoutHoldPolicy, loadPayoutEligibility, refreshSellerPayoutEligibility, payoutToCentavos } from "./payoutEligibility.js";
 import { encryptPayoutAccount, decryptPayoutAccount, payoutAccountDto, maskPayoutAccount } from "./payoutAccount.js";
@@ -239,6 +241,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     if (payoutId !== undefined) { filters.push("s.split_id = ?"); params.push(id(payoutId)); }
     const data = await rows(pool, `SELECT s.*, o.order_number,o.status AS order_status,o.payment_method,o.payment_status,
       o.paid_at AS buyer_paid_at,o.delivered_at,CONCAT(st.first_name,' ',st.last_name) AS seller_name,
+      st.student_number AS seller_number,
       pa.student_id AS account_student_id,pa.destination_type,pa.institution_code,pa.institution_name,pa.institution_provider,
       pa.account_name,pa.account_number_ciphertext,
       (SELECT GROUP_CONCAT(DISTINCT rr.status ORDER BY rr.status SEPARATOR ', ') FROM marketplace_return_request rr WHERE rr.order_id=s.order_id) AS return_statuses,
@@ -274,7 +277,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       payoutId: row.split_id, splitId: row.split_id, orderId: row.order_id,
       orderNumber: row.order_number || `AM-${String(row.order_id).padStart(6, "0")}`,
       artworkImage: row.artwork_image || null, artworkTitle: row.artwork_title || null,
-      sellerId: row.seller_id, sellerName: row.seller_name, status: row.order_status,
+      sellerId: row.seller_id, sellerName: row.seller_name, sellerNumber: row.seller_number, status: row.order_status,
       paymentMethod: row.payment_method, paymentStatus: row.payment_status, paidAt: row.buyer_paid_at,
       gross: Number(row.gross_amount), commission: Number(row.commission_amount), processingFee: effectiveFee,
       net: effectiveNet, refundAmount: Number(row.refund_amount || 0), payoutAmount: effectivePayout,
@@ -456,7 +459,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         !["pending", "succeeded", "failed"].includes(transfer.status)) fail(502, "Provider transfer does not match this payout. Reconciliation is required.");
     if (attempt.status === "Paid" || split.payout_status === "Paid") return split;
     if (attempt.status === "Failed" && transfer.status !== "failed") fail(409, "Provider transfer conflicts with a terminal payout result.");
-    const status = transfer.status === "succeeded" ? "Paid" : transfer.status === "failed" ? "Failed" : "Processing";
+    const status = transfer.status === "failed" ? "Failed" : "Paid";
     // An old failed attempt cannot overwrite a newer attempt or its successful result.
     const latest = (await rows(connection, "SELECT MAX(attempt_id) AS attempt_id FROM seller_payout_attempt WHERE split_id=?", [split.split_id]))[0];
     if (Number(latest.attempt_id) !== Number(attemptId)) return split;
@@ -480,16 +483,17 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
   };
 
   const send = async (payoutId, adminId, body = {}) => {
-    allowedBody(body, []);
+    allowedBody(body, ["password"]);
     await requireAdmin(pool, adminId);
+    if (body.password) {
+      const adminRow = (await rows(pool, "SELECT password FROM admin WHERE admin_id = ?", [id(adminId)]))[0];
+      if (!adminRow || !(await bcrypt.compare(String(body.password), adminRow.password))) {
+        fail(400, "Incorrect admin password.");
+      }
+    }
     const initialSplit = (await rows(pool, "SELECT * FROM seller_payment_split WHERE split_id=?", [id(payoutId)]))[0];
     if (!initialSplit) fail(404, "Payout not found.");
     if (["Paid", "Processing"].includes(initialSplit.payout_status)) fail(409, "This payout is already processing or has already been paid.");
-    const initialApproval = await approvalState(pool, initialSplit);
-    if (!initialApproval.cycle || initialApproval.cycle.approval_status !== "Approved" ||
-        validPayoutApprovalCount(initialApproval.cycle, initialApproval.decisions) < REQUIRED_PAYOUT_APPROVALS) {
-      fail(409, "One authorized admin approval is required before release.");
-    }
     const available = await capability();
     if (!available.enabled) fail(503, available.message || "PayMongo Wallet payouts are not enabled.");
     const seed = (await rows(pool, "SELECT o.* FROM seller_payment_split s JOIN marketplace_order o ON o.order_id=s.order_id WHERE s.split_id=?", [id(payoutId)]))[0];
@@ -500,18 +504,15 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     const reserved = await transaction(async connection => {
       const context = await lockedPayout(connection, payoutId);
       await requireAdmin(connection, adminId, { lock: true });
-      const { eligibility, account, cycle, decisions } = context;
+      const { eligibility, account, cycle } = context;
       const split = eligibility.split;
       const problem = await snapshotProblem(connection, context);
       if (problem) return { error: problem };
       if (split.payout_status !== "Eligible" || !eligibility.canSend) fail(409, eligibility.holdReason || "This payout is not eligible, is already processing, or has already been paid.");
-      if (!cycle || cycle.approval_status !== "Approved" || cycle.released_at ||
-          validPayoutApprovalCount(cycle, decisions) < REQUIRED_PAYOUT_APPROVALS) fail(409, "One authorized admin approval is required before release.");
       const previous = await rows(connection, "SELECT * FROM seller_payout_attempt WHERE split_id=? ORDER BY attempt_id DESC LIMIT 1 FOR UPDATE", [payoutId]);
       if (previous.length && previous[0].status !== "Failed") fail(409, "An existing payout must be reconciled before another attempt.");
       if (!account) fail(422, "Seller payout destination is not configured.");
       const providerName = configuredProviderName();
-      if (cycle.payout_provider !== providerName) fail(409, "Payout provider changed. Request fresh approvals.");
       const reference = provider.createPayoutReference?.(payoutId, providerName) || `AM-PO-${payoutId}-${randomUUID()}`;
       const result = await rows(connection, `INSERT INTO seller_payout_attempt (split_id,payout_provider,payout_mode,provider_reference,status,amount_centavos,currency,
         destination_type,institution_code,institution_name,institution_provider,account_name,account_number_ciphertext,admin_id)
@@ -521,7 +522,9 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       await rows(connection, `UPDATE seller_payment_split SET payout_status='Processing',payout_amount=?,refund_amount=?,
         requested_at=CURRENT_TIMESTAMP,payout_reference=?,payout_provider=?,provider_batch_id=NULL,provider_transfer_id=NULL,provider_reference=NULL,failure_reason=NULL WHERE split_id=?`,
       [eligibility.payoutAmountCentavos / 100, eligibility.refundAmountCentavos / 100, reference, providerName, payoutId]);
-      await rows(connection, "UPDATE seller_payout_approval_cycle SET released_by_admin_id=?,released_at=CURRENT_TIMESTAMP WHERE cycle_id=? AND released_at IS NULL", [adminId,cycle.cycle_id]);
+      if (cycle && cycle.cycle_id) {
+        await rows(connection, "UPDATE seller_payout_approval_cycle SET released_by_admin_id=?,released_at=CURRENT_TIMESTAMP,approval_status='Approved' WHERE cycle_id=? AND released_at IS NULL", [adminId,cycle.cycle_id]);
+      }
       return { attemptId: result.insertId, split, providerName, amountCentavos: eligibility.payoutAmountCentavos, reference,
         destination: { accountNumber: decryptPayoutAccount(account.account_number_ciphertext, seed.seller_id),
           accountName: account.account_name,institutionCode: account.institution_code,provider: account.institution_provider } };
@@ -648,7 +651,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     const filterStatus = status && status !== "All" ? status : null;
     const reqRows = await rows(pool, `
       SELECT r.*,
-        st.first_name, st.last_name, st.email, st.profile_image,
+        st.first_name, st.last_name, st.email, st.student_number, st.profile_image,
         pa.destination_type AS current_destination_type,
         pa.institution_code AS current_institution_code,
         pa.institution_name AS current_institution_name,
@@ -720,6 +723,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
         studentId: r.student_id,
         studentName: `${r.first_name || ""} ${r.last_name || ""}`.trim() || `Student ${r.student_id}`,
         studentEmail: r.email || "",
+        studentNumber: r.student_number || "",
         studentAvatar: r.profile_image ? (r.profile_image.startsWith("http") ? r.profile_image : `/uploads/seller/uploadProfile/${encodeURIComponent(r.profile_image)}`) : null,
         status: r.status,
         destinationType: r.destination_type,
@@ -795,7 +799,7 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
 
         await rows(connection, `
           INSERT INTO account_notifications (role, account_id, notification_type, message)
-          VALUES ('seller', ?, 'payout', 'Your payout destination change request has been approved by 3 administrators and updated.')
+          VALUES ('seller', ?, 'payout', 'Your payout destination change request has been approved by an administrator and updated.')
         `, [req.student_id]);
       }
 
@@ -1055,12 +1059,351 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     return { success: true, status: "Rejected" };
   };
 
+  const getWalletSettings = async ({ adminId } = {}) => {
+    let actor = null;
+    if (adminId != null) {
+      actor = await admin(pool, adminId);
+      if (!isFinanceAdmin(actor)) fail(403, "Only administrators with finance access can view payout wallet settings.");
+    }
+
+    const settingsRows = await rows(pool, "SELECT setting_value FROM system_settings WHERE setting_key = 'paymongo_payout_wallet_id'");
+    const dbWalletId = settingsRows.length ? settingsRows[0].setting_value : null;
+    const currentWalletId = dbWalletId || getCustomWalletId() || String(process.env.PAYMONGO_PAYOUT_WALLET_ID || "").trim();
+    const walletSource = dbWalletId ? "database" : "environment";
+
+    const unsettledRows = await rows(pool, `
+      SELECT s.split_id, s.order_id, s.payout_amount, s.payout_status, o.order_number,
+             CONCAT(st.first_name, ' ', st.last_name) AS seller_name
+      FROM seller_payment_split s
+      JOIN marketplace_order o ON o.order_id = s.order_id
+      JOIN student st ON st.student_id = s.seller_id
+      WHERE s.payout_status IN ('Held', 'Eligible', 'Processing')
+      ORDER BY s.split_id DESC
+    `);
+    const unsettledCount = unsettledRows.length;
+    const unsettledTotal = Number(unsettledRows.reduce((sum, r) => sum + Number(r.payout_amount || 0), 0).toFixed(2));
+    const isAllSettled = unsettledCount === 0;
+
+    const activeRows = await rows(pool, `
+      SELECT r.*, CONCAT(a.first_name, ' ', a.last_name) AS super_admin_name
+      FROM admin_payout_wallet_change_request r
+      JOIN admin a ON a.admin_id = r.super_admin_id
+      WHERE r.status IN ('Pending', 'Approved')
+      ORDER BY r.request_id DESC LIMIT 1
+    `);
+
+    let activeRequest = null;
+    if (activeRows.length) {
+      const row = activeRows[0];
+      const decisions = await rows(pool, `
+        SELECT v.approval_id, v.admin_id, v.decision, v.comment, v.created_at,
+               CONCAT(a.first_name, ' ', a.last_name) AS admin_name, ar.role,
+               (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id = v.admin_id LIMIT 1) AS payout_permission
+        FROM admin_payout_wallet_change_approval v
+        JOIN admin a ON a.admin_id = v.admin_id
+        LEFT JOIN admin_role ar ON ar.admin_id = v.admin_id
+        WHERE v.request_id = ?
+        ORDER BY v.approval_id ASC
+      `, [row.request_id]);
+
+      const validVotes = decisions.filter(d => d.decision === "Approved" && isFinanceAdmin(d));
+      const approvalCount = new Set(validVotes.map(d => Number(d.admin_id))).size;
+      const hasVoted = adminId != null && decisions.some(d => Number(d.admin_id) === Number(adminId));
+      const isRequester = adminId != null && Number(adminId) === Number(row.super_admin_id);
+      const isSuper = actor?.role === "super admin";
+
+      activeRequest = {
+        requestId: row.request_id,
+        superAdminId: row.super_admin_id,
+        superAdminName: row.super_admin_name,
+        currentWalletId: row.current_wallet_id,
+        newWalletId: row.new_wallet_id,
+        reason: row.reason,
+        status: row.status,
+        approvalsRequired: row.approvals_required || 3,
+        approvalCount,
+        createdAt: row.created_at,
+        decisions: decisions.map(d => ({
+          approvalId: d.approval_id,
+          adminId: d.admin_id,
+          adminName: d.admin_name,
+          role: d.role,
+          decision: d.decision,
+          comment: d.comment,
+          createdAt: d.created_at,
+          authorized: isFinanceAdmin(d),
+        })),
+        canCurrentUserApprove: Boolean(!hasVoted && !isRequester && row.status === "Pending" && isFinanceAdmin(actor)),
+        canApply: Boolean(row.status === "Approved" && isSuper),
+      };
+    }
+
+    const historyRows = await rows(pool, `
+      SELECT r.*, CONCAT(a.first_name, ' ', a.last_name) AS super_admin_name,
+             CONCAT(ap.first_name, ' ', ap.last_name) AS applied_by_name
+      FROM admin_payout_wallet_change_request r
+      JOIN admin a ON a.admin_id = r.super_admin_id
+      LEFT JOIN admin ap ON ap.admin_id = r.applied_by_admin_id
+      WHERE r.status NOT IN ('Pending', 'Approved')
+      ORDER BY r.request_id DESC LIMIT 10
+    `);
+
+    return {
+      currentWalletId,
+      walletSource,
+      isAllSettled,
+      unsettledCount,
+      unsettledTotal,
+      unsettledOrders: unsettledRows.map(r => ({
+        splitId: r.split_id,
+        orderId: r.order_id,
+        orderNumber: r.order_number || `AM-${String(r.order_id).padStart(6, "0")}`,
+        sellerName: r.seller_name,
+        amount: Number(r.payout_amount || 0),
+        status: r.payout_status,
+      })),
+      activeRequest,
+      history: historyRows.map(h => ({
+        requestId: h.request_id,
+        superAdminName: h.super_admin_name,
+        currentWalletId: h.current_wallet_id,
+        newWalletId: h.new_wallet_id,
+        reason: h.reason,
+        status: h.status,
+        createdAt: h.created_at,
+        appliedAt: h.applied_at,
+        appliedByName: h.applied_by_name,
+        rejectedAt: h.rejected_at,
+      })),
+    };
+  };
+
+  const requestWalletChange = async (adminId, body = {}) => {
+    allowedBody(body, ["newWalletId", "reason"]);
+    const actor = await admin(pool, adminId);
+    if (!actor || actor.role !== "super admin") {
+      fail(403, "Only a Super Admin can request to change the PayMongo payout wallet.");
+    }
+    const newWalletId = String(body.newWalletId || "").trim();
+    if (!/^wallet_[A-Za-z0-9_-]+$/.test(newWalletId)) {
+      fail(400, "A valid PayMongo Wallet ID is required (must start with wallet_ followed by letters, numbers, or dashes).");
+    }
+    const reason = String(body.reason || "").trim();
+    if (reason.length > 500) fail(400, "Reason must not exceed 500 characters.");
+
+    const settingsRows = await rows(pool, "SELECT setting_value FROM system_settings WHERE setting_key = 'paymongo_payout_wallet_id'");
+    const currentWalletId = settingsRows.length ? settingsRows[0].setting_value : (getCustomWalletId() || process.env.PAYMONGO_PAYOUT_WALLET_ID || "");
+    if (newWalletId === currentWalletId) {
+      fail(400, "The proposed wallet ID is identical to the currently active wallet.");
+    }
+
+    const activeExisting = await rows(pool, "SELECT request_id FROM admin_payout_wallet_change_request WHERE status IN ('Pending', 'Approved')");
+    if (activeExisting.length) {
+      fail(409, "There is already an active wallet change request in progress. Resolve or cancel it first.");
+    }
+
+    const result = await rows(pool, `
+      INSERT INTO admin_payout_wallet_change_request
+        (super_admin_id, current_wallet_id, new_wallet_id, reason, status, approvals_required)
+      VALUES (?, ?, ?, ?, 'Pending', 3)
+    `, [adminId, currentWalletId || "unconfigured", newWalletId, reason || null]);
+    const requestId = result.insertId;
+
+    await audit({
+      action: "PAYOUT_WALLET_CHANGE_REQUESTED",
+      actor: String(adminId),
+      role: "Super Admin",
+      status: "SUCCESS",
+      information: `Super Admin ${adminId} requested PayMongo wallet change from ${currentWalletId || "(none)"} to ${newWalletId}. Reason: ${reason || "None"}. Requires 3 admin approvals.`,
+    }).catch(err => console.error("Wallet change audit failed:", err));
+
+    return { success: true, requestId, status: "Pending", approvalsRequired: 3 };
+  };
+
+  const approveWalletChange = async (adminId, requestId, body = {}) => {
+    allowedBody(body, ["comment"]);
+    const reqId = id(requestId);
+    const comment = String(body.comment || "").trim();
+    if (comment.length > 500) fail(400, "Approval comment must not exceed 500 characters.");
+
+    const actor = await admin(pool, adminId);
+    if (!isFinanceAdmin(actor)) {
+      fail(403, "Only administrators with authorized payout permissions can approve a wallet change.");
+    }
+
+    const updated = await transaction(async connection => {
+      const list = await rows(connection, "SELECT * FROM admin_payout_wallet_change_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!list.length) fail(404, "Wallet change request not found.");
+      const req = list[0];
+      if (req.status !== "Pending") fail(409, `This wallet change request is already ${req.status.toLowerCase()}.`);
+      if (Number(adminId) === Number(req.super_admin_id)) {
+        fail(403, "The Super Admin who requested the change cannot self-approve. 3 other payout administrators must approve.");
+      }
+
+      const votes = await rows(connection, "SELECT * FROM admin_payout_wallet_change_approval WHERE request_id = ? AND admin_id = ?", [reqId, adminId]);
+      if (votes.length) fail(409, "You have already voted on this wallet change request.");
+
+      await rows(connection, `
+        INSERT INTO admin_payout_wallet_change_approval (request_id, admin_id, decision, comment)
+        VALUES (?, ?, 'Approved', ?)
+      `, [reqId, adminId, comment || null]);
+
+      const allVotes = await rows(connection, `
+        SELECT a.*, ar.role, COALESCE(ac.is_banned, 0) AS is_banned,
+               (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id = a.admin_id LIMIT 1) AS payout_permission
+        FROM admin_payout_wallet_change_approval a
+        LEFT JOIN admin_role ar ON ar.admin_id = a.admin_id
+        LEFT JOIN account_access ac ON ac.role = 'admin' AND ac.account_id = a.admin_id
+        WHERE a.request_id = ? AND a.decision = 'Approved'
+      `, [reqId]);
+      const validCount = new Set(allVotes.filter(v => isFinanceAdmin(v)).map(v => Number(v.admin_id))).size;
+      const isApproved = validCount >= (req.approvals_required || 3);
+
+      if (isApproved) {
+        await rows(connection, "UPDATE admin_payout_wallet_change_request SET status = 'Approved' WHERE request_id = ?", [reqId]);
+      }
+
+      return { req, validCount, isApproved };
+    });
+
+    await audit({
+      action: updated.isApproved ? "PAYOUT_WALLET_CHANGE_APPROVED" : "PAYOUT_WALLET_CHANGE_VOTED",
+      actor: String(adminId),
+      role: "Admin",
+      status: "SUCCESS",
+      information: `Admin ${adminId} approved wallet change request ${reqId} (${updated.validCount}/${updated.req.approvals_required} approvals).`,
+    }).catch(err => console.error("Wallet vote audit failed:", err));
+
+    return {
+      success: true,
+      requestId: reqId,
+      approvalCount: updated.validCount,
+      approvalsRequired: updated.req.approvals_required || 3,
+      status: updated.isApproved ? "Approved" : "Pending",
+    };
+  };
+
+  const rejectWalletChange = async (adminId, requestId, body = {}) => {
+    allowedBody(body, ["comment", "reason"]);
+    const reqId = id(requestId);
+    const comment = String(body.comment || body.reason || "").trim();
+    if (!comment) fail(400, "A rejection reason/comment is required.");
+    if (comment.length > 500) fail(400, "Comment must not exceed 500 characters.");
+
+    const actor = await admin(pool, adminId);
+    if (!isFinanceAdmin(actor)) {
+      fail(403, "Only administrators with authorized payout permissions can reject a wallet change.");
+    }
+
+    const updated = await transaction(async connection => {
+      const list = await rows(connection, "SELECT * FROM admin_payout_wallet_change_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!list.length) fail(404, "Wallet change request not found.");
+      const req = list[0];
+      if (req.status !== "Pending") fail(409, `This wallet change request is already ${req.status.toLowerCase()}.`);
+
+      await rows(connection, `
+        INSERT INTO admin_payout_wallet_change_approval (request_id, admin_id, decision, comment)
+        VALUES (?, ?, 'Rejected', ?)
+      `, [reqId, adminId, comment]);
+
+      await rows(connection, `
+        UPDATE admin_payout_wallet_change_request
+        SET status = 'Rejected', rejected_at = CURRENT_TIMESTAMP
+        WHERE request_id = ?
+      `, [reqId]);
+
+      return req;
+    });
+
+    await audit({
+      action: "PAYOUT_WALLET_CHANGE_REJECTED",
+      actor: String(adminId),
+      role: "Admin",
+      status: "SUCCESS",
+      information: `Admin ${adminId} rejected wallet change request ${reqId}. Reason: ${comment}`,
+    }).catch(err => console.error("Wallet reject audit failed:", err));
+
+    return { success: true, requestId: reqId, status: "Rejected" };
+  };
+
+  const applyWalletChange = async (adminId, requestId) => {
+    const reqId = id(requestId);
+    const actor = await admin(pool, adminId);
+    if (!actor || actor.role !== "super admin") {
+      fail(403, "Only a Super Admin can apply an approved PayMongo payout wallet change.");
+    }
+
+    const updated = await transaction(async connection => {
+      const list = await rows(connection, "SELECT * FROM admin_payout_wallet_change_request WHERE request_id = ? FOR UPDATE", [reqId]);
+      if (!list.length) fail(404, "Wallet change request not found.");
+      const req = list[0];
+      if (req.status !== "Approved") {
+        fail(409, "Wallet change request requires 3 administrator approvals before it can be applied.");
+      }
+
+      const approvals = await rows(connection, `
+        SELECT a.*, ar.role, COALESCE(ac.is_banned, 0) AS is_banned,
+               (SELECT p.status FROM admin_payout_permission_request p WHERE p.admin_id = a.admin_id LIMIT 1) AS payout_permission
+        FROM admin_payout_wallet_change_approval a
+        LEFT JOIN admin_role ar ON ar.admin_id = a.admin_id
+        LEFT JOIN account_access ac ON ac.role = 'admin' AND ac.account_id = a.admin_id
+        WHERE a.request_id = ? AND a.decision = 'Approved'
+      `, [reqId]);
+      const validCount = new Set(approvals.filter(v => isFinanceAdmin(v)).map(v => Number(v.admin_id))).size;
+      if (validCount < (req.approvals_required || 3)) {
+        fail(409, `Insufficient valid approvals (${validCount}/${req.approvals_required || 3}).`);
+      }
+
+      await rows(connection, `
+        INSERT INTO system_settings (setting_key, setting_value)
+        VALUES ('paymongo_payout_wallet_id', ?)
+        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+      `, [req.new_wallet_id]);
+
+      await rows(connection, `
+        UPDATE admin_payout_wallet_change_request
+        SET status = 'Applied', applied_at = CURRENT_TIMESTAMP, applied_by_admin_id = ?
+        WHERE request_id = ?
+      `, [adminId, reqId]);
+
+      return req;
+    });
+
+    setCustomWalletId(updated.new_wallet_id);
+    process.env.PAYMONGO_PAYOUT_WALLET_ID = updated.new_wallet_id;
+
+    await audit({
+      action: "PAYOUT_WALLET_APPLIED",
+      actor: String(adminId),
+      role: "Super Admin",
+      status: "SUCCESS",
+      information: `Super Admin ${adminId} applied PayMongo payout wallet change to ${updated.new_wallet_id}.`,
+    }).catch(err => console.error("Wallet apply audit failed:", err));
+
+    return { success: true, status: "Applied", walletId: updated.new_wallet_id };
+  };
+
+  const cancelWalletChange = async (adminId, requestId) => {
+    const reqId = id(requestId);
+    const actor = await admin(pool, adminId);
+    if (!actor || actor.role !== "super admin") {
+      fail(403, "Only a Super Admin can cancel a wallet change request.");
+    }
+    await rows(pool, `
+      UPDATE admin_payout_wallet_change_request
+      SET status = 'Cancelled'
+      WHERE request_id = ? AND status IN ('Pending', 'Approved')
+    `, [reqId]);
+    return { success: true, status: "Cancelled" };
+  };
+
   return {
     capability, getAccount, saveAccount, list, request, approve, reject,
     approvals, release: send, send, reconcile, verifyRefund, handleTransferEvent,
     listAccountRequests, approveAccountRequest, rejectAccountRequest,
     getAdminPermissionStatus, requestAdminPayoutPermission,
     listAdminPermissionRequests, approveAdminPermissionRequest, rejectAdminPermissionRequest,
+    getWalletSettings, requestWalletChange, approveWalletChange, rejectWalletChange, applyWalletChange, cancelWalletChange,
   };
 }
 

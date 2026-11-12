@@ -63,11 +63,18 @@ export default function ArtworkAdditionalDetails({ artwork, category, RowCompone
   let fields;
 
   if (category === "fine_art") {
+    const stock = wholeNumber(artwork.stock_available ?? details.stock_available);
+    const sold = Number(artwork.sold_quantity);
+    const remaining = isArtworkSoldOut(artwork) ? 0 : stock === null ? null
+      : Math.max(0, stock - (Number.isFinite(sold) && sold > 0 ? sold : 0));
     fields = [
       ["Fragile", booleanLabel(details.is_fragile)],
       ["Sensitive to humidity", booleanLabel(details.humidity_sensitive)],
       ["Sensitive to direct light", booleanLabel(details.light_sensitive)],
     ];
+    if (remaining !== null) {
+      fields.push(["Stock available", remaining.toLocaleString()]);
+    }
   } else if (category === "product") {
     const stock = wholeNumber(artwork.stock_available ?? details.stock_available);
     const sold = Number(artwork.sold_quantity);

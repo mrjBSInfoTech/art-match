@@ -8,17 +8,22 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
+import { getArtworkRemainingStock } from "../../../utils/artworkAvailability";
 
 export default function CustomizeOrderDialog({
   open,
   artwork,
+  initialQuantity = 1,
   onClose,
   onConfirm,
   isCustomizable = true,
@@ -28,14 +33,25 @@ export default function CustomizeOrderDialog({
   const [step, setStep] = useState(isCustomizable ? "choice" : "note");
   const [selectedChoice, setSelectedChoice] = useState("");
   const [details, setDetails] = useState("");
+  const [quantity, setQuantity] = useState(initialQuantity);
   const [error, setError] = useState("");
   const [sampleImageFailed, setSampleImageFailed] = useState(false);
+
+  const remainingStock = getArtworkRemainingStock(artwork);
+  const isCustom =
+    String(artwork?.product_type || "").trim().toLowerCase() === "customize";
+  const maxStock = remainingStock !== null && !isCustom ? remainingStock : 999999;
 
   useEffect(() => {
     if (open) {
       setStep(isCustomizable ? "choice" : "note");
       setSelectedChoice("");
       setDetails("");
+      setQuantity(
+        maxStock < 999999
+          ? Math.min(Math.max(1, initialQuantity || 1), maxStock)
+          : Math.max(1, initialQuantity || 1),
+      );
       setError("");
       setSampleImageFailed(false);
     }
@@ -46,12 +62,14 @@ export default function CustomizeOrderDialog({
     artwork?.product_sample_image,
     artwork?.image,
     isCustomizable,
+    initialQuantity,
+    maxStock,
   ]);
 
   const addSelection = async (orderNote = "") => {
     setError("");
     try {
-      await onConfirm(orderNote);
+      await onConfirm(orderNote, quantity);
       onClose();
     } catch (submitError) {
       setError(submitError.message || "Unable to add this artwork to your cart.");
@@ -236,6 +254,116 @@ export default function CustomizeOrderDialog({
               helperText={error || `${details.length}/2000`}
               disabled={isSubmitting}
             />
+            <Box
+              sx={{
+                p: 1.5,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.03)"
+                    : "rgba(0, 0, 0, 0.02)",
+              }}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <Box>
+                  <Typography variant="body2" fontWeight={700}>
+                    Quantity
+                  </Typography>
+                  {remainingStock !== null && !isCustom ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {remainingStock} available (Max: {remainingStock})
+                    </Typography>
+                  ) : isCustom ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Custom made to order
+                    </Typography>
+                  ) : null}
+                </Box>
+                <Stack direction="row" alignItems="center" spacing={0.75}>
+                  <IconButton
+                    size="small"
+                    disabled={quantity <= 1 || isSubmitting}
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    sx={{
+                      border: "1px solid",
+                      borderColor: "divider",
+                      width: 32,
+                      height: 32,
+                    }}
+                    aria-label="Decrease quantity"
+                  >
+                    <RemoveIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                  <TextField
+                    size="small"
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        setQuantity(1);
+                        return;
+                      }
+                      const val = Number(raw);
+                      if (Number.isSafeInteger(val)) {
+                        setQuantity(Math.min(Math.max(1, val), maxStock));
+                      }
+                    }}
+                    inputProps={{
+                      min: 1,
+                      max: maxStock,
+                      style: {
+                        textAlign: "center",
+                        width: 38,
+                        padding: "4px 4px",
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                      },
+                    }}
+                    sx={{
+                      width: 52,
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 1.5,
+                        height: 32,
+                      },
+                      "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
+                        {
+                          display: "none",
+                        },
+                      "& input[type=number]": {
+                        MozAppearance: "textfield",
+                      },
+                    }}
+                  />
+                  <IconButton
+                    size="small"
+                    disabled={
+                      (maxStock < 999999 && quantity >= maxStock) ||
+                      isSubmitting
+                    }
+                    onClick={() =>
+                      setQuantity((prev) => Math.min(maxStock, prev + 1))
+                    }
+                    sx={{
+                      border: "1px solid",
+                      borderColor: "divider",
+                      width: 32,
+                      height: 32,
+                    }}
+                    aria-label="Increase quantity"
+                  >
+                    <AddIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Stack>
+              </Stack>
+            </Box>
+            {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         )}
       </DialogContent>
@@ -274,7 +402,7 @@ export default function CustomizeOrderDialog({
             onClick={handleAddWithDetails}
             disabled={isSubmitting}
           >
-            Add to cart - ₱{Number(artwork?.price || 0).toLocaleString()}
+            Add to cart - ₱{(Number(artwork?.price || 0) * (quantity || 1)).toLocaleString()}
           </Button>
           </>
         )}

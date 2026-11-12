@@ -145,10 +145,30 @@ function ArtworkInfo({
   const colors = artwork
     ? toColorList(artwork.color_used || artwork.colors_used)
     : [];
+  let artworkDetails = artwork?.artwork_details;
+  if (typeof artworkDetails === "string") {
+    try {
+      artworkDetails = JSON.parse(artworkDetails);
+    } catch {
+      artworkDetails = null;
+    }
+  }
+  if (!artworkDetails || typeof artworkDetails !== "object" || Array.isArray(artworkDetails)) {
+    artworkDetails = {};
+  }
+  const productType = String(artwork?.product_type || "Premade").trim().toLowerCase();
+  const isDigitalProduct = productType === "digital" || String(artwork?.art_type || "").trim().toLowerCase() === "digital";
+  const isPhysicalProduct = productType === "premade" && !isDigitalProduct;
+  const soldQuantity = Number(artwork?.sold_quantity);
+  const isSold = Boolean(artwork) && (
+    (Number.isSafeInteger(soldQuantity) && soldQuantity > 0)
+    || [true, 1, "1", "true"].includes(artwork.is_sold)
+    || String(artwork.status || "").trim().toLowerCase() === "sold"
+  );
   const productOptions = Array.isArray(artwork?.product_options)
     ? artwork.product_options
-    : Array.isArray(artwork?.artwork_details?.product_options)
-      ? artwork.artwork_details.product_options
+    : Array.isArray(artworkDetails.product_options)
+      ? artworkDetails.product_options
       : [];
   const rawStatus = artwork?.request_status;
   const requestStatus = (!rawStatus || String(rawStatus).trim().toLowerCase() === "available")
@@ -313,6 +333,21 @@ function ArtworkInfo({
                 </Typography>
               </Box>
               <Box>
+                <Typography sx={detailLabelSx}>Product Type</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatList(artwork.product_type || "Premade")}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Sale Status</Typography>
+                <Chip
+                  label={isSold ? "Sold" : "Not sold"}
+                  size="small"
+                  color={isSold ? "default" : "success"}
+                  sx={{ fontWeight: 700 }}
+                />
+              </Box>
+              <Box>
                 <Typography sx={detailLabelSx}>Style</Typography>
                 <Typography sx={detailValueSx}>
                   {artwork.genre || "Not provided"}
@@ -371,12 +406,46 @@ function ArtworkInfo({
                   {artwork.description || "Not provided"}
                 </Typography>
               </Box>
-              <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
-                <Typography sx={detailLabelSx}>How to Handle with Care</Typography>
-                <Typography sx={detailValueSx}>
-                  {artwork.care_instructions?.trim() || "Not provided"}
-                </Typography>
-              </Box>
+              {isPhysicalProduct && (
+                <>
+                  <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                    <Typography sx={detailLabelSx}>Materials</Typography>
+                    <Typography sx={detailValueSx}>
+                      {formatList(artworkDetails.material_composition)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+                    <Typography sx={detailLabelSx}>How to Handle with Care</Typography>
+                    <Typography sx={detailValueSx}>
+                      {artwork.care_instructions?.trim() || "Not provided"}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+              {isDigitalProduct && (
+                <>
+                  <Box>
+                    <Typography sx={detailLabelSx}>Resolution</Typography>
+                    <Typography sx={detailValueSx}>
+                      {artworkDetails.resolution_width && artworkDetails.resolution_height
+                        ? `${artworkDetails.resolution_width} × ${artworkDetails.resolution_height} px`
+                        : "Not provided"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={detailLabelSx}>File Format</Typography>
+                    <Typography sx={detailValueSx}>
+                      {artworkDetails.file_format || "Not provided"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={detailLabelSx}>Color Profile</Typography>
+                    <Typography sx={detailValueSx}>
+                      {artworkDetails.color_profile || "Not provided"}
+                    </Typography>
+                  </Box>
+                </>
+              )}
               <Box>
                 <Typography sx={detailLabelSx}>Features</Typography>
                 <Typography sx={detailValueSx}>

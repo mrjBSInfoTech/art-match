@@ -2,6 +2,7 @@ import express from "express";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
+import { getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 
 const router = express.Router();
 
@@ -31,10 +32,21 @@ router.get("/", authenticateAdmin, (req, res) => {
       a.title,
       a.price,
       a.description,
+      a.care_instructions,
       a.image,
       a.genre,
       a.color_used,
       a.art_size,
+      a.art_type,
+      a.exact_art_type,
+      a.product,
+      a.product_type,
+      a.payment_mode,
+      a.upfront_percentage,
+      a.product_sample_image,
+      a.artwork_details,
+      a.is_sold,
+      ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
       a.date_created,
       CASE
         WHEN au.request_status IS NULL
@@ -94,10 +106,21 @@ router.get("/:id", authenticateAdmin, (req, res) => {
       a.title,
       a.price,
       a.description,
+      a.care_instructions,
       a.image,
       a.genre,
       a.color_used,
       a.art_size,
+      a.art_type,
+      a.exact_art_type,
+      a.product,
+      a.product_type,
+      a.payment_mode,
+      a.upfront_percentage,
+      a.product_sample_image,
+      a.artwork_details,
+      a.is_sold,
+      ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
       a.date_created,
       au.request_status,
       au.request_date,

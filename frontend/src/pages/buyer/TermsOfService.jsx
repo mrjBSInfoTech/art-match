@@ -15,6 +15,7 @@ import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import ReplayOutlinedIcon from "@mui/icons-material/ReplayOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
 
 const TERMS_SECTIONS = [
@@ -41,17 +42,29 @@ const TERMS_SECTIONS = [
   {
     id: "orders-settlement",
     icon: LocalShippingOutlinedIcon,
-    title: "3. Orders, Payments, Returns & Settlements",
+    title: "3. Orders, Payments & Settlements",
     body: [
-      "• Orders may be paid via supported online payment channels or cash on delivery where applicable.",
-      "• Seller payouts are released to verified payout accounts after order completion and applicable settlement verification.",
-      "• Return and refund requests must be submitted with supporting evidence through the platform's order management workflow.",
+      "• Orders may be paid via supported online payment channels (e.g. PayMongo) or Cash on Delivery (COD) where available.",
+      "• Seller earnings are held during the return window and released to verified payout destinations (such as GCash or local bank accounts) upon completed settlement validation.",
+      "• Platform and payment processor fees are clearly itemized before order confirmation.",
+    ],
+  },
+  {
+    id: "return-policy",
+    icon: ReplayOutlinedIcon,
+    title: "4. Return, Replacement & Refund Policy",
+    body: [
+      "• 4-Day Return Window: Buyers may request a return within 4 calendar days (96 hours) from the recorded delivery timestamp. Once the return window elapses, the sale is final and seller payout eligibility begins.",
+      "• Eligible Return Reasons: Returns are accepted for physical artworks that arrive damaged, missing parts, fundamentally not as described, or if the incorrect item was delivered. Photo or video evidence of the item and parcel packaging is required.",
+      "• Return Workflow & Approval: Return requests are submitted through the buyer's order details. Sellers review the request within the platform. Once approved, the buyer provides shipping tracking details for the returned artwork.",
+      "• Inspection & Refund Issuance: Upon verified receipt and condition inspection by the seller, the return is marked completed. For PayMongo transactions, refunds are processed back to the original payment source minus non-refundable payment processing fees (2% + ₱15.00).",
+      "• Non-Returnable Items: Custom commissions, digital deliverables, and items damaged through buyer misuse, negligence, or alteration are not eligible for return.",
     ],
   },
   {
     id: "privacy-conduct",
     icon: SecurityOutlinedIcon,
-    title: "4. Data Privacy & Acceptable Conduct",
+    title: "5. Data Privacy & Acceptable Conduct",
     body: [
       "• All personal data processing is governed by our Privacy Policy in accordance with the Philippine Data Privacy Act of 2012 (RA 10173).",
       "• Fraudulent listings, harassment, or unauthorized scraping of artist works or personal data may result in account strikes or permanent suspension.",

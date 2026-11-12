@@ -19,6 +19,7 @@ import {
 import { fetchCart, removeFromCart, updateCartItemQuantity } from "../../api/buyer/cartAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { getSelectedProductsTotalQuantity } from "../../utils/productOptions";
+import { getArtworkRemainingStock } from "../../utils/artworkAvailability";
 
 export default function Cart() {
   const [items, setItems] = useState([]);
@@ -56,9 +57,12 @@ export default function Cart() {
       const matchedItem = items.find((item) => String(item.artwork_id) === String(id));
       const selections = Array.isArray(matchedItem?.selected_products) ? matchedItem.selected_products : [];
       const isMultiOption = selections.length > 1;
-      const qty = matchedItem && isProductItem(matchedItem)
+      const remainingStock = matchedItem ? getArtworkRemainingStock(matchedItem) : null;
+      const maxStock = remainingStock !== null ? Math.max(1, remainingStock) : 999999;
+      const rawQty = matchedItem && isProductItem(matchedItem)
         ? Math.max(1, Number(cartQuantities[String(id)] ?? matchedItem.quantity ?? 1) || 1)
         : 1;
+      const qty = Math.min(rawQty, maxStock);
       quantitiesMap[String(id)] = qty;
       quantityParamParts.push(`${id}:${qty}`);
       if (matchedItem && isProductItem(matchedItem) && !isMultiOption &&
@@ -287,7 +291,10 @@ export default function Cart() {
                 removing={deleting}
                 cartQuantities={cartQuantities}
                 onQuantityChange={async (artworkId, quantity) => {
-                  const nextQuantity = Math.max(1, Number(quantity) || 1);
+                  const matchedItem = items.find((item) => String(item.artwork_id) === String(artworkId));
+                  const remainingStock = matchedItem ? getArtworkRemainingStock(matchedItem) : null;
+                  const maxStock = remainingStock !== null ? Math.max(1, remainingStock) : 999999;
+                  const nextQuantity = Math.min(Math.max(1, Number(quantity) || 1), maxStock);
                   setCartQuantities((current) => ({
                     ...current,
                     [String(artworkId)]: nextQuantity,

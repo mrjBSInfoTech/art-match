@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { decryptPayoutAccount } from "./payoutAccount.js";
 
 export const REQUIRED_PAYOUT_APPROVALS = 1;
-export const REQUIRED_PAYOUT_ACCOUNT_APPROVALS = 3;
+export const REQUIRED_PAYOUT_ACCOUNT_APPROVALS = 1;
 export const isFinanceAdmin = admin => Boolean(
   admin && !Number(admin.is_banned) && (
     ["admin", "super admin"].includes(admin.role) ||
@@ -54,14 +54,11 @@ export function payoutApprovalDto(cycle, decisions = [], { snapshotChanged = fal
 
 export function payoutApprovalActions({ approval, payoutStatus, eligible, hasDestination, adminId, financeAuthorized, providerEnabled }) {
   const economic = payoutStatus === "Eligible" && eligible && hasDestination;
-  const open = ["Pending Approval", "Approved"].includes(approval.status) && !approval.releasedAt;
-  const alreadyVoted = approval.decisions.some(row => Number(row.adminId) === Number(adminId));
   return {
-    canRequest: Boolean(financeAuthorized && economic && (!open || approval.releasedAt)),
-    canApprove: Boolean(financeAuthorized && economic && (!open || (approval.status === "Pending Approval" && !alreadyVoted))),
-    canReject: Boolean(financeAuthorized && economic && open && !alreadyVoted),
-    canRelease: Boolean(financeAuthorized && economic && providerEnabled && approval.status === "Approved" &&
-      approval.approvalCount >= REQUIRED_PAYOUT_APPROVALS && !approval.releasedAt),
+    canRequest: false,
+    canApprove: false,
+    canReject: false,
+    canRelease: Boolean(financeAuthorized && economic && providerEnabled),
     canReconcile: Boolean(financeAuthorized && ["Processing", "Failed"].includes(payoutStatus)),
   };
 }

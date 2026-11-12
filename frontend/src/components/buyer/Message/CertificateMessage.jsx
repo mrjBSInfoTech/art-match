@@ -24,11 +24,26 @@ const extractOrderItemId = (value) => {
   return legacyMatch ? legacyMatch[1] : null;
 };
 
+const getPreferredOrigin = () => {
+  if (import.meta.env?.VITE_PUBLIC_APP_URL) {
+    try {
+      return new URL(import.meta.env.VITE_PUBLIC_APP_URL).origin;
+    } catch {
+      // Fall back to current browser origin below.
+    }
+  }
+  return window.location.origin;
+};
+
 const coerceVerificationUrl = (value) => {
   if (!value) return "";
 
   try {
-    return new URL(value, window.location.origin).toString();
+    const parsed = new URL(value, window.location.origin);
+    if (/\/buyer\/certificate\/verify\/[a-f0-9]{64}$/.test(parsed.pathname)) {
+      return `${getPreferredOrigin()}${parsed.pathname}`;
+    }
+    return parsed.toString();
   } catch {
     return String(value);
   }
@@ -60,14 +75,15 @@ export default function CertificateMessage({ message, buyer = true }) {
             certificateId: /Certificate ID: ([A-Za-z0-9-]+)/.exec(message.text || "")?.[1] || "",
           };
 
-      if (!identity?.verificationUrl) {
+      const verificationUrl = coerceVerificationUrl(identity?.verificationUrl);
+      if (!verificationUrl) {
         throw new Error("Missing verification URL.");
       }
 
-      const image = await createCertificateQr(identity.verificationUrl);
+      const image = await createCertificateQr(verificationUrl);
       if (active) {
         setQr(image);
-        setUrl(identity.verificationUrl);
+        setUrl(verificationUrl);
         setCertificateId(identity.certificateId || "");
       }
     };

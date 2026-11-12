@@ -40,9 +40,10 @@ import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import ViewCarouselOutlinedIcon from "@mui/icons-material/ViewCarouselOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import PromotionHeaderPreview from "../../components/common/PromotionHeaderPreview";
+import MarketingSectionBanner from "../../components/seller/Marketing/MarketingSectionBanner";
 
 const emptyForm = { title: "", description: "", button_label: "", button_url: "", file: null };
 const emptyHeaderForm = {
@@ -536,6 +537,11 @@ export default function Marketing() {
         </Box>
       ) : activeTab === "header" ? (
         <Stack spacing={2.5}>
+          <MarketingSectionBanner
+            icon={AutoAwesomeOutlinedIcon}
+            title="Promo header"
+            description="Create a buyer-facing announcement for your storefront."
+          />
           <Box
             sx={{
               display: "grid",
@@ -543,63 +549,6 @@ export default function Marketing() {
               gap: { xs: 1.5, sm: 2 },
             }}
           >
-            <Box
-              sx={{
-                position: "relative",
-                overflow: "hidden",
-                p: { xs: 2.5, sm: 3.5 },
-                borderRadius: 3,
-                color: "#fff",
-                background: `linear-gradient(125deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 62%, ${theme.palette.warning.dark} 140%)`,
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  width: 220,
-                  height: 220,
-                  right: -75,
-                  top: -105,
-                  border: "1px solid rgba(255,255,255,0.22)",
-                  borderRadius: "50%",
-                  boxShadow: "0 0 0 24px rgba(255,255,255,0.06), 0 0 0 48px rgba(255,255,255,0.04)",
-                  pointerEvents: "none",
-                },
-              }}
-            >
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                <AutoAwesomeOutlinedIcon sx={{ fontSize: 18 }} />
-                <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.2 }}>
-                  CAMPAIGN STUDIO / 01
-                </Typography>
-              </Stack>
-              <Typography
-                variant="h4"
-                sx={{
-                  position: "relative",
-                  zIndex: 1,
-                  maxWidth: 540,
-                  fontSize: { xs: 25, sm: 32 },
-                  fontWeight: 800,
-                  lineHeight: 1.12,
-                }}
-              >
-                Make your next announcement stand out.
-              </Typography>
-              <Typography
-                sx={{
-                  position: "relative",
-                  zIndex: 1,
-                  mt: 1,
-                  maxWidth: 560,
-                  color: "rgba(255,255,255,0.82)",
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                }}
-              >
-                Write a short buyer-facing message and call to action. Your
-                custom promo header goes live after admin approval.
-              </Typography>
-            </Box>
-
             <Paper
               variant="outlined"
               sx={{
@@ -753,101 +702,53 @@ export default function Marketing() {
       ) : (
         <>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      <Paper
-        variant="outlined"
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          alignItems: { xs: "flex-start", sm: "center" },
-          justifyContent: "space-between",
-          gap: 2,
-          p: { xs: 2, sm: 2.5 },
-          mb: 2,
-          overflow: "hidden",
-          position: "relative",
-          borderRadius: 3,
-          borderColor: theme.palette.divider,
-          backgroundColor: theme.palette.background.paper,
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            inset: "0 auto 0 0",
-            width: 5,
-            background: `linear-gradient(180deg, ${theme.palette.error.main}, ${theme.palette.warning.main})`,
-          },
-        }}
-      >
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              flexShrink: 0,
-              display: "grid",
-              placeItems: "center",
-              borderRadius: 1.75,
-              color: theme.palette.error.main,
-              backgroundColor:
-                theme.palette.mode === "dark"
-                  ? "rgba(239,68,68,0.14)"
-                  : "#fff5f5",
-            }}
-          >
-            <ViewCarouselOutlinedIcon />
+      <MarketingSectionBanner
+        icon={ViewCarouselOutlinedIcon}
+        title="Promotion carousel"
+        description="Build a visual moment for buyers on the shop home."
+        aside={
+          <Box sx={{ width: { xs: "100%", sm: 180 }, flexShrink: 0 }}>
+            <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.6 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                SLIDE CAPACITY
+              </Typography>
+              <Typography variant="caption" aria-live="polite" sx={{ fontWeight: 800 }}>
+                {loading ? "Loading..." : `${slides.length}/${slideLimit}`}
+              </Typography>
+            </Stack>
+            <Box
+              role="progressbar"
+              aria-label="Promotion slide capacity"
+              aria-valuemin={0}
+              aria-valuemax={slideLimit}
+              aria-valuenow={Math.min(slides.length, slideLimit)}
+              sx={{
+                display: "flex",
+                gap: 0.6,
+                "& > span": {
+                  height: 6,
+                  flex: 1,
+                  borderRadius: 99,
+                  backgroundColor: "action.disabledBackground",
+                },
+              }}
+            >
+              {[0, 1, 2].map((slot) => (
+                <Box
+                  key={slot}
+                  component="span"
+                  sx={{
+                    backgroundColor:
+                      slot < slides.length
+                        ? theme.palette.error.main
+                        : theme.palette.action.disabledBackground,
+                  }}
+                />
+              ))}
+            </Box>
           </Box>
-          <Box>
-            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "text.secondary" }}>
-              CAMPAIGN STUDIO / 02
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              Promotion carousel
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Build a visual moment for buyers on the shop home.
-            </Typography>
-          </Box>
-        </Stack>
-        <Box sx={{ minWidth: { sm: 190 } }}>
-          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-              {loading ? "Loading your slots" : "SLIDE CAPACITY"}
-            </Typography>
-            <Typography variant="caption" aria-live="polite" sx={{ fontWeight: 800 }}>
-              {slides.length}/{slideLimit}
-            </Typography>
-          </Stack>
-          <Box
-            role="progressbar"
-            aria-label="Promotion slide capacity"
-            aria-valuemin={0}
-            aria-valuemax={slideLimit}
-            aria-valuenow={Math.min(slides.length, slideLimit)}
-            sx={{
-              display: "flex",
-              gap: 0.6,
-              "& > span": {
-                height: 7,
-                flex: 1,
-                borderRadius: 99,
-                backgroundColor: "action.disabledBackground",
-              },
-            }}
-          >
-            {[0, 1, 2].map((slot) => (
-              <Box
-                key={slot}
-                component="span"
-                sx={{
-                  backgroundColor:
-                    slot < slides.length
-                      ? theme.palette.error.main
-                      : theme.palette.action.disabledBackground,
-                }}
-              />
-            ))}
-          </Box>
-        </Box>
-      </Paper>
+        }
+      />
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
           <CircularProgress />
@@ -927,6 +828,7 @@ export default function Marketing() {
               lg: "repeat(5, minmax(0, 1fr))",
             },
             gap: 2,
+            mt: 2.5,
           }}
         >
           {slides.map((slide) => (

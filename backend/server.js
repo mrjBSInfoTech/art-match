@@ -25,11 +25,13 @@ import adminAccountAccessRoutes from "./routes/admin/accountAccess.js";
 import adminAdminRoutes from "./routes/admin/admin.js";
 import adminSystemSettingsRoutes from "./routes/admin/systemSettings.js";
 import adminPayoutRoutes from "./routes/admin/payouts.js";
+import adminPayoutWalletRoutes from "./routes/admin/payoutWallet.js";
 import adminPayoutPermissionRoutes from "./routes/admin/payoutPermissions.js";
 import adminPayoutAccountRequestRoutes from "./routes/admin/payoutAccountRequests.js";
 import adminDashboardRoutes from "./routes/admin/dashboard.js";
 import sellerPayoutAccountRoutes from "./routes/seller/payouts.js";
 import { ensurePayoutTables } from "./database/payouts.js";
+import { ensurePayoutWalletTables } from "./database/payoutWallet.js";
 import aboutContentRoutes from "./routes/aboutContent.js";
 import footerContentRoutes from "./routes/footerContent.js";
 import programContentRoutes from "./routes/programContent.js";
@@ -191,6 +193,7 @@ app.use(
 app.use(express.urlencoded({ extended: true }));
 app.use("/api/admin/payouts/permissions", adminPayoutPermissionRoutes);
 app.use("/api/admin/payouts/account-requests", adminPayoutAccountRequestRoutes);
+app.use("/api/admin/payouts/wallet", adminPayoutWalletRoutes);
 app.use("/api/admin/payouts", adminPayoutRoutes);
 app.use("/api/seller/payout-account", sellerPayoutAccountRoutes);
 
@@ -965,6 +968,7 @@ ensureAccountAccessTable()
   .then(() => ensureConversationReadStateTable())
   .then(() => ensureReturnTables())
   .then(() => ensurePayoutTables())
+  .then(() => ensurePayoutWalletTables())
   .then(() => ensureMessageSenderNameColumn())
   .then(() => ensureCertificateTables())
   .then(() => ensureChatPublicKeysTable())

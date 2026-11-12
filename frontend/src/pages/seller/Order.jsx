@@ -531,17 +531,31 @@ export default function SellerOrder() {
               }
             />
           ) : (
-            filteredOrders.map((order) => (
-              <OrderCard
-                key={order.orderId}
-                order={order}
-                onClick={() =>
-                  navigate(`/seller/orders/manage/${order.orderId}`, {
-                    state: { order },
-                  })
-                }
-              />
-            ))
+            <Paper
+              component="section"
+              variant="outlined"
+              aria-label="Seller orders card view"
+              sx={{
+                p: { xs: 1.5, sm: 2 },
+                borderRadius: 3.5,
+                borderColor: "divider",
+                bgcolor: "background.paper",
+              }}
+            >
+              <Stack spacing={2}>
+                {filteredOrders.map((order) => (
+                  <OrderCard
+                    key={order.orderId}
+                    order={order}
+                    onClick={() =>
+                      navigate(`/seller/orders/manage/${order.orderId}`, {
+                        state: { order },
+                      })
+                    }
+                  />
+                ))}
+              </Stack>
+            </Paper>
           )
         ) : error ? null : (
           <Paper

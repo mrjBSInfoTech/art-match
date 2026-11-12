@@ -46,7 +46,7 @@ export default function CheckoutVoucher({ code, onCodeChange, onApply, onRemove,
         <Typography variant="caption" color="text.secondary">
           Minimum spend applies to qualifying artworks from the voucher&apos;s seller. One voucher per checkout.
         </Typography>
-        {warning && <Alert severity="warning">{warning}</Alert>}
+        {warning && <Alert severity="error">{warning}</Alert>}
         {voucher && <Alert severity="success">{voucher.voucher.code} applied. You save {currency(voucher.discount_amount)}.</Alert>}
       </Stack>
     </Box>

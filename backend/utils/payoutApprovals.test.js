@@ -17,11 +17,11 @@ test("approval DTO removes an old quorum when current admin permissions no longe
   assert.equal(dto.approvalCount, 0);
   assert.equal(dto.decisions[0].authorized, false);
 });
-test("requester can release after quorum; zero approvals cannot enable release", () => {
+test("authorized finance admin can release eligible payouts directly without requiring approval cycles", () => {
   const approval = payoutApprovalDto({ ...cycle, approval_status: "Approved" }, [decision(2)]);
   const context = { approval, payoutStatus: "Eligible", eligible: true, hasDestination: true, adminId: 1, financeAuthorized: true, providerEnabled: true };
   assert.equal(payoutApprovalActions(context).canRelease, true);
-  assert.equal(payoutApprovalActions({ ...context, approval: { ...approval, approvalCount: 0 } }).canRelease, false);
+  assert.equal(payoutApprovalActions({ ...context, financeAuthorized: false }).canRelease, false);
   assert.equal(payoutApprovalActions({ ...context, payoutStatus: "Paid" }).canRelease, false);
 });
 test("snapshot detects amount, provider and destination changes without persisting account numbers", () => {

@@ -223,6 +223,14 @@ export function databaseFixture(overrides = {}) {
             rows = rows.filter(order => ids.has(order.order_id));
           } else if (/FROM marketplace_return_request/i.test(sql) || /FROM marketplace_order_delivery_proof/i.test(sql)) {
             rows = [];
+          } else if (/UPPER\(voucher_code\) = \?/i.test(sql)) {
+            rows = rows.filter(order =>
+              Number(order.customer_id) === Number(params[0]) &&
+              Number(order.seller_id) === Number(params[1]) &&
+              String(order.voucher_code || "").toUpperCase() === String(params[2] || "").toUpperCase() &&
+              order.status !== "Cancelled" &&
+              String(order.payment_status || "") !== "Failed"
+            );
           } else if (/payment_method = 'paymongo'/i.test(sql)) {
             rows = rows.filter(order => order.payment_method === "paymongo" && order.customer_id === Number(params[0]) && order.payment_status === "Pending" && order.status === "Pending");
           }

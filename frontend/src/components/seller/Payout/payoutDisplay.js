@@ -62,5 +62,7 @@ export const payoutApprovalLabel = (payout) => {
 };
 export const payoutDisplayStatus = (payout) => payout?.payoutStatus || "Held";
 export const canPayoutAction = (payout, action) => payout?.actions?.[`can${action[0].toUpperCase()}${action.slice(1)}`] === true;
-export const canReleasePayout = (payout, capability) => canPayoutAction(payout, "release")
-  && payout?.payoutStatus === "Eligible" && capability?.enabled === true && Boolean(payout?.destination);
+export const canReleasePayout = (payout, capability) =>
+  payout?.payoutStatus === "Eligible" &&
+  capability?.enabled !== false &&
+  Boolean(payout?.destination);

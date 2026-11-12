@@ -33,6 +33,7 @@ export default function ArtworkDetailsFields({
   onMaterialInputChange,
 }) {
   const headingId = useId();
+  const showMaterials = String(formData.product_type || "").trim().toLowerCase() !== "digital";
   const formats = ["digital", "digital art"].includes(String(formData.art_type || "").trim().toLowerCase())
     ? ARTWORK_FILE_FORMATS.digital
     : ARTWORK_FILE_FORMATS.photography;
@@ -73,27 +74,29 @@ export default function ArtworkDetailsFields({
         </Stack>
       )}
 
-      <Autocomplete
-        multiple
-        freeSolo
-        autoSelect
-        filterSelectedOptions
-        options={ALL_MATERIALS}
-        value={formData.material_composition}
-        inputValue={materialInput}
-        onInputChange={(_event, value) => onMaterialInputChange(value)}
-        onChange={(_event, value) => onChange({ target: { name: "material_composition", value } })}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Materials"
-            error={Boolean(errors.material_composition)}
-            helperText={errors.material_composition || "Add at least one material. Type your own and press Enter, or choose a suggestion."}
-            slotProps={{ htmlInput: { ...params.inputProps, "aria-required": true } }}
-          />
-        )}
-        sx={{ gridColumn: "1 / -1" }}
-      />
+      {showMaterials && (
+        <Autocomplete
+          multiple
+          freeSolo
+          autoSelect
+          filterSelectedOptions
+          options={ALL_MATERIALS}
+          value={formData.material_composition}
+          inputValue={materialInput}
+          onInputChange={(_event, value) => onMaterialInputChange(value)}
+          onChange={(_event, value) => onChange({ target: { name: "material_composition", value } })}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Materials"
+              error={Boolean(errors.material_composition)}
+              helperText={errors.material_composition || "Add at least one material. Type your own and press Enter, or choose a suggestion."}
+              slotProps={{ htmlInput: { ...params.inputProps, "aria-required": true } }}
+            />
+          )}
+          sx={{ gridColumn: "1 / -1" }}
+        />
+      )}
 
       {category === "digital" && (
         <>

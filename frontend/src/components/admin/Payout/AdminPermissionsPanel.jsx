@@ -39,6 +39,13 @@ import { formatPayoutDate } from "../../seller/Payout/payoutDisplay";
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
 
+const formatRoleName = (role) =>
+  String(role || "Admin")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
     <Slide
@@ -90,11 +97,12 @@ function SingleAdminPermissionCard({
           {/* Admin Avatar container */}
           {(() => {
             const rawImg = request.adminAvatar || request.adminImage;
+            const defaultImage = "http://localhost:5000/uploads/profile.jpg";
             const fullImg = rawImg
               ? (rawImg.startsWith("http") || rawImg.startsWith("data:")
                   ? rawImg
                   : `http://localhost:5000${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
-              : null;
+              : defaultImage;
             return (
               <Box
                 sx={{
@@ -118,9 +126,13 @@ function SingleAdminPermissionCard({
                     alt={request.adminName}
                     sx={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => {
-                      e.target.style.display = "none";
-                      if (e.target.nextElementSibling) {
-                        e.target.nextElementSibling.style.display = "flex";
+                      if (e.currentTarget.src !== defaultImage) {
+                        e.currentTarget.src = defaultImage;
+                      } else {
+                        e.currentTarget.style.display = "none";
+                        if (e.currentTarget.nextElementSibling) {
+                          e.currentTarget.nextElementSibling.style.display = "flex";
+                        }
                       }
                     }}
                   />
@@ -134,7 +146,7 @@ function SingleAdminPermissionCard({
                     color: "error.main",
                     fontWeight: 800,
                     fontSize: 20,
-                    display: fullImg ? "none" : "flex",
+                    display: "none",
                   }}
                 >
                   {request.adminName ? request.adminName.charAt(0).toUpperCase() : "A"}
@@ -159,7 +171,7 @@ function SingleAdminPermissionCard({
               </Typography>
               {getStatusBadge(request.status)}
               <Chip
-                label={request.adminRole}
+                label={formatRoleName(request.adminRole)}
                 size="small"
                 variant="outlined"
                 sx={{ height: 22, fontSize: 11, fontWeight: 700, borderRadius: "16px" }}
@@ -176,7 +188,7 @@ function SingleAdminPermissionCard({
                 mb: 0.35,
               }}
             >
-              Email: <strong style={{ color: "inherit" }}>{request.adminEmail}</strong> · Role: <strong style={{ color: "inherit" }}>{request.adminRole}</strong>
+              Email: <strong style={{ color: "inherit" }}>{request.adminEmail}</strong> · Role: <strong style={{ color: "inherit" }}>{formatRoleName(request.adminRole)}</strong>
             </Typography>
 
             {/* Reason */}
@@ -256,7 +268,7 @@ function SingleAdminPermissionCard({
                 mt: 0.25,
               }}
             >
-              {request.adminRole}
+              {formatRoleName(request.adminRole)}
             </Typography>
           </Box>
 
@@ -412,7 +424,7 @@ export default function AdminPermissionsPanel({
 
   // Status for non-Super Admins
   const status = permissionStatus?.permissionStatus || "Not Requested";
-  const roleName = permissionStatus?.role || "Admin";
+  const roleName = formatRoleName(permissionStatus?.role);
 
   const getStatusBadge = (st) => {
     if (st === "Approved") return <Chip size="small" color="success" label="Approved" sx={{ color: "#fff", fontWeight: 700 }} />;
@@ -615,7 +627,7 @@ export default function AdminPermissionsPanel({
                           <Typography variant="caption" color="text.secondary">{r.adminEmail}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Chip size="small" variant="outlined" label={r.adminRole} />
+                          <Chip size="small" variant="outlined" label={formatRoleName(r.adminRole)} />
                         </TableCell>
                         <TableCell>{getStatusBadge(r.status)}</TableCell>
                         <TableCell sx={{ maxWidth: 260 }}>
@@ -692,19 +704,33 @@ export default function AdminPermissionsPanel({
                   </Typography>
                 </Paper>
               ) : (
-                requests.map((r) => (
-                  <SingleAdminPermissionCard
-                    key={r.requestId}
-                    request={r}
-                    busy={busy}
-                    onApprove={() => handleApprove(r.requestId)}
-                    onReject={() => {
-                      setSelectedRequest(r);
-                      setRejectionReason("");
-                    }}
-                    getStatusBadge={getStatusBadge}
-                  />
-                ))
+                <Paper
+                  component="section"
+                  variant="outlined"
+                  aria-label="Admin permission requests card view"
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    borderRadius: 3.5,
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                  }}
+                >
+                  <Stack spacing={2}>
+                    {requests.map((r) => (
+                      <SingleAdminPermissionCard
+                        key={r.requestId}
+                        request={r}
+                        busy={busy}
+                        onApprove={() => handleApprove(r.requestId)}
+                        onReject={() => {
+                          setSelectedRequest(r);
+                          setRejectionReason("");
+                        }}
+                        getStatusBadge={getStatusBadge}
+                      />
+                    ))}
+                  </Stack>
+                </Paper>
               )}
             </Stack>
           )}
@@ -729,7 +755,7 @@ export default function AdminPermissionsPanel({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Typography variant="body2">
-              Rejecting permission request from <strong>{selectedRequest?.adminName}</strong> ({selectedRequest?.adminRole}).
+              Rejecting permission request from <strong>{selectedRequest?.adminName}</strong> ({formatRoleName(selectedRequest?.adminRole)}).
             </Typography>
             <TextField
               label="Rejection Reason"
@@ -752,4 +778,3 @@ export default function AdminPermissionsPanel({
     </Stack>
   );
 }
-

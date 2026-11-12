@@ -560,7 +560,10 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
     })) {
       throw new CheckoutVoucherError("Some selected artworks are unavailable. Please refresh your cart.");
     }
-    const quote = await quoteCheckoutVoucher(db.promise(), items, body.voucher_code, { required: true });
+    const quote = await quoteCheckoutVoucher(db.promise(), items, body.voucher_code, {
+      required: true,
+      customerId: req.user.customer_id,
+    });
     return res.json(quote.summary);
   } catch (error) {
     if (!(error instanceof CheckoutVoucherError)) console.error("Buyer voucher validation error:", error.code || error.name);
@@ -953,7 +956,10 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
     items.forEach(item => pesosToCentavos(item.price));
     // A preview is only informational. Re-read the current voucher and prices
     // under this checkout transaction before creating any payable order.
-    const voucherQuote = await quoteCheckoutVoucher(connection, items, req.body.voucher_code, { lock: true });
+    const voucherQuote = await quoteCheckoutVoucher(connection, items, req.body.voucher_code, {
+      lock: true,
+      customerId: req.user.customer_id,
+    });
     const artworkItemsTotalCentavos = voucherQuote.items.reduce((sum, item) => sum + item.chargedCentavos, 0);
     const expectedProcessingFeePesos = isPayMongo ? calculateProcessingFee(artworkItemsTotalCentavos / 100) : 0;
     const expectedProcessingFeeCentavos = Math.round(expectedProcessingFeePesos * 100);
@@ -1181,7 +1187,8 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
         voucherCode: discountAmount > 0 ? voucherQuote.summary.voucher.code : null,
         processingFee: sellerProcessingFee,
 
-        total: totalAmount,
+        total: subtotal,
+        buyerTotal: totalAmount,
       });
     }
 

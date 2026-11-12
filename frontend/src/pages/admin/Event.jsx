@@ -736,11 +736,22 @@ export default function Event() {
               </Typography>
             </Paper>
           ) : viewMode === "card" ? (
-            <EventCard
-              events={filteredEvents}
-              onEdit={handleOpenEdit}
-              onDelete={handleOpenDelete}
-            />
+            <Paper
+              component="section"
+              variant="outlined"
+              sx={{
+                p: { xs: 1.5, sm: 2 },
+                borderRadius: 2.5,
+                borderColor: theme.palette.divider,
+                backgroundColor: theme.palette.background.paper,
+              }}
+            >
+              <EventCard
+                events={filteredEvents}
+                onEdit={handleOpenEdit}
+                onDelete={handleOpenDelete}
+              />
+            </Paper>
           ) : (
             <EventTable
               events={filteredEvents}

@@ -105,7 +105,7 @@ export const buildPaymentSplit = (orders, { commissionRate = 0, processingFee = 
   // explicit `totalAmount`. Anything non-numeric is treated as a hard error
   // rather than quietly becoming zero.
   const amountOf = (order) => {
-    const value = order.totalAmount ?? order.total;
+    const value = order.totalAmount ?? order.total ?? order.subtotal;
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount < 0) {
       throw new Error(

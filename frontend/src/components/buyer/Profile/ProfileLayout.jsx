@@ -37,7 +37,6 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 
@@ -66,11 +65,6 @@ const NAV_ITEMS = [
     label: "Security & privacy",
     path: "/buyer/profile/settings",
     icon: <ShieldOutlinedIcon fontSize="small" />,
-  },
-  {
-    label: "Payment methods",
-    path: "/buyer/profile/payment-methods",
-    icon: <CreditCardOutlinedIcon fontSize="small" />,
   },
 ];
 
@@ -268,101 +262,94 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
         >
           {isDesktop && (
             <Box
+              component="aside"
               sx={{
                 width: 270,
                 flexShrink: 0,
+                position: "sticky",
+                top: "calc(var(--buyer-header-height, 160px) + 16px)",
+                alignSelf: "flex-start",
+                maxHeight: "calc(100vh - var(--buyer-header-height, 160px) - 32px)",
+                overflowY: "auto",
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 3,
+                p: 2,
+                display: "flex",
+                flexDirection: "column",
               }}
             >
+              <AccountIdentityCard
+                buyerName={buyerName}
+                username={username}
+                profileImage={profileImage}
+                onEdit={() => handleNavigate("/buyer/profile/details")}
+              />
+
               <Box
-                component="aside"
                 sx={{
-                  position: "fixed",
-                  left: "max(24px, calc((100vw - 1536px) / 2 + 24px))",
-                  top: "calc(var(--buyer-header-height, 160px) + 12px)",
-                  zIndex: theme.zIndex.appBar - 1,
-                  width: 270,
-                  height: "min(70vh, calc(100dvh - var(--buyer-header-height, 160px) - 24px))",
-                  overflowY: "auto",
-                  bgcolor: "background.paper",
+                  mt: 1.5,
+                  p: 0.75,
                   border: "1px solid",
                   borderColor: "divider",
-                  borderRadius: 3,
-                  p: 2,
-                  display: "flex",
-                  flexDirection: "column",
+                  borderRadius: 2.5,
                 }}
               >
-                <AccountIdentityCard
-                  buyerName={buyerName}
-                  username={username}
-                  profileImage={profileImage}
-                  onEdit={() => handleNavigate("/buyer/profile/details")}
-                />
+                <List disablePadding sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                  {NAV_ITEMS.map((item) => {
+                    const isActive = activeItem?.path === item.path;
 
-                <Box
-                  sx={{
-                    mt: 1.5,
-                    p: 0.75,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 2.5,
-                  }}
-                >
-                  <List disablePadding sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                    {NAV_ITEMS.map((item) => {
-                      const isActive = activeItem?.path === item.path;
-
-                      return (
-                        <ListItemButton
-                          key={item.path}
-                          selected={isActive}
-                          onClick={() => handleNavigate(item.path)}
-                          sx={{
-                            borderRadius: 1.5,
-                            minHeight: 48,
-                            px: 1.25,
-                            py: 1,
-                            gap: 1.25,
-                            backgroundColor: isActive
-                              ? "action.selected"
-                              : undefined,
-                            "&.Mui-selected": { color: "error.main" },
-                            "&.Mui-selected .MuiListItemIcon-root": {
-                              color: "error.main",
-                            },
-                          }}
+                    return (
+                      <ListItemButton
+                        key={item.path}
+                        selected={isActive}
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          borderRadius: 1.5,
+                          minHeight: 48,
+                          px: 1.25,
+                          py: 1,
+                          gap: 1.25,
+                          backgroundColor: isActive
+                            ? "action.selected"
+                            : undefined,
+                          "&.Mui-selected": { color: "error.main" },
+                          "&.Mui-selected .MuiListItemIcon-root": {
+                            color: "error.main",
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{ minWidth: 0, flexShrink: 0, color: "text.secondary" }}
                         >
-                          <ListItemIcon
-                            sx={{ minWidth: 0, flexShrink: 0, color: "text.secondary" }}
-                          >
-                            {item.icon}
-                          </ListItemIcon>
-                          <ListItemText primary={item.label} sx={{ my: 0 }} slotProps={{ primary: { sx: { fontSize: 14, lineHeight: 1.4 } } }} />
-                        </ListItemButton>
-                      );
-                    })}
-                  </List>
-                </Box>
-                <Button
-                  variant="text"
-                  color="inherit"
-                  fullWidth
-                  onClick={handleLogoutOpen}
-                  sx={{
-                    mt: "auto",
-                    px: 1.25,
-                    py: 1.25,
-                    minHeight: 48,
-                    justifyContent: "flex-start",
-                    borderRadius: 1.5,
-                    textTransform: "none",
-                    fontWeight: 700,
-                  }}
-                  startIcon={<LogoutIcon />}
-                >
-                  Sign out
-                </Button>
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText primary={item.label} sx={{ my: 0 }} slotProps={{ primary: { sx: { fontSize: 14, lineHeight: 1.4 } } }} />
+                      </ListItemButton>
+                    );
+                  })}
+                </List>
               </Box>
+              <Button
+                variant="text"
+                color="inherit"
+                fullWidth
+                onClick={handleLogoutOpen}
+                sx={{
+                  mt: 2,
+                  px: 1.25,
+                  py: 1.25,
+                  minHeight: 48,
+                  justifyContent: "flex-start",
+                  borderRadius: 1.5,
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+                startIcon={<LogoutIcon />}
+              >
+                Sign out
+              </Button>
             </Box>
           )}
 

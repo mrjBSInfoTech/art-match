@@ -45,6 +45,7 @@ import ArtworkImage from "../../common/ArtworkImage";
 import OrderParcelPhoto from "./OrderParcelPhoto";
 import OrderTrack from "./OrderTrack";
 import OrderReceived from "./OrderReceived";
+import OrderConfirm from "./OrderConfirm";
 import OrderReceipt from "./OrderReceipt";
 import ConnectionErrorPanel from "../ConnectionErrorPanel";
 import SellerLoadingPanel from "../SellerLoadingPanel";
@@ -158,6 +159,7 @@ export default function OrderDetail() {
   const [statusError, setStatusError] = useState("");
   const [statusSuccess, setStatusSuccess] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
+  const [confirmationTarget, setConfirmationTarget] = useState(null);
 
   // Fulfillment Dialog States
   const [fulfillmentTarget, setFulfillmentTarget] = useState(null);
@@ -294,7 +296,8 @@ export default function OrderDetail() {
     if (nextStatus === "Shipped") {
       const isMeetup = order.deliveryMethod === "pickup";
       if (isMeetup) {
-        await saveStatusChange(order.orderId, "Shipped");
+        setStatusError("");
+        setConfirmationTarget({ orderId: order.orderId, status: nextStatus, order });
         return;
       }
       setStatusError("");
@@ -315,30 +318,24 @@ export default function OrderDetail() {
       return;
     }
 
-    await saveStatusChange(order.orderId, nextStatus);
+    setStatusError("");
+    setConfirmationTarget({ orderId: order.orderId, status: nextStatus, order });
   };
 
   const submitFulfillmentUpdate = async () => {
     if (!fulfillmentTarget || !order) return;
-    const formData = new FormData();
 
     if (fulfillmentTarget.status === "Packed") {
       if (parcelPhotos.length < 1 || parcelPhotos.length > 5) {
         setStatusError("Please choose 1 to 5 parcel photos before continuing.");
         return;
       }
-      parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
-      formData.append("handling_instructions", JSON.stringify(handlingInstructions));
     } else if (fulfillmentTarget.status === "Delivered") {
       if (receivedPhotos.length < 1 || receivedPhotos.length > 5) {
         setStatusError("Please upload at least 1 photo as proof that this order is delivered.");
         return;
       }
-      receivedPhotos.forEach((file) => formData.append("parcel_photos", file));
-      if (deliveryNotes.trim()) {
-        formData.append("delivery_notes", deliveryNotes.trim());
-      }
-    } else {
+    } else if (fulfillmentTarget.status === "Shipped" && fulfillmentTarget.order.deliveryMethod !== "pickup") {
       const submittedCourier = courier.trim();
       if (!submittedCourier || submittedCourier.length > 50) {
         setStatusError("Please enter a valid courier name (up to 50 characters).");
@@ -354,24 +351,46 @@ export default function OrderDetail() {
         setStatusError("Please provide a valid HTTPS courier tracking URL.");
         return;
       }
-      formData.append("courier", submittedCourier);
-      formData.append("tracking_number", submittedTrackingNumber);
-      formData.append("tracking_url", submittedTrackingUrl);
+    }
+
+    setStatusError("");
+    setConfirmationTarget(fulfillmentTarget);
+  };
+
+  const confirmStatusChange = async () => {
+    if (!confirmationTarget) return false;
+    const { orderId, status, order: targetOrder } = confirmationTarget;
+
+    if (!fulfillmentTarget || fulfillmentTarget.status !== status) {
+      const saved = await saveStatusChange(orderId, status);
+      if (saved) setConfirmationTarget(null);
+      return saved;
+    }
+
+    const formData = new FormData();
+    if (status === "Packed") {
+      parcelPhotos.forEach((file) => formData.append("parcel_photos", file));
+      formData.append("handling_instructions", JSON.stringify(handlingInstructions));
+    } else if (status === "Delivered") {
+      receivedPhotos.forEach((file) => formData.append("parcel_photos", file));
+      if (deliveryNotes.trim()) formData.append("delivery_notes", deliveryNotes.trim());
+    } else if (status === "Shipped" && targetOrder.deliveryMethod !== "pickup") {
+      formData.append("courier", courier.trim());
+      formData.append("tracking_number", trackingNumber.trim());
+      formData.append("tracking_url", getSecureTrackingUrl(trackingUrl.trim()));
     }
 
     setSavingFulfillment(true);
     try {
-      const saved = await saveStatusChange(
-        fulfillmentTarget.orderId,
-        fulfillmentTarget.status,
-        formData,
-      );
+      const saved = await saveStatusChange(orderId, status, formData);
       if (saved) {
+        setConfirmationTarget(null);
         setFulfillmentTarget(null);
         setReceivedPhotos([]);
         setParcelPhotos([]);
         setDeliveryNotes("");
       }
+      return saved;
     } finally {
       setSavingFulfillment(false);
     }
@@ -963,7 +982,16 @@ export default function OrderDetail() {
         }}
         onSubmit={submitFulfillmentUpdate}
       />
+
+      <OrderConfirm
+        open={Boolean(confirmationTarget)}
+        order={confirmationTarget?.order}
+        status={confirmationTarget?.status}
+        error={statusError}
+        saving={savingStatus || savingFulfillment}
+        onClose={() => setConfirmationTarget(null)}
+        onConfirm={confirmStatusChange}
+      />
     </Box>
   );
 }
-

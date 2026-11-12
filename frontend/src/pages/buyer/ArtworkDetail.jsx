@@ -19,9 +19,12 @@ import {
   Slide,
   Snackbar,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import RemoveShoppingCart from "@mui/icons-material/RemoveShoppingCart";
 import ShoppingBag from "@mui/icons-material/ShoppingBag";
@@ -41,7 +44,7 @@ import ProductSelectionDialog from "../../components/buyer/Artwork/ProductSelect
 import CustomizeOrderDialog from "../../components/buyer/Artwork/CustomizeOrderDialog";
 import { getSavedProductOptions } from "../../utils/productOptions";
 import { getArtworkDetailCategory } from "../../utils/artworkDetails";
-import { isArtworkSoldOut } from "../../utils/artworkAvailability";
+import { isArtworkSoldOut, getArtworkRemainingStock } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
@@ -98,6 +101,7 @@ export default function ArtworkDetail() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [orderQuantity, setOrderQuantity] = useState(1);
   const [, setRecentHistory] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -204,6 +208,7 @@ export default function ArtworkDetail() {
         if (!mounted) return;
         setArtworks(list);
         setArtwork(detail || null);
+        setOrderQuantity(1);
         if (detail) void loadRecentlyViewed();
       } catch (err) {
         if (!mounted) return;
@@ -343,6 +348,11 @@ export default function ArtworkDetail() {
       productOptions.every(
         (option) => Number(option.remaining_stock ?? option.quantity ?? 0) <= 0,
       ));
+  const remainingStock = getArtworkRemainingStock(artwork);
+  const isCustom =
+    String(artwork?.product_type || "")
+      .trim()
+      .toLowerCase() === "customize";
   const detailCategory = getArtworkDetailCategory(
     artwork.art_type,
     artwork.product,
@@ -556,14 +566,31 @@ export default function ArtworkDetail() {
                 sx={{ fontWeight: "bold", borderRadius: 2, px: 1 }}
               />
               <Chip
-                label={isOutOfStock ? "Sold out" : "Available"}
+                label={
+                  isOutOfStock
+                    ? "Sold out"
+                    : isCustom
+                      ? "Made to order"
+                      : "Available"
+                }
                 size="small"
-                color={isOutOfStock ? "default" : "success"}
+                color={
+                  isOutOfStock ? "default" : isCustom ? "info" : "success"
+                }
                 sx={{
                   fontWeight: "bold",
                   color: isOutOfStock ? undefined : "#fff",
                 }}
               />
+              {!isOutOfStock && remainingStock !== null && !isCustom && (
+                <Chip
+                  label={`${remainingStock} in stock`}
+                  size="small"
+                  variant="outlined"
+                  color={remainingStock <= 5 ? "warning" : "default"}
+                  sx={{ fontWeight: "bold" }}
+                />
+              )}
             </Stack>
             <Typography
               variant="h3"
@@ -679,6 +706,137 @@ export default function ArtworkDetail() {
                 >
                   Out of Stock
                 </Typography>
+              )}
+              {!isOutOfStock && !isInCart && !(isProduct && productOptions.length > 0) && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 1.5,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(255, 255, 255, 0.03)"
+                        : "rgba(0, 0, 0, 0.02)",
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography variant="body2" fontWeight={700}>
+                        Quantity
+                      </Typography>
+                      {remainingStock !== null && !isCustom ? (
+                        <Typography variant="caption" color="text.secondary">
+                          {remainingStock} available (Max: {remainingStock})
+                        </Typography>
+                      ) : isCustom ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Custom order (Made to order)
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <IconButton
+                        size="small"
+                        disabled={orderQuantity <= 1 || addingToCart}
+                        onClick={() =>
+                          setOrderQuantity((prev) => Math.max(1, prev - 1))
+                        }
+                        sx={{
+                          border: "1px solid",
+                          borderColor: "divider",
+                          width: 32,
+                          height: 32,
+                        }}
+                        aria-label="Decrease quantity"
+                      >
+                        <RemoveIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={orderQuantity}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === "") {
+                            setOrderQuantity(1);
+                            return;
+                          }
+                          const val = Number(raw);
+                          if (Number.isSafeInteger(val)) {
+                            const max =
+                              remainingStock !== null && !isCustom
+                                ? remainingStock
+                                : 999999;
+                            setOrderQuantity(
+                              Math.min(Math.max(1, val), max),
+                            );
+                          }
+                        }}
+                        inputProps={{
+                          min: 1,
+                          max:
+                            remainingStock !== null && !isCustom
+                              ? remainingStock
+                              : 999999,
+                          style: {
+                            textAlign: "center",
+                            width: 38,
+                            padding: "4px 4px",
+                            fontWeight: 700,
+                            fontSize: "0.95rem",
+                          },
+                        }}
+                        sx={{
+                          width: 52,
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: 1.5,
+                            height: 32,
+                          },
+                          "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
+                            {
+                              display: "none",
+                            },
+                          "& input[type=number]": {
+                            MozAppearance: "textfield",
+                          },
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        disabled={
+                          (remainingStock !== null &&
+                            !isCustom &&
+                            orderQuantity >= remainingStock) ||
+                          addingToCart
+                        }
+                        onClick={() => {
+                          const max =
+                            remainingStock !== null && !isCustom
+                              ? remainingStock
+                              : 999999;
+                          setOrderQuantity((prev) =>
+                            Math.min(max, prev + 1),
+                          );
+                        }}
+                        sx={{
+                          border: "1px solid",
+                          borderColor: "divider",
+                          width: 32,
+                          height: 32,
+                        }}
+                        aria-label="Increase quantity"
+                      >
+                        <AddIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                </Box>
               )}
               <Stack direction="column" spacing={1} sx={{ mt: 2 }}>
                 <Button
@@ -961,16 +1119,17 @@ export default function ArtworkDetail() {
         <CustomizeOrderDialog
           open={customizeDialogOpen}
           artwork={artwork}
+          initialQuantity={orderQuantity}
           isCustomizable={
             String(artwork?.product_type || "")
               .trim()
               .toLowerCase() === "customize"
           }
           onClose={() => setCustomizeDialogOpen(false)}
-          onConfirm={(orderNote) =>
+          onConfirm={(orderNote, qty) =>
             handleAddToCart(
               artwork.artwork_id || artwork.id,
-              1,
+              qty || orderQuantity || 1,
               undefined,
               orderNote,
             )

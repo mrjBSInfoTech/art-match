@@ -1,4 +1,10 @@
-import { createElement, useState, useEffect, useMemo, useCallback } from "react";
+import {
+  createElement,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
 import {
@@ -21,6 +27,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ArtworkCard from "../../components/admin/Artwork/ArtworkCard";
+import ArtworkTable from "../../components/admin/Artwork/ArtworkTable";
 import ArtworkVerify from "../../components/admin/Artwork/ArtworkVerify";
 import ArtworkReject from "../../components/admin/Artwork/ArtworkReject";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
@@ -33,9 +40,11 @@ import {
 // Icons
 import SearchIcon from "@mui/icons-material/Search";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
-import BlockIcon from '@mui/icons-material/Block';
+import BlockIcon from "@mui/icons-material/Block";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -51,6 +60,7 @@ export default function Artwork() {
   const [pendingStatusFilter, setPendingStatusFilter] = useState("pending");
   const statusFilter = isVerifiedSection ? "approved" : pendingStatusFilter;
   const [sortOption, setSortOption] = useState("newest");
+  const [viewMode, setViewMode] = useState("card");
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -474,10 +484,69 @@ export default function Artwork() {
         </Box>
       </Paper>
 
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 0.5,
+          mb: 0.5,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredArtworks.length} artworks
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, next) => next && setViewMode(next)}
+          size="small"
+          aria-label="Artwork presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": { backgroundColor: theme.palette.error.dark },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
       <Paper
         sx={{
           p: { xs: 1.5, sm: 2 },
-          mt: 2,
+          mt: 1,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -489,11 +558,19 @@ export default function Artwork() {
             <CircularProgress />
           </Box>
         ) : filteredArtworks.length > 0 ? (
-          <ArtworkCard
-            artworks={filteredArtworks}
-            onVerify={setVerificationArtwork}
-            onReject={setRejectionArtwork}
-          />
+          viewMode === "table" ? (
+            <ArtworkTable
+              artworks={filteredArtworks}
+              onVerify={setVerificationArtwork}
+              onReject={setRejectionArtwork}
+            />
+          ) : (
+            <ArtworkCard
+              artworks={filteredArtworks}
+              onVerify={setVerificationArtwork}
+              onReject={setRejectionArtwork}
+            />
+          )
         ) : (
           <Typography
             color="text.secondary"

@@ -12,11 +12,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
+import { getArtworkRemainingStock } from "../../../utils/artworkAvailability";
 
 const formatPrice = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -124,6 +126,12 @@ export default function CartTable({
           <TableBody>
             {items.map((item) => {
               const soldOut = Number(item.is_sold_out) === 1;
+              const remainingStock = getArtworkRemainingStock(item);
+              const isMultiOption = Array.isArray(item.selected_products) && item.selected_products.length > 1;
+              const currentQty = Number(cartQuantities[item.artwork_id] || item.qty || 1);
+              const maxQty = remainingStock !== null ? Math.max(1, remainingStock) : 999999;
+              const canIncrease = isProductItem(item) && !isMultiOption && currentQty < maxQty;
+              const canDecrease = isProductItem(item) && !isMultiOption && currentQty > 1;
               return (
                 <TableRow
                   key={item.artwork_id}
@@ -210,18 +218,28 @@ export default function CartTable({
                             Request: {item.order_note}
                           </Typography>
                         )}
-                        <Chip
-                          label={soldOut ? "Sold out" : "Available"}
-                          size="small"
-                          color={soldOut ? "default" : "success"}
-                          variant="outlined"
-                          sx={{
-                            mt: 1,
-                            height: 23,
-                            fontSize: 11,
-                            fontWeight: 600,
-                          }}
-                        />
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                          <Chip
+                            label={soldOut ? "Sold out" : "Available"}
+                            size="small"
+                            color={soldOut ? "default" : "success"}
+                            variant="outlined"
+                            sx={{
+                              height: 23,
+                              fontSize: 11,
+                              fontWeight: 600,
+                            }}
+                          />
+                          {!soldOut && remainingStock !== null && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {remainingStock} in stock
+                            </Typography>
+                          )}
+                        </Stack>
                       </Box>
                     </Stack>
                     </Stack>
@@ -236,17 +254,16 @@ export default function CartTable({
                     }}
                   >
                     <Stack direction="column" alignItems="flex-end" spacing={0.75}>
-                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={!isProductItem(item) ||
-                            (Array.isArray(item.selected_products) && item.selected_products.length > 1)}
-                          onClick={() => onQuantityChange?.(item.artwork_id, Math.max(1, Number(cartQuantities[item.artwork_id] || 1) - 1))}
+                          disabled={!canDecrease}
+                          onClick={() => onQuantityChange?.(item.artwork_id, currentQty - 1)}
                           sx={{
-                            minWidth: 24,
-                            width: 24,
-                            height: 24,
+                            minWidth: 26,
+                            width: 26,
+                            height: 28,
                             p: 0,
                             borderRadius: 1,
                             opacity: isProductItem(item) ? 1 : 0.55,
@@ -254,19 +271,60 @@ export default function CartTable({
                         >
                           −
                         </Button>
-                        <Typography variant="body2" fontWeight={700} sx={{ minWidth: 18, textAlign: "center" }}>
-                          {Number(cartQuantities[item.artwork_id] || 1)}
-                        </Typography>
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={currentQty}
+                          disabled={!isProductItem(item) || isMultiOption}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === "") return;
+                            const num = Number(raw);
+                            if (Number.isSafeInteger(num)) {
+                              // Strict restrictor: clamps immediately to max available stock
+                              const clamped = Math.min(Math.max(1, num), maxQty);
+                              onQuantityChange?.(item.artwork_id, clamped);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (!currentQty || currentQty < 1) {
+                              onQuantityChange?.(item.artwork_id, 1);
+                            }
+                          }}
+                          inputProps={{
+                            min: 1,
+                            max: maxQty,
+                            style: {
+                              textAlign: "center",
+                              width: 36,
+                              padding: "2px 2px",
+                              fontSize: "0.85rem",
+                              fontWeight: 700,
+                            },
+                          }}
+                          sx={{
+                            width: 48,
+                            "& .MuiOutlinedInput-root": {
+                              height: 28,
+                              borderRadius: 1,
+                            },
+                            "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
+                              display: "none",
+                            },
+                            "& input[type=number]": {
+                              MozAppearance: "textfield",
+                            },
+                          }}
+                        />
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={!isProductItem(item) ||
-                            (Array.isArray(item.selected_products) && item.selected_products.length > 1)}
-                          onClick={() => onQuantityChange?.(item.artwork_id, Number(cartQuantities[item.artwork_id] || 1) + 1)}
+                          disabled={!canIncrease}
+                          onClick={() => onQuantityChange?.(item.artwork_id, Math.min(maxQty, currentQty + 1))}
                           sx={{
-                            minWidth: 24,
-                            width: 24,
-                            height: 24,
+                            minWidth: 26,
+                            width: 26,
+                            height: 28,
                             p: 0,
                             borderRadius: 1,
                             opacity: isProductItem(item) ? 1 : 0.55,

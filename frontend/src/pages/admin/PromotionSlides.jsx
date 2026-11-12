@@ -514,20 +514,31 @@ export default function PromotionSlides({ registerActions, onNotify }) {
           </Typography>
         </Paper>
       ) : viewMode === "card" ? (
-        <PromotionSlideCard
-          slides={filteredSlides}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onEdit={(slide) => {
-            setSelectedSlide(slide);
-            setFormOpen(true);
+        <Paper
+          component="section"
+          variant="outlined"
+          sx={{
+            p: { xs: 1.5, sm: 2 },
+            borderRadius: 2.5,
+            borderColor: theme.palette.divider,
+            backgroundColor: theme.palette.background.paper,
           }}
-          onDelete={handleDelete}
-          onPublish={handlePublish}
-          onUnpublish={handleUnpublish}
-          publishingSlideId={publishingSlideId}
-          unpublishingSlideId={unpublishingSlideId}
-        />
+        >
+          <PromotionSlideCard
+            slides={filteredSlides}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onEdit={(slide) => {
+              setSelectedSlide(slide);
+              setFormOpen(true);
+            }}
+            onDelete={handleDelete}
+            onPublish={handlePublish}
+            onUnpublish={handleUnpublish}
+            publishingSlideId={publishingSlideId}
+            unpublishingSlideId={unpublishingSlideId}
+          />
+        </Paper>
       ) : (
         <PromotionSlideTable
           slides={filteredSlides}

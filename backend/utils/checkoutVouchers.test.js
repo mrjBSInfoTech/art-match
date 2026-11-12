@@ -81,3 +81,34 @@ test("missing and ambiguous active codes are rejected and absent codes require n
   assert.equal(quote.summary.discount_amount, 0);
   assert.equal(quote.summary.total, 100);
 });
+
+test("expired voucher returns an explicit expired error message", async () => {
+  const items = [item(1, 5, "100.00")];
+  await assert.rejects(
+    quoteCheckoutVoucher({ query: async () => [[voucher({ is_active: 0, is_expired: 1 })]] }, items, "SAVE10"),
+    /expired and can no longer be used/i,
+  );
+});
+
+test("voucher cannot be reused by the same buyer once applied to a non-cancelled order", async () => {
+  const items = [item(1, 5, "100.00")];
+  const executorUsed = {
+    query: async (sql) => {
+      if (/FROM marketplace_order/i.test(sql)) return [[{ order_id: 501 }]];
+      return [[voucher()]];
+    },
+  };
+  await assert.rejects(
+    quoteCheckoutVoucher(executorUsed, items, "SAVE10", { customerId: 12 }),
+    /already used this voucher code/i,
+  );
+
+  const executorUnused = {
+    query: async (sql) => {
+      if (/FROM marketplace_order/i.test(sql)) return [[]];
+      return [[voucher()]];
+    },
+  };
+  const quote = await quoteCheckoutVoucher(executorUnused, items, "SAVE10", { customerId: 12 });
+  assert.equal(quote.summary.discount_amount, 10);
+});

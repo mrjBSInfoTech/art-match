@@ -137,10 +137,10 @@ export default function ArtworkCard({
     }
   };
 
-  const handleAddPremadeSelection = async (orderNote) => {
+  const handleAddPremadeSelection = async (orderNote, quantity = 1) => {
     setIsAdding(true);
     try {
-      await submitOrder(1, undefined, orderNote);
+      await submitOrder(quantity, undefined, orderNote);
     } finally {
       setIsAdding(false);
     }

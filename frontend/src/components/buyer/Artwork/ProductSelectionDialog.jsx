@@ -259,37 +259,92 @@ export default function ProductSelectionDialog({
                   {isSelected && (
                     <Box
                       sx={{
-                        width: { xs: "100%", sm: 96 },
+                        width: { xs: "100%", sm: 124 },
                         flexShrink: 0,
                         pt: { xs: 0.5, sm: 0 },
                       }}
                     >
-                      <TextField
-                        type="number"
-                        size="small"
-                        fullWidth
-                        label="Quantity"
-                        value={quantity}
-                        onChange={(event) => {
-                          const raw = event.target.value;
-                          if (raw === "") {
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={quantity <= 1 || isSubmitting}
+                          onClick={() =>
                             setQuantities((current) => ({
                               ...current,
-                              [option.id]: 0,
-                            }));
-                            return;
+                              [option.id]: Math.max(1, quantity - 1),
+                            }))
                           }
-                          const value = Number(raw);
-                          setQuantities((current) => ({
-                            ...current,
-                            [option.id]: Number.isSafeInteger(value)
-                              ? Math.min(Math.max(value, 1), available)
-                              : 1,
-                          }));
-                        }}
-                        inputProps={{ min: 1, max: available, step: 1 }}
-                        disabled={!Number.isSafeInteger(available) || available <= 0 || isSubmitting}
-                      />
+                          sx={{ minWidth: 26, width: 26, height: 32, p: 0, borderRadius: 1 }}
+                        >
+                          −
+                        </Button>
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={quantity}
+                          onChange={(event) => {
+                            const raw = event.target.value;
+                            if (raw === "") {
+                              setQuantities((current) => ({
+                                ...current,
+                                [option.id]: 0,
+                              }));
+                              return;
+                            }
+                            const value = Number(raw);
+                            setQuantities((current) => ({
+                              ...current,
+                              [option.id]: Number.isSafeInteger(value)
+                                ? Math.min(Math.max(value, 1), available)
+                                : 1,
+                            }));
+                          }}
+                          onBlur={() => {
+                            if (!quantity || quantity < 1) {
+                              setQuantities((current) => ({
+                                ...current,
+                                [option.id]: 1,
+                              }));
+                            }
+                          }}
+                          inputProps={{
+                            min: 1,
+                            max: available,
+                            step: 1,
+                            style: {
+                              textAlign: "center",
+                              padding: "4px 2px",
+                              fontSize: "0.85rem",
+                              fontWeight: 700,
+                            },
+                          }}
+                          sx={{
+                            width: 48,
+                            "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
+                              display: "none",
+                            },
+                            "& input[type=number]": {
+                              MozAppearance: "textfield",
+                            },
+                          }}
+                          disabled={!Number.isSafeInteger(available) || available <= 0 || isSubmitting}
+                        />
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={quantity >= available || isSubmitting}
+                          onClick={() =>
+                            setQuantities((current) => ({
+                              ...current,
+                              [option.id]: Math.min(available, quantity + 1),
+                            }))
+                          }
+                          sx={{ minWidth: 26, width: 26, height: 32, p: 0, borderRadius: 1 }}
+                        >
+                          +
+                        </Button>
+                      </Stack>
                     </Box>
                   )}
                 </Box>
