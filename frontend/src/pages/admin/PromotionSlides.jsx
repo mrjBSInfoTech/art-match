@@ -27,6 +27,7 @@ import PromotionSlideCard from "../../components/admin/Event/PromotionSlideCard"
 import PromotionSlideTable from "../../components/admin/Event/PromotionSlideTable";
 import PromotionSlideForm from "../../components/admin/Event/PromotionSlideForm";
 import PromotionSlideReviewDialog from "../../components/admin/Event/PromotionSlideReviewDialog";
+import { adminSearchInputSx } from "../../components/admin/adminFilterStyles";
 import {
   addPromotionSlide,
   deletePromotionSlide,
@@ -337,12 +338,14 @@ export default function PromotionSlides({ registerActions, onNotify }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             fullWidth={Boolean(registerActions)}
-            sx={{
-              width: registerActions ? "100%" : { xs: "100%", md: 340 },
-              maxWidth: "100%",
-              minWidth: 0,
-              "& .MuiInputBase-input": { fontSize: 13 },
-            }}
+            sx={(muiTheme) =>
+              adminSearchInputSx(muiTheme, {
+                width: registerActions ? "100%" : { xs: "100%", md: 340 },
+                maxWidth: "100%",
+                minWidth: 0,
+                "& .MuiInputBase-input": { fontSize: 13 },
+              })
+            }
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">

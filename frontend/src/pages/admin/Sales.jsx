@@ -27,6 +27,7 @@ import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 import SalesTable from "../../components/admin/Sales/SalesTable";
 import SalesCard from "../../components/admin/Sales/SalesCard";
+import { adminSearchInputSx } from "../../components/admin/adminFilterStyles";
 
 const transactions = [
   {
@@ -341,12 +342,14 @@ export default function Sales() {
             placeholder="Search artwork, artist, buyer..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            sx={{
-              width: "100%",
-              maxWidth: { xs: "100%", sm: 340 },
-              minWidth: 0,
-              "& .MuiInputBase-input": { fontSize: 12 },
-            }}
+            sx={(muiTheme) =>
+              adminSearchInputSx(muiTheme, {
+                width: "100%",
+                maxWidth: { xs: "100%", sm: 340 },
+                minWidth: 0,
+                "& .MuiInputBase-input": { fontSize: 12 },
+              })
+            }
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">

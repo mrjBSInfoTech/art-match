@@ -23,6 +23,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AdminInfo from "./AdminInfo";
+import { adminTableButtonSx } from "../adminTableStyles";
 
 export default function AdminTable({
   admins = [],
@@ -237,13 +238,7 @@ export default function AdminTable({
                         <Button
                           variant="outlined"
                           onClick={() => handleInfoOpen(admin)}
-                          sx={{
-                            minHeight: 40,
-                            borderRadius: 2,
-                            fontWeight: 700,
-                            textTransform: "none",
-                            whiteSpace: "nowrap",
-                          }}
+                          sx={adminTableButtonSx}
                         >
                           View details
                         </Button>

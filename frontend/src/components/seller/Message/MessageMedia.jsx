@@ -28,7 +28,9 @@ export default function MessageMedia({ open, onClose, sharedMedia, onViewMedia }
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => onClose()}>Close</Button>
+        <Button color="text.secondary" onClick={() => onClose()}>
+          Close
+        </Button>
       </DialogActions>
     </MessageDialog>
   );

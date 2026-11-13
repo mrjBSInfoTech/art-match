@@ -8,264 +8,28 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Divider,
-  FormControl,
   InputAdornment,
-  InputLabel,
-  MenuItem,
   Paper,
   Rating,
-  Select,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
-import {
-  fetchSellerReviews,
-  saveSellerReviewResponse,
-} from "../../api/seller/reviewsAPI";
+import { adminSearchInputSx } from "../../components/admin/adminFilterStyles";
+import ReviewCard from "../../components/seller/Review/ReviewCard";
+import ReviewTable from "../../components/seller/Review/ReviewTable";
+import { fetchSellerReviews } from "../../api/seller/reviewsAPI";
 import StarRateRoundedIcon from "@mui/icons-material/StarRateRounded";
 import RateReviewRoundedIcon from "@mui/icons-material/RateReviewRounded";
 import QuestionAnswerRoundedIcon from "@mui/icons-material/QuestionAnswerRounded";
 import SearchIcon from "@mui/icons-material/Search";
-
-const QUICK_RESPONSES = [
-  "Thank you for your feedback and support!",
-  "Thank you for taking the time to share your experience.",
-  "We're glad you enjoyed the artwork. Thank you!",
-];
-
-const formatReviewDate = (value) => {
-  const date = new Date(value);
-  return Number.isFinite(date.getTime())
-    ? date.toLocaleString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : "";
-};
-
-function SellerReviewCard({ review, onResponseSaved }) {
-  const [editing, setEditing] = useState(false);
-  const [mode, setMode] = useState("quick");
-  const [quickResponse, setQuickResponse] = useState("");
-  const [customResponse, setCustomResponse] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const response = mode === "quick" ? quickResponse : customResponse;
-
-  const startEditing = () => {
-    setMode("custom");
-    setCustomResponse(review.sellerResponse || "");
-    setError("");
-    setEditing(true);
-  };
-
-  const cancelEditing = () => {
-    setEditing(false);
-    setError("");
-    setQuickResponse("");
-    setCustomResponse("");
-  };
-
-  const handleSave = async (event) => {
-    event.preventDefault();
-    const trimmedResponse = response.trim();
-    if (!trimmedResponse || trimmedResponse.length > 600 || saving) return;
-
-    setSaving(true);
-    setError("");
-    try {
-      const result = await saveSellerReviewResponse(review.id, trimmedResponse);
-      onResponseSaved(review.id, result.response, result.respondedAt);
-      setEditing(false);
-      setQuickResponse("");
-      setCustomResponse("");
-    } catch (saveError) {
-      setError(saveError.message || "Unable to save your response.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const dateLabel = formatReviewDate(review.createdAt);
-  const responseDateLabel = formatReviewDate(review.sellerResponseAt);
-
-  return (
-    <Card component="article" variant="outlined" sx={{ borderRadius: 3 }}>
-      <CardContent>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          justifyContent="space-between"
-          spacing={1}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="subtitle1"
-              fontWeight={700}
-              sx={{ overflowWrap: "anywhere" }}
-            >
-              {review.artworkTitle || "Artwork"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Reviewed by {review.reviewerName || "Buyer"}
-            </Typography>
-          </Box>
-          {dateLabel && (
-            <Typography
-              component="time"
-              dateTime={new Date(review.createdAt).toISOString()}
-              variant="caption"
-              color="text.secondary"
-            >
-              {dateLabel}
-            </Typography>
-          )}
-        </Stack>
-        <Rating
-          value={Number(review.rating) || 0}
-          readOnly
-          size="small"
-          aria-label={`${review.rating} out of 5 stars`}
-          sx={{ mt: 1 }}
-        />
-        <Divider sx={{ my: 1.5 }} />
-        <Typography
-          variant="body2"
-          sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-        >
-          {review.comment?.trim() || "No written comment provided."}
-        </Typography>
-
-        {review.sellerResponse && !editing && (
-          <Box
-            sx={{
-              mt: 2,
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: "action.hover",
-              borderLeft: "3px solid",
-              borderColor: "primary.main",
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" spacing={1}>
-              <Typography variant="subtitle2" fontWeight={700}>
-                Your response
-              </Typography>
-              {responseDateLabel && (
-                <Typography
-                  component="time"
-                  dateTime={new Date(review.sellerResponseAt).toISOString()}
-                  variant="caption"
-                  color="text.secondary"
-                >
-                  {responseDateLabel}
-                </Typography>
-              )}
-            </Stack>
-            <Typography
-              variant="body2"
-              sx={{ mt: 0.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-            >
-              {review.sellerResponse}
-            </Typography>
-          </Box>
-        )}
-
-        {editing ? (
-          <Box component="form" onSubmit={handleSave} sx={{ mt: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel id={`response-mode-label-${review.id}`}>
-                Response type
-              </InputLabel>
-              <Select
-                labelId={`response-mode-label-${review.id}`}
-                value={mode}
-                label="Response type"
-                onChange={(event) => {
-                  setMode(event.target.value);
-                  setError("");
-                }}
-              >
-                <MenuItem value="quick">Choose a premade response</MenuItem>
-                <MenuItem value="custom">Write your own response</MenuItem>
-              </Select>
-            </FormControl>
-            {mode === "quick" ? (
-              <FormControl fullWidth size="small" sx={{ mt: 1.5 }}>
-                <InputLabel id={`quick-response-label-${review.id}`}>
-                  Premade response
-                </InputLabel>
-                <Select
-                  labelId={`quick-response-label-${review.id}`}
-                  value={quickResponse}
-                  label="Premade response"
-                  onChange={(event) => setQuickResponse(event.target.value)}
-                >
-                  {QUICK_RESPONSES.map((item) => (
-                    <MenuItem key={item} value={item}>
-                      {item}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            ) : (
-              <TextField
-                fullWidth
-                multiline
-                minRows={3}
-                label="Your response"
-                value={customResponse}
-                onChange={(event) => setCustomResponse(event.target.value)}
-                slotProps={{ htmlInput: { maxLength: 600 } }}
-                helperText={`${customResponse.length}/600 characters`}
-                sx={{ mt: 1.5 }}
-              />
-            )}
-            {error && (
-              <Alert severity="error" sx={{ mt: 1.5 }}>
-                {error}
-              </Alert>
-            )}
-            <Stack
-              direction="row"
-              spacing={1}
-              justifyContent="flex-end"
-              sx={{ mt: 1.5 }}
-            >
-              <Button onClick={cancelEditing} disabled={saving}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={
-                  !response.trim() || response.trim().length > 600 || saving
-                }
-              >
-                {saving
-                  ? "Saving..."
-                  : review.sellerResponse
-                    ? "Update response"
-                    : "Post response"}
-              </Button>
-            </Stack>
-          </Box>
-        ) : (
-          <Button size="small" onClick={startEditing} sx={{ mt: 1.5 }}>
-            {review.sellerResponse ? "Edit response" : "Respond to review"}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 
 export default function SellerReviews() {
   const theme = useTheme();
@@ -274,6 +38,7 @@ export default function SellerReviews() {
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [selectedArtwork, setSelectedArtwork] = useState("all");
+  const [viewMode, setViewMode] = useState("card");
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -443,21 +208,6 @@ export default function SellerReviews() {
             Buyer feedback for your artwork and seller experience.
           </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary" aria-live="polite">
-          {loading
-            ? "Loading review count..."
-            : error
-              ? "Review count unavailable"
-              : `${visibleReviews.length} ${
-                  visibleReviews.length === 1 ? "review" : "reviews"
-                }${
-                  selectedArtwork === "all"
-                    ? ` · ${artworkCategories.length} ${
-                        artworkCategories.length === 1 ? "artwork" : "artworks"
-                      }`
-                    : ""
-                }`}
-        </Typography>
       </Stack>
 
       {error && (
@@ -594,7 +344,6 @@ export default function SellerReviews() {
                   borderColor: theme.palette.divider,
                   minWidth: 0,
                   overflow: "hidden",
-                  mb: 2.5,
                 }}
               >
                 <Box sx={{ width: "100%", minWidth: 0 }}>
@@ -658,13 +407,7 @@ export default function SellerReviews() {
                               </>
                             ),
                           }}
-                          sx={{
-                            minWidth: 0,
-                            "& .MuiInputBase-input::placeholder": {
-                              color: theme.palette.text.secondary,
-                              opacity: 1,
-                            },
-                          }}
+                          sx={adminSearchInputSx(theme, { minWidth: 0 })}
                         />
                       )}
                     />
@@ -672,42 +415,79 @@ export default function SellerReviews() {
               </Paper>
             )}
 
-            <Paper
-              variant="outlined"
+            {/* View Mode Switcher & Summary Count */}
+            <Box
               sx={{
-                p: { xs: 2, md: 2.5 },
-                borderRadius: 2.5,
-                backgroundColor: theme.palette.background.paper,
-                borderColor: theme.palette.divider,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 1.5,
+                mt: 2,
+                mb: 1,
               }}
             >
-              <Box sx={{ mb: 2.5 }}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  alignItems={{ xs: "flex-start", sm: "center" }}
-                  spacing={{ xs: 1, sm: 2 }}
-                >
-                  <Rating
-                    value={averageRating}
-                    precision={0.1}
-                    readOnly
-                    aria-label={
-                      visibleReviews.length
-                        ? `Average rating: ${averageRating.toFixed(1)} out of 5`
-                        : "No ratings yet"
-                    }
-                  />
-                  <Typography variant="h5" fontWeight={700}>
-                    {visibleReviews.length ? averageRating.toFixed(1) : "—"}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Based on {visibleReviews.length}{" "}
-                    {visibleReviews.length === 1 ? "rating" : "ratings"}
-                  </Typography>
-                </Stack>
-              </Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                aria-live="polite"
+                sx={{ fontWeight: 600 }}
+              >
+                Showing {visibleReviews.length} of {reviews.length} reviews
+              </Typography>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_event, next) => {
+                  if (next) setViewMode(next);
+                }}
+                size="small"
+                aria-label="Reviews presentation mode"
+                sx={{
+                  backgroundColor: theme.palette.background.paper,
+                  borderRadius: 2.5,
+                  border: `1px solid ${theme.palette.divider}`,
+                  p: 0.3,
+                  "& .MuiToggleButton-root": {
+                    border: "none",
+                    borderRadius: 2,
+                    px: 1.5,
+                    py: 0.5,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textTransform: "none",
+                    color: theme.palette.text.secondary,
+                    gap: 0.75,
+                    transition: "all 150ms ease",
+                  },
+                  "& .MuiToggleButton-root.Mui-selected": {
+                    backgroundColor: theme.palette.error.main,
+                    color: "#fff",
+                    "&:hover": { backgroundColor: theme.palette.error.dark },
+                  },
+                }}
+              >
+                <ToggleButton value="card" aria-label="Card view">
+                  <ViewModuleIcon sx={{ fontSize: 18 }} />
+                  Cards
+                </ToggleButton>
+                <ToggleButton value="table" aria-label="Table view">
+                  <ViewListIcon sx={{ fontSize: 18 }} />
+                  Table
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
 
-              {visibleReviews.length === 0 ? (
+            {visibleReviews.length === 0 ? (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2, md: 2.5 },
+                  borderRadius: 2.5,
+                  backgroundColor: theme.palette.background.paper,
+                  borderColor: theme.palette.divider,
+                }}
+              >
                 <Box sx={{ py: 5, textAlign: "center" }}>
                   <Typography variant="h6" fontWeight={600}>
                     No reviews yet
@@ -716,7 +496,49 @@ export default function SellerReviews() {
                     Ratings and comments for your artwork will appear here.
                   </Typography>
                 </Box>
-              ) : (
+              </Paper>
+            ) : viewMode === "table" ? (
+              <ReviewTable
+                reviews={visibleReviews}
+                averageRating={averageRating}
+                onResponseSaved={handleResponseSaved}
+              />
+            ) : (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2, md: 2.5 },
+                  borderRadius: 2.5,
+                  backgroundColor: theme.palette.background.paper,
+                  borderColor: theme.palette.divider,
+                }}
+              >
+                <Box sx={{ mb: 2.5 }}>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    spacing={{ xs: 1, sm: 2 }}
+                  >
+                    <Rating
+                      value={averageRating}
+                      precision={0.1}
+                      readOnly
+                      aria-label={
+                        visibleReviews.length
+                          ? `Average rating: ${averageRating.toFixed(1)} out of 5`
+                          : "No ratings yet"
+                      }
+                    />
+                    <Typography variant="h5" fontWeight={700}>
+                      {visibleReviews.length ? averageRating.toFixed(1) : "—"}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      Based on {visibleReviews.length}{" "}
+                      {visibleReviews.length === 1 ? "rating" : "ratings"}
+                    </Typography>
+                  </Stack>
+                </Box>
+
                 <Box
                   sx={{
                     display: "grid",
@@ -731,15 +553,15 @@ export default function SellerReviews() {
                 >
                   {visibleReviews.map((review) => (
                     <Box key={review.id} sx={{ minWidth: 0 }}>
-                      <SellerReviewCard
+                      <ReviewCard
                         review={review}
                         onResponseSaved={handleResponseSaved}
                       />
                     </Box>
                   ))}
                 </Box>
-              )}
-            </Paper>
+              </Paper>
+            )}
           </>
         )
       )}

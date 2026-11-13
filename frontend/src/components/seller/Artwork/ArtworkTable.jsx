@@ -16,6 +16,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import ArtworkImage from "../../common/ArtworkImage";
 import ArtworkInfo from "./ArtworkInfo";
+import { sellerTableButtonSx } from "../sellerTableStyles";
 
 const getRequestStatus = (artwork) => {
   const raw = String(artwork.request_status || "").trim();
@@ -154,19 +155,19 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                         }}
                       />
                     </TableCell>
-                    <TableCell align="center" sx={{ minWidth: 310 }}>
+                    <TableCell align="center" sx={{ minWidth: 320 }}>
                       <Stack direction="row" spacing={0.75} justifyContent="center">
                         <Button
                           variant="outlined"
                           onClick={() => openArtworkInfo(artwork)}
-                          sx={{ minHeight: 44, px: 1.25, borderRadius: 2, fontWeight: 700, textTransform: "none" }}
+                          sx={sellerTableButtonSx}
                         >
                           Details
                         </Button>
                         <Button
                           variant="outlined"
                           onClick={() => onEdit(artwork)}
-                          sx={{ minHeight: 44, px: 1.25, borderRadius: 2, fontWeight: 700, textTransform: "none" }}
+                          sx={sellerTableButtonSx}
                         >
                           Edit
                         </Button>
@@ -174,7 +175,7 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                           variant="outlined"
                           disabled={!canRequestVerification}
                           onClick={() => onVerify(artwork)}
-                          sx={{ minHeight: 44, px: 1.25, borderRadius: 2, fontWeight: 700, textTransform: "none" }}
+                          sx={sellerTableButtonSx}
                         >
                           Verify
                         </Button>
@@ -182,7 +183,7 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                           color="error"
                           variant="outlined"
                           onClick={() => onDelete(artwork.artwork_id)}
-                          sx={{ minHeight: 44, px: 1.25, borderRadius: 2, fontWeight: 700, textTransform: "none" }}
+                          sx={sellerTableButtonSx}
                         >
                           Delete
                         </Button>

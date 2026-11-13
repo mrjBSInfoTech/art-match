@@ -33,6 +33,10 @@ import ArtworkReject from "../../components/admin/Artwork/ArtworkReject";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
+import {
   fetchArtworks,
   verifyArtwork,
   rejectArtwork,
@@ -437,21 +441,7 @@ export default function Artwork() {
             inputProps={{ "aria-label": "Search artworks" }}
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiOutlinedInput-root": {
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              },
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -518,14 +508,7 @@ export default function Artwork() {
                     sx={{ mr: 0.5, fontSize: 17, color: "#94a3b8" }}
                   />
                 }
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="newest">Newest First</MenuItem>
                 <MenuItem value="oldest">Oldest First</MenuItem>
@@ -575,6 +558,7 @@ export default function Artwork() {
               textTransform: "none",
               color: theme.palette.text.secondary,
               gap: 0.75,
+              transition: "all 150ms ease",
             },
             "& .MuiToggleButton-root.Mui-selected": {
               backgroundColor: theme.palette.error.main,

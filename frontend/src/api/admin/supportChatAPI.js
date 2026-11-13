@@ -3,7 +3,6 @@ import axios from "axios";
 const api = axios.create({
   withCredentials: true,
   baseURL: "http://localhost:5000/api/support-chat",
-  headers: { "Content-Type": "application/json" },
   timeout: 15000,
 });
 
@@ -55,11 +54,17 @@ export const startSupportConversation = async (role, accountId) => {
   }
 };
 
-export const sendSupportReply = async (conversationId, message) => {
+export const sendSupportReply = async (conversationId, payload) => {
   try {
+    const body =
+      payload instanceof FormData
+        ? payload
+        : typeof payload === "string"
+          ? { message: payload }
+          : payload;
     const response = await api.post(
       `/admin/conversations/${conversationId}/messages`,
-      { message },
+      body,
     );
     return response.data;
   } catch (error) {

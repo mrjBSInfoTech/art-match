@@ -344,6 +344,7 @@ export default function Customer() {
               textTransform: "none",
               color: theme.palette.text.secondary,
               gap: 0.75,
+              transition: "all 150ms ease",
             },
             "& .MuiToggleButton-root.Mui-selected": {
               backgroundColor: theme.palette.error.main,

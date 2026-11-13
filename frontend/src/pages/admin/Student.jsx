@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
@@ -347,6 +348,7 @@ export default function Student() {
           <Button
             variant="outlined"
             onClick={() => setOpenBulkAdd(true)}
+            startIcon={<AddIcon />}
             sx={{
               width: { xs: "100%", sm: 150 },
               height: { xs: 38, sm: 44 },
@@ -364,6 +366,7 @@ export default function Student() {
             variant="contained"
             color="error"
             onClick={handleOpenAdd}
+            startIcon={<AddIcon />}
             sx={{
               width: { xs: "100%", sm: 150 },
               height: { xs: 38, sm: 44 },
@@ -390,9 +393,6 @@ export default function Student() {
         }}
         variant="outlined"
       >
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-          Student reports include the current search, course, and year-level filters.
-        </Typography>
         <Box
           sx={{
             display: "grid",
@@ -552,6 +552,7 @@ export default function Student() {
               textTransform: "none",
               color: theme.palette.text.secondary,
               gap: 0.75,
+              transition: "all 150ms ease",
             },
             "& .MuiToggleButton-root.Mui-selected": {
               backgroundColor: theme.palette.error.main,

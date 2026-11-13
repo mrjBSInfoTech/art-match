@@ -5,30 +5,29 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
+  CircularProgress,
   IconButton,
-  InputAdornment,
-  List,
   Menu,
   MenuItem,
-  Paper,
   Stack,
-  TextField,
   Typography,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
 
-import SearchIcon from "@mui/icons-material/Search";
-import SendIcon from "@mui/icons-material/Send";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import PermMediaOutlinedIcon from "@mui/icons-material/PermMediaOutlined";
-import AttachFileIcon from "@mui/icons-material/AttachFile";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ChatPinDialog from "../../components/chat/ChatPinDialog";
 import ChatRecoveryDialog from "../../components/chat/ChatRecoveryDialog";
+import ChatWorkspace from "../../components/chat/ChatWorkspace";
+import ChatComposer, {
+  ChatAttachmentPreview,
+} from "../../components/chat/ChatComposer";
 import ConversationReturns from "../../components/buyer/Message/ConversationReturns";
 import MessageCard from "../../components/seller/Message/MessageCard";
 import MessageConversationCard from "../../components/seller/Message/MessageConversationCard";
@@ -125,6 +124,8 @@ export default function Messages() {
   const [returnsRefreshVersion, setReturnsRefreshVersion] = useState(0);
   const [chatUnlockRequested, setChatUnlockRequested] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [inboxFilter, setInboxFilter] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [attachedPreview, setAttachedPreview] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
@@ -155,6 +156,7 @@ export default function Messages() {
   const [supportMessages, setSupportMessages] = useState([]);
   const [supportLoading, setSupportLoading] = useState(false);
   const [sendingSupport, setSendingSupport] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const isSupportChat = selectedConversationId === SUPPORT_CHAT_ID;
 
   const fileInputRef = useRef(null);
@@ -341,8 +343,9 @@ export default function Messages() {
           id: `support-${message.support_message_id}`,
           sender: message.sender_type === "seller" ? "seller" : "admin",
           text: message.message_data,
-          image: null,
-          mediaType: "",
+          image: toAbsoluteMediaUrl(message.image),
+          mediaType: message.media_type || "",
+          fileName: message.file_name || "",
           time: formatMessageTime(message.created_at),
         })),
       );
@@ -493,7 +496,15 @@ export default function Messages() {
   const isChatBlocked =
     String(blockStatusConversationId) === String(selectedConversationId) &&
     (Boolean(blockStatus.blocked_by_me) || Boolean(blockStatus.blocked_by_other));
-  const sharedMedia = messages.filter((message) => message.image);
+  const sharedMedia = displayedMessages.filter((message) => {
+    if (!message.image) return false;
+    return (
+      !message.mediaType ||
+      message.mediaType.startsWith("image/") ||
+      message.mediaType.startsWith("video/") ||
+      /\.(jpg|jpeg|png|gif|webp|bmp|avif|mp4|mov|webm|ogg|m4v)(\?|$)/i.test(message.image)
+    );
+  });
 
   useEffect(() => {
     if (!/^\d+$/.test(targetConversationId) || Number(targetConversationId) <= 0) return;
@@ -560,7 +571,7 @@ export default function Messages() {
         const conversationList = await loadConversationList();
         const nextSelectedConversationId =
           selectedConversationId ||
-          (!selectedNotificationId
+          (!isMobile && !selectedNotificationId
             ? conversationList[0]?.conversation_id
             : null);
         setConversations(
@@ -572,6 +583,7 @@ export default function Messages() {
             : conversationList,
         );
         if (
+          !isMobile &&
           conversationList.length > 0 &&
           !selectedConversationId &&
           !selectedNotificationId
@@ -602,6 +614,7 @@ export default function Messages() {
     return unsubscribe;
   }, [
     encryptionReady,
+    isMobile,
     loadConversationList,
     selectedConversationId,
     selectedNotificationId,
@@ -760,20 +773,57 @@ export default function Messages() {
 
   const activePlaceholder = "Type a message...";
 
-  const chatListItems = supportChatEntry
-    ? [supportChatEntry, ...conversations]
-    : conversations;
+  const chatListItems = useMemo(
+    () => (supportChatEntry ? [supportChatEntry, ...conversations] : conversations),
+    [conversations, supportChatEntry],
+  );
+
+  const inboxFilters = useMemo(() => {
+    const unreadCount = chatListItems.filter(
+      (chat) => Number(chat.unread_count || 0) > 0,
+    ).length;
+    const supportCount = chatListItems.filter((chat) => Boolean(chat.is_support)).length;
+    return [
+      { id: "all", label: "All", count: chatListItems.length },
+      { id: "unread", label: "Unread", count: unreadCount },
+      { id: "support", label: "Support", count: supportCount },
+    ];
+  }, [chatListItems]);
+
   const filteredConversations = [...chatListItems]
-    .filter(
-      (chat) =>
-        (chat.other_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(chat.other_id || "").includes(searchQuery.trim()),
-    )
+    .filter((chat) => {
+      if (inboxFilter === "unread" && Number(chat.unread_count || 0) <= 0) return false;
+      if (inboxFilter === "support" && !chat.is_support) return false;
+      const q = searchQuery.toLowerCase();
+      return (
+        (chat.other_name || "").toLowerCase().includes(q) ||
+        String(chat.other_id || "").includes(searchQuery.trim())
+      );
+    })
     .sort((a, b) => {
       const aTime = a.last_message_time ? new Date(a.last_message_time).getTime() : 0;
       const bTime = b.last_message_time ? new Date(b.last_message_time).getTime() : 0;
       return bTime - aTime;
     });
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const updated = await loadConversationList();
+      setConversations(updated || []);
+      const summary = await fetchSellerSupportSummary();
+      setSupportSummary(summary);
+      if (isSupportChat) {
+        await loadSupportThread({ silent: true });
+      } else if (selectedConversationId && loadMessagesRef.current) {
+        await loadMessagesRef.current();
+      }
+    } catch (err) {
+      setError(err.message || "Unable to refresh messages");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [isSupportChat, loadConversationList, loadSupportThread, selectedConversationId]);
 
   const searchedBuyerId = searchQuery.trim();
   const canStartConversation =
@@ -852,12 +902,20 @@ export default function Messages() {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setAttachedPreview(imageUrl);
-      setAttachedFile(file);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Attachments must be 20MB or smaller.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
+    if (attachedPreview) {
+      URL.revokeObjectURL(attachedPreview);
+    }
+    setError("");
+    const imageUrl = URL.createObjectURL(file);
+    setAttachedPreview(imageUrl);
+    setAttachedFile(file);
   };
 
   const handleRemoveImage = () => {
@@ -874,12 +932,20 @@ export default function Messages() {
   const handleSendMessage = async () => {
     if (isSupportChat) {
       const message = inputMessage.trim();
-      if (!message || sendingSupport) return;
+      if ((!message && !attachedFile) || sendingSupport) return;
       try {
         setSendingSupport(true);
         setError("");
-        await sendSellerSupportMessage(message);
+        let payload = message;
+        if (attachedFile) {
+          const formData = new FormData();
+          formData.append("message", message);
+          formData.append("image", attachedFile);
+          payload = formData;
+        }
+        await sendSellerSupportMessage(payload);
         setInputMessage("");
+        handleRemoveImage();
         shouldScrollToBottomRef.current = true;
         await loadSupportThread({ silent: true });
       } catch (error) {
@@ -889,7 +955,7 @@ export default function Messages() {
       }
       return;
     }
-    if ((!inputMessage.trim() && !attachedFile) || !activeChat) return;
+    if ((!inputMessage.trim() && !attachedFile) || !activeChat || sendingMessage) return;
     if (!encryptionReady || !privateKeyRef.current) {
       setError("Unlock secure messaging before sending messages");
       return;
@@ -902,6 +968,7 @@ export default function Messages() {
     }
 
     try {
+      setSendingMessage(true);
       const recipientPublicKey = await fetchBuyerChatKey(activeChat.other_id);
       const encrypted = await encryptChatMessage({
         privateKey: privateKeyRef.current,
@@ -938,6 +1005,8 @@ export default function Messages() {
       setConversations(updated || []);
     } catch (err) {
       setError(err.message || "Unable to send message");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -974,223 +1043,255 @@ export default function Messages() {
     );
   }
 
+  const hasActiveThread = Boolean(activeChat || activeSupportChat || activeNotification);
+  const showLockedBanner =
+    !isSupportChat &&
+    !encryptionReady &&
+    (!showChatUnlockDialogs || (!pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh"));
+
+  const activeThreadTitle = activeNotification
+    ? "Account notice"
+    : activeSupportChat
+      ? "ArtMatch Support"
+      : activeChat?.other_name || "Buyer";
+
+  const activeThreadSubtitle = activeNotification
+    ? "From ArtMatch administration"
+    : activeSupportChat
+      ? "Admin support"
+      : "End-to-end encrypted chat";
+
+  const getInitials = (name) =>
+    (name || "B")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "B";
+
   return (
-    <Box
-      sx={{
-        height: { xs: "calc(100vh - 80px)", md: "calc(100vh - 120px)" },
-        display: "flex",
-        flexDirection: "column",
-        p: { xs: 2, md: 3 },
-      }}
-    >
+    <>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Messages</title>
       </Helmet>
 
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: { xs: "flex-start", sm: "center" },
-          gap: 2,
-          mb: 2.5,
-          flexWrap: "wrap",
+      <ChatWorkspace
+        title="Messages"
+        subtitle="Communicate securely with buyers, track return conversations, and reach ArtMatch Support."
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        isMobile={isMobile}
+        hasActiveThread={hasActiveThread}
+        onBack={() => {
+          handleRemoveImage();
+          setSelectedConversationId(null);
+          setSelectedNotificationId(null);
         }}
-      >
-        <Box>
-          <Typography
-            sx={{
-              fontSize: { xs: 28, sm: 38 },
-              fontWeight: 800,
-              lineHeight: 1.1,
-              color: theme.palette.text.primary,
-            }}
-          >
-            Messages
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.75,
-              color: theme.palette.text.secondary,
-              fontSize: 13,
-            }}
-          >
-            Communicate with customers and manage account notices in one place.
-          </Typography>
-        </Box>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {recoveryStatus && (
-        <Alert severity={recoveryStatus.startsWith("The passkey was accepted") ? "warning" : "success"} sx={{ mb: 2 }}>
-          {recoveryStatus}
-        </Alert>
-      )}
-
-      <Paper
-        elevation={0}
-        sx={{
-          flexGrow: 1,
-          display: "flex",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: { xs: 0, md: 3 },
-          overflow: "hidden",
-          bgcolor: "background.paper",
-        }}
-      >
-        {(!isMobile ||
-          (!selectedConversationId && !selectedNotificationId)) && (
-          <Box
-            sx={{
-              width: { xs: "100%", md: 360 },
-              borderRight: "1px solid",
-              borderColor: "divider",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <Box
-              sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}
-            >
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search buyer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && canStartConversation) {
-                    handleStartConversation();
-                  }
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
-              />
-              {canStartConversation && (
-                <Button
-                  fullWidth
-                  size="small"
-                  sx={{ mt: 1 }}
-                  onClick={handleStartConversation}
-                >
-                  Message buyer #{searchedBuyerId}
-                </Button>
+        alerts={
+          (error || recoveryStatus || showLockedBanner) && (
+            <Stack spacing={1} sx={{ mb: 1.5 }}>
+              {error && (
+                <Alert severity="error" onClose={() => setError("")}>
+                  {error}
+                </Alert>
               )}
-            </Box>
-
-            {loading ? (
-              <Box sx={{ p: 3, color: "text.secondary" }}>
-                Loading conversations…
-              </Box>
-            ) : (
-              <List sx={{ flexGrow: 1, overflowY: "auto", p: 0 }}>
-                {visibleNotifications.map((notification) => (
-                  <MessageNoticeCard key={notification.notification_id} notification={notification}
-                    selected={notification.notification_id === selectedNotificationId}
-                    onSelect={() => {
-                      setSelectedNotificationId(notification.notification_id);
-                      setSelectedConversationId(null);
-                    }} />
-                ))}
-                {filteredConversations.length === 0 ? (
-                  <Box sx={{ p: 3, color: "text.secondary" }}>
-                    No conversations yet.
-                  </Box>
-                ) : (
-                  filteredConversations.map((chat) => (
-                    <MessageConversationCard
-                      key={chat.conversation_id}
-                      chat={chat}
-                      isSelected={String(chat.conversation_id) === String(selectedConversationId)}
-                      avatarSrc={chat.is_support ? undefined : toAbsoluteProfileImageUrl(chat.other_avatar, "buyer")}
-                      timeLabel={chat.last_message_time ? formatMessageTime(chat.last_message_time) : ""}
-                      preview={normalizeConversationPreview(chat.last_message, chat)}
-                      onSelect={() => {
-                        handleSelectChat(chat.conversation_id);
-                        setSelectedNotificationId(null);
-                      }}
-                    />
-                  ))
-                )}
-              </List>
-            )}
-          </Box>
-        )}
-
-        {(!isMobile || selectedConversationId || selectedNotificationId) &&
-        (activeChat || activeSupportChat || activeNotification) ? (
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: "flex",
-              flexDirection: "column",
-              width: "100%",
-            }}
-          >
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}
-            >
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                {isMobile && (
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setSelectedConversationId(null);
-                      setSelectedNotificationId(null);
-                    }}
-                  >
-                    <ArrowBackIcon />
-                  </IconButton>
-                )}
-                <Avatar
-                  src={activeSupportChat ? undefined : toAbsoluteProfileImageUrl(activeChat?.other_avatar, "buyer")}
-                  alt={activeSupportChat ? "ArtMatch Support" : activeChat?.other_name || "Account notice"}
-                />
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    {activeNotification
-                      ? "Account notice"
-                      : activeSupportChat
-                        ? "ArtMatch Support"
-                        : activeChat?.other_name || "Buyer"}
-                  </Typography>
-                  <Typography variant="caption" color={activeSupportChat ? "text.secondary" : "success.main"}>
-                    {activeNotification
-                      ? "From ArtMatch administration"
-                      : activeSupportChat
-                        ? "Admin support"
-                        : "Online"}
-                  </Typography>
-                </Box>
-              </Stack>
-              {activeChat && (
-                <IconButton
-                  size="small"
-                  aria-label="Conversation options"
-                  aria-controls={menuAnchorEl ? "seller-chat-actions" : undefined}
-                  aria-haspopup="true"
-                  onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+              {recoveryStatus && (
+                <Alert
+                  severity={
+                    recoveryStatus.startsWith("The passkey was accepted")
+                      ? "warning"
+                      : "success"
+                  }
+                  onClose={() => setRecoveryStatus("")}
                 >
-                  <MoreVertIcon />
-                </IconButton>
+                  {recoveryStatus}
+                </Alert>
+              )}
+              {showLockedBanner && (
+                <Alert
+                  severity="info"
+                  icon={<LockOutlinedIcon />}
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => {
+                        setRecoveryError("");
+                        setChatUnlockRequested(true);
+                        if (!pinDialogMode && recoveryMode !== "setup" && recoveryMode !== "fresh") {
+                          setPinDialogMode("enter");
+                        }
+                      }}
+                    >
+                      Unlock
+                    </Button>
+                  }
+                >
+                  Secure messaging is locked. Enter your six-digit recovery PIN to read and send messages.
+                </Alert>
               )}
             </Stack>
-
-            {activeChat && (
+          )
+        }
+        searchPlaceholder="Search buyer or buyer ID..."
+        searchQuery={searchQuery}
+        onSearchChange={(e) => setSearchQuery(e.target.value)}
+        onSearchKeyDown={(e) => {
+          if (e.key === "Enter" && canStartConversation) {
+            handleStartConversation();
+          }
+        }}
+        sidebarExtra={
+          canStartConversation && (
+            <Button
+              fullWidth
+              size="small"
+              variant="outlined"
+              color="error"
+              sx={{ mt: 1, textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+              onClick={handleStartConversation}
+            >
+              Message buyer #{searchedBuyerId}
+            </Button>
+          )
+        }
+        filters={inboxFilters}
+        activeFilter={inboxFilter}
+        onFilterChange={setInboxFilter}
+        listLoading={loading && !conversations.length && !supportChatEntry}
+        listEmpty={
+          filteredConversations.length === 0 && visibleNotifications.length === 0 ? (
+            <Stack alignItems="center" spacing={1} sx={{ textAlign: "center" }}>
+              <ForumOutlinedIcon sx={{ fontSize: 40, color: "text.disabled" }} />
+              <Typography variant="body2" color="text.secondary">
+                {chatListItems.length
+                  ? "No conversations match this filter."
+                  : "No conversations yet."}
+              </Typography>
+            </Stack>
+          ) : null
+        }
+        listContent={
+          <>
+            {visibleNotifications.map((notification) => (
+              <MessageNoticeCard
+                key={notification.notification_id}
+                notification={notification}
+                selected={notification.notification_id === selectedNotificationId}
+                onSelect={() => {
+                  setSelectedNotificationId(notification.notification_id);
+                  setSelectedConversationId(null);
+                }}
+              />
+            ))}
+            {filteredConversations.map((chat) => (
+              <MessageConversationCard
+                key={chat.conversation_id}
+                chat={chat}
+                isSelected={
+                  String(chat.conversation_id) === String(selectedConversationId)
+                }
+                avatarSrc={
+                  chat.is_support
+                    ? undefined
+                    : toAbsoluteProfileImageUrl(chat.other_avatar, "buyer")
+                }
+                timeLabel={
+                  chat.last_message_time
+                    ? formatMessageTime(chat.last_message_time)
+                    : ""
+                }
+                preview={normalizeConversationPreview(chat.last_message, chat)}
+                onSelect={() => {
+                  handleSelectChat(chat.conversation_id);
+                  setSelectedNotificationId(null);
+                }}
+              />
+            ))}
+          </>
+        }
+        threadHeaderLeft={
+          <>
+            <Avatar
+              src={
+                activeSupportChat
+                  ? undefined
+                  : toAbsoluteProfileImageUrl(activeChat?.other_avatar, "buyer")
+              }
+              alt={activeThreadTitle}
+              sx={{
+                bgcolor: "error.main",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {activeSupportChat ? (
+                <SupportAgentOutlinedIcon fontSize="small" />
+              ) : (
+                getInitials(activeThreadTitle)
+              )}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.75}
+                flexWrap="wrap"
+                useFlexGap
+              >
+                <Typography variant="subtitle1" fontWeight={700} noWrap>
+                  {activeThreadTitle}
+                </Typography>
+                {activeSupportChat ? (
+                  <Chip
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    label="Support"
+                    sx={{ height: 22, fontSize: 11 }}
+                  />
+                ) : activeNotification ? (
+                  <Chip
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    label="Notice"
+                    sx={{ height: 22, fontSize: 11 }}
+                  />
+                ) : (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label="Buyer"
+                    sx={{ height: 22, fontSize: 11 }}
+                  />
+                )}
+              </Stack>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                component="div"
+              >
+                {activeThreadSubtitle}
+              </Typography>
+            </Box>
+          </>
+        }
+        threadHeaderRight={
+          (activeChat || activeSupportChat) && (
+            <>
+              <IconButton
+                size="small"
+                aria-label="Conversation options"
+                aria-controls={menuAnchorEl ? "seller-chat-actions" : undefined}
+                aria-haspopup="true"
+                onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+              >
+                <MoreVertIcon />
+              </IconButton>
               <Menu
                 id="seller-chat-actions"
                 anchorEl={menuAnchorEl}
@@ -1206,237 +1307,154 @@ export default function Messages() {
                   <PermMediaOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
                   View photos and videos
                 </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    setMenuAnchorEl(null);
-                    setActionDialog("delete");
-                  }}
-                >
-                  <DeleteOutlineIcon fontSize="small" sx={{ mr: 1.5 }} />
-                  Delete chat
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    setMenuAnchorEl(null);
-                    if (blockStatus.blocked_by_me) {
-                      handleUnblockUser();
-                    } else {
-                      setActionDialog("block");
-                    }
-                  }}
-                >
-                  <BlockOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
-                  {blockStatus.blocked_by_me ? "Unblock user" : "Block user"}
-                </MenuItem>
+                {activeChat && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchorEl(null);
+                      setActionDialog("delete");
+                    }}
+                  >
+                    <DeleteOutlineIcon fontSize="small" sx={{ mr: 1.5 }} />
+                    Delete chat
+                  </MenuItem>
+                )}
+                {activeChat && (
+                  <MenuItem
+                    onClick={() => {
+                      setMenuAnchorEl(null);
+                      if (blockStatus.blocked_by_me) {
+                        handleUnblockUser();
+                      } else {
+                        setActionDialog("block");
+                      }
+                    }}
+                  >
+                    <BlockOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
+                    {blockStatus.blocked_by_me ? "Unblock user" : "Block user"}
+                  </MenuItem>
+                )}
               </Menu>
+            </>
+          )
+        }
+        messagesRef={messagesContainerRef}
+        messagesContent={
+          <>
+            {activeChat && (
+              <ConversationReturns
+                key={selectedConversationId}
+                conversationId={selectedConversationId}
+                role="seller"
+                returnId={selectedReturnId}
+                refreshVersion={returnsRefreshVersion}
+              />
             )}
-
+            {activeNotification ? (
+              <MessageCard
+                message={{
+                  sender: "admin",
+                  text: activeNotification.message,
+                  time: formatMessageTime(activeNotification.created_at),
+                }}
+                onViewMedia={setSelectedMedia}
+              />
+            ) : activeSupportChat && supportLoading ? (
+              <Box sx={{ flex: 1, display: "grid", placeItems: "center", py: 6 }}>
+                <CircularProgress size={26} color="error" />
+              </Box>
+            ) : displayedMessages.length === 0 ? (
+              <Typography color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
+                {activeSupportChat
+                  ? "Start a conversation with Admin Support."
+                  : "Start the conversation."}
+              </Typography>
+            ) : (
+              displayedMessages.map((message) => (
+                <MessageCard
+                  key={message.id}
+                  message={message}
+                  onViewMedia={setSelectedMedia}
+                  onRecover={handleRecoverMessages}
+                  recoveryLabel={recoveryLabel}
+                />
+              ))
+            )}
+          </>
+        }
+        attachmentPreview={
+          (activeChat || activeSupportChat) && (
+            <ChatAttachmentPreview
+              file={attachedFile}
+              previewUrl={attachedPreview}
+              onRemove={handleRemoveImage}
+            />
+          )
+        }
+        composer={
+          activeChat || activeSupportChat ? (
+            <ChatComposer
+              value={inputMessage}
+              onChange={setInputMessage}
+              onSend={handleSendMessage}
+              placeholder={
+                activeSupportChat ? "Message Admin Support..." : activePlaceholder
+              }
+              disabled={Boolean(activeChat && isChatBlocked)}
+              sending={activeSupportChat ? sendingSupport : sendingMessage}
+              canSend={
+                activeChat
+                  ? !isChatBlocked &&
+                    encryptionReady &&
+                    Boolean(inputMessage.trim() || attachedFile)
+                  : Boolean(inputMessage.trim() || attachedFile)
+              }
+              hasAttachment={Boolean(attachedPreview)}
+              fileInputRef={fileInputRef}
+              accept={
+                activeSupportChat
+                  ? "image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                  : "image/*,video/*"
+              }
+              onFileChange={handleImageChange}
+              helperText={
+                activeChat && isChatBlocked
+                  ? blockStatus.blocked_by_me
+                    ? "You blocked this user. Unblock them to send messages."
+                    : "This user has blocked you."
+                  : ""
+              }
+            />
+          ) : (
             <Box
-              ref={messagesContainerRef}
               sx={{
-                flexGrow: 1,
-                p: { xs: 2, md: 2.5 },
-                overflowY: "auto",
-                bgcolor:
-                  theme.palette.mode === "dark"
-                    ? "background.default"
-                    : "#f8f9fa",
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.5,
+                p: 2,
+                borderTop: "1px solid",
+                borderColor: "divider",
+                textAlign: "center",
               }}
             >
-              {activeChat && (
-                <ConversationReturns
-                  key={selectedConversationId}
-                  conversationId={selectedConversationId}
-                  role="seller"
-                  returnId={selectedReturnId}
-                  refreshVersion={returnsRefreshVersion}
-                />
-              )}
-              {activeNotification ? (
-                <MessageCard message={{ sender: "admin", text: activeNotification.message,
-                  time: formatMessageTime(activeNotification.created_at) }} onViewMedia={setSelectedMedia} />
-              ) : activeSupportChat && supportLoading ? (
-                <Typography color="text.secondary" sx={{ mt: 2 }}>
-                  Loading support messages…
-                </Typography>
-              ) : displayedMessages.length === 0 ? (
-                <Typography color="text.secondary" sx={{ mt: 2 }}>
-                  {activeSupportChat ? "Start a conversation with Admin Support." : "Start the conversation."}
-                </Typography>
-              ) : (
-                displayedMessages.map((message) => (
-                  <MessageCard
-                    key={message.id}
-                    message={message}
-                    onViewMedia={setSelectedMedia}
-                    onRecover={handleRecoverMessages}
-                    recoveryLabel={recoveryLabel}
-                  />
-                ))
-              )}
+              <Typography variant="body2" color="text.secondary">
+                You can&apos;t reply to this notice.
+              </Typography>
             </Box>
+          )
+        }
+        emptyThreadTitle="Select a conversation"
+        emptyThreadSubtitle="Choose a buyer or support thread on the left to start chatting."
+      />
 
-            {activeChat && attachedPreview && (
-              <Box
-                sx={{
-                  px: 2,
-                  pt: 1.5,
-                  display: "flex",
-                  alignItems: "center",
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <Box sx={{ position: "relative", display: "inline-block" }}>
-                  {attachedFile?.type?.startsWith("video/") ? (
-                    <video
-                      src={attachedPreview}
-                      controls
-                      style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 8,
-                        objectFit: "cover",
-                        display: "block",
-                        background: "#000",
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      component="img"
-                      src={attachedPreview}
-                      alt="Preview"
-                      sx={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 2,
-                        objectFit: "cover",
-                      }}
-                    />
-                  )}
-                  <IconButton
-                    size="small"
-                    onClick={handleRemoveImage}
-                    sx={{
-                      position: "absolute",
-                      top: -8,
-                      right: -8,
-                      bgcolor: "error.main",
-                      color: "#fff",
-                      "&:hover": { bgcolor: "error.dark" },
-                      p: 0.3,
-                    }}
-                  >
-                    <CloseIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </Box>
-              </Box>
-            )}
+      <MessageMedia
+        open={mediaDialogOpen}
+        onClose={() => setMediaDialogOpen(false)}
+        sharedMedia={sharedMedia}
+        onViewMedia={setSelectedMedia}
+      />
 
-            {activeChat || activeSupportChat ? (
-              <Box
-                sx={{
-                  p: 2,
-                  borderTop: activeChat && attachedPreview ? "none" : "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                {activeChat && isChatBlocked && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {blockStatus.blocked_by_me
-                      ? "You blocked this user. Unblock them to send messages."
-                      : "This user has blocked you."}
-                  </Typography>
-                )}
-                <Stack direction="row" spacing={1} alignItems="center">
-                  {activeChat && (
-                    <>
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        ref={fileInputRef}
-                        style={{ display: "none" }}
-                        onChange={handleImageChange}
-                      />
-                      <IconButton
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isChatBlocked}
-                      >
-                        <AttachFileIcon />
-                      </IconButton>
-                    </>
-                  )}
-
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder={activeSupportChat ? "Message Admin Support..." : activePlaceholder}
-                    value={inputMessage}
-                    disabled={(activeChat && isChatBlocked) || sendingSupport}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3 } }}
-                  />
-
-                  <IconButton
-                    color="primary"
-                    onClick={handleSendMessage}
-                    disabled={
-                      activeChat
-                        ? isChatBlocked || !encryptionReady || (!inputMessage.trim() && !attachedFile)
-                        : sendingSupport || !inputMessage.trim()
-                    }
-                    sx={{
-                      bgcolor: "primary.main",
-                      color: "#fff",
-                      "&:hover": { bgcolor: "primary.dark" },
-                      "&.Mui-disabled": {
-                        bgcolor: "action.disabledBackground",
-                      },
-                    }}
-                  >
-                    <SendIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  p: 2,
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                  textAlign: "center",
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  You can&apos;t reply to this user.
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: { xs: "none", md: "grid" },
-              placeItems: "center",
-            }}
-          >
-            <Typography color="text.secondary">
-              Select a conversation to start chatting
-            </Typography>
-          </Box>
-        )}
-      </Paper>
-
-      <MessageMedia open={mediaDialogOpen} onClose={() => setMediaDialogOpen(false)}
-        sharedMedia={sharedMedia} onViewMedia={setSelectedMedia} />
-
-      <MessageMediaPreview selectedMedia={selectedMedia} onClose={() => setSelectedMedia(null)}
-        isMobile={isMobile} />
+      <MessageMediaPreview
+        selectedMedia={selectedMedia}
+        onClose={() => setSelectedMedia(null)}
+        isMobile={isMobile}
+      />
 
       <ChatRecoveryDialog
         mode={recoveryMode}
@@ -1456,35 +1474,18 @@ export default function Messages() {
         onReset={handleRecoveryReset}
       />
 
-      {!isSupportChat && !encryptionReady && (!showChatUnlockDialogs || (!pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh")) && (
-        <Alert
-          severity="info"
-          icon={<LockOutlinedIcon />}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
-                setRecoveryError("");
-                setChatUnlockRequested(true);
-                if (!pinDialogMode && recoveryMode !== "setup" && recoveryMode !== "fresh") {
-                  setPinDialogMode("enter");
-                }
-              }}
-            >
-              Unlock
-            </Button>
-          }
-          sx={{ mb: 2 }}
-        >
-          Secure messaging is locked. Enter your six-digit recovery PIN to read and send messages.
-        </Alert>
-      )}
-
-      <MessageDelete open={actionDialog === "delete"} onClose={() => setActionDialog("")}
-        onConfirm={handleDeleteChat} isReturnConversation={isReturnConversation} />
-      <MessageBlock open={actionDialog === "block"} onClose={() => setActionDialog("")}
-        onConfirm={handleBlockUser} isReturnConversation={isReturnConversation} />
-    </Box>
+      <MessageDelete
+        open={actionDialog === "delete"}
+        onClose={() => setActionDialog("")}
+        onConfirm={handleDeleteChat}
+        isReturnConversation={isReturnConversation}
+      />
+      <MessageBlock
+        open={actionDialog === "block"}
+        onClose={() => setActionDialog("")}
+        onConfirm={handleBlockUser}
+        isReturnConversation={isReturnConversation}
+      />
+    </>
   );
 }

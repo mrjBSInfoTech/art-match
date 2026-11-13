@@ -25,6 +25,8 @@ import {
   Slide,
   Snackbar,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -34,9 +36,16 @@ import CreditScoreIcon from "@mui/icons-material/CreditScore";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AddIcon from "@mui/icons-material/Add";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import InventoryCard from "../../components/seller/Inventory/InventoryCard";
+import InventoryTable from "../../components/seller/Inventory/InventoryTable";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
 import {
   adjustProductOptionStock,
   adjustInventoryStock,
@@ -61,6 +70,7 @@ export default function Inventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [sortOption, setSortOption] = useState("az");
+  const [viewMode, setViewMode] = useState("card");
   const [savingProductId, setSavingProductId] = useState(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -272,6 +282,7 @@ export default function Inventory() {
       sx={{
         p: { xs: 1.5, sm: 2.5 },
         minHeight: "100vh",
+        minWidth: 0,
         backgroundColor: theme.palette.background.default,
         color: theme.palette.text.primary,
       }}
@@ -463,13 +474,7 @@ export default function Inventory() {
             fullWidth
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            sx={{
-              minWidth: 0,
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -492,7 +497,12 @@ export default function Inventory() {
             }}
           >
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-inventory-status-label">Status</InputLabel>
+              <InputLabel
+                id="seller-inventory-status-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Status
+              </InputLabel>
               <Select
                 value={stockFilter}
                 labelId="seller-inventory-status-label"
@@ -500,6 +510,7 @@ export default function Inventory() {
                 name="status"
                 label="Status"
                 onChange={(event) => setStockFilter(event.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">All Stock</MenuItem>
                 <MenuItem value="in-stock">In Stock</MenuItem>
@@ -508,7 +519,12 @@ export default function Inventory() {
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-inventory-sort-label">Sort</InputLabel>
+              <InputLabel
+                id="seller-inventory-sort-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Sort
+              </InputLabel>
               <Select
                 value={sortOption}
                 labelId="seller-inventory-sort-label"
@@ -521,6 +537,7 @@ export default function Inventory() {
                     sx={{ mr: 0.5, fontSize: 17, color: "text.secondary" }}
                   />
                 }
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="az">Name: A to Z</MenuItem>
                 <MenuItem value="za">Name: Z to A</MenuItem>
@@ -532,18 +549,104 @@ export default function Inventory() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} variant="outlined">
-        {loading ? (
+      {/* View Mode Switcher & Summary Count */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 2,
+          mb: 1,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredProducts.length} of {stockableProducts.length} inventory items
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_event, next) => {
+            if (next) setViewMode(next);
+          }}
+          size="small"
+          aria-label="Inventory presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+              transition: "all 150ms ease",
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": { backgroundColor: theme.palette.error.dark },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {loading ? (
+        <Paper sx={{ p: 3, borderRadius: 2 }} variant="outlined">
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : products.length === 0 ? (
-          <Typography align="center">No product listings found.</Typography>
-        ) : filteredProducts.length === 0 ? (
-          <Typography align="center">
+        </Paper>
+      ) : products.length === 0 ? (
+        <Paper sx={{ p: 3, borderRadius: 2 }} variant="outlined">
+          <Typography align="center" color="text.secondary">
+            No product listings found.
+          </Typography>
+        </Paper>
+      ) : filteredProducts.length === 0 ? (
+        <Paper sx={{ p: 3, borderRadius: 2 }} variant="outlined">
+          <Typography align="center" color="text.secondary">
             No products match the current filters.
           </Typography>
-        ) : (
+        </Paper>
+      ) : viewMode === "table" ? (
+        <InventoryTable
+          products={filteredProducts}
+          onSaveStock={saveStock}
+          onAdjustOptionStock={adjustOptionStock}
+          savingProductId={savingProductId}
+        />
+      ) : (
+        <Paper
+          sx={{
+            p: { xs: 1.5, sm: 2.5 },
+            borderRadius: 2.5,
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+          }}
+          variant="outlined"
+        >
           <Box
             sx={{
               display: "grid",
@@ -553,7 +656,6 @@ export default function Inventory() {
                 lg: "repeat(3, minmax(0, 1fr))",
               },
               gap: 3,
-              px: { xs: 0, sm: 2 },
             }}
           >
             {filteredProducts.map((product) => (
@@ -566,8 +668,8 @@ export default function Inventory() {
               />
             ))}
           </Box>
-        )}
-      </Paper>
+        </Paper>
+      )}
 
       <Snackbar
         open={snackbar.open}

@@ -24,10 +24,17 @@ import {
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import { fetchAccountAccess, fetchAccountAccessReport } from "../../api/admin/accountAccessAPI";
+import {
+  fetchAccountAccess,
+  fetchAccountAccessReport,
+} from "../../api/admin/accountAccessAPI";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
+import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
 import {
   downloadCsvReport,
   downloadPdfReport,
@@ -142,7 +149,9 @@ export default function AccountAccess() {
       );
       setReportDialogOpen(false);
     } catch (reportError) {
-      setReportError(reportError.message || "Unable to generate strike and ban report.");
+      setReportError(
+        reportError.message || "Unable to generate strike and ban report.",
+      );
     } finally {
       setReportLoading(false);
     }
@@ -184,14 +193,14 @@ export default function AccountAccess() {
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Account List</title>
       </Helmet>
-      <Box
+        <Box
         sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
           alignItems: { xs: "stretch", sm: "center" },
           gap: 2,
-          mb: 2,
+          mb: 2.5,
         }}
       >
         <Box>
@@ -222,22 +231,33 @@ export default function AccountAccess() {
           startIcon={<DownloadOutlinedIcon />}
           onClick={() => setReportDialogOpen(true)}
           disabled={reportLoading}
-          sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
+          sx={{
+            width: { xs: "100%", sm: "auto" },
+            height: { xs: 38, sm: 44 },
+            minWidth: { xs: 45, sm: 50 },
+            fontSize: { xs: 12, sm: 15 },
+            px: 2.5,
+            borderRadius: 1.5,
+            textTransform: "none",
+            fontWeight: 700,
+          }}
         >
           {reportLoading ? "Generating..." : "Download Strike/Ban Report"}
         </Button>
       </Box>
       {reportError && (
-        <Alert severity="error" onClose={() => setReportError("")} sx={{ mb: 2 }}>
+        <Alert
+          severity="error"
+          onClose={() => setReportError("")}
+          sx={{ mb: 2 }}
+        >
           {reportError}
         </Alert>
       )}
       {/* Filter Section */}
-      {/* Filter Section */}
       <Paper
         sx={{
           p: { xs: 1.5, sm: 2, md: 2.5 },
-          mt: 2.5,
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -263,21 +283,7 @@ export default function AccountAccess() {
             placeholder="Search accounts..."
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiOutlinedInput-root": {
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              },
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -312,14 +318,7 @@ export default function AccountAccess() {
                 label="Sort"
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
@@ -337,14 +336,7 @@ export default function AccountAccess() {
                 label="Role"
                 value={roleOption}
                 onChange={(e) => setRoleOption(e.target.value)}
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="">Default</MenuItem>
                 <MenuItem value="buyer">Buyer</MenuItem>
@@ -356,7 +348,18 @@ export default function AccountAccess() {
       </Paper>
 
       {!loading && (
-        <Box sx={{ mt: 0.5, mb: 0.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1.5,
+            mt: 2,
+            mb: 1,
+            minHeight: 34,
+          }}
+        >
           <Typography
             variant="caption"
             color="text.secondary"
@@ -391,7 +394,11 @@ export default function AccountAccess() {
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
             Account access activity
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontSize: 12 }}
+          >
             Review account roles, contact details, and strike status.
           </Typography>
         </Box>

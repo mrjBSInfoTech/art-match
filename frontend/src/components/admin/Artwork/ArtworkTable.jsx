@@ -15,6 +15,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import ArtworkImage from "../../common/ArtworkImage";
 import ArtworkInfo from "./ArtworkInfo";
+import { adminTableButtonSx } from "../adminTableStyles";
 
 const getStatus = (artwork) => {
   const status = String(artwork.request_status || artwork.status || "").trim();
@@ -165,7 +166,7 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
                       <Button
                         variant="outlined"
                         onClick={() => openArtworkInfo(artwork)}
-                        sx={{ minHeight: 44, borderRadius: 2, fontWeight: 700, textTransform: "none", whiteSpace: "nowrap" }}
+                        sx={adminTableButtonSx}
                       >
                         View details
                       </Button>

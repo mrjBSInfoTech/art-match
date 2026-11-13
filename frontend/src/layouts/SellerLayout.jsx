@@ -26,7 +26,6 @@ import {
   fetchSellerNotifications,
   markSellerNotificationsRead,
 } from "../api/seller/messageAPI";
-import { fetchSellerReviews } from "../api/seller/reviewsAPI";
 import PayoutFirst from "../components/seller/Payout/PayoutFirst";
 import FirstLoginConsentModal from "../components/seller/FirstLoginConsentModal";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
@@ -100,7 +99,6 @@ function SellerLayoutContent() {
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [sellerReviewCount, setSellerReviewCount] = useState(0);
   const [openPayoutWarning, setOpenPayoutWarning] = useState(false);
   const [requiresFirstLoginSetup, setRequiresFirstLoginSetup] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
@@ -181,28 +179,6 @@ function SellerLayoutContent() {
     loadBadgeCounts();
     const intervalId = window.setInterval(loadBadgeCounts, 5000);
     return () => window.clearInterval(intervalId);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    let active = true;
-    if (!isAuthenticated("seller")) {
-      setSellerReviewCount(0);
-      return () => {
-        active = false;
-      };
-    }
-
-    fetchSellerReviews()
-      .then((reviews) => {
-        if (active) setSellerReviewCount(Array.isArray(reviews) ? reviews.length : 0);
-      })
-      .catch((error) => {
-        console.error("Unable to load seller review count:", error);
-      });
-
-    return () => {
-      active = false;
-    };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -333,16 +309,7 @@ function SellerLayoutContent() {
         {
           segment: "reviews",
           title: "Review and Ratings",
-          icon: (
-            <Badge
-              badgeContent={sellerReviewCount}
-              color="error"
-              invisible={sellerReviewCount === 0}
-              max={99}
-            >
-              <RateReviewOutlinedIcon />
-            </Badge>
-          ),
+          icon: <RateReviewOutlinedIcon />,
           pattern: "/seller/orders/reviews",
         },
       ],

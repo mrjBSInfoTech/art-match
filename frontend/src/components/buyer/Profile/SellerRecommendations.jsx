@@ -69,14 +69,18 @@ export default function SellerRecommendations({
         setRelatedArtists(sellerResponse?.relatedArtists || []);
         setError(sellerFailed || buyerFailed);
         setHasBuyerActivity(
-          buyerResponse?.mode !== "fallback_recent_popular" &&
-            (Number(buyerResponse?.history_length) > 0 ||
-              [
-                "recent_activity_events",
-                "search_filter_events",
-                "preferred_artists",
-                "specialty_preferences",
-              ].some((key) => Number(buyerResponse?.signals?.[key]) > 0)),
+          buyerResponse?.has_activity === true ||
+            (buyerResponse?.mode !== "no_activity" &&
+              buyerResponse?.mode !== "personalization_disabled" &&
+              buyerResponse?.mode !== "fallback_recent_popular" &&
+              (Number(buyerResponse?.history_length) > 0 ||
+                [
+                  "recent_activity_events",
+                  "search_filter_events",
+                  "preferred_artists",
+                  "followed_artists",
+                  "specialty_preferences",
+                ].some((key) => Number(buyerResponse?.signals?.[key]) > 0))),
         );
       } catch {
         if (!request.signal.aborted) setError(true);
@@ -89,7 +93,7 @@ export default function SellerRecommendations({
       refreshTimer = setTimeout(load, 350);
     };
     load();
-    const events = ["recommendation-updated", "cart-updated", "focus"];
+    const events = ["recommendation-updated", "artist-follow-updated", "cart-updated", "focus"];
     events.forEach((event) => window.addEventListener(event, refresh));
     return () => {
       clearTimeout(refreshTimer);
@@ -98,6 +102,10 @@ export default function SellerRecommendations({
     };
   }, [sellerId, hasSpecialties, retry]);
 
+  const showRecommendationsSection = hasSpecialties
+    ? loading || error || artworks.length > 0
+    : error || artworks.length > 0;
+
   if (!loading && !error && artworks.length === 0 && relatedArtists.length === 0) return null;
 
   return (
@@ -105,6 +113,7 @@ export default function SellerRecommendations({
       {!loading && (
         <RelatedArtists artists={relatedArtists} sellerName={sellerName} />
       )}
+      {showRecommendationsSection && (
       <Box
         component="section"
         aria-labelledby="seller-recommendations-title"
@@ -125,10 +134,8 @@ export default function SellerRecommendations({
             sx={{ maxWidth: 650 }}
           >
             {hasSpecialties
-              ? `Artworks related to ${sellerName || "this seller"}'s specialties appear first.${hasBuyerActivity ? " Recommendations based on your activity follow." : " Additional recent and popular picks may follow."}`
-              : hasBuyerActivity
-                ? "Based on your browsing, searches, filters, and artist preferences."
-                : "Discover recent and popular artworks while we learn what you like."}
+              ? `Artworks related to ${sellerName || "this seller"}'s specialties appear first.${hasBuyerActivity ? " Recommendations based on your activity and followed artists follow." : ""}`
+              : "Based on your browsing, searches, filters, and followed artists."}
           </Typography>
           <SectionHeader
             title="Recommended for You"
@@ -186,6 +193,7 @@ export default function SellerRecommendations({
           </>
         )}
       </Box>
+      )}
     </>
   );
 }

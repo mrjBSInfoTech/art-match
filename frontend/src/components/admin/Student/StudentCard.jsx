@@ -120,10 +120,10 @@ export default function StudentCard({
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
-            xl: "repeat(5, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
           },
-          gap: { xs: 1.5, sm: 2 },
+          gap: 2,
           alignItems: "stretch",
           minWidth: 0,
         }}
@@ -141,26 +141,24 @@ export default function StudentCard({
                 display: "flex",
                 flexDirection: "column",
                 height: "100%",
-                minHeight: 270,
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 2,
+                borderRadius: 2.5,
                 boxShadow: "none",
                 backgroundColor: theme.palette.background.paper,
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 "&:hover": {
                   borderColor: "text.secondary",
-                  boxShadow: "0 5px 14px rgba(15, 23, 42, 0.1)",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
                 },
               }}
             >
               <Box
                 sx={{
                   width: "100%",
-                  height: 170,
+                  aspectRatio: "5 / 4",
                   position: "relative",
-                  backgroundColor:
-                    theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                  backgroundColor: theme.palette.background.default,
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
@@ -191,9 +189,10 @@ export default function StudentCard({
 
               <CardContent
                 sx={{
-                  p: 1.5,
-                  "&:last-child": { pb: 1.5 },
+                  p: 2,
+                  "&:last-child": { pb: 2 },
                   flex: 1,
+                  minHeight: 150,
                   display: "flex",
                   flexDirection: "column",
                 }}
@@ -203,16 +202,15 @@ export default function StudentCard({
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "space-between",
-                    mb: 0.75,
+                    mb: 1,
                   }}
                 >
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography
                       variant="subtitle2"
                       sx={{
                         fontWeight: 700,
-                        lineHeight: 1.2,
-                        fontSize: 14,
+                        lineHeight: 1.25,
                       }}
                       noWrap
                     >
@@ -226,10 +224,11 @@ export default function StudentCard({
                         mt: 0.25,
                         fontSize: 11,
                       }}
+                      noWrap
                     >
                       {student.student_number || "No student number"}
                     </Typography>
-                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.75 }}>
+                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.75, flexWrap: "wrap" }}>
                       {student.strikes > 0 && (
                         <Chip
                           size="small"
@@ -268,7 +267,7 @@ export default function StudentCard({
                   }}
                   sx={{
                     mt: "auto",
-                    py: 0.7,
+                    py: 0.55,
                     backgroundColor:
                       theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                     color: theme.palette.text.primary,

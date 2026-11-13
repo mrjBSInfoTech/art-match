@@ -17,6 +17,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import StorefrontOutlinedIcon from "@mui/icons-material/StorefrontOutlined";
 import { formatCurrency, formatOrderDate } from "./orderPresentation.js";
 import { isPayMongoOrder, calculateProcessingFee } from "../../../utils/orderPayments.js";
+import { sellerTableButtonSx } from "../sellerTableStyles";
 
 const safeAlpha = (color, opacity) => (typeof alpha === "function" ? alpha(color, opacity) : color);
 
@@ -328,21 +329,12 @@ export default function OrderTable({ orders = [], onOrderClick }) {
                   {/* Action */}
                   <TableCell align="center">
                     <Button
-                      size="small"
                       variant="outlined"
-                      color="inherit"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRowClick();
                       }}
-                      sx={{
-                        textTransform: "none",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        borderRadius: 2,
-                        minHeight: 40,
-                        px: 1.75,
-                      }}
+                      sx={sellerTableButtonSx}
                     >
                       View
                     </Button>

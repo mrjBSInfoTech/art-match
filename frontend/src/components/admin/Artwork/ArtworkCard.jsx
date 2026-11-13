@@ -65,10 +65,10 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
-            xl: "repeat(5, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
           },
-          gap: { xs: 1.5, sm: 2 },
+          gap: 2,
           minWidth: 0,
         }}
       >
@@ -79,9 +79,12 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
-              borderRadius: 1.5,
               minWidth: 0,
-              boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
+              height: "100%",
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2.5,
+              boxShadow: "none",
               transition: "border-color 0.2s, box-shadow 0.2s",
               "&:hover": {
                 borderColor: "text.secondary",
@@ -92,10 +95,9 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
             <Box
               sx={{
                 width: "100%",
-                aspectRatio: "1.35 / 1",
+                aspectRatio: "5 / 4",
                 position: "relative",
-                backgroundColor:
-                  theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                backgroundColor: theme.palette.background.default,
                 overflow: "hidden",
                 display: "flex",
                 alignItems: "center",
@@ -130,61 +132,63 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
                 }}
               />
             </Box>
+
             <CardContent
-              sx={{ p: 1.25, "&:last-child": { pb: 1.25 }, flex: 1 }}
+              sx={{
+                p: 2,
+                "&:last-child": { pb: 2 },
+                flex: 1,
+                minHeight: 150,
+                display: "flex",
+                flexDirection: "column",
+              }}
             >
-              <Box
-                sx={{
-                  minHeight: 78,
-                }}
-              >
-                <Box>
+              <Box sx={{ flex: 1, minWidth: 0, mb: 1 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    fontWeight: 700,
+                    lineHeight: 1.25,
+                  }}
+                  noWrap
+                >
+                  {artwork.title}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    display: "block",
+                    mt: 0.5,
+                  }}
+                  noWrap
+                >
+                  By {artwork.first_name || "Unknown"}{" "}
+                  {artwork.last_name || "Artist"}
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    mt: 1.25,
+                  }}
+                >
                   <Typography
-                    variant="subtitle2"
-                    sx={{
-                      color: theme.palette.text.primary,
-                      fontWeight: 700,
-                      lineHeight: 1.25,
-                    }}
+                    variant="caption"
+                    sx={{ color: theme.palette.text.secondary }}
                     noWrap
                   >
-                    {artwork.title}
+                    Size: {artwork.art_size || "N/A"}
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      display: "block",
-                      mt: 0.5,
-                    }}
+                    sx={{ color: "#ff5a5f", fontWeight: 700 }}
                     noWrap
                   >
-                    By {artwork.first_name || "Unknown"}{" "}
-                    {artwork.last_name || "Artist"}
+                    ₱{Number(artwork.price || 0).toLocaleString()}
                   </Typography>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 1,
-                      mt: 1.25,
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{ color: theme.palette.text.secondary }}
-                      noWrap
-                    >
-                      Size: {artwork.art_size || "N/A"}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{ color: "#ff5a5f", fontWeight: 700 }}
-                      noWrap
-                    >
-                      ₱{Number(artwork.price || 0).toLocaleString()}
-                    </Typography>
-                  </Box>
                 </Box>
               </Box>
 
@@ -195,7 +199,7 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
                 startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
                 onClick={() => handleInfoOpen(artwork)}
                 sx={{
-                  mt: 0.75,
+                  mt: "auto",
                   py: 0.55,
                   backgroundColor:
                     theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",

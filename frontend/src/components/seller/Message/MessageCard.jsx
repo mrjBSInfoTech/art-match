@@ -1,5 +1,4 @@
-import { Box, Button, IconButton, Paper, Typography } from "@mui/material";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import ChatMessageBubble from "../../chat/ChatMessageBubble";
 import CertificateMessage from "../../buyer/Message/CertificateMessage.jsx";
 
 export default function MessageCard({
@@ -8,139 +7,26 @@ export default function MessageCard({
   onRecover,
   recoveryLabel = "Recover messages",
 }) {
-  const isMine = msg.sender === "seller";
+  const isCertificateLink =
+    msg.image && msg.mediaType === "application/vnd.artmatch.certificate-link";
+
   return (
-    <Box
-      sx={{
-        alignSelf: isMine ? "flex-end" : "flex-start",
-        maxWidth: { xs: "85%", sm: "70%" },
-      }}
-    >
-      <Paper
-        elevation={0}
-        sx={{
-          p: msg.image ? 1 : 1.5,
-          px: msg.image ? 1 : 2,
-          borderRadius: 2.5,
-          borderBottomRightRadius: isMine ? 4 : 20,
-          borderBottomLeftRadius: isMine ? 20 : 4,
-          bgcolor: isMine ? "primary.main" : "background.paper",
-          color: isMine ? "#fff" : "text.primary",
-          border: isMine ? "none" : "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        {msg.image && msg.mediaType === "application/vnd.artmatch.certificate-link" && <CertificateMessage message={msg} buyer={false} />}
-        {msg.image && msg.mediaType !== "application/vnd.artmatch.certificate-link" && (
-          msg.mediaType?.startsWith("video/") || /\.(mp4|mov|webm|ogg|m4v)$/i.test(msg.image) ? (
-            <Box
-              sx={{
-                position: "relative",
-                width: "100%",
-                maxHeight: 250,
-                borderRadius: 2,
-                overflow: "hidden",
-                mb: msg.text ? 1 : 0,
-              }}
-            >
-              <video
-                src={msg.image}
-                controls
-                onClick={(event) => event.stopPropagation()}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  maxHeight: 250,
-                  objectFit: "cover",
-                  background: "#000",
-                }}
-              />
-              <IconButton
-                aria-label="Enlarge video"
-                onClick={() =>
-                  onViewMedia({
-                    src: msg.image,
-                    type: "video",
-                    alt: "Message video",
-                  })
-                }
-                sx={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  color: "#fff",
-                  bgcolor: "rgba(0, 0, 0, 0.6)",
-                  "&:hover": { bgcolor: "rgba(0, 0, 0, 0.8)" },
-                }}
-              >
-                <OpenInFullIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          ) : (
-            <Box
-              component="img"
-              src={msg.image}
-              alt="Attachment — click to enlarge"
-              onClick={() =>
-                onViewMedia({
-                  src: msg.image,
-                  type: "image",
-                  alt: "Message attachment",
-                })
-              }
-              sx={{
-                width: "100%",
-                maxHeight: 250,
-                objectFit: "cover",
-                borderRadius: 2,
-                mb: msg.text ? 1 : 0,
-                display: "block",
-                cursor: "zoom-in",
-              }}
-            />
-          )
-        )}
-        {msg.text && (
-          <Typography
-            variant="body2"
-            sx={{ lineHeight: 1.4, px: msg.image ? 1 : 0 }}
-          >
-            {msg.text}
-          </Typography>
-        )}
-        {msg.attachmentError && (
-          <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
-            {msg.attachmentError}
-          </Typography>
-        )}
-        {msg.canRecover && (
-          <Button
-            size="small"
-            color={isMine ? "inherit" : "primary"}
-            onClick={onRecover}
-            sx={{ mt: 0.5, px: 0.5, textTransform: "none" }}
-          >
-            {recoveryLabel}
-          </Button>
-        )}
-        {msg.recoveryUnavailable && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-            No recovery backup is saved for this account.
-          </Typography>
-        )}
-      </Paper>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{
-          display: "block",
-          mt: 0.5,
-          textAlign: isMine ? "right" : "left",
-          fontSize: "0.7rem",
-        }}
-      >
-        {msg.time}
-      </Typography>
-    </Box>
+    <ChatMessageBubble
+      isMine={msg.sender === "seller"}
+      text={msg.text}
+      image={msg.image}
+      mediaType={msg.mediaType}
+      fileName={msg.fileName}
+      time={msg.time}
+      attachmentError={msg.attachmentError}
+      canRecover={msg.canRecover}
+      recoveryUnavailable={msg.recoveryUnavailable}
+      recoveryLabel={recoveryLabel}
+      onRecover={onRecover}
+      onViewMedia={onViewMedia}
+      customAttachment={
+        isCertificateLink ? <CertificateMessage message={msg} buyer={false} /> : null
+      }
+    />
   );
 }

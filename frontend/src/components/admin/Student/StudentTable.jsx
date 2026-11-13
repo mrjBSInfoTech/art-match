@@ -33,6 +33,7 @@ import {
   addAccountStrike,
   setAccountBan,
 } from "../../../api/admin/accountAccessAPI";
+import { adminTableButtonSx } from "../adminTableStyles";
 
 export default function StudentTable({
   students = [],
@@ -307,13 +308,7 @@ export default function StudentTable({
                             setSelectedStudent(student);
                             setOpenInfoDialog(true);
                           }}
-                          sx={{
-                            minHeight: 40,
-                            borderRadius: 2,
-                            fontWeight: 700,
-                            textTransform: "none",
-                            whiteSpace: "nowrap",
-                          }}
+                          sx={adminTableButtonSx}
                         >
                           View details
                         </Button>

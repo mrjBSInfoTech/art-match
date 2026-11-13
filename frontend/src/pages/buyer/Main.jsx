@@ -451,6 +451,7 @@ export default function Main() {
     };
     loadRecommendations();
     window.addEventListener("recommendation-updated", refresh);
+    window.addEventListener("artist-follow-updated", refresh);
     window.addEventListener("cart-updated", refresh);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
@@ -458,6 +459,7 @@ export default function Main() {
       clearTimeout(refreshTimer);
       recommendationRequest.current += 1;
       window.removeEventListener("recommendation-updated", refresh);
+      window.removeEventListener("artist-follow-updated", refresh);
       window.removeEventListener("cart-updated", refresh);
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
@@ -493,7 +495,11 @@ export default function Main() {
 
     const hasSearchOrFilters = recommendationSignals.search_filter_events > 0;
 
-    const hasArtistPreference = recommendationSignals.preferred_artists > 0;
+    const hasArtistPreference =
+      recommendationSignals.preferred_artists > 0 ||
+      Number(recommendationSignals.followed_artists || 0) > 0;
+    const hasFollowedArtists =
+      Number(recommendationSignals.followed_artists || 0) > 0;
 
     // -------------------------
     // GUEST
@@ -516,23 +522,37 @@ export default function Main() {
         return "Based on your recent guest browsing.";
       }
 
+      if (hasSearchOrFilters && hasArtistPreference) {
+        return "Based on your recent guest searches, filters, and artist preferences.";
+      }
+
       if (hasSearchOrFilters) {
         return "Based on your recent guest searches and filters.";
       }
 
-      return "Discover recent and popular artworks while we learn what you like.";
+      if (hasArtistPreference) {
+        return "Based on your guest artist preferences.";
+      }
+
+      return "Personalized picks from your activity on this browser.";
     }
 
     // -------------------------
     // LOGGED-IN BUYER
     // -------------------------
 
-    if (hasHistory && hasSearchOrFilters && hasArtistPreference) {
-      return "Based on your browsing, searches, filters, and artist preferences.";
+    if (hasHistory && hasSearchOrFilters && (hasArtistPreference || hasFollowedArtists)) {
+      return hasFollowedArtists
+        ? "Based on your browsing, searches, filters, and followed artists."
+        : "Based on your browsing, searches, filters, and artist preferences.";
     }
 
     if (hasHistory && hasSearchOrFilters) {
       return "Based on your browsing, searches, and filters.";
+    }
+
+    if (hasHistory && hasFollowedArtists) {
+      return "Based on your browsing and the artists you follow.";
     }
 
     if (hasHistory && hasArtistPreference) {
@@ -543,11 +563,23 @@ export default function Main() {
       return "Based on your recent artwork browsing.";
     }
 
+    if (hasSearchOrFilters && hasFollowedArtists) {
+      return "Based on your recent searches, filters, and followed artists.";
+    }
+
     if (hasSearchOrFilters) {
       return "Based on your recent searches and filters.";
     }
 
-    return "Discover recent and popular artworks while we learn your preferences.";
+    if (hasFollowedArtists) {
+      return "Based on the artists you follow.";
+    }
+
+    if (hasArtistPreference) {
+      return "Based on your artist preferences.";
+    }
+
+    return "Personalized picks from your browsing, searches, and followed artists.";
   };
 
   // Snackbar handlers
@@ -1315,7 +1347,7 @@ export default function Main() {
       </Box>
 
       {/* Recommended Artworks */}
-      {(recommendationsLoading || visibleRecommendedArtworks.length > 0) && (
+      {visibleRecommendedArtworks.length > 0 && (
         <Box
           sx={{
             px: { xs: 2, sm: 4, lg: 6 },

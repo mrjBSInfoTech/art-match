@@ -3,7 +3,6 @@ import axios from "axios";
 const api = axios.create({
   withCredentials: true,
   baseURL: "http://localhost:5000/api/support-chat",
-  headers: { "Content-Type": "application/json" },
   timeout: 15000,
 });
 
@@ -57,11 +56,15 @@ export const fetchProfileEmail = async () => {
   }
 };
 
-export const sendSupportMessage = async ({ issueType, message }) => {
+export const sendSupportMessage = async (payload) => {
   try {
+    if (payload instanceof FormData) {
+      const response = await api.post("/buyer/messages", payload);
+      return response.data;
+    }
     const response = await api.post("/buyer/messages", {
-      issue_type: issueType,
-      message,
+      issue_type: payload?.issueType,
+      message: payload?.message,
     });
     return response.data;
   } catch (error) {

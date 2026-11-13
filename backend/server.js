@@ -339,7 +339,16 @@ const safeUploadContentTypes = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
+  ".gif": "image/gif",
   ".webp": "image/webp",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".webm": "video/webm",
+  ".ogg": "video/ogg",
+  ".m4v": "video/mp4",
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
 };
 
 const serveB2Cached =
@@ -788,6 +797,57 @@ app.get("/uploads/chat/:filename", authenticateUploadCaller, async (req, res, ne
 });
 
 // =====================================================
+// Support chat attachments - Authenticated Participants / Admins Only
+// =====================================================
+const serveSupportChatAttachment = serveB2Cached({
+  keyPrefix: "app-uploads/support-chat",
+  localFolder: path.join(__dirname, "uploads", "support-chat"),
+  label: "Support chat attachment",
+});
+
+app.get("/uploads/support-chat/:filename", authenticateUploadCaller, async (req, res, next) => {
+  const { filename } = req.params;
+  if (!hasSafeUploadFilename(filename)) {
+    return res.status(400).json({ message: "Invalid filename." });
+  }
+
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT sc.customer_id, sc.student_id
+       FROM support_message sm
+       JOIN support_conversation sc ON sc.support_conversation_id = sm.support_conversation_id
+       WHERE SUBSTRING_INDEX(sm.image, '/', -1) = ?
+       LIMIT 1`,
+      [filename],
+    );
+    const match = rows?.[0];
+    if (!match) {
+      return res.status(404).json({ message: "Support chat attachment not found." });
+    }
+
+    const adminRoles = ["admin", "superadmin", "super admin", "moderator", "customize", "customizable"];
+    const callerRole = String(req.user?.role || "").trim().toLowerCase();
+    const isAdmin = adminRoles.includes(callerRole);
+    const isBuyerOwner =
+      callerRole === "buyer" &&
+      match.customer_id &&
+      String(match.customer_id) === String(req.user?.customer_id);
+    const isSellerOwner =
+      (callerRole === "seller" || callerRole === "student") &&
+      match.student_id &&
+      String(match.student_id) === String(req.user?.student_id);
+
+    if (!isAdmin && !isBuyerOwner && !isSellerOwner) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+    return serveSupportChatAttachment(req, res, next);
+  } catch (error) {
+    console.error("Unable to verify support chat attachment access:", error);
+    return res.status(500).json({ message: "Unable to load support chat attachment." });
+  }
+});
+
+// =====================================================
 // Seller registration documents (COR) - Authenticated Only
 // =====================================================
 app.get(
@@ -848,6 +908,10 @@ app.use(
   (req, res, next) =>
     req.path.startsWith("/seller/uploadCOR")
       ? res.status(404).json({ message: "Document not found." })
+      : next(),
+  (req, res, next) =>
+    req.path.startsWith("/support-chat")
+      ? res.status(404).json({ message: "Attachment not found." })
       : next(),
   (req, res, next) =>
     path.extname(req.path).toLowerCase() === ".svg"

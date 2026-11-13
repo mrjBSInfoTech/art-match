@@ -170,7 +170,7 @@ export default function AuditLogs() {
           justifyContent: "space-between",
           alignItems: { xs: "stretch", sm: "center" },
           gap: 2,
-          mb: 2,
+          mb: 2.5,
         }}
       >
         <Box>
@@ -197,20 +197,19 @@ export default function AuditLogs() {
         </Box>
         <Button
           variant="contained"
+          color="error"
           startIcon={<DownloadOutlinedIcon />}
           onClick={() => setReportDialogOpen(true)}
           disabled={loading || !logs.length}
           sx={{
-            alignSelf: { xs: "stretch", sm: "auto" },
-            minHeight: 44,
-            backgroundColor: "error.main",
-            color: "#fff",
-            boxShadow: "none",
-            fontSize: 12,
-            fontWeight: 700,
+            width: { xs: "100%", sm: 185 },
+            height: { xs: 38, sm: 44 },
+            minWidth: { xs: 45, sm: 50 },
+            fontSize: { xs: 12, sm: 16 },
+            padding: 0,
+            borderRadius: 1.5,
             textTransform: "none",
-            whiteSpace: "nowrap",
-            "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
+            fontWeight: 700,
           }}
         >
           Export Audit Logs
@@ -227,7 +226,11 @@ export default function AuditLogs() {
         variant="outlined"
       >
         {reportError && (
-          <Alert severity="error" onClose={() => setReportError("")} sx={{ m: 2, mb: 0 }}>
+          <Alert
+            severity="error"
+            onClose={() => setReportError("")}
+            sx={{ m: 2, mb: 0 }}
+          >
             {reportError}
           </Alert>
         )}
@@ -345,14 +348,26 @@ export default function AuditLogs() {
       </Paper>
 
       {!loading && !logsErrorMessage && (
-        <Box sx={{ mt: 0.5, mb: 0.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1.5,
+            mt: 2,
+            mb: 1,
+            minHeight: 34,
+          }}
+        >
           <Typography
             variant="caption"
             color="text.secondary"
             aria-live="polite"
             sx={{ fontWeight: 600 }}
           >
-            Showing {Math.min(visibleCount, logs.length)} of {logs.length} entries
+            Showing {Math.min(visibleCount, logs.length)} of {logs.length}{" "}
+            entries
           </Typography>
         </Box>
       )}
@@ -378,7 +393,11 @@ export default function AuditLogs() {
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
             All System Activity
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontSize: 12 }}
+          >
             Review recorded activity across the system.
           </Typography>
         </Box>

@@ -1,14 +1,5 @@
-import {
-  Avatar,
-  Badge,
-  Box,
-  Divider,
-  ListItemAvatar,
-  ListItemButton,
-  ListItemText,
-  Stack,
-  Typography,
-} from "@mui/material";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import ChatConversationItem from "../../chat/ChatConversationItem";
 
 export default function MessageConversationCard({
   chat,
@@ -18,108 +9,22 @@ export default function MessageConversationCard({
   preview,
   onSelect,
 }) {
-  return (
-    <Box>
-      <ListItemButton
-        selected={isSelected}
-        onClick={onSelect}
-        sx={{
-          py: 1.5,
-          px: 2,
-          backgroundColor:
-            Number(chat.unread_count || 0) > 0 && !isSelected
-              ? "rgba(25, 118, 210, 0.06)"
-              : "transparent",
-          borderLeft:
-            Number(chat.unread_count || 0) > 0 && !isSelected
-              ? "3px solid"
-              : "none",
-          borderColor: "primary.main",
-        }}
-      >
-        <ListItemAvatar>
-          <Badge
-            overlap="circular"
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "right",
-            }}
-            variant="dot"
-            color="success"
-          >
-            <Avatar src={avatarSrc} alt={chat.other_name || "Seller"} />
-          </Badge>
-        </ListItemAvatar>
+  const chips = chat.is_support
+    ? [{ label: "Support", color: "error", variant: "outlined" }]
+    : [];
 
-        <ListItemText
-          primaryTypographyProps={{ component: "div" }}
-          secondaryTypographyProps={{ component: "div" }}
-          primary={
-            <Box component="div">
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography
-                  component="div"
-                  variant="subtitle2"
-                  fontWeight={Number(chat.unread_count || 0) > 0 ? 800 : 600}
-                >
-                  {chat.other_name || "Seller"}
-                </Typography>
-                <Typography
-                  component="div"
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    fontWeight: Number(chat.unread_count || 0) > 0 ? 700 : 400,
-                  }}
-                >
-                  {timeLabel}
-                </Typography>
-              </Stack>
-            </Box>
-          }
-          secondary={
-            <Box component="div" sx={{ mt: 0.5 }}>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <Typography
-                  component="div"
-                  variant="body2"
-                  color={
-                    Number(chat.unread_count || 0) > 0
-                      ? "text.primary"
-                      : "text.secondary"
-                  }
-                  fontWeight={Number(chat.unread_count || 0) > 0 ? 600 : 400}
-                  noWrap
-                  sx={{ maxWidth: 180 }}
-                >
-                  {preview}
-                </Typography>
-                {Number(chat.unread_count || 0) > 0 && (
-                  <Box
-                    aria-label={`${chat.unread_count} unread messages`}
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      bgcolor: "primary.main",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-              </Stack>
-            </Box>
-          }
-        />
-      </ListItemButton>
-      <Divider component="li" />
-    </Box>
+  return (
+    <ChatConversationItem
+      name={chat.other_name || "Seller"}
+      avatarSrc={avatarSrc}
+      avatarIcon={chat.is_support ? <SupportAgentOutlinedIcon fontSize="small" /> : null}
+      avatarFallback="S"
+      timeLabel={timeLabel}
+      preview={preview}
+      unreadCount={chat.unread_count}
+      selected={isSelected}
+      chips={chips}
+      onSelect={onSelect}
+    />
   );
 }

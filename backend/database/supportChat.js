@@ -91,6 +91,27 @@ export const ensureSupportChatTables = async () => {
       "ALTER TABLE support_message ADD COLUMN issue_type VARCHAR(100) NULL AFTER sender_name",
     );
   }
+  if (!messageColumns.some((column) => column.Field === "image")) {
+    await query(
+      "ALTER TABLE support_message ADD COLUMN image VARCHAR(500) NULL AFTER message_data",
+    );
+  }
+  if (!messageColumns.some((column) => column.Field === "media_type")) {
+    await query(
+      "ALTER TABLE support_message ADD COLUMN media_type VARCHAR(100) NULL AFTER image",
+    );
+  }
+  if (!messageColumns.some((column) => column.Field === "file_name")) {
+    await query(
+      "ALTER TABLE support_message ADD COLUMN file_name VARCHAR(255) NULL AFTER media_type",
+    );
+  }
+  const messageDataColumn = messageColumns.find(
+    (column) => column.Field === "message_data",
+  );
+  if (messageDataColumn?.Null === "NO") {
+    await query("ALTER TABLE support_message MODIFY message_data TEXT NULL");
+  }
 
   await query(
     `CREATE TABLE IF NOT EXISTS support_read_state (
@@ -170,7 +191,8 @@ export const markSupportRead = async (conversationId, accountType, accountId) =>
 export const listSupportMessages = async (conversationId) =>
   query(
     `SELECT support_message_id, support_conversation_id, sender_type,
-            sender_name, issue_type, message_data, created_at
+            sender_name, issue_type, message_data, image, media_type, file_name,
+            created_at
      FROM support_message
      WHERE support_conversation_id = ?
      ORDER BY support_message_id ASC`,
@@ -190,14 +212,26 @@ export const insertSupportMessage = async ({
   senderName,
   issueType,
   message,
+  image,
+  mediaType,
+  fileName,
 }) => {
   const [result] = await db
     .promise()
     .query(
       `INSERT INTO support_message
-         (support_conversation_id, sender_type, sender_name, issue_type, message_data)
-       VALUES (?, ?, ?, ?, ?)`,
-      [conversationId, senderType, senderName || null, issueType || null, message],
+         (support_conversation_id, sender_type, sender_name, issue_type, message_data, image, media_type, file_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        conversationId,
+        senderType,
+        senderName || null,
+        issueType || null,
+        message || "",
+        image || null,
+        mediaType || null,
+        fileName || null,
+      ],
     );
 
   const timestampColumn = {
@@ -244,7 +278,13 @@ export const listSupportInbox = async () =>
            LIMIT 1
          )
        ) AS last_issue_type,
-       m.message_data AS last_message,
+       COALESCE(
+         NULLIF(m.message_data, ''),
+         CASE WHEN m.image IS NOT NULL THEN COALESCE(m.file_name, 'Attachment') ELSE NULL END
+       ) AS last_message,
+       m.image AS last_image,
+       m.media_type AS last_media_type,
+       m.file_name AS last_file_name,
        m.sender_type AS last_sender_type,
        m.created_at AS last_message_time,
        (
@@ -303,8 +343,11 @@ export const getSupportConversationSummaryForAccount = async (role, accountId) =
   const rows = await query(
     `SELECT
        sc.support_conversation_id,
-       COALESCE(sc.contact_email, cu.email) AS contact_email,
-       m.message_data AS last_message,
+       COALESCE(sc.contact_email, cu.email, s.email) AS contact_email,
+       COALESCE(
+         NULLIF(m.message_data, ''),
+         CASE WHEN m.image IS NOT NULL THEN COALESCE(m.file_name, 'Attachment') ELSE NULL END
+       ) AS last_message,
        m.sender_type AS last_sender_type,
        m.created_at AS last_message_time,
        (

@@ -19,6 +19,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import { adminTableButtonSx } from "../adminTableStyles";
 
 export default function PromotionHeaderTable({
   header = { message: "", button_label: "", button_url: "" },
@@ -143,16 +144,10 @@ export default function PromotionHeaderTable({
               <TableCell align="right" sx={{ py: 2 }}>
                 {canEdit && (
                   <Button
-                    size="small"
                     variant="outlined"
                     startIcon={<EditOutlinedIcon fontSize="small" />}
                     onClick={onEdit}
-                    sx={{
-                      borderRadius: 1.5,
-                      textTransform: "none",
-                      fontWeight: 700,
-                      fontSize: 12,
-                    }}
+                    sx={adminTableButtonSx}
                   >
                     Edit
                   </Button>
@@ -236,38 +231,20 @@ export default function PromotionHeaderTable({
                   <TableCell align="right" sx={{ py: 1.75 }}>
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Button
-                        size="small"
                         color="error"
                         variant="outlined"
                         onClick={() => onReviewRequest && onReviewRequest(request, "reject")}
                         disabled={!canEdit || isReviewing}
-                        sx={{
-                          borderRadius: 1.5,
-                          textTransform: "none",
-                          fontWeight: 700,
-                          fontSize: 11,
-                          py: 0.25,
-                        }}
+                        sx={adminTableButtonSx}
                       >
                         Reject
                       </Button>
                       <Button
-                        size="small"
-                        variant="contained"
+                        color="success"
+                        variant="outlined"
                         onClick={() => onReviewRequest && onReviewRequest(request, "accept")}
                         disabled={!canEdit || isReviewing}
-                        sx={{
-                          borderRadius: 1.5,
-                          textTransform: "none",
-                          fontWeight: 700,
-                          fontSize: 11,
-                          py: 0.25,
-                          bgcolor: "success.main",
-                          color: "#fff",
-                          "&:hover": {
-                            bgcolor: "success.dark",
-                          },
-                        }}
+                        sx={adminTableButtonSx}
                       >
                         Approve
                       </Button>

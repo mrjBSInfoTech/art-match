@@ -22,6 +22,7 @@ import PromotionHeaderCard from "../../components/admin/Event/PromotionHeaderCar
 import PromotionHeaderTable from "../../components/admin/Event/PromotionHeaderTable";
 import PromotionHeaderForm from "../../components/admin/Event/PromotionHeaderForm";
 import PromotionHeaderReviewDialog from "../../components/admin/Event/PromotionHeaderReviewDialog";
+import { adminSearchInputSx } from "../../components/admin/adminFilterStyles";
 import {
   fetchPromotionHeaderRequests,
   fetchPromotionHeader,
@@ -209,12 +210,14 @@ export default function PromotionHeader({ registerActions, onNotify }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             fullWidth={Boolean(registerActions)}
-            sx={{
-              width: registerActions ? "100%" : { xs: "100%", md: 340 },
-              maxWidth: "100%",
-              minWidth: 0,
-              "& .MuiInputBase-input": { fontSize: 13 },
-            }}
+            sx={(muiTheme) =>
+              adminSearchInputSx(muiTheme, {
+                width: registerActions ? "100%" : { xs: "100%", md: 340 },
+                maxWidth: "100%",
+                minWidth: 0,
+                "& .MuiInputBase-input": { fontSize: 13 },
+              })
+            }
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">

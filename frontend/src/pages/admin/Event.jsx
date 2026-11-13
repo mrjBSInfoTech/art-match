@@ -33,6 +33,7 @@ import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
+import { adminSearchInputSx } from "../../components/admin/adminFilterStyles";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import ViewCarouselOutlinedIcon from "@mui/icons-material/ViewCarouselOutlined";
@@ -111,13 +112,15 @@ export default function Event() {
   const [snackbarAction, setSnackbarAction] = useState(null);
   const retryActionsRef = useRef({});
 
-
-  const showSnackbar = useCallback((message, severity = "success", action = null) => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity);
-    setSnackbarAction(action);
-    setSnackbarOpen(true);
-  }, []);
+  const showSnackbar = useCallback(
+    (message, severity = "success", action = null) => {
+      setSnackbarMessage(message);
+      setSnackbarSeverity(severity);
+      setSnackbarAction(action);
+      setSnackbarOpen(true);
+    },
+    [],
+  );
 
   // Load Main Events & Archive Count
   const loadData = useCallback(async () => {
@@ -155,10 +158,14 @@ export default function Event() {
       setArchivedEvents(Array.isArray(data) ? data : []);
     } catch (error) {
       setArchivedError(error.message || "Unable to load archived exhibitions.");
-      showSnackbar(error.message || "Unable to load archived exhibitions.", "error", {
-        label: "Retry",
-        onClick: () => retryActionsRef.current.loadArchivedEvents?.(),
-      });
+      showSnackbar(
+        error.message || "Unable to load archived exhibitions.",
+        "error",
+        {
+          label: "Retry",
+          onClick: () => retryActionsRef.current.loadArchivedEvents?.(),
+        },
+      );
     } finally {
       setArchivedLoading(false);
     }
@@ -176,7 +183,7 @@ export default function Event() {
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(query)
+        .includes(query),
     );
   }, [events, searchQuery]);
 
@@ -231,7 +238,10 @@ export default function Event() {
       await loadData();
       if (openArchived) await loadArchivedEvents();
     } catch (error) {
-      showSnackbar(error.message || "Unable to delete the exhibition.", "error");
+      showSnackbar(
+        error.message || "Unable to delete the exhibition.",
+        "error",
+      );
     } finally {
       setDeleting(false);
     }
@@ -270,8 +280,8 @@ export default function Event() {
         activeTab === "calendar"
           ? "Calendar"
           : activeTab === "promotions"
-          ? "Slides"
-          : "Header",
+            ? "Slides"
+            : "Header",
       caption: "Current event management area",
       icon: ViewCarouselOutlinedIcon,
       color: theme.palette.success.main,
@@ -320,8 +330,8 @@ export default function Event() {
           {activeTab === "calendar"
             ? "Exhibition Calendar"
             : activeTab === "header"
-            ? "Promo Header"
-            : "Promotion Slides"}
+              ? "Promo Header"
+              : "Promotion Slides"}
         </title>
       </Helmet>
 
@@ -354,7 +364,8 @@ export default function Event() {
               fontSize: 13,
             }}
           >
-            Manage upcoming exhibitions, promotional slides, and announcement banners.
+            Manage upcoming exhibitions, promotional slides, and announcement
+            banners.
           </Typography>
         </Box>
         {activeTab === "calendar" ? (
@@ -365,38 +376,36 @@ export default function Event() {
           >
             <Button
               variant="outlined"
+              color="error"
               startIcon={<HistoryOutlinedIcon />}
               onClick={handleOpenArchived}
               sx={{
-                borderRadius: 2,
+                width: { xs: "100%", sm: 150 },
+                height: { xs: 38, sm: 44 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+                borderRadius: 1.5,
                 textTransform: "none",
                 fontWeight: 700,
-                fontSize: 13,
-                height: 44,
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.primary,
-                "&:hover": { borderColor: theme.palette.text.secondary },
               }}
             >
               Archived ({archivedCount})
             </Button>
             <Button
               variant="contained"
+              color="error"
               startIcon={<AddIcon />}
               onClick={handleOpenAdd}
               sx={{
-                borderRadius: 2,
+                width: { xs: "100%", sm: 150 },
+                height: { xs: 38, sm: 44 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+                borderRadius: 1.5,
                 textTransform: "none",
                 fontWeight: 700,
-                fontSize: 13,
-                height: 44,
-                backgroundColor: "error.main",
-                color: "#fff",
-                boxShadow: "none",
-                "&:hover": {
-                  backgroundColor: "error.dark",
-                  boxShadow: "none",
-                },
               }}
             >
               Add Exhibition
@@ -410,18 +419,19 @@ export default function Event() {
           >
             <Button
               variant="outlined"
+              color="error"
               startIcon={<RateReviewOutlinedIcon />}
               onClick={actionsForTab.openReview}
               disabled={!actionsForTab.openReview}
               sx={{
-                borderRadius: 2,
+                width: { xs: "100%", sm: 150 },
+                height: { xs: 38, sm: 44 },
+                minWidth: { xs: 45, sm: 50 },
+                fontSize: { xs: 12, sm: 16 },
+                padding: 0,
+                borderRadius: 1.5,
                 textTransform: "none",
                 fontWeight: 700,
-                fontSize: 13,
-                height: 44,
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.primary,
-                "&:hover": { borderColor: theme.palette.text.secondary },
               }}
             >
               Requests ({actionsForTab.requestsCount || 0})
@@ -429,18 +439,18 @@ export default function Event() {
             {activeTab === "promotions" && actionsForTab.canAdd && (
               <Button
                 variant="contained"
+                color="error"
                 startIcon={<AddIcon />}
                 onClick={actionsForTab.openAdd}
                 sx={{
-                  borderRadius: 2,
+                  width: { xs: "100%", sm: 150 },
+                  height: { xs: 38, sm: 44 },
+                  minWidth: { xs: 45, sm: 50 },
+                  fontSize: { xs: 12, sm: 16 },
+                  padding: 0,
+                  borderRadius: 1.5,
                   textTransform: "none",
                   fontWeight: 700,
-                  fontSize: 13,
-                  height: 44,
-                  backgroundColor: "error.main",
-                  color: "#fff",
-                  boxShadow: "none",
-                  "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
                 }}
               >
                 Add Slide
@@ -449,21 +459,21 @@ export default function Event() {
             {activeTab === "header" && actionsForTab.canEdit && (
               <Button
                 variant="contained"
+                color="error"
                 startIcon={<EditIcon />}
                 onClick={actionsForTab.openEdit}
                 sx={{
-                  borderRadius: 2,
+                  width: { xs: "100%", sm: 150 },
+                  height: { xs: 38, sm: 44 },
+                  minWidth: { xs: 45, sm: 50 },
+                  fontSize: { xs: 12, sm: 16 },
+                  padding: 0,
+                  borderRadius: 1.5,
                   textTransform: "none",
                   fontWeight: 700,
-                  fontSize: 13,
-                  height: 44,
-                  backgroundColor: "error.main",
-                  color: "#fff",
-                  boxShadow: "none",
-                  "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
                 }}
               >
-                Edit Promo Header
+                Edit Header
               </Button>
             )}
           </Stack>
@@ -499,7 +509,13 @@ export default function Event() {
                 height: "100%",
               }}
             >
-              <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
+              <CardContent
+                sx={{
+                  p: { xs: 1.75, sm: 2 },
+                  "&:last-child": { pb: { xs: 1.75, sm: 2 } },
+                  height: "100%",
+                }}
+              >
                 <Box
                   sx={{
                     display: "flex",
@@ -615,18 +631,17 @@ export default function Event() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 fullWidth
-                sx={{
+                sx={adminSearchInputSx(theme, {
                   minWidth: 0,
                   "& .MuiInputBase-input": { fontSize: 13 },
-                  "& .MuiInputBase-input::placeholder": {
-                    color: theme.palette.text.secondary,
-                    opacity: 1,
-                  },
-                }}
+                })}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      <SearchIcon
+                        fontSize="small"
+                        sx={{ color: "text.secondary" }}
+                      />
                     </InputAdornment>
                   ),
                 }}
@@ -717,7 +732,9 @@ export default function Event() {
                 textAlign: "center",
               }}
             >
-              <EventOutlinedIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+              <EventOutlinedIcon
+                sx={{ fontSize: 48, color: "text.disabled", mb: 1 }}
+              />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 No exhibitions scheduled
               </Typography>
@@ -737,7 +754,9 @@ export default function Event() {
                 textAlign: "center",
               }}
             >
-              <EventOutlinedIcon sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+              <EventOutlinedIcon
+                sx={{ fontSize: 48, color: "text.disabled", mb: 1 }}
+              />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 No matching exhibitions found
               </Typography>
@@ -839,19 +858,21 @@ export default function Event() {
           onClose={() => setSnackbarOpen(false)}
           severity={snackbarSeverity}
           variant="filled"
-          action={snackbarAction ? (
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
-                const action = snackbarAction;
-                setSnackbarOpen(false);
-                action.onClick();
-              }}
-            >
-              {snackbarAction.label}
-            </Button>
-          ) : undefined}
+          action={
+            snackbarAction ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  const action = snackbarAction;
+                  setSnackbarOpen(false);
+                  action.onClick();
+                }}
+              >
+                {snackbarAction.label}
+              </Button>
+            ) : undefined
+          }
           sx={{
             width: { xs: 280, sm: 360 },
             minHeight: 48,

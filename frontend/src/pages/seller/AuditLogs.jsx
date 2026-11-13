@@ -7,6 +7,7 @@ import {
   CircularProgress,
   FormControl,
   InputAdornment,
+  InputLabel,
   MenuItem,
   Paper,
   Select,
@@ -26,6 +27,10 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
 import { fetchSellerAuditLogs } from "../../api/seller/auditLogsAPI";
 
 const getOrderNumberFromLog = (log) => {
@@ -65,7 +70,9 @@ export default function SellerAuditLogs() {
     setErrorMessage("");
     fetchSellerAuditLogs()
       .then((entries) => setLogs(entries))
-      .catch((error) => setErrorMessage(error.message || "Unable to load your audit logs."))
+      .catch((error) =>
+        setErrorMessage(error.message || "Unable to load your audit logs."),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -102,7 +109,9 @@ export default function SellerAuditLogs() {
       }
 
       if (date) {
-        const targetDate = date.format ? date.format("YYYY-MM-DD") : String(date);
+        const targetDate = date.format
+          ? date.format("YYYY-MM-DD")
+          : String(date);
         const logDate = new Date(log.datetime);
         if (Number.isNaN(logDate.getTime())) return false;
         if (logDate.toISOString().slice(0, 10) !== targetDate) {
@@ -188,7 +197,7 @@ export default function SellerAuditLogs() {
           justifyContent: "space-between",
           alignItems: { xs: "stretch", sm: "center" },
           gap: 2,
-          mb: 2,
+          mb: 2.5,
         }}
       >
         <Box>
@@ -209,16 +218,17 @@ export default function SellerAuditLogs() {
               fontSize: 13,
             }}
           >
-            Review all activities associated with your account, including artwork sales,
-            order deliveries, payments confirmed, earnings recorded, payouts, and account updates.
+            Review all activities associated with your account, including
+            artwork sales, order deliveries, payments confirmed, earnings
+            recorded, payouts, and account updates.
           </Typography>
         </Box>
       </Box>
 
       <Paper
         sx={{
-          p: { xs: 1.5, sm: 2 },
-          borderRadius: 2,
+          p: { xs: 1.5, sm: 2, md: 2.5 },
+          borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
           minWidth: 0,
@@ -231,11 +241,10 @@ export default function SellerAuditLogs() {
             display: "grid",
             gridTemplateColumns: {
               xs: "minmax(0, 1fr)",
-              xl: "minmax(260px, 1fr) auto",
+              lg: "minmax(220px, 1fr) auto",
             },
             alignItems: "center",
-            gap: { xs: 1.25, sm: 1.5 },
-            width: "100%",
+            gap: { xs: 1.5, sm: 2 },
             minWidth: 0,
           }}
         >
@@ -244,31 +253,17 @@ export default function SellerAuditLogs() {
             placeholder="Search activity by order #, action, or details..."
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiOutlinedInput-root": {
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                borderRadius: 1.5,
-                "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              },
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
+                  <SearchIcon />
                 </InputAdornment>
               ),
             }}
+            inputProps={{ "aria-label": "Search audit logs" }}
           />
 
           <Box
@@ -276,37 +271,41 @@ export default function SellerAuditLogs() {
               display: "grid",
               gridTemplateColumns: {
                 xs: "minmax(0, 1fr)",
-                sm: "repeat(auto-fit, minmax(160px, 1fr))",
-                xl: "minmax(185px, 210px) minmax(165px, 180px) minmax(140px, 160px)",
+                sm: "repeat(auto-fit, minmax(145px, 1fr))",
+                lg: "repeat(3, minmax(136px, 160px))",
+                xl: "repeat(3, minmax(150px, 175px))",
               },
-              gap: { xs: 1.25, sm: 1.5 },
-              alignItems: "center",
-              width: "100%",
+              gap: { xs: 1.5, sm: 2 },
               minWidth: 0,
             }}
           >
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+              <InputLabel
+                id="seller-audit-activity-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Activity
+              </InputLabel>
               <Select
+                labelId="seller-audit-activity-label"
+                id="seller-audit-activity"
+                name="activity"
+                label="Activity"
                 value={activityCategory}
                 onChange={(event) => setActivityCategory(event.target.value)}
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  borderRadius: 1.5,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">All Activity Types</MenuItem>
-                <MenuItem value="transactions">Orders, Sales & Payouts</MenuItem>
+                <MenuItem value="transactions">
+                  Orders, Sales & Payouts
+                </MenuItem>
                 <MenuItem value="account">Account & Profile Actions</MenuItem>
               </Select>
             </FormControl>
 
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
+                label="Date"
                 value={date}
                 onChange={(newDate) => setDate(newDate)}
                 enableAccessibleFieldDOMStructure={false}
@@ -316,37 +315,34 @@ export default function SellerAuditLogs() {
                     size: "small",
                     fullWidth: true,
                     placeholder: "Select date",
-                    sx: {
+                    sx: adminSearchInputSx(theme, {
                       minWidth: 0,
-                      "& .MuiOutlinedInput-root": {
-                        fontSize: 13,
-                        color: theme.palette.text.primary,
-                        backgroundColor: theme.palette.background.default,
-                        borderRadius: 1.5,
-                        "& fieldset": { borderColor: theme.palette.divider },
-                        "&:hover fieldset": {
-                          borderColor: theme.palette.text.secondary,
-                        },
+                      "& .MuiInputLabel-root": {
+                        color: theme.palette.text.secondary,
+                        fontSize: 12,
                       },
-                    },
+                      "& .MuiInputBase-input": { fontSize: 12 },
+                    }),
                   },
                 }}
               />
             </LocalizationProvider>
 
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+              <InputLabel
+                id="seller-audit-period-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Period
+              </InputLabel>
               <Select
+                labelId="seller-audit-period-label"
+                id="seller-audit-period"
+                name="period"
+                label="Period"
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  borderRadius: 1.5,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="hour">Last 1 hour</MenuItem>
                 <MenuItem value="day">Last 1 day</MenuItem>
@@ -361,7 +357,18 @@ export default function SellerAuditLogs() {
       </Paper>
 
       {!loading && !errorMessage && (
-        <Box sx={{ mt: 0.5, mb: 0.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1.5,
+            mt: 2,
+            mb: 1,
+            minHeight: 34,
+          }}
+        >
           <Typography
             variant="caption"
             color="text.secondary"
@@ -393,7 +400,11 @@ export default function SellerAuditLogs() {
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
             Activity &amp; Transaction History
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontSize: 12 }}
+          >
             Review account activity, orders, sales, payouts, and updates.
           </Typography>
         </Box>
@@ -407,7 +418,10 @@ export default function SellerAuditLogs() {
             {errorMessage}
           </Typography>
         ) : filteredLogs.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+          <Typography
+            color="text.secondary"
+            sx={{ py: 4, textAlign: "center" }}
+          >
             No activity has been recorded yet.
           </Typography>
         ) : (
@@ -429,23 +443,27 @@ export default function SellerAuditLogs() {
                 }}
               >
                 <TableRow>
-                  {["Date and time", "Activity", "Order #", "Status", "Details"].map(
-                    (heading) => (
-                      <TableCell
-                        key={heading}
-                        sx={{
-                          py: 1.5,
-                          color: theme.palette.text.secondary,
-                          fontSize: 10,
-                          fontWeight: 800,
-                          textTransform: "uppercase",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {heading}
-                      </TableCell>
-                    ),
-                  )}
+                  {[
+                    "Date and time",
+                    "Activity",
+                    "Order #",
+                    "Status",
+                    "Details",
+                  ].map((heading) => (
+                    <TableCell
+                      key={heading}
+                      sx={{
+                        py: 1.5,
+                        color: theme.palette.text.secondary,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {heading}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -537,9 +555,11 @@ export default function SellerAuditLogs() {
                                   )
                                 ? theme.palette.error.main
                                 : theme.palette.text.secondary,
-                            backgroundColor: ["success", "logged in", "online"].includes(
-                              String(log.status).toLowerCase(),
-                            )
+                            backgroundColor: [
+                              "success",
+                              "logged in",
+                              "online",
+                            ].includes(String(log.status).toLowerCase())
                               ? theme.palette.mode === "dark"
                                 ? "rgba(34, 197, 94, 0.16)"
                                 : "#dcfce7"

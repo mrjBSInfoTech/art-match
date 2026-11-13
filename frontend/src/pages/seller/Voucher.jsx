@@ -26,6 +26,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import AddIcon from "@mui/icons-material/Add";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import SearchIcon from "@mui/icons-material/Search";
@@ -36,6 +37,10 @@ import VoucherDelete from "../../components/seller/Voucher/VoucherDelete";
 import VoucherForm from "../../components/seller/Voucher/VoucherForm";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
 import {
   createSellerVoucher,
   deleteSellerVoucher,
@@ -306,6 +311,7 @@ export default function Voucher() {
         <Button
           variant="contained"
           color="error"
+          startIcon={<AddIcon />}
           onClick={() => {
             setEditingVoucher(null);
             setOpenVoucherForm(true);
@@ -456,14 +462,6 @@ export default function Voucher() {
         }}
         variant="outlined"
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          aria-live="polite"
-          sx={{ display: "block", mb: 1.5 }}
-        >
-          <strong>{filteredVouchers.length}</strong> vouchers shown
-        </Typography>
         <Box
           sx={{
             display: "grid",
@@ -481,13 +479,7 @@ export default function Voucher() {
             placeholder="Search vouchers..."
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -513,12 +505,18 @@ export default function Voucher() {
             }}
           >
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="voucher-status-label">Status</InputLabel>
+              <InputLabel
+                id="voucher-status-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Status
+              </InputLabel>
               <Select
                 labelId="voucher-status-label"
                 label="Status"
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">All statuses</MenuItem>
                 <MenuItem value="active">Active</MenuItem>
@@ -527,12 +525,18 @@ export default function Voucher() {
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="voucher-type-label">Discount type</InputLabel>
+              <InputLabel
+                id="voucher-type-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Discount type
+              </InputLabel>
               <Select
                 labelId="voucher-type-label"
                 label="Discount type"
                 value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">All types</MenuItem>
                 <MenuItem value="percentage">Percentage</MenuItem>
@@ -541,7 +545,12 @@ export default function Voucher() {
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="voucher-sort-label">Sort by</InputLabel>
+              <InputLabel
+                id="voucher-sort-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Sort by
+              </InputLabel>
               <Select
                 labelId="voucher-sort-label"
                 label="Sort by"
@@ -552,6 +561,7 @@ export default function Voucher() {
                     sx={{ mr: 0.5, fontSize: 17, color: "text.secondary" }}
                   />
                 }
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="newest">Newest first</MenuItem>
                 <MenuItem value="oldest">Oldest first</MenuItem>
@@ -563,12 +573,33 @@ export default function Voucher() {
         </Box>
       </Paper>
 
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 2,
+          mb: 1,
+          minHeight: 34,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredVouchers.length} of {vouchers.length} vouchers
+        </Typography>
+      </Box>
+
       {/* Voucher Display */}
       <Paper
         variant="outlined"
         sx={{
           p: { xs: 2, md: 2.5 },
-          mt: 2.5,
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,

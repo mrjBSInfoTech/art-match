@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import {
   Alert,
   Box,
@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Slide,
   Stack,
   TextField,
   Typography,
@@ -19,6 +20,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 import { getArtworkRemainingStock, getArtworkOrderLimit } from "../../../utils/artworkAvailability";
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 export default function CustomizeOrderDialog({
   open,
@@ -170,14 +175,17 @@ export default function CustomizeOrderDialog({
     <Dialog
       open={open}
       onClose={isSubmitting ? undefined : onClose}
+      TransitionComponent={Transition}
+      keepMounted
       fullWidth
       maxWidth="sm"
       PaperProps={{
         sx: {
-          width: "min(calc(100% - 24px), 590px)",
-          maxWidth: "590px",
+          width: "min(calc(100% - 24px), 470px)",
+          maxWidth: "470px",
           borderRadius: 3,
           overflow: "hidden",
+          backgroundColor: "background.paper",
         },
       }}
       aria-labelledby={titleId}
@@ -187,12 +195,13 @@ export default function CustomizeOrderDialog({
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 1,
-          px: 3,
-          py: 2,
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: "text.primary",
           borderBottom: 1,
           borderColor: "divider",
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 700,
         }}
       >
@@ -203,15 +212,22 @@ export default function CustomizeOrderDialog({
             ? "Customize this artwork"
             : "Add an order note"}
         <Button
-          aria-label="Close"
+          aria-label="Close order dialog"
           onClick={isSubmitting ? undefined : onClose}
           disabled={isSubmitting}
-          sx={{ minWidth: 32, ml: "auto", p: 0, color: "text.primary" }}
+          sx={{
+            minWidth: 44,
+            width: 44,
+            height: 44,
+            ml: "auto",
+            p: 0,
+            color: "text.secondary",
+          }}
         >
-          <CloseIcon />
+          <CloseIcon sx={{ fontSize: 18 }} />
         </Button>
       </DialogTitle>
-      <DialogContent sx={{ p: 3 }}>
+      <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 } }}>
         {step === "choice" ? (
           <Stack spacing={1.5} sx={{ pt: 0.5 }}>
             <Typography variant="body2" color="text.secondary">
@@ -297,8 +313,8 @@ export default function CustomizeOrderDialog({
                     sx={{
                       border: "1px solid",
                       borderColor: "divider",
-                      width: 32,
-                      height: 32,
+                      width: 44,
+                      height: 44,
                     }}
                     aria-label="Decrease quantity"
                   >
@@ -319,6 +335,7 @@ export default function CustomizeOrderDialog({
                         setQuantity(Math.min(Math.max(1, val), maxStock));
                       }
                     }}
+                    disabled={isSubmitting}
                     inputProps={{
                       min: 1,
                       max: maxStock,
@@ -334,7 +351,7 @@ export default function CustomizeOrderDialog({
                       width: 52,
                       "& .MuiOutlinedInput-root": {
                         borderRadius: 1.5,
-                        height: 32,
+                        height: 44,
                       },
                       "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
                         {
@@ -357,8 +374,8 @@ export default function CustomizeOrderDialog({
                     sx={{
                       border: "1px solid",
                       borderColor: "divider",
-                      width: 32,
-                      height: 32,
+                      width: 44,
+                      height: 44,
                     }}
                     aria-label="Increase quantity"
                   >
@@ -371,17 +388,26 @@ export default function CustomizeOrderDialog({
           </Stack>
         )}
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
+      <DialogActions
+        sx={{
+          justifyContent: "flex-end",
+          gap: 1,
+          px: 2.5,
+          py: 1.5,
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
         {step === "choice" ? (
           <>
-            <Button onClick={onClose} disabled={isSubmitting} color="inherit">
+            <Button onClick={onClose} disabled={isSubmitting} color="text.secondary">
               Cancel
             </Button>
             <Button
               variant="contained"
               onClick={handleContinue}
               disabled={isSubmitting || !selectedChoice}
-              sx={{ minWidth: 126, borderRadius: 1.5, fontWeight: 700 }}
+              sx={{ minHeight: 44, minWidth: 126, borderRadius: 1.5, fontWeight: 700 }}
             >
               Continue
             </Button>
@@ -389,6 +415,7 @@ export default function CustomizeOrderDialog({
         ) : (
           <>
           <Button
+            color="text.secondary"
             onClick={() => {
               if (isCustomizable) {
                 setStep("choice");
@@ -405,6 +432,7 @@ export default function CustomizeOrderDialog({
             variant="contained"
             onClick={handleAddWithDetails}
             disabled={isSubmitting}
+            sx={{ minHeight: 44, borderRadius: 1.5, fontWeight: 700 }}
           >
             Add to cart - ₱{(Number(artwork?.price || 0) * (quantity || 1)).toLocaleString()}
           </Button>

@@ -415,7 +415,7 @@ export default function AdminForm({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose} color="secondary" disabled={loading}>
+        <Button onClick={handleClose} color="text.secondary" disabled={loading}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} variant="contained" disabled={loading}>

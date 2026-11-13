@@ -25,6 +25,7 @@ import {
   payoutStatusMessage,
   payoutValue,
 } from "./payoutDisplay";
+import { sellerTableButtonSx } from "../sellerTableStyles";
 
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
@@ -88,10 +89,8 @@ const getStatusPillStyle = (theme, status) => {
 export default function PayoutTable({ orders = [], admin = false, onReview }) {
   const theme = useTheme();
   const isDark = theme?.palette?.mode === "dark";
-  const primaryColor = theme?.palette?.primary?.main || "#d32f2f";
   const successColor = theme?.palette?.success?.main || "#2e7d32";
   const errorColor = theme?.palette?.error?.main || "#d32f2f";
-  const dividerColor = theme?.palette?.divider || "rgba(0,0,0,0.12)";
   const textPrimary = theme?.palette?.text?.primary || "#1e293b";
   const textSecondary = theme?.palette?.text?.secondary || "#64748b";
 
@@ -404,23 +403,9 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
                   {admin && (
                     <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                       <Button
-                        size="small"
                         variant="outlined"
                         onClick={() => onReview(payout)}
-                        sx={{
-                          borderRadius: 2,
-                          fontWeight: 700,
-                          fontSize: 11,
-                          textTransform: "none",
-                          px: 1.75,
-                          borderColor: dividerColor,
-                          color: textPrimary,
-                          "&:hover": {
-                            borderColor: primaryColor,
-                            color: primaryColor,
-                            bgcolor: safeAlpha(primaryColor, 0.06),
-                          },
-                        }}
+                        sx={sellerTableButtonSx}
                       >
                         Review
                       </Button>

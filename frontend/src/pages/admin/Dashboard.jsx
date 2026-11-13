@@ -20,6 +20,7 @@ import {
   Snackbar,
   Slide,
   Stack,
+  useMediaQuery,
 } from "@mui/material";
 import {
   CartesianGrid,
@@ -49,6 +50,7 @@ import ArtworkImage from "../../components/common/ArtworkImage";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ColorLensRoundedIcon from "@mui/icons-material/ColorLensRounded";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
 import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -60,6 +62,7 @@ function SlideTransition(props) {
 
 export default function Dashboard() {
   const theme = useTheme();
+  const isCompactChart = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
   const [statistics, setStatistics] = useState(null);
   const [statisticsError, setStatisticsError] = useState("");
@@ -361,6 +364,7 @@ export default function Dashboard() {
         <Button
           variant="contained"
           color="error"
+          startIcon={<DownloadOutlinedIcon />}
           onClick={handleOpenExportDialog}
           sx={{
             width: { xs: "100%", sm: 150 },
@@ -525,20 +529,23 @@ export default function Dashboard() {
             theme.palette.mode === "dark"
               ? "0 22px 48px rgba(2, 6, 23, 0.28)"
               : "0 18px 36px rgba(15, 23, 42, 0.08)",
-          overflowX: "hidden",
+          overflow: "hidden",
           width: "100%",
           maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
         variant="outlined"
       >
         <Box
           sx={{
             display: "flex",
-            alignItems: { xs: "flex-start", sm: "center" },
+            alignItems: { xs: "flex-start", lg: "center" },
             justifyContent: "space-between",
-            flexDirection: { xs: "column", sm: "row" },
+            flexDirection: { xs: "column", lg: "row" },
             gap: 1.5,
             mb: 2,
+            minWidth: 0,
           }}
         >
           <Box
@@ -547,7 +554,8 @@ export default function Dashboard() {
               alignItems: "center",
               gap: 1.5,
               minWidth: 0,
-              width: { xs: "100%", sm: "auto" },
+              width: { xs: "100%", lg: "auto" },
+              flex: 1,
             }}
           >
             <Box
@@ -622,9 +630,10 @@ export default function Dashboard() {
             sx={{
               display: "flex",
               gap: 0.75,
-              width: { xs: "100%", sm: "auto" },
+              width: { xs: "100%", lg: "auto" },
               flexWrap: "wrap",
-              justifyContent: { xs: "stretch", sm: "flex-end" },
+              flexShrink: 0,
+              justifyContent: { xs: "flex-start", lg: "flex-end" },
             }}
           >
             <Button
@@ -637,16 +646,17 @@ export default function Dashboard() {
                 px: { xs: 1.5, sm: 2 },
                 py: 0.6,
                 flex: { xs: 1, sm: "0 0 auto" },
+                whiteSpace: "nowrap",
                 textTransform: "none",
                 fontSize: { xs: 11.5, sm: 12.5 },
                 fontWeight: 700,
                 borderRadius: 2,
                 border: "1px solid",
                 borderColor:
-                  distributionMode === "students" ? "primary.main" : "divider",
+                  distributionMode === "students" ? "error.main" : "divider",
                 bgcolor:
                   distributionMode === "students"
-                    ? "primary.main"
+                    ? "error.main"
                     : theme.palette.mode === "dark"
                       ? "rgba(148, 163, 184, 0.08)"
                       : "#ffffff",
@@ -654,15 +664,12 @@ export default function Dashboard() {
                   distributionMode === "students"
                     ? "#ffffff !important"
                     : "text.primary",
-                boxShadow:
-                  distributionMode === "students"
-                    ? "0 2px 8px rgba(37, 99, 235, 0.28)"
-                    : "none",
+                boxShadow: "none",
                 transition: "all 0.15s ease-in-out",
                 "&:hover": {
                   bgcolor:
                     distributionMode === "students"
-                      ? "primary.dark"
+                      ? "error.dark"
                       : theme.palette.mode === "dark"
                         ? "rgba(148, 163, 184, 0.16)"
                         : "#f1f5f9",
@@ -670,6 +677,7 @@ export default function Dashboard() {
                     distributionMode === "students"
                       ? "#ffffff !important"
                       : "text.primary",
+                  boxShadow: "none",
                 },
               }}
             >
@@ -685,16 +693,17 @@ export default function Dashboard() {
                 px: { xs: 1.5, sm: 2 },
                 py: 0.6,
                 flex: { xs: 1, sm: "0 0 auto" },
+                whiteSpace: "nowrap",
                 textTransform: "none",
                 fontSize: { xs: 11.5, sm: 12.5 },
                 fontWeight: 700,
                 borderRadius: 2,
                 border: "1px solid",
                 borderColor:
-                  distributionMode === "artworks" ? "primary.main" : "divider",
+                  distributionMode === "artworks" ? "error.main" : "divider",
                 bgcolor:
                   distributionMode === "artworks"
-                    ? "primary.main"
+                    ? "error.main"
                     : theme.palette.mode === "dark"
                       ? "rgba(148, 163, 184, 0.08)"
                       : "#ffffff",
@@ -702,15 +711,12 @@ export default function Dashboard() {
                   distributionMode === "artworks"
                     ? "#ffffff !important"
                     : "text.primary",
-                boxShadow:
-                  distributionMode === "artworks"
-                    ? "0 2px 8px rgba(37, 99, 235, 0.28)"
-                    : "none",
+                boxShadow: "none",
                 transition: "all 0.15s ease-in-out",
                 "&:hover": {
                   bgcolor:
                     distributionMode === "artworks"
-                      ? "primary.dark"
+                      ? "error.dark"
                       : theme.palette.mode === "dark"
                         ? "rgba(148, 163, 184, 0.16)"
                         : "#f1f5f9",
@@ -718,6 +724,7 @@ export default function Dashboard() {
                     distributionMode === "artworks"
                       ? "#ffffff !important"
                       : "text.primary",
+                  boxShadow: "none",
                 },
               }}
             >
@@ -730,26 +737,30 @@ export default function Dashboard() {
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "1fr",
-              md: "minmax(0, 0.82fr) minmax(0, 1.18fr)",
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(0, 0.82fr) minmax(0, 1.18fr)",
             },
-            gap: { xs: 2, md: 3 },
+            gap: { xs: 2, lg: 3 },
             alignItems: "center",
             width: "100%",
             maxWidth: "100%",
+            minWidth: 0,
+            overflow: "hidden",
           }}
         >
           <Box
             sx={{
-              height: { xs: 220, sm: 250, md: 280 },
+              height: { xs: 230, sm: 250, lg: 280 },
               position: "relative",
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
               minWidth: 0,
+              maxWidth: "100%",
+              overflow: "hidden",
             }}
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={chartData}
@@ -757,8 +768,8 @@ export default function Dashboard() {
                   nameKey="name"
                   cx="50%"
                   cy="48%"
-                  innerRadius="45%"
-                  outerRadius="72%"
+                  innerRadius="54%"
+                  outerRadius="78%"
                   paddingAngle={1}
                   stroke={theme.palette.background.paper}
                   strokeWidth={2}
@@ -775,12 +786,13 @@ export default function Dashboard() {
             <Box
               sx={{
                 position: "absolute",
-                top: "48%",
+                top: "46%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
                 textAlign: "center",
                 pointerEvents: "none",
-                px: 1,
+                px: 0.5,
+                maxWidth: { xs: 78, sm: 88, lg: 94 },
               }}
             >
               <Typography
@@ -789,16 +801,17 @@ export default function Dashboard() {
                   display: "block",
                   color: "error.main",
                   fontWeight: 700,
-                  fontSize: { xs: 11, sm: 12 },
+                  fontSize: { xs: 10, sm: 11 },
+                  lineHeight: 1.1,
                 }}
               >
                 CAFA
               </Typography>
               <Typography
                 sx={{
-                  fontSize: { xs: 18, sm: 20 },
+                  fontSize: { xs: 16, sm: 18 },
                   fontWeight: 800,
-                  lineHeight: 1.1,
+                  lineHeight: 1.15,
                 }}
               >
                 {distributionTotal}
@@ -807,12 +820,12 @@ export default function Dashboard() {
                 variant="caption"
                 color="text.secondary"
                 sx={{
-                  fontSize: { xs: 10, sm: 12 },
+                  fontSize: { xs: 9.5, sm: 10.5 },
                   display: "block",
-                  maxWidth: { xs: 70, sm: 90, md: 100 },
-                  lineHeight: 1.2,
+                  lineHeight: 1.15,
                   mx: "auto",
                   whiteSpace: "normal",
+                  overflowWrap: "break-word",
                 }}
               >
                 {distributionMode === "students" ? "Verified Artists" : "Listed Artworks"}
@@ -824,8 +837,9 @@ export default function Dashboard() {
               sx={{
                 display: "block",
                 textAlign: "center",
-                mt: -1,
-                fontSize: { xs: 10, sm: 12 },
+                mt: 0.25,
+                px: 1,
+                fontSize: { xs: 10, sm: 11.5 },
               }}
             >
               Hover or tap any sector to view program share
@@ -872,11 +886,12 @@ export default function Dashboard() {
                     }}
                   >
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography
-                        noWrap
+                      <Box
                         sx={{
-                          fontSize: { xs: 11, sm: 12 },
-                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 0.75,
+                          minWidth: 0,
                         }}
                       >
                         <Box
@@ -887,12 +902,22 @@ export default function Dashboard() {
                             height: 8,
                             borderRadius: "50%",
                             bgcolor: program.color,
-                            mr: 0.75,
-                            verticalAlign: "middle",
+                            mt: 0.55,
+                            flexShrink: 0,
                           }}
                         />
-                        {program.name}
-                      </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: { xs: 11.5, sm: 12 },
+                            fontWeight: 700,
+                            lineHeight: 1.3,
+                            minWidth: 0,
+                            overflowWrap: "break-word",
+                          }}
+                        >
+                          {program.name}
+                        </Typography>
+                      </Box>
                       <Typography
                         variant="caption"
                         color="text.secondary"
@@ -960,6 +985,8 @@ export default function Dashboard() {
                     : "#f0fdf4",
                 borderRadius: 1.5,
                 minWidth: 0,
+                maxWidth: "100%",
+                boxSizing: "border-box",
               }}
             >
               <InfoOutlinedIcon
@@ -976,6 +1003,8 @@ export default function Dashboard() {
                   color: theme.palette.mode === "dark" ? "#bbf7d0" : "#166534",
                   lineHeight: 1.5,
                   fontSize: { xs: 11, sm: 12 },
+                  minWidth: 0,
+                  overflowWrap: "break-word",
                 }}
               >
                 <strong>100% Student Artist Proceeds (0% Platform Fee):</strong>{" "}
@@ -989,19 +1018,64 @@ export default function Dashboard() {
         </Box>
       </Paper>
       <Paper
-        sx={{ p: { xs: 2, md: 3 }, mt: 3, borderRadius: 2 }}
+        sx={{
+          p: { xs: 2, md: 3 },
+          mt: 3,
+          borderRadius: 2,
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
         variant="outlined"
       >
         <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
           Monthly Sales {statistics?.salesYear || ""}
         </Typography>
 
-        <Box sx={{ width: "100%", height: 330, overflowX: "auto" }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={salesData}>
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            height: { xs: 250, sm: 300, md: 330 },
+            overflow: "hidden",
+            "& svg": { display: "block", maxWidth: "100%" },
+          }}
+        >
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <LineChart
+              data={salesData}
+              margin={{
+                top: 12,
+                right: isCompactChart ? 14 : 24,
+                left: isCompactChart ? -10 : 4,
+                bottom: 4,
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
+              <XAxis
+                dataKey="month"
+                interval={isCompactChart ? "preserveStartEnd" : 0}
+                minTickGap={isCompactChart ? 14 : 6}
+                padding={{
+                  left: isCompactChart ? 8 : 12,
+                  right: isCompactChart ? 8 : 12,
+                }}
+                tick={{
+                  fontSize: isCompactChart ? 11 : 12,
+                  fill: theme.palette.text.secondary,
+                }}
+                tickMargin={6}
+              />
+              <YAxis
+                width={isCompactChart ? 44 : 56}
+                tick={{
+                  fontSize: isCompactChart ? 11 : 12,
+                  fill: theme.palette.text.secondary,
+                }}
+              />
               <Tooltip
                 formatter={(value) => [
                   new Intl.NumberFormat("en-PH", {

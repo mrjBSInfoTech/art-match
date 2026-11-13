@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import ViewListIcon from "@mui/icons-material/ViewList";
@@ -107,9 +108,15 @@ export default function Admin() {
       return matchesRole && (query === "" || matchesSearch);
     });
     return [...filtered].sort((first, second) => {
-      const firstName = `${first.first_name || ""} ${first.last_name || ""}`.trim().toLowerCase();
-      const secondName = `${second.first_name || ""} ${second.last_name || ""}`.trim().toLowerCase();
-      return sortOption === "za" ? secondName.localeCompare(firstName) : firstName.localeCompare(secondName);
+      const firstName = `${first.first_name || ""} ${first.last_name || ""}`
+        .trim()
+        .toLowerCase();
+      const secondName = `${second.first_name || ""} ${second.last_name || ""}`
+        .trim()
+        .toLowerCase();
+      return sortOption === "za"
+        ? secondName.localeCompare(firstName)
+        : firstName.localeCompare(secondName);
     });
   }, [admins, searchQuery, roleFilter, sortOption]);
 
@@ -277,10 +284,20 @@ export default function Admin() {
           <Button
             variant="contained"
             color="error"
+            startIcon={<AddIcon />}
             onClick={handleOpenAdd}
-            sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 700 }}
+            sx={{
+              width: { xs: "100%", sm: 150 },
+              height: { xs: 38, sm: 44 },
+              minWidth: { xs: 45, sm: 50 },
+              fontSize: { xs: 12, sm: 16 },
+              padding: 0,
+              borderRadius: 1.5,
+              textTransform: "none",
+              fontWeight: 700,
+            }}
           >
-            Add Admin Account
+            Add Admin
           </Button>
         )}
       </Box>
@@ -453,6 +470,7 @@ export default function Admin() {
               textTransform: "none",
               color: theme.palette.text.secondary,
               gap: 0.75,
+              transition: "all 150ms ease",
             },
             "& .MuiToggleButton-root.Mui-selected": {
               backgroundColor: theme.palette.error.main,

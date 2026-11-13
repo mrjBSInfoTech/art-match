@@ -29,6 +29,10 @@ import CertificateCard from "../../components/seller/Certificate/CertificateCard
 import CertificateImage from "../../components/seller/Certificate/CertificateImage";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
 
 export default function SearchCertificate() {
   const theme = useTheme();
@@ -284,13 +288,7 @@ export default function SearchCertificate() {
             placeholder="Search certificates by title, artist, or certificate ID..."
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -318,7 +316,12 @@ export default function SearchCertificate() {
             }}
           >
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-certificate-status-label">Status</InputLabel>
+              <InputLabel
+                id="seller-certificate-status-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Status
+              </InputLabel>
               <Select
                 labelId="seller-certificate-status-label"
                 id="seller-certificate-status"
@@ -326,6 +329,7 @@ export default function SearchCertificate() {
                 label="Status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">All certificates</MenuItem>
                 <MenuItem value="other">Other sellers</MenuItem>
@@ -335,7 +339,12 @@ export default function SearchCertificate() {
             </FormControl>
 
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-certificate-title-sort-label">Title</InputLabel>
+              <InputLabel
+                id="seller-certificate-title-sort-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Title
+              </InputLabel>
               <Select
                 labelId="seller-certificate-title-sort-label"
                 id="seller-certificate-title-sort"
@@ -346,6 +355,7 @@ export default function SearchCertificate() {
                 startAdornment={
                   <SwapVertIcon sx={{ mr: 0.5, fontSize: 17, color: "text.secondary" }} />
                 }
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
@@ -355,7 +365,12 @@ export default function SearchCertificate() {
             </FormControl>
 
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-certificate-price-sort-label">Price</InputLabel>
+              <InputLabel
+                id="seller-certificate-price-sort-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Price
+              </InputLabel>
               <Select
                 labelId="seller-certificate-price-sort-label"
                 id="seller-certificate-price-sort"
@@ -363,6 +378,7 @@ export default function SearchCertificate() {
                 label="Price"
                 value={priceOption}
                 onChange={(e) => setPriceOption(e.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">Default price</MenuItem>
                 <MenuItem value="lthPrice">Lowest to Highest</MenuItem>
@@ -379,9 +395,10 @@ export default function SearchCertificate() {
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: 1,
-          mt: 0.5,
-          mb: 0.5,
+          gap: 1.5,
+          mt: 2,
+          mb: 1,
+          minHeight: 34,
         }}
       >
         <Typography
@@ -414,7 +431,7 @@ export default function SearchCertificate() {
       {error && (
         <Alert
           severity="error"
-          sx={{ mt: 2.5, borderRadius: 2 }}
+          sx={{ mt: 2, borderRadius: 2 }}
           action={
             <Button color="inherit" size="small" onClick={() => handleSearch(activeQuery, excludeSelf)}>
               Retry
@@ -429,7 +446,6 @@ export default function SearchCertificate() {
       <Paper
         sx={{
           p: { xs: 2, md: 2.5 },
-          mt: 2.5,
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,

@@ -17,9 +17,10 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import { adminSearchInputSx } from "../../components/admin/adminFilterStyles";
 import {
   approveAccountChangeRequest,
   approveAdminPermissionRequest,
@@ -517,9 +518,20 @@ export default function AdminPayout() {
           </Typography>
         </Box>
         <Button
-          startIcon={<RefreshIcon />}
+          variant="outlined"
+          startIcon={<RefreshOutlinedIcon />}
           onClick={reload}
           disabled={loading || busy}
+          sx={{
+            width: { xs: "100%", sm: 150 },
+            height: { xs: 38, sm: 44 },
+            minWidth: { xs: 45, sm: 50 },
+            fontSize: { xs: 12, sm: 16 },
+            padding: 0,
+            borderRadius: 1.5,
+            textTransform: "none",
+            fontWeight: 700,
+          }}
         >
           Refresh
         </Button>
@@ -716,21 +728,7 @@ export default function AdminPayout() {
                     onChange={(event) => setSearch(event.target.value)}
                     size="small"
                     fullWidth
-                    sx={{
-                      minWidth: 0,
-                      "& .MuiOutlinedInput-root": {
-                        color: theme.palette.text.primary,
-                        backgroundColor: theme.palette.background.default,
-                        "& fieldset": { borderColor: theme.palette.divider },
-                        "&:hover fieldset": {
-                          borderColor: theme.palette.text.secondary,
-                        },
-                      },
-                      "& .MuiInputBase-input::placeholder": {
-                        color: theme.palette.text.secondary,
-                        opacity: 1,
-                      },
-                    }}
+                    sx={adminSearchInputSx(theme, { minWidth: 0 })}
                   />
                   <TextField
                     select
@@ -739,7 +737,10 @@ export default function AdminPayout() {
                     onChange={(event) => setStatus(event.target.value)}
                     size="small"
                     fullWidth
-                    sx={{ minWidth: 0 }}
+                    sx={adminSearchInputSx(theme, {
+                      minWidth: 0,
+                      "& .MuiSelect-select": { fontSize: 12 },
+                    })}
                   >
                     {statuses.map((item) => (
                       <MenuItem value={item} key={item}>

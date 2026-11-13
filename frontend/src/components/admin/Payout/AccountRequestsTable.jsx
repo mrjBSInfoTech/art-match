@@ -28,6 +28,7 @@ import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import AccountRequestsInfo from "./AccountRequestsInfo";
 import { formatPayoutDate } from "../../seller/Payout/payoutDisplay";
+import { adminTableButtonSx } from "../adminTableStyles";
 
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
@@ -374,26 +375,13 @@ function SingleAccountRequestCard({ req, busy, onReview, getStatusChip }) {
 
           {/* Review Action Button */}
           <Button
-            size="small"
             variant="outlined"
             onClick={(e) => {
               e.stopPropagation();
               onReview();
             }}
             disabled={busy}
-            sx={{
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: 700,
-              height: 42,
-              px: 2,
-              borderColor: "primary.main",
-              color: "primary.main",
-              "&:hover": {
-                borderColor: "primary.dark",
-                backgroundColor: safeAlpha(theme.palette.primary.main, 0.08),
-              },
-            }}
+            sx={adminTableButtonSx}
           >
             Review
           </Button>
@@ -687,10 +675,10 @@ export default function AccountRequestsTable({
                     </TableCell>
                     <TableCell align="right">
                       <Button
-                        size="small"
                         variant="outlined"
                         onClick={() => openReview(req)}
                         disabled={busy}
+                        sx={adminTableButtonSx}
                       >
                         Review
                       </Button>

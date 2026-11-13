@@ -144,6 +144,22 @@ export default function Shop() {
   }, [loadArtworks, loadFavoriteIds]);
 
   useEffect(() => {
+    if (!recommendationsOnly) return undefined;
+    let refreshTimer;
+    const refresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loadArtworks, 250);
+    };
+    window.addEventListener("recommendation-updated", refresh);
+    window.addEventListener("artist-follow-updated", refresh);
+    return () => {
+      clearTimeout(refreshTimer);
+      window.removeEventListener("recommendation-updated", refresh);
+      window.removeEventListener("artist-follow-updated", refresh);
+    };
+  }, [recommendationsOnly, loadArtworks]);
+
+  useEffect(() => {
     let active = true;
     const loadCartArtworkIds = async () => {
       if (!isAuthenticated("buyer")) {
@@ -363,7 +379,9 @@ export default function Shop() {
             }}
           >
             {recommendationsOnly
-              ? "A selection of original works chosen for you."
+              ? artworks.length > 0
+                ? "A personalized selection chosen from your activity and followed artists."
+                : "Browse, search, favorite artworks, or follow artists to unlock your personal recommendations."
               : "Explore original artwork and creative work from the CAFA artist community."}
           </Typography>
         </Box>
@@ -545,10 +563,14 @@ export default function Shop() {
             }}
           >
             <Typography component="h3" sx={{ fontSize: 20, fontWeight: 800 }}>
-              No artworks found
+              {recommendationsOnly && !searchQuery && !selectedGenre && !hasPriceFilter && !hasCategoryFilters
+                ? "No personalized recommendations yet"
+                : "No artworks found"}
             </Typography>
             <Typography sx={{ mt: 0.75, color: "text.secondary" }}>
-              Try a different search or browse the full collection.
+              {recommendationsOnly && !searchQuery && !selectedGenre && !hasPriceFilter && !hasCategoryFilters
+                ? "Follow artists or browse, search, and favorite artworks to build your Recommended for You feed."
+                : "Try a different search or browse the full collection."}
             </Typography>
             <Button
               variant="contained"

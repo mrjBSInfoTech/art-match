@@ -150,10 +150,10 @@ export default function CustomerCard({
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
-            xl: "repeat(5, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
+            lg: "repeat(5, minmax(0, 1fr))",
           },
-          gap: { xs: 1.5, sm: 2 },
+          gap: 2,
           minWidth: 0,
         }}
       >
@@ -168,26 +168,24 @@ export default function CustomerCard({
                 minWidth: 0,
                 display: "flex",
                 flexDirection: "column",
-                minHeight: 0,
+                height: "100%",
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 1.5,
+                borderRadius: 2.5,
                 boxShadow: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 "&:hover": {
                   borderColor: "text.secondary",
-                  boxShadow: "0 5px 14px rgba(15, 23, 42, 0.1)",
+                  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
                 },
               }}
             >
               <Box
                 sx={{
                   width: "100%",
-                  height: 170,
-                  aspectRatio: "1.35 / 1",
+                  aspectRatio: "5 / 4",
                   position: "relative",
-                  backgroundColor:
-                    theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                  backgroundColor: theme.palette.background.default,
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
@@ -217,9 +215,10 @@ export default function CustomerCard({
               </Box>
               <CardContent
                 sx={{
-                  p: 1.25,
-                  "&:last-child": { pb: 1.25 },
+                  p: 2,
+                  "&:last-child": { pb: 2 },
                   flex: 1,
+                  minHeight: 150,
                   display: "flex",
                   flexDirection: "column",
                 }}
@@ -229,13 +228,13 @@ export default function CustomerCard({
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "space-between",
-                    mb: 0.75,
+                    mb: 1,
                   }}
                 >
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography
                       variant="subtitle2"
-                      sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: 12 }}
+                      sx={{ fontWeight: 700, lineHeight: 1.25 }}
                       noWrap
                     >
                       {getName(customer)}
@@ -247,6 +246,7 @@ export default function CustomerCard({
                         display: "block",
                         mt: 0.25,
                       }}
+                      noWrap
                     >
                       @{customer.username || "customer"}
                     </Typography>
@@ -290,14 +290,14 @@ export default function CustomerCard({
                   }}
                   sx={{
                     mt: "auto",
-                    py: 0.45,
+                    py: 0.55,
                     backgroundColor:
                       theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
                     color: theme.palette.text.primary,
                     border: "1px solid",
                     borderColor: "divider",
                     boxShadow: "none",
-                    fontSize: 10,
+                    fontSize: 11,
                     "& .MuiButton-startIcon": {
                       color: theme.palette.error.main,
                     },

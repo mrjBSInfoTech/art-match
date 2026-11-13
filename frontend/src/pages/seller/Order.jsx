@@ -43,6 +43,10 @@ import { isPlacedOrder, isSellerSale } from "../../utils/orderPayments.js";
 import OrderCard from "../../components/seller/Order/OrderCard";
 import OrderTable from "../../components/seller/Order/OrderTable";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
+import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { formatCurrency } from "../../components/seller/Order/orderPresentation.js";
 
@@ -374,21 +378,7 @@ export default function SellerOrder() {
             inputProps={{ "aria-label": "Search orders" }}
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiOutlinedInput-root": {
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                "& fieldset": { borderColor: theme.palette.divider },
-                "&:hover fieldset": {
-                  borderColor: theme.palette.text.secondary,
-                },
-              },
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -401,20 +391,18 @@ export default function SellerOrder() {
           />
 
           <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-            <InputLabel id="seller-order-status-label">Status</InputLabel>
+            <InputLabel
+              id="seller-order-status-label"
+              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+            >
+              Status
+            </InputLabel>
             <Select
               labelId="seller-order-status-label"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               label="Status"
-              sx={{
-                fontSize: 12,
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                ".MuiOutlinedInput-notchedOutline": {
-                  borderColor: theme.palette.divider,
-                },
-              }}
+              sx={adminSelectInputSx(theme)}
             >
               {orderStatuses.map((status) => (
                 <MenuItem key={status} value={status}>

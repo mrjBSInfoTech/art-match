@@ -41,6 +41,10 @@ import { getMissingSellerProfileFields } from "../../utils/sellerProfile";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import {
+  adminSearchInputSx,
+  adminSelectInputSx,
+} from "../../components/admin/adminFilterStyles";
+import {
   fetchArtworks,
   addArtwork,
   updateArtwork,
@@ -48,6 +52,7 @@ import {
   verifyArtwork,
 } from "../../api/seller/artworkAPI";
 // Icons
+import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import SwapVertIcon from "@mui/icons-material/SwapVert";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
@@ -484,6 +489,7 @@ export default function Artwork() {
         <Button
           variant="contained"
           color="error"
+          startIcon={<AddIcon />}
           onClick={handleOpenArtworkAdd}
           sx={{
             width: { xs: "100%", sm: 150 },
@@ -648,13 +654,7 @@ export default function Artwork() {
             placeholder="Search artworks..."
             size="small"
             fullWidth
-            sx={{
-              minWidth: 0,
-              "& .MuiInputBase-input::placeholder": {
-                color: theme.palette.text.secondary,
-                opacity: 1,
-              },
-            }}
+            sx={adminSearchInputSx(theme, { minWidth: 0 })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -681,7 +681,12 @@ export default function Artwork() {
             }}
           >
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-artwork-status-label">Status</InputLabel>
+              <InputLabel
+                id="seller-artwork-status-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Status
+              </InputLabel>
               <Select
                 labelId="seller-artwork-status-label"
                 id="seller-artwork-status"
@@ -689,6 +694,7 @@ export default function Artwork() {
                 label="Status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="all">All statuses</MenuItem>
                 <MenuItem value="unverified">Unverified</MenuItem>
@@ -698,7 +704,10 @@ export default function Artwork() {
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-artwork-title-sort-label">
+              <InputLabel
+                id="seller-artwork-title-sort-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
                 Title
               </InputLabel>
               <Select
@@ -713,13 +722,17 @@ export default function Artwork() {
                     sx={{ mr: 0.5, fontSize: 17, color: "text.secondary" }}
                   />
                 }
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="az">A to Z</MenuItem>
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
-              <InputLabel id="seller-artwork-price-sort-label">
+              <InputLabel
+                id="seller-artwork-price-sort-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
                 Price
               </InputLabel>
               <Select
@@ -729,6 +742,7 @@ export default function Artwork() {
                 label="Price"
                 value={priceOption}
                 onChange={(e) => setPriceOption(e.target.value)}
+                sx={adminSelectInputSx(theme)}
               >
                 <MenuItem value="lthPrice">Lowest to Highest</MenuItem>
                 <MenuItem value="htlPrice">Highest to Lowest</MenuItem>
@@ -777,6 +791,7 @@ export default function Artwork() {
               textTransform: "none",
               color: theme.palette.text.secondary,
               gap: 0.75,
+              transition: "all 150ms ease",
             },
             "& .MuiToggleButton-root.Mui-selected": {
               backgroundColor: theme.palette.error.main,

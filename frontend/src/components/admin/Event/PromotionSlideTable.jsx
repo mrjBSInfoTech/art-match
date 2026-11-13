@@ -18,6 +18,7 @@ import {
 import { alpha, useTheme } from "@mui/material/styles";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import { adminTableButtonSx } from "../adminTableStyles";
 
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
@@ -190,18 +191,11 @@ export default function PromotionSlideTable({
                     <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
                       {canEdit && (
                         <Button
-                          size="small"
-                          variant={isPublished ? "outlined" : "contained"}
-                          color={isPublished ? "inherit" : "primary"}
+                          variant="outlined"
+                          color={isPublished ? "warning" : "primary"}
                           disabled={isPublishing || isUnpublishing}
                           onClick={() => (isPublished ? onUnpublish(slide) : onPublish(slide))}
-                          sx={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            borderRadius: 1.5,
-                            textTransform: "none",
-                            color: isPublished ? "text.primary" : "#fff",
-                          }}
+                          sx={adminTableButtonSx}
                         >
                           {isPublishing
                             ? "Publishing..."

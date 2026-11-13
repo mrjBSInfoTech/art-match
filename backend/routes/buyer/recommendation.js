@@ -6,6 +6,17 @@ import { recordRecommendationInteraction } from "../../utils/recommendationInter
 import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 import { getArtworkRatingSql, getArtworkRatingSummary, getArtworkRatingSignal } from "../../utils/artworkRatings.js";
 import { getArtworkSoldOutSql, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
+import {
+  buildColdStartRecommendationResponse,
+  getActivityRecencyWeight,
+  getFollowedArtistBoost,
+  hasActiveRecommendationSignals,
+  mergeFollowedArtistPreferences,
+  normalizeRecommendationText,
+  normalizeSpecialty,
+  parseSellerSpecialties,
+  selectSasrecSeedArtworkIds,
+} from "../../utils/recommendationSignals.js";
 
 const router = express.Router();
 const CLIENT_EVENTS = new Set(["view", "search", "filter"]);
@@ -337,12 +348,6 @@ const attachArtworkDetails = async (recommendations) => {
 // HYBRID RECOMMENDATION RANKING
 // ============================================================
 
-const normalizeRecommendationText = (value) =>
-  String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-
 const buildRecommendationIdentityCondition = (
   { customerId, sessionId },
   alias = "",
@@ -411,31 +416,8 @@ const getRecommendationPreferenceEvents = async ({ customerId, sessionId }) => {
 };
 
 // ============================================================
-// ARTIST AFFINITY
+// ARTIST AFFINITY & FOLLOWS
 // ============================================================
-
-const normalizeSpecialty = (value) =>
-  normalizeRecommendationText(value)
-    .normalize("NFKC")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const parseSellerSpecialties = (value) => {
-  // Drivers may return JSON already decoded or as a JSON string.
-  try {
-    for (let depth = 0; depth < 2 && typeof value === "string"; depth += 1) {
-      value = JSON.parse(value);
-    }
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(value)) return [];
-  return [...new Map(
-    value.filter((item) => typeof item === "string" && normalizeSpecialty(item))
-      .map((item) => [normalizeSpecialty(item), item.trim()]),
-  ).values()].slice(0, 3);
-};
 
 const specialtyMatchesText = (specialty, text) => {
   const specialtyWords = new Set(normalizeSpecialty(specialty).split(" "));
@@ -443,12 +425,27 @@ const specialtyMatchesText = (specialty, text) => {
     .some((word) => word.length >= 2 && specialtyWords.has(word));
 };
 
-const getActivityRecencyWeight = (event, index = 0, now = Date.now()) => {
-  const timestamp = new Date(event.created_at).getTime();
-  const ageDays = Number.isFinite(timestamp)
-    ? Math.max(0, now - timestamp) / 86400000 : 0;
-  // No permanent minimum: old activity remains eligible but gradually fades.
-  return Math.pow(0.75, index) * Math.pow(0.5, ageDays / 7);
+const getFollowedArtistSignals = async ({ customerId }) => {
+  if (!customerId) return [];
+  const [rows] = await db.promise().query(
+    `
+      SELECT
+        caf.student_id,
+        caf.created_at,
+        sf.specialties
+      FROM customer_artist_follow caf
+      LEFT JOIN storefront sf
+        ON sf.student_id = caf.student_id
+      WHERE caf.customer_id = ?
+      ORDER BY caf.created_at DESC, caf.follow_id DESC
+    `,
+    [customerId],
+  );
+  return rows.map((row) => ({
+    student_id: Number(row.student_id),
+    created_at: row.created_at,
+    seller_specialties: parseSellerSpecialties(row.specialties),
+  }));
 };
 
 const getRecentRecommendationActivity = async ({ customerId, sessionId }) => {
@@ -996,6 +993,7 @@ const rerankRecommendationCandidates = ({
   recentActivity = [],
   seenArtworkIds = new Set(),
   artistAffinity,
+  followedArtistById = new Map(),
   popularityByArtworkId,
   recencyRankByArtworkId,
   topK,
@@ -1036,6 +1034,8 @@ const rerankRecommendationCandidates = ({
       4.5,
     );
 
+    const followBoost = getFollowedArtistBoost(artwork.student_id, followedArtistById);
+
     const popularity = popularityByArtworkId.get(artworkId) ?? 0;
 
     const popularityBoost =
@@ -1055,6 +1055,7 @@ const rerankRecommendationCandidates = ({
       specialtyBoost +
       recentActivityBoost +
       artistBoost +
+      followBoost +
       popularityBoost +
       recencyBoost + ratingSignal - seenPenalty;
 
@@ -1062,8 +1063,18 @@ const rerankRecommendationCandidates = ({
 
     if (sasrec) {
       recommendationSource =
-        specialtyBoost > 0 ? "sasrec_specialty_reranked"
-          : preferenceBoost > 0 || artistBoost > 0 ? "sasrec_reranked" : "sasrec";
+        followBoost > 0
+          ? "sasrec_followed_reranked"
+          : specialtyBoost > 0
+            ? "sasrec_specialty_reranked"
+            : preferenceBoost > 0 || artistBoost > 0
+              ? "sasrec_reranked"
+              : "sasrec";
+    } else if (followBoost > 0) {
+      recommendationSource =
+        preferenceBoost > 0 || specialtyBoost > 0
+          ? "followed_artist_reranked"
+          : "followed_artist";
     } else if (specialtyBoost > 0) {
       recommendationSource = artistBoost > 0
         ? "specialty_artist_fallback" : "specialty_fallback";
@@ -1092,6 +1103,8 @@ const rerankRecommendationCandidates = ({
       preference_boost: Number(preferenceBoost.toFixed(4)),
 
       artist_boost: Number(artistBoost.toFixed(4)),
+      is_followed_artist: followBoost > 0,
+      follow_boost: Number(followBoost.toFixed(4)),
 
       popularity_boost: Number(popularityBoost.toFixed(4)),
 
@@ -1367,7 +1380,8 @@ router.get("/", async (req, res) => {
       artworkIds,
       candidateArtworkIds,
       preferenceEvents,
-      artistAffinity,
+      rawArtistAffinity,
+      followedArtists,
       recentActivity,
       purchasedArtworkIds,
     ] =
@@ -1394,6 +1408,9 @@ router.get("/", async (req, res) => {
               sessionId,
             })
           : Promise.resolve(new Map()),
+        personalizationAllowed
+          ? getFollowedArtistSignals({ customerId })
+          : Promise.resolve([]),
         personalizationAllowed
           ? getRecentRecommendationActivity({ customerId, sessionId })
           : Promise.resolve([]),
@@ -1477,6 +1494,44 @@ router.get("/", async (req, res) => {
         ),
       );
 
+    const rawSpecialtyPreferences = personalizationAllowed
+      ? await getSpecialtyPreferences({
+          customerId,
+          sessionId,
+          preferenceEvents,
+        })
+      : new Map();
+    const {
+      artistAffinity,
+      specialtyPreferences,
+      followedArtistById,
+    } = mergeFollowedArtistPreferences({
+      artistAffinity: rawArtistAffinity,
+      specialtyPreferences: rawSpecialtyPreferences,
+      followedArtists,
+    });
+
+    // --------------------------------
+    // ACTIVITY CHECK (NO SHARED DEFAULT LIST)
+    // --------------------------------
+
+    const hasActivity = personalizationAllowed && hasActiveRecommendationSignals({
+      artworkIds,
+      preferenceEvents,
+      recentActivity,
+      artistAffinity,
+      specialtyPreferences,
+      followedArtists,
+    });
+
+    if (!hasActivity) {
+      return res.json(buildColdStartRecommendationResponse({
+        personalizationAllowed,
+        eligibleCandidates: rankingArtworkIds.length,
+        availableUnseen: unseenArtworkIds.length,
+      }));
+    }
+
     // --------------------------------
     // POPULARITY
     // --------------------------------
@@ -1490,13 +1545,6 @@ router.get("/", async (req, res) => {
     const candidateArtworks = await attachArtworkDetails(
       rankingArtworkIds.map((artworkId) => ({ artwork_id: artworkId })),
     );
-    const specialtyPreferences = personalizationAllowed
-      ? await getSpecialtyPreferences({
-          customerId,
-          sessionId,
-          preferenceEvents,
-        })
-      : new Map();
     const specialtyCandidates = selectSpecialtyCandidates(
       candidateArtworks.filter((artwork) => !seenArtworkIds.has(Number(artwork.artwork_id))),
       specialtyPreferences,
@@ -1504,38 +1552,21 @@ router.get("/", async (req, res) => {
       topK,
     );
 
-    // --------------------------------
-    // COLD-START CHECK & SASREC
-    // --------------------------------
-
-    const isColdStart =
-      artworkIds.length === 0 &&
-      preferenceEvents.length === 0 &&
-      recentActivity.length === 0 &&
-      artistAffinity.size === 0 &&
-      specialtyPreferences.size === 0;
-
+    const isColdStart = false;
     let sasrecResults = [];
 
-    // Use interaction history or seed from active filter/search preferences so SASRec responds to filter actions.
-    let sasrecSeedArtworkIds = [...artworkIds];
-    if (sasrecSeedArtworkIds.length === 0 && preferenceEvents.length > 0) {
-      const filterMatchingSeeds = candidateArtworks
-        .filter(
-          (artwork) =>
-            getFilterPreferenceBoost(artwork, preferenceEvents) > 0 ||
-            getSearchPreferenceBoost(artwork, preferenceEvents) > 0,
-        )
-        .map((artwork) => Number(artwork.artwork_id))
-        .slice(0, 5);
-      if (filterMatchingSeeds.length > 0) {
-        sasrecSeedArtworkIds = filterMatchingSeeds;
-      }
-    }
+    // Use interaction history or seed from active filter/search/follow preferences so SASRec responds cleanly.
+    const sasrecSeedArtworkIds = selectSasrecSeedArtworkIds({
+      artworkIds,
+      preferenceEvents,
+      followedArtistById,
+      candidateArtworks,
+      getFilterPreferenceBoost,
+      getSearchPreferenceBoost,
+    });
 
-    // Explicitly bypass SASRec inference only when no history or filter signals exist.
+    // Explicitly bypass SASRec inference only when no seed signals exist.
     if (
-      !isColdStart &&
       sasrecSeedArtworkIds.length > 0 &&
       specialtyCandidates.artworkIds.length > 0
     ) {
@@ -1610,6 +1641,7 @@ router.get("/", async (req, res) => {
         seenArtworkIds,
 
         artistAffinity,
+        followedArtistById,
 
         popularityByArtworkId,
 
@@ -1633,10 +1665,10 @@ router.get("/", async (req, res) => {
       );
 
     const hasPreferenceSignals =
-      preferenceEvents.length >
-        0 ||
-      artistAffinity.size >
-        0 || specialtyPreferences.size > 0;
+      preferenceEvents.length > 0 ||
+      artistAffinity.size > 0 ||
+      specialtyPreferences.size > 0 ||
+      followedArtists.length > 0;
 
     let mode =
       "fallback_recent_popular";
@@ -1674,12 +1706,14 @@ router.get("/", async (req, res) => {
     return res.json({
       mode,
       cold_start: isColdStart,
+      has_activity: true,
 
       history_length:
         artworkIds.length,
 
       signals: {
         cold_start: isColdStart,
+        has_activity: true,
         recent_activity_events: recentActivity.length,
         eligible_candidates: rankingArtworkIds.length,
         previously_seen_candidates: rankingArtworkIds.length - unseenArtworkIds.filter((id) => !purchasedArtworkIds.has(id)).length,
@@ -1692,6 +1726,8 @@ router.get("/", async (req, res) => {
 
         preferred_artists:
           artistAffinity.size,
+        followed_artists:
+          followedArtists.length,
 
         sasrec_candidates:
           sasrecResults.length,
@@ -1851,4 +1887,5 @@ router.post("/interactions", async (req, res) => {
   }
 });
 
+export { rerankRecommendationCandidates };
 export default router;

@@ -1,28 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Avatar,
-  Badge,
   Box,
-  Button,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
-  InputAdornment,
-  List,
-  ListItemButton,
-  Paper,
+  Menu,
+  MenuItem,
   Stack,
-  TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import SendRoundedIcon from "@mui/icons-material/SendRounded";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
-import { useSearchParams } from "react-router-dom";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PermMediaOutlinedIcon from "@mui/icons-material/PermMediaOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchSupportInbox,
   fetchSupportThread,
@@ -30,6 +32,14 @@ import {
 } from "../../api/admin/supportChatAPI";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
+import ChatWorkspace from "../../components/chat/ChatWorkspace";
+import ChatConversationItem from "../../components/chat/ChatConversationItem";
+import ChatMessageBubble from "../../components/chat/ChatMessageBubble";
+import ChatComposer, {
+  ChatAttachmentPreview,
+} from "../../components/chat/ChatComposer";
+import MessageMedia from "../../components/seller/Message/MessageMedia";
+import MessageMediaPreview from "../../components/seller/Message/MessageMediaPreview";
 
 const POLL_INTERVAL = 5000;
 
@@ -47,52 +57,156 @@ const formatTime = (value) => {
 };
 
 const initials = (name) =>
-  (name || "B")
+  (name || "A")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
-    .join("") || "B";
+    .join("") || "A";
+
+const toAbsoluteMediaUrl = (url) => {
+  if (!url) return null;
+  if (/^(https?:|blob:|data:)/i.test(url)) return url;
+  if (url.startsWith("/")) return `http://localhost:5000${url}`;
+  return `http://localhost:5000/${url}`;
+};
+
+const toAbsoluteProfileImageUrl = (image, role) => {
+  const folderRole = role === "seller" ? "seller" : "buyer";
+  if (!image) {
+    return `http://localhost:5000/uploads/${folderRole}/profile.jpg`;
+  }
+  if (/^https?:\/\//i.test(image)) return image;
+  if (image.startsWith("/")) return `http://localhost:5000${image}`;
+  return `http://localhost:5000/uploads/${folderRole}/uploadProfile/${encodeURIComponent(image)}`;
+};
+
+const isVideoAttachment = (url, mediaType) =>
+  mediaType?.startsWith("video/") ||
+  /\.(mp4|mov|webm|ogg|m4v)(\?|$)/i.test(url || "");
+
+const isImageAttachment = (url, mediaType) =>
+  !isVideoAttachment(url, mediaType) &&
+  (mediaType?.startsWith("image/") ||
+    /\.(jpg|jpeg|png|gif|webp|bmp|avif)(\?|$)/i.test(url || ""));
+
+const clearConversationUnread = (items, conversationId) =>
+  items.map((item) =>
+    String(item.support_conversation_id) === String(conversationId)
+      ? { ...item, unread_count: 0 }
+      : item,
+  );
 
 export default function ChatSupport() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [searchParams] = useSearchParams();
-  const targetConversationId = searchParams.get("conversation");
+  const targetConversationId = searchParams.get("conversation")?.trim() || "";
+
   const [conversations, setConversations] = useState([]);
   const [loadingInbox, setLoadingInbox] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inboxFilter, setInboxFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(targetConversationId || null);
   const [thread, setThread] = useState(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const [reply, setReply] = useState("");
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [attachedPreview, setAttachedPreview] = useState(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const bottomRef = useRef(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
 
-  const loadInbox = useCallback(async () => {
+  const fileInputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const shouldScrollToBottomRef = useRef(true);
+  const selectedIdRef = useRef(selectedId);
+  const lastThreadCountRef = useRef(0);
+  const attachedPreviewRef = useRef(null);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  useEffect(() => {
+    attachedPreviewRef.current = attachedPreview;
+  }, [attachedPreview]);
+
+  useEffect(
+    () => () => {
+      if (attachedPreviewRef.current) {
+        URL.revokeObjectURL(attachedPreviewRef.current);
+      }
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    if (!shouldScrollToBottomRef.current || !messagesContainerRef.current) return;
+    messagesContainerRef.current.scrollTop =
+      messagesContainerRef.current.scrollHeight;
+    shouldScrollToBottomRef.current = false;
+  }, [thread]);
+
+  const clearAttachment = useCallback(() => {
+    if (attachedPreviewRef.current) {
+      URL.revokeObjectURL(attachedPreviewRef.current);
+    }
+    setAttachedPreview(null);
+    setAttachedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const loadInbox = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoadingInbox(true);
-      setError("");
+      if (!silent) {
+        setLoadingInbox(true);
+        setError("");
+      }
       const rows = await fetchSupportInbox();
       setConversations(rows);
       return rows;
     } catch (loadError) {
-      setError(loadError.message || "Unable to load chat support.");
+      if (!silent) {
+        setError(loadError.message || "Unable to load chat support.");
+      }
       return null;
     } finally {
-      setLoadingInbox(false);
+      if (!silent) setLoadingInbox(false);
     }
   }, []);
 
-  const loadThread = useCallback(async (conversationId, { silent } = {}) => {
+  const loadThread = useCallback(async (conversationId, { silent = false } = {}) => {
     if (!conversationId) return;
-    if (!silent) setLoadingThread(true);
+    if (!silent) {
+      setLoadingThread(true);
+      setThread(null);
+      setError("");
+    }
     try {
       const data = await fetchSupportThread(conversationId);
+      if (String(selectedIdRef.current) !== String(conversationId)) return;
+      const incomingCount = Array.isArray(data?.messages) ? data.messages.length : 0;
+      if (!silent || incomingCount > lastThreadCountRef.current) {
+        shouldScrollToBottomRef.current = true;
+      }
+      lastThreadCountRef.current = incomingCount;
       setThread(data);
+      setConversations((prev) => clearConversationUnread(prev, conversationId));
     } catch (threadError) {
-      if (!silent) setError(threadError.message);
+      if (String(selectedIdRef.current) !== String(conversationId)) return;
+      if (!silent) {
+        setError(threadError.message || "Unable to load this conversation.");
+      }
     } finally {
-      if (!silent) setLoadingThread(false);
+      if (!silent && String(selectedIdRef.current) === String(conversationId)) {
+        setLoadingThread(false);
+      }
     }
   }, []);
 
@@ -101,63 +215,164 @@ export default function ChatSupport() {
   }, [loadInbox]);
 
   useEffect(() => {
-    if (targetConversationId) setSelectedId(targetConversationId);
+    if (targetConversationId) {
+      setSelectedId(targetConversationId);
+    }
   }, [targetConversationId]);
 
-  // Keep the inbox and the open thread fresh while the page is visible.
+  useEffect(() => {
+    if (!selectedId) {
+      setThread(null);
+      lastThreadCountRef.current = 0;
+      return;
+    }
+    shouldScrollToBottomRef.current = true;
+    lastThreadCountRef.current = 0;
+    loadThread(selectedId);
+  }, [selectedId, loadThread]);
+
+  // Keep the inbox and open thread fresh while visible.
   useEffect(() => {
     const interval = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      loadInbox();
-      if (selectedId) loadThread(selectedId, { silent: true });
+      loadInbox({ silent: true });
+      if (selectedIdRef.current) {
+        loadThread(selectedIdRef.current, { silent: true });
+      }
     }, POLL_INTERVAL);
 
     return () => window.clearInterval(interval);
-  }, [loadInbox, loadThread, selectedId]);
+  }, [loadInbox, loadThread]);
 
-  useEffect(() => {
-    if (selectedId) loadThread(selectedId);
-  }, [selectedId, loadThread]);
+  const handleSelectConversation = (conversationId) => {
+    if (String(conversationId) === String(selectedId)) return;
+    clearAttachment();
+    setError("");
+    setNotice("");
+    setConversations((prev) => clearConversationUnread(prev, conversationId));
+    setSelectedId(conversationId);
+  };
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [thread?.messages?.length]);
-
-  const selectedConversation = conversations.find(
-    (item) => String(item.support_conversation_id) === String(selectedId),
-  );
+  const handleAttachmentChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Attachments must be 20MB or smaller.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    if (attachedPreviewRef.current) {
+      URL.revokeObjectURL(attachedPreviewRef.current);
+    }
+    setError("");
+    setAttachedFile(file);
+    setAttachedPreview(URL.createObjectURL(file));
+  };
 
   const handleSend = async () => {
     const message = reply.trim();
-    if (!message || !selectedId || sending) return;
+    if ((!message && !attachedFile) || !selectedId || sending) return;
 
     setSending(true);
     setError("");
     setNotice("");
     try {
-      await sendSupportReply(selectedId, message);
+      let payload;
+      if (attachedFile) {
+        const formData = new FormData();
+        formData.append("message", message);
+        formData.append("image", attachedFile);
+        payload = formData;
+      } else {
+        payload = { message };
+      }
+      await sendSupportReply(selectedId, payload);
       setReply("");
-      await Promise.all([loadThread(selectedId, { silent: true }), loadInbox()]);
+      clearAttachment();
+      shouldScrollToBottomRef.current = true;
+      await Promise.all([
+        loadThread(selectedId, { silent: true }),
+        loadInbox({ silent: true }),
+      ]);
       setNotice("Reply sent.");
     } catch (sendError) {
-      setError(sendError.message);
+      setError(sendError.message || "Unable to send your reply.");
     } finally {
       setSending(false);
     }
   };
 
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(""), 3000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const inboxFilters = useMemo(() => {
+    const unreadCount = conversations.filter((item) => Number(item.unread_count || 0) > 0).length;
+    const sellerCount = conversations.filter((item) => item.account_role === "seller").length;
+    const buyerCount = conversations.filter((item) => item.account_role !== "seller").length;
+    return [
+      { id: "all", label: "All", count: conversations.length },
+      { id: "unread", label: "Unread", count: unreadCount },
+      { id: "seller", label: "Sellers", count: sellerCount },
+      { id: "buyer", label: "Buyers", count: buyerCount },
+    ];
+  }, [conversations]);
+
+  const filteredConversations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return conversations.filter((item) => {
+      if (inboxFilter === "unread" && Number(item.unread_count || 0) <= 0) return false;
+      if (inboxFilter === "seller" && item.account_role !== "seller") return false;
+      if (inboxFilter === "buyer" && item.account_role === "seller") return false;
+      if (!query) return true;
+      return [
+        item.account_name,
+        item.account_email,
+        item.account_role,
+        item.last_message,
+        item.last_issue_type,
+      ].some((value) => String(value || "").toLowerCase().includes(query));
+    });
+  }, [conversations, inboxFilter, searchQuery]);
+
+  const selectedConversation = useMemo(
+    () =>
+      conversations.find(
+        (item) => String(item.support_conversation_id) === String(selectedId),
+      ) ||
+      thread?.conversation ||
+      null,
+    [conversations, selectedId, thread],
+  );
+
+  const sharedMedia = useMemo(() => {
+    const list = Array.isArray(thread?.messages) ? thread.messages : [];
+    return list
+      .filter((msg) => {
+        const url = toAbsoluteMediaUrl(msg.image);
+        return url && (isImageAttachment(url, msg.media_type) || isVideoAttachment(url, msg.media_type));
+      })
+      .map((msg) => ({
+        id: msg.support_message_id,
+        image: toAbsoluteMediaUrl(msg.image),
+        mediaType: msg.media_type || "",
+      }));
+  }, [thread]);
+
   if (loadingInbox && !conversations.length && !thread) {
     return (
       <AdminLoadingPanel
         title="Chat Support"
-        subtitle="Message buyers and sellers from Manage Users, or reply to buyer support requests."
+        subtitle="Communicate with buyers and sellers and manage support inquiries in one place."
         showMetrics={false}
         showFilters={false}
       />
     );
   }
 
-  if (error && !conversations.length && !thread) {
+  if (error && !conversations.length && !thread && !selectedId) {
     return (
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
@@ -172,250 +387,151 @@ export default function ChatSupport() {
     );
   }
 
+  const selectedDisplayName =
+    selectedConversation?.account_name ||
+    (selectedConversation?.account_role === "seller"
+      ? "Seller"
+      : selectedConversation?.account_role === "buyer"
+        ? "Buyer"
+        : "Support conversation");
+
   return (
-    <Box
-      sx={{
-        p: { xs: 1.5, sm: 2.5 },
-        minHeight: "100vh",
-        width: "100%",
-        boxSizing: "border-box",
-        backgroundColor: (theme) => theme.palette.background.default,
-        color: (theme) => theme.palette.text.primary,
-      }}
-    >
+    <>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Chat Support</title>
       </Helmet>
 
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        alignItems={{ xs: "flex-start", sm: "center" }}
-        spacing={1.5}
-        sx={{ mb: 2 }}
-      >
-        <SupportAgentRoundedIcon sx={{ fontSize: { xs: 30, sm: 38 }, color: "error.main" }} />
-        <Box>
-          <Typography
-            sx={{
-              fontSize: { xs: 28, sm: 38 },
-              fontWeight: 800,
-              lineHeight: 1.1,
-              color: "text.primary",
-            }}
-          >
-            Chat Support
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
-            Message buyers and sellers from Manage Users, or reply to buyer support requests.
-          </Typography>
-        </Box>
-      </Stack>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-      {notice && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>
-          {notice}
-        </Alert>
-      )}
-
-      <Paper
-        variant="outlined"
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "320px 1fr" },
-          height: { xs: "auto", md: "calc(100vh - 230px)" },
-          minHeight: { xs: 420, md: 520 },
-          borderRadius: 3,
-          overflow: "hidden",
-          borderColor: "divider",
+      <ChatWorkspace
+        title="Chat Support"
+        subtitle="Communicate with buyers and sellers and reply to support requests with text or attachments."
+        onRefresh={() => {
+          loadInbox();
+          if (selectedId) loadThread(selectedId);
         }}
-      >
-        {/* Inbox */}
-        <Box
-          sx={{
-            borderRight: { md: "1px solid" },
-            borderBottom: { xs: "1px solid", md: "none" },
-            borderColor: "divider",
-            display: { xs: selectedId ? "none" : "block", md: "block" },
-            overflowY: "auto",
-          }}
-        >
-          <Box sx={{ px: 2, py: 1.5 }}>
-            <Typography variant="subtitle2" color="text.secondary" fontWeight={700}>
-              CONVERSATIONS ({conversations.length})
-            </Typography>
-          </Box>
-          <Divider />
-          {loadingInbox ? (
-            <Box sx={{ display: "grid", placeItems: "center", py: 6 }}>
-              <CircularProgress size={26} />
-            </Box>
-          ) : !conversations.length ? (
-            <Stack alignItems="center" spacing={1} sx={{ px: 2, py: 6 }}>
+        refreshing={loadingInbox}
+        isMobile={isMobile}
+        hasActiveThread={Boolean(selectedId)}
+        onBack={() => {
+          clearAttachment();
+          setSelectedId(null);
+        }}
+        alerts={
+          (error || notice) && (
+            <Stack spacing={1} sx={{ mb: 1.5 }}>
+              {error && (
+                <Alert severity="error" onClose={() => setError("")}>
+                  {error}
+                </Alert>
+              )}
+              {notice && (
+                <Alert severity="success" onClose={() => setNotice("")}>
+                  {notice}
+                </Alert>
+              )}
+            </Stack>
+          )
+        }
+        searchPlaceholder="Search buyer or seller..."
+        searchQuery={searchQuery}
+        onSearchChange={(event) => setSearchQuery(event.target.value)}
+        filters={inboxFilters}
+        activeFilter={inboxFilter}
+        onFilterChange={setInboxFilter}
+        listLoading={loadingInbox && !conversations.length}
+        listEmpty={
+          filteredConversations.length === 0 ? (
+            <Stack alignItems="center" spacing={1} sx={{ textAlign: "center" }}>
               <ForumOutlinedIcon sx={{ fontSize: 40, color: "text.disabled" }} />
-              <Typography variant="body2" color="text.secondary" textAlign="center">
-                No conversations yet. Start a chat from Manage Users or wait for
-                a buyer to contact support.
+              <Typography variant="body2" color="text.secondary">
+                {conversations.length
+                  ? "No conversations match this filter."
+                  : "No conversations yet. Start a chat from Customers or Students, or wait for support requests."}
               </Typography>
             </Stack>
-          ) : (
-            <List disablePadding>
-              {conversations.map((conversation) => {
-                const active =
-                  String(conversation.support_conversation_id) === String(selectedId);
-                return (
-                  <ListItemButton
-                    key={conversation.support_conversation_id}
-                    selected={active}
-                    onClick={() =>
-                      setSelectedId(conversation.support_conversation_id)
-                    }
-                    sx={{ alignItems: "flex-start", gap: 1.5, py: 1.5 }}
-                  >
-                    <Badge
-                      color="error"
-                      badgeContent={Number(conversation.unread_count) || 0}
-                      overlap="circular"
-                    >
-                      <Avatar
-                        src={conversation.account_avatar || undefined}
-                        sx={{ width: 40, height: 40, bgcolor: "error.main", fontSize: 14 }}
-                      >
-                        {initials(conversation.account_name)}
-                      </Avatar>
-                    </Badge>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="baseline"
-                        spacing={1}
-                      >
-                        <Typography
-                          variant="body2"
-                          fontWeight={Number(conversation.unread_count) ? 800 : 600}
-                          noWrap
-                        >
-                          {conversation.account_name || conversation.account_role || "Account"}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ flexShrink: 0 }}
-                        >
-                          {formatTime(conversation.last_message_time)}
-                        </Typography>
-                      </Stack>
-                      {conversation.account_email && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          noWrap
-                          component="div"
-                          sx={{ fontSize: 11 }}
-                        >
-                          {conversation.account_email}
-                        </Typography>
-                      )}
-                      <Chip
-                        size="small"
-                        label={conversation.account_role === "seller" ? "Seller" : "Buyer"}
-                        variant="outlined"
-                        sx={{ height: 20, fontSize: 10.5, my: 0.25 }}
-                      />
-                      {conversation.last_issue_type && (
-                        <Chip
-                          size="small"
-                          label={conversation.last_issue_type}
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: 10.5, my: 0.25 }}
-                        />
-                      )}
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        noWrap
-                        component="div"
-                      >
-                        {conversation.last_sender_type === "admin"
-                          ? "You: "
-                          : conversation.last_message
-                            ? `${conversation.account_role === "seller" ? "Seller" : "Buyer"}: `
-                            : ""}
-                        {conversation.last_message || "No messages yet"}
-                      </Typography>
-                    </Box>
-                  </ListItemButton>
-                );
-              })}
-            </List>
-          )}
-        </Box>
+          ) : null
+        }
+        listContent={filteredConversations.map((conversation) => {
+          const displayName =
+            conversation.account_name ||
+            (conversation.account_role === "seller" ? "Seller" : "Buyer");
+          const previewText = conversation.last_message
+            ? `${conversation.last_sender_type === "admin" ? "You: " : ""}${conversation.last_message}`
+            : "No messages yet";
+          const chips = [
+            {
+              label: conversation.account_role === "seller" ? "Seller" : "Buyer",
+              color: "default",
+              variant: "outlined",
+            },
+            ...(conversation.last_issue_type
+              ? [
+                  {
+                    label: conversation.last_issue_type,
+                    color: "error",
+                    variant: "outlined",
+                  },
+                ]
+              : []),
+          ];
 
-        {/* Thread */}
-        <Box
-          sx={{
-            display: { xs: selectedId ? "flex" : "none", md: "flex" },
-            flexDirection: "column",
-            minHeight: 0,
-          }}
-        >
-          {!selectedId ? (
-            <Stack
-              alignItems="center"
-              justifyContent="center"
-              spacing={1}
-              sx={{ flex: 1, p: 4, textAlign: "center" }}
+          return (
+            <ChatConversationItem
+              key={conversation.support_conversation_id}
+              name={displayName}
+              avatarSrc={toAbsoluteProfileImageUrl(
+                conversation.account_avatar,
+                conversation.account_role,
+              )}
+              timeLabel={formatTime(conversation.last_message_time)}
+              preview={previewText}
+              unreadCount={conversation.unread_count}
+              selected={
+                String(conversation.support_conversation_id) === String(selectedId)
+              }
+              chips={chips}
+              onSelect={() =>
+                handleSelectConversation(conversation.support_conversation_id)
+              }
+            />
+          );
+        })}
+        threadHeaderLeft={
+          <>
+            <Avatar
+              src={
+                selectedConversation
+                  ? toAbsoluteProfileImageUrl(
+                      selectedConversation.account_avatar,
+                      selectedConversation.account_role,
+                    )
+                  : undefined
+              }
+              alt={selectedDisplayName}
+              sx={{ bgcolor: "error.main", color: "#fff", fontSize: 14, fontWeight: 700, flexShrink: 0 }}
             >
-              <ForumOutlinedIcon sx={{ fontSize: 48, color: "text.disabled" }} />
-              <Typography color="text.secondary">
-                Select a conversation to read and reply.
-              </Typography>
-            </Stack>
-          ) : (
-            <>
+              {initials(selectedConversation?.account_name)}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
               <Stack
                 direction="row"
                 alignItems="center"
-                spacing={1.5}
-                sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+                spacing={0.75}
+                flexWrap="wrap"
+                useFlexGap
               >
-                <IconButton
-                  size="small"
-                  aria-label="Back to conversations"
-                  onClick={() => setSelectedId(null)}
-                  sx={{ display: { md: "none" } }}
-                >
-                  <ArrowBackIcon fontSize="small" />
-                </IconButton>
-                <Avatar
-                  src={selectedConversation?.account_avatar || undefined}
-                  sx={{ width: 36, height: 36, bgcolor: "error.main", fontSize: 13 }}
-                >
-                  {initials(selectedConversation?.account_name)}
-                </Avatar>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography fontWeight={700} noWrap>
-                    {selectedConversation?.account_name ||
-                      selectedConversation?.account_role ||
-                      "Account"}
-                  </Typography>
-                  {selectedConversation?.account_email && (
-                    <Typography variant="caption" color="text.secondary" noWrap component="div">
-                      {selectedConversation.account_email}
-                    </Typography>
-                  )}
-                </Box>
+                <Typography variant="subtitle1" fontWeight={700} noWrap>
+                  {selectedDisplayName}
+                </Typography>
                 {selectedConversation?.account_role && (
                   <Chip
                     size="small"
-                    label={selectedConversation.account_role === "seller" ? "Seller" : "Buyer"}
+                    label={
+                      selectedConversation.account_role === "seller"
+                        ? "Seller"
+                        : "Buyer"
+                    }
                     variant="outlined"
-                    sx={{ height: 24, fontSize: 11, flexShrink: 0 }}
+                    sx={{ height: 22, fontSize: 11 }}
                   />
                 )}
                 {selectedConversation?.last_issue_type && (
@@ -424,162 +540,119 @@ export default function ChatSupport() {
                     color="error"
                     variant="outlined"
                     label={selectedConversation.last_issue_type}
-                    sx={{ height: 24, fontSize: 11, flexShrink: 0 }}
+                    sx={{ height: 22, fontSize: 11 }}
                   />
                 )}
               </Stack>
-
-              <Box
-                sx={{
-                  flex: 1,
-                  overflowY: "auto",
-                  p: { xs: 1.5, sm: 2 },
-                  backgroundColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(2, 6, 23, 0.35)"
-                      : "rgba(248, 250, 252, 0.7)",
+              {selectedConversation?.account_email && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  component="div"
+                >
+                  {selectedConversation.account_email}
+                </Typography>
+              )}
+            </Box>
+          </>
+        }
+        threadHeaderRight={
+          <>
+            <IconButton
+              size="small"
+              aria-label="Conversation options"
+              aria-controls={menuAnchorEl ? "support-chat-actions" : undefined}
+              aria-haspopup="true"
+              onClick={(event) => setMenuAnchorEl(event.currentTarget)}
+            >
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              id="support-chat-actions"
+              anchorEl={menuAnchorEl}
+              open={Boolean(menuAnchorEl)}
+              onClose={() => setMenuAnchorEl(null)}
+            >
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchorEl(null);
+                  setMediaDialogOpen(true);
                 }}
               >
-                {loadingThread ? (
-                  <Box sx={{ display: "grid", placeItems: "center", py: 6 }}>
-                    <CircularProgress size={26} />
-                  </Box>
-                ) : !thread?.messages?.length ? (
-                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 6 }}>
-                    No messages in this conversation yet.
-                  </Typography>
-                ) : (
-                  <Stack spacing={1.25}>
-                    {thread.messages.map((message) => {
-                      const fromAdmin = message.sender_type === "admin";
-                      return (
-                        <Box
-                          key={message.support_message_id}
-                          sx={{
-                            display: "flex",
-                            justifyContent: fromAdmin ? "flex-end" : "flex-start",
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              maxWidth: { xs: "88%", sm: "70%" },
-                              px: 1.75,
-                              py: 1,
-                              borderRadius: 2.5,
-                              backgroundColor: fromAdmin
-                                ? "error.main"
-                                : (theme) => theme.palette.background.paper,
-                              color: fromAdmin ? "#fff" : "text.primary",
-                              border: fromAdmin ? "none" : "1px solid",
-                              borderColor: "divider",
-                              boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
-                            }}
-                          >
-                            {!fromAdmin && message.sender_name && (
-                              <Typography
-                                variant="caption"
-                                sx={{ fontWeight: 700, display: "block", mb: 0.25 }}
-                              >
-                                {message.sender_name}
-                              </Typography>
-                            )}
-                            {message.issue_type && (
-                              <Chip
-                                size="small"
-                                label={message.issue_type}
-                                sx={{
-                                  height: 20,
-                                  fontSize: 10.5,
-                                  mb: 0.5,
-                                  fontWeight: 700,
-                                  backgroundColor: fromAdmin
-                                    ? "rgba(255,255,255,0.22)"
-                                    : "action.selected",
-                                  color: fromAdmin ? "#fff" : "text.primary",
-                                }}
-                              />
-                            )}
-                            <Typography
-                              variant="body2"
-                              sx={{ whiteSpace: "pre-line", wordBreak: "break-word" }}
-                            >
-                              {message.message_data}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                display: "block",
-                                mt: 0.5,
-                                textAlign: "right",
-                                opacity: 0.75,
-                                fontSize: 10.5,
-                              }}
-                            >
-                              {fromAdmin ? "Support · " : ""}
-                              {formatTime(message.created_at)}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      );
-                    })}
-                    <Box ref={bottomRef} />
-                  </Stack>
-                )}
-              </Box>
-
-              <Box sx={{ p: { xs: 1.5, sm: 2 }, borderTop: "1px solid", borderColor: "divider" }}>
-                <TextField
-                  fullWidth
-                  multiline
-                  maxRows={5}
-                  placeholder="Write a reply…"
-                  value={reply}
-                  onChange={(event) => setReply(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  disabled={sending}
-                  slotProps={{
-                    input: {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            color="error"
-                            aria-label="Send reply"
-                            onClick={handleSend}
-                            disabled={!reply.trim() || sending}
-                          >
-                            {sending ? (
-                              <CircularProgress size={20} />
-                            ) : (
-                              <SendRoundedIcon />
-                            )}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
+                <PermMediaOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
+                View photos and videos
+              </MenuItem>
+            </Menu>
+          </>
+        }
+        messagesRef={messagesContainerRef}
+        messagesContent={
+          loadingThread ? (
+            <Box sx={{ flex: 1, display: "grid", placeItems: "center", py: 6 }}>
+              <CircularProgress size={26} color="error" />
+            </Box>
+          ) : !thread?.messages?.length ? (
+            <Typography color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
+              Start the conversation.
+            </Typography>
+          ) : (
+            thread.messages.map((message) => {
+              const isMine = message.sender_type === "admin";
+              return (
+                <ChatMessageBubble
+                  key={message.support_message_id}
+                  isMine={isMine}
+                  senderName={!isMine ? message.sender_name : ""}
+                  issueType={message.issue_type}
+                  text={message.message_data}
+                  image={toAbsoluteMediaUrl(message.image)}
+                  mediaType={message.media_type}
+                  fileName={message.file_name}
+                  time={formatTime(message.created_at)}
+                  footerLabel={isMine ? "Support · " : ""}
+                  onViewMedia={setSelectedMedia}
                 />
-                <Typography variant="caption" color="text.secondary">
-                  Press Enter to send, Shift + Enter for a new line.
-                </Typography>
-              </Box>
-            </>
-          )}
-        </Box>
-      </Paper>
+              );
+            })
+          )
+        }
+        attachmentPreview={
+          <ChatAttachmentPreview
+            file={attachedFile}
+            previewUrl={attachedPreview}
+            onRemove={clearAttachment}
+          />
+        }
+        composer={
+          <ChatComposer
+            value={reply}
+            onChange={setReply}
+            onSend={handleSend}
+            placeholder="Write a reply..."
+            sending={sending}
+            canSend={Boolean(reply.trim() || attachedFile)}
+            hasAttachment={Boolean(attachedPreview)}
+            fileInputRef={fileInputRef}
+            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+            onFileChange={handleAttachmentChange}
+          />
+        }
+        emptyThreadTitle="Select a support conversation"
+        emptyThreadSubtitle="Choose a buyer or seller thread on the left to review their inquiry and reply."
+      />
 
-      <Button
-        variant="text"
-        size="small"
-        onClick={loadInbox}
-        sx={{ mt: 1.5, textTransform: "none" }}
-      >
-        Refresh inbox
-      </Button>
-    </Box>
+      <MessageMedia
+        open={mediaDialogOpen}
+        onClose={() => setMediaDialogOpen(false)}
+        sharedMedia={sharedMedia}
+        onViewMedia={setSelectedMedia}
+      />
+      <MessageMediaPreview
+        selectedMedia={selectedMedia}
+        onClose={() => setSelectedMedia(null)}
+        isMobile={isMobile}
+      />
+    </>
   );
 }
