@@ -282,7 +282,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         product_type: initialProductType,
         ...getArtworkStyleFormValues(initialDraft.genre || initialDraft.color_used || ""),
         ...getArtworkDetailsFromArtwork(initialDraft),
-        ...(initialProductType !== "Premade" ? { stockable: false, stock_available: "" } : {}),
+        ...(initialProductType !== "Premade" ? { stockable: false, stock_available: "", max_order_quantity: "" } : {}),
         ...(initialDraft.art_type === "product" && initialProductType === "Premade"
           ? { product_options: getProductOptionsFromArtwork(initialDraft) }
           : { product_options: [] }),
@@ -313,7 +313,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         remove_product_sample: false,
         date_created: selectedArtwork.date_created || "",
         ...getArtworkDetailsFromArtwork(selectedArtwork),
-        ...(selectedProductType !== "Premade" ? { stockable: false, stock_available: "" } : {}),
+        ...(selectedProductType !== "Premade" ? { stockable: false, stock_available: "", max_order_quantity: "" } : {}),
         ...(selectedArtType === "product" && selectedProductType === "Premade"
           ? { product_options: getProductOptionsFromArtwork(selectedArtwork) }
           : { product_options: [] }),
@@ -375,6 +375,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
           genre: switchingToDigital && next.genre === "Sculpture" ? "" : next.genre,
           stockable: switchingToPremade ? true : false,
           stock_available: "",
+          max_order_quantity: "",
           product_options: switchingToPremade && nextArtType === "product"
             ? (prev.product_options?.length ? prev.product_options : [createEmptyProductOption(), createEmptyProductOption()])
             : [],
@@ -406,6 +407,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
           genre: isSelectingDigitalArt && prev.genre === "Sculpture" ? "" : prev.genre,
           stockable: isNextPremade ? true : false,
           stock_available: "",
+          max_order_quantity: "",
           product_options: isNextPremade && sanitizedValue === "product"
             ? [createEmptyProductOption(), createEmptyProductOption()]
             : [],
@@ -421,6 +423,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
           ...next,
           stockable: Boolean(sanitizedValue),
           stock_available: sanitizedValue ? prev.stock_available : "",
+          max_order_quantity: sanitizedValue ? prev.max_order_quantity : "",
           artwork_details: undefined,
         };
       }
@@ -674,6 +677,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
     if (!shouldCarryStock) {
       delete detailsErrors.stock_available;
       delete detailsErrors.stockable;
+      delete detailsErrors.max_order_quantity;
     }
     if (isDigitalProductType || detailCategory === "digital") {
       delete detailsErrors.material_composition;
@@ -695,7 +699,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
       setIsSubmitting(true);
       const artworkDetails = {
         ...getArtworkDetailsPayload(draft),
-        ...(!shouldCarryStock ? { stockable: false, stock_available: "" } : {}),
+        ...(!shouldCarryStock ? { stockable: false, stock_available: "", max_order_quantity: "" } : {}),
         ...(isProductArtwork ? {
           product_price_mode: draft.product_price_mode,
           product_options: getProductOptionsPayload(
@@ -708,7 +712,7 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         ...draft,
         ...getArtworkDetailDefaults(),
         ...artworkDetails,
-        ...(!shouldCarryStock ? { stock_available: "", stockable: false } : {}),
+        ...(!shouldCarryStock ? { stock_available: "", max_order_quantity: "", stockable: false } : {}),
         ...(isProductArtwork
           ? { product_options: draft.product_options }
           : { product_options: [] }),
@@ -1038,6 +1042,23 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
                   ? "Calculated from the quantities of all product options."
                   : detailErrors.stock_available || "Enter a whole number of available units."}
                 slotProps={{ htmlInput: { min: 0, step: 1 } }}
+              />
+            )}
+
+            {showDetails && isPremadeProductType && isStockable && (
+              <TextField
+                fullWidth
+                label="Max quantity per order (optional)"
+                name="max_order_quantity"
+                type="number"
+                value={formData.max_order_quantity ?? ""}
+                onChange={handleChange}
+                error={Boolean(detailErrors.max_order_quantity)}
+                helperText={
+                  detailErrors.max_order_quantity ||
+                  "Max number of units a buyer can add to their cart (e.g. 5 or 10). Leave blank for no limit."
+                }
+                slotProps={{ htmlInput: { min: 1, step: 1 } }}
               />
             )}
 

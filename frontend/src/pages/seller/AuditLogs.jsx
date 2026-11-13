@@ -24,7 +24,6 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import SearchIcon from "@mui/icons-material/Search";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { fetchSellerAuditLogs } from "../../api/seller/auditLogsAPI";
@@ -219,31 +218,34 @@ export default function SellerAuditLogs() {
       <Paper
         sx={{
           p: { xs: 1.5, sm: 2 },
-          mt: 2,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
+          minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              xl: "minmax(260px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.25, sm: 1.5 },
             width: "100%",
+            minWidth: 0,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search activity by order #, action, or details..."
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", lg: 320 },
-              maxWidth: { lg: 360 },
-              flex: { lg: 1 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -271,21 +273,19 @@ export default function SellerAuditLogs() {
 
           <Box
             sx={{
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(auto-fit, minmax(160px, 1fr))",
+                xl: "minmax(185px, 210px) minmax(165px, 180px) minmax(140px, 160px)",
+              },
+              gap: { xs: 1.25, sm: 1.5 },
               alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-              width: { xs: "100%", lg: "auto" },
+              width: "100%",
+              minWidth: 0,
             }}
           >
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: { xs: "100%", sm: 180 },
-                width: { xs: "100%", sm: "auto" },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <Select
                 value={activityCategory}
                 onChange={(event) => setActivityCategory(event.target.value)}
@@ -314,10 +314,10 @@ export default function SellerAuditLogs() {
                 slotProps={{
                   textField: {
                     size: "small",
+                    fullWidth: true,
                     placeholder: "Select date",
                     sx: {
-                      width: { xs: "100%", sm: 170 },
-                      minWidth: { xs: "100%", sm: 170 },
+                      minWidth: 0,
                       "& .MuiOutlinedInput-root": {
                         fontSize: 13,
                         color: theme.palette.text.primary,
@@ -334,13 +334,7 @@ export default function SellerAuditLogs() {
               />
             </LocalizationProvider>
 
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: { xs: "100%", sm: 140 },
-                width: { xs: "100%", sm: "auto" },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <Select
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
@@ -366,10 +360,22 @@ export default function SellerAuditLogs() {
         </Box>
       </Paper>
 
+      {!loading && !errorMessage && (
+        <Box sx={{ mt: 0.5, mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            aria-live="polite"
+            sx={{ fontWeight: 600 }}
+          >
+            Showing {filteredLogs.length} of {logs.length} entries
+          </Typography>
+        </Box>
+      )}
+
       <Paper
         sx={{
-          mt: 2,
-          borderRadius: 2,
+          borderRadius: 3.5,
           overflow: "hidden",
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -378,28 +384,18 @@ export default function SellerAuditLogs() {
       >
         <Box
           sx={{
-            px: { xs: 1.5, sm: 2 },
-            py: 1.5,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 1,
-            borderBottom: `1px solid ${theme.palette.divider}`,
+            px: { xs: 2, sm: 3 },
+            py: 2,
+            borderBottom: "1px solid",
+            borderColor: "divider",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <ReceiptLongIcon sx={{ fontSize: 18, color: "#ef3340" }} />
-            <Typography
-              sx={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}
-            >
-              Activity & Transaction History
-            </Typography>
-          </Box>
-          {!loading && !errorMessage && (
-            <Typography sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>
-              Showing {filteredLogs.length} of {logs.length} entries
-            </Typography>
-          )}
+          <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
+            Activity &amp; Transaction History
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+            Review account activity, orders, sales, payouts, and updates.
+          </Typography>
         </Box>
 
         {loading ? (
@@ -415,8 +411,15 @@ export default function SellerAuditLogs() {
             No activity has been recorded yet.
           </Typography>
         ) : (
-          <TableContainer sx={{ overflowX: "auto" }}>
-            <Table size="small" sx={{ minWidth: 800 }}>
+          <TableContainer
+            sx={{ maxHeight: { xs: 580, md: 720 }, overflowX: "auto" }}
+          >
+            <Table
+              size="small"
+              stickyHeader
+              aria-label="Seller activity and transaction history"
+              sx={{ minWidth: 800 }}
+            >
               <TableHead
                 sx={{
                   backgroundColor:
@@ -452,6 +455,7 @@ export default function SellerAuditLogs() {
                     <TableRow
                       key={log.audit_id}
                       sx={{
+                        "& td": { py: 1.75, verticalAlign: "middle" },
                         "&:hover": { backgroundColor: "action.hover" },
                         "&:last-child td": { borderBottom: 0 },
                       }}

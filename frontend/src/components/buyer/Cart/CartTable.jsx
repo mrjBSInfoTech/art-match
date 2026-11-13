@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
-import { getArtworkRemainingStock } from "../../../utils/artworkAvailability";
+import { getArtworkRemainingStock, getArtworkOrderLimit } from "../../../utils/artworkAvailability";
 
 const formatPrice = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -127,9 +127,10 @@ export default function CartTable({
             {items.map((item) => {
               const soldOut = Number(item.is_sold_out) === 1;
               const remainingStock = getArtworkRemainingStock(item);
+              const orderLimit = getArtworkOrderLimit(item);
               const isMultiOption = Array.isArray(item.selected_products) && item.selected_products.length > 1;
               const currentQty = Number(cartQuantities[item.artwork_id] || item.qty || 1);
-              const maxQty = remainingStock !== null ? Math.max(1, remainingStock) : 999999;
+              const maxQty = orderLimit !== null ? Math.max(1, orderLimit) : (remainingStock !== null ? Math.max(1, remainingStock) : 999999);
               const canIncrease = isProductItem(item) && !isMultiOption && currentQty < maxQty;
               const canDecrease = isProductItem(item) && !isMultiOption && currentQty > 1;
               return (
@@ -237,6 +238,9 @@ export default function CartTable({
                               sx={{ fontWeight: 600 }}
                             >
                               {remainingStock} in stock
+                              {orderLimit !== null && orderLimit < remainingStock
+                                ? ` (Limit: ${orderLimit}/order)`
+                                : ""}
                             </Typography>
                           )}
                         </Stack>

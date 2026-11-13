@@ -118,13 +118,14 @@ export default function StudentCard({
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
+            xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            md: "repeat(3, minmax(0, 1fr))",
-            lg: "repeat(5, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(5, minmax(0, 1fr))",
           },
           gap: { xs: 1.5, sm: 2 },
           alignItems: "stretch",
+          minWidth: 0,
         }}
       >
         {students.map((student) => {
@@ -136,6 +137,7 @@ export default function StudentCard({
               key={id}
               sx={{
                 overflow: "hidden",
+                minWidth: 0,
                 display: "flex",
                 flexDirection: "column",
                 height: "100%",

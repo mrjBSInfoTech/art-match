@@ -257,61 +257,25 @@ export default function SearchCertificate() {
       {/* Filter Section matching Artwork.jsx structure & design */}
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, sm: 2, md: 2.5 },
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
-          containerType: "inline-size",
-          containerName: "certificate-filters",
           minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
             alignItems: "center",
-            flexWrap: "wrap",
-            gap: 1,
-            mb: 1.5,
-          }}
-        >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            aria-live="polite"
-            sx={{ display: "block" }}
-          >
-            <strong>{filteredCertificates.length}</strong> certificates shown
-          </Typography>
-
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={excludeSelf}
-                onChange={(e) => setExcludeSelf(e.target.checked)}
-                color="error"
-              />
-            }
-            label={
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "text.primary" }}>
-                Other sellers only
-              </Typography>
-            }
-          />
-        </Box>
-
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mb: 2,
-            mt: 2,
+            gap: { xs: 1.5, sm: 2 },
+            minWidth: 0,
           }}
         >
           {/* Search TextField matching Artwork.jsx */}
@@ -319,12 +283,9 @@ export default function SearchCertificate() {
             variant="outlined"
             placeholder="Search certificates by title, artist, or certificate ID..."
             size="small"
+            fullWidth
             sx={{
               minWidth: 0,
-              gridColumn: "1 / -1",
-              "@container certificate-filters (min-width: 900px)": {
-                gridColumn: "auto",
-              },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
                 opacity: 1,
@@ -345,23 +306,18 @@ export default function SearchCertificate() {
           {/* Filter Select Controls Container matching Artwork.jsx */}
           <Box
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(auto-fit, minmax(145px, 1fr))",
+                lg: "repeat(3, minmax(136px, 160px))",
+                xl: "repeat(3, minmax(150px, 175px))",
+              },
+              gap: { xs: 1.5, sm: 2 },
+              minWidth: 0,
             }}
           >
-            <FormControl
-              size="small"
-              fullWidth
-              sx={{
-                minWidth: { sm: 150 },
-                gridColumn: "1 / -1",
-                "@container certificate-filters (min-width: 600px)": {
-                  gridColumn: "auto",
-                },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="seller-certificate-status-label">Status</InputLabel>
               <Select
                 labelId="seller-certificate-status-label"
@@ -378,7 +334,7 @@ export default function SearchCertificate() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" fullWidth sx={{ minWidth: { sm: 140 } }}>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="seller-certificate-title-sort-label">Title</InputLabel>
               <Select
                 labelId="seller-certificate-title-sort-label"
@@ -398,7 +354,7 @@ export default function SearchCertificate() {
               </Select>
             </FormControl>
 
-            <FormControl size="small" fullWidth sx={{ minWidth: { sm: 160 } }}>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="seller-certificate-price-sort-label">Price</InputLabel>
               <Select
                 labelId="seller-certificate-price-sort-label"
@@ -416,6 +372,43 @@ export default function SearchCertificate() {
           </Box>
         </Box>
       </Paper>
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1,
+          mt: 0.5,
+          mb: 0.5,
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          <strong>{filteredCertificates.length}</strong> certificates shown
+        </Typography>
+
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              checked={excludeSelf}
+              onChange={(e) => setExcludeSelf(e.target.checked)}
+              color="error"
+            />
+          }
+          label={
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "text.primary" }}>
+              Other sellers only
+            </Typography>
+          }
+        />
+      </Box>
 
       {/* Error Alert */}
       {error && (

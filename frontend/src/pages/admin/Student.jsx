@@ -14,12 +14,17 @@ import {
   Slide,
   Snackbar,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import StudentCard from "../../components/admin/Student/StudentCard";
+import StudentTable from "../../components/admin/Student/StudentTable";
 import StudentForm from "../../components/admin/Student/StudentForm";
 import StudentBulkAdd from "../../components/admin/Student/StudentAddBulk";
 import StudentDelete from "../../components/admin/Student/StudentDelete";
@@ -83,6 +88,7 @@ export default function Student() {
   const [searchQuery, setSearchQuery] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
   const [yearLevelFilter, setYearLevelFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("card");
 
   const loadStudents = useCallback(async () => {
     try {
@@ -389,22 +395,24 @@ export default function Student() {
         </Typography>
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.25, sm: 1.5 },
             width: "100%",
+            minWidth: 0,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search students..."
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", lg: 320 },
-              maxWidth: { lg: 360 },
-              flex: { lg: 1 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -431,106 +439,172 @@ export default function Student() {
           />
           <Box
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "minmax(185px, 225px) minmax(145px, 170px)",
+              },
+              gap: { xs: 1.25, sm: 1.25 },
+              minWidth: 0,
             }}
           >
-            <FormControl
-            size="small"
-            sx={{
-              minWidth: { xs: "100%", sm: 220 },
-              width: { xs: "100%", lg: "auto" },
-            }}
-          >
-            <InputLabel
-              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
-            >
-              Course
-            </InputLabel>
-            <Select
-              value={courseFilter}
-              label="Course"
-              onChange={(event) => setCourseFilter(event.target.value)}
-              sx={{
-                fontSize: 12,
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                borderRadius: 1.5,
-                ".MuiOutlinedInput-notchedOutline": {
-                  borderColor: theme.palette.divider,
-                },
-              }}
-            >
-              <MenuItem value="all">All Courses</MenuItem>
-              {courseOptions.map((course) => (
-                <MenuItem key={course} value={course}>
-                  {course}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl
-            size="small"
-            sx={{ minWidth: 0, width: { xs: "100%", lg: 160 } }}
-          >
-            <InputLabel
-              id="student-year-level-filter-label"
-              sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
-            >
-              Year Level
-            </InputLabel>
-            <Select
-              labelId="student-year-level-filter-label"
-              value={yearLevelFilter}
-              label="Year Level"
-              onChange={(event) => setYearLevelFilter(event.target.value)}
-              sx={{
-                fontSize: 12,
-                color: theme.palette.text.primary,
-                backgroundColor: theme.palette.background.default,
-                borderRadius: 1.5,
-                ".MuiOutlinedInput-notchedOutline": {
-                  borderColor: theme.palette.divider,
-                },
-              }}
-            >
-              <MenuItem value="all">All Year Levels</MenuItem>
-              {yearLevelOptions.map((year) => (
-                <MenuItem key={year} value={year}>
-                  {year}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+              <InputLabel
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Course
+              </InputLabel>
+              <Select
+                value={courseFilter}
+                label="Course"
+                onChange={(event) => setCourseFilter(event.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
+              >
+                <MenuItem value="all">All Courses</MenuItem>
+                {courseOptions.map((course) => (
+                  <MenuItem key={course} value={course}>
+                    {course}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+              <InputLabel
+                id="student-year-level-filter-label"
+                sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
+              >
+                Year Level
+              </InputLabel>
+              <Select
+                labelId="student-year-level-filter-label"
+                value={yearLevelFilter}
+                label="Year Level"
+                onChange={(event) => setYearLevelFilter(event.target.value)}
+                sx={{
+                  fontSize: 12,
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
+                  borderRadius: 1.5,
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.divider,
+                  },
+                }}
+              >
+                <MenuItem value="all">All Year Levels</MenuItem>
+                {yearLevelOptions.map((year) => (
+                  <MenuItem key={year} value={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
-          
         </Box>
       </Paper>
 
-      <Paper
-        sx={{ p: { xs: 1.5, sm: 2 }, mt: 2, borderRadius: 2 }}
-        variant="outlined"
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 2,
+          mb: 1,
+        }}
       >
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : filteredStudents.length === 0 ? (
-          <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
-            No student records found.
-          </Typography>
-        ) : (
-          <StudentCard
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredStudents.length}{" "}
+          {filteredStudents.length === 1 ? "student" : "students"}
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, next) => next && setViewMode(next)}
+          size="small"
+          aria-label="Student presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": { backgroundColor: theme.palette.error.dark },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {viewMode === "table" && !loading && filteredStudents.length > 0 ? (
+        <Box>
+          <StudentTable
             students={filteredStudents}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
             onReactivate={handleReactivateStudent}
             onAccessChange={loadStudents}
           />
-        )}
-      </Paper>
+        </Box>
+      ) : (
+        <Paper
+          sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2 }}
+          variant="outlined"
+        >
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : filteredStudents.length === 0 ? (
+            <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
+              No student records found.
+            </Typography>
+          ) : (
+            <StudentCard
+              students={filteredStudents}
+              onEdit={handleOpenEdit}
+              onDelete={handleOpenDelete}
+              onReactivate={handleReactivateStudent}
+              onAccessChange={loadStudents}
+            />
+          )}
+        </Paper>
+      )}
 
       <StudentForm
         open={openStudentForm}

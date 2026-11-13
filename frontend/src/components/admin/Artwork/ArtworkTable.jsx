@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Chip,
+  Paper,
   Table,
   TableBody,
   TableCell,
@@ -46,8 +47,18 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
 
   return (
     <>
-      <Box sx={{ minWidth: 0 }}>
-        <Box sx={{ px: { xs: 0, sm: 1 }, py: 1, mb: 1.5 }}>
+      <Paper
+        component="section"
+        variant="outlined"
+        aria-label="Artwork verification table"
+        sx={{
+          borderRadius: 3.5,
+          borderColor: "divider",
+          overflow: "hidden",
+          bgcolor: "background.paper",
+        }}
+      >
+        <Box sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
             Artwork catalog
           </Typography>
@@ -76,7 +87,8 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
               >
                 <TableCell>Artwork</TableCell>
                 <TableCell>Artist</TableCell>
-                <TableCell>Art type</TableCell>
+                <TableCell>Art type / Style</TableCell>
+                <TableCell>Product type</TableCell>
                 <TableCell align="right">Price</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="center">Action</TableCell>
@@ -86,7 +98,14 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
               {artworks.map((artwork) => {
                 const status = getStatus(artwork);
                 return (
-                  <TableRow key={artwork.artwork_id} hover>
+                  <TableRow
+                    key={artwork.artwork_id}
+                    hover
+                    sx={{
+                      "& td": { py: 1.75, verticalAlign: "middle" },
+                      "&:last-child td": { borderBottom: 0 },
+                    }}
+                  >
                     <TableCell sx={{ minWidth: 240, maxWidth: 340 }}>
                       <StackArtwork artwork={artwork} />
                     </TableCell>
@@ -98,9 +117,26 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
                         {artwork.student_number || "Student number not provided"}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ minWidth: 130 }}>
-                      <Typography variant="body2">{artwork.exact_art_type || artwork.art_type || "Not provided"}</Typography>
-                      <Typography variant="caption" color="text.secondary">
+                    <TableCell sx={{ minWidth: 160 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ textTransform: "capitalize" }}
+                      >
+                        {artwork.exact_art_type || artwork.art_type || "Not provided"}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", textTransform: "capitalize" }}
+                      >
+                        {artwork.genre || "Style not provided"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 120 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ textTransform: "capitalize" }}
+                      >
                         {artwork.product_type || "Premade"}
                       </Typography>
                     </TableCell>
@@ -140,7 +176,7 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
             </TableBody>
           </Table>
         </TableContainer>
-      </Box>
+      </Paper>
       <ArtworkInfo
         open={infoOpen}
         handleClose={() => setInfoOpen(false)}

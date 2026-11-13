@@ -241,9 +241,14 @@ export default function Sales() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
           gap: 2,
           mb: 2.5,
+          minWidth: 0,
         }}
       >
         {metrics.map((metric) => {
@@ -256,22 +261,27 @@ export default function Sales() {
                 borderColor: "divider",
                 borderRadius: 2,
                 boxShadow: "none",
+                minWidth: 0,
+                overflow: "hidden",
+                height: "100%",
               }}
             >
-              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
                 <Stack
                   direction="row"
                   justifyContent="space-between"
                   alignItems="center"
-                  gap={2}
+                  gap={{ xs: 1.25, sm: 2 }}
+                  sx={{ minWidth: 0, height: "100%" }}
                 >
-                  <Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                       sx={{
                         color: "text.secondary",
                         fontSize: 11,
                         fontWeight: 800,
                         letterSpacing: 0.8,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {metric.label}
@@ -279,23 +289,31 @@ export default function Sales() {
                     <Typography
                       sx={{
                         mt: 0.5,
-                        fontSize: 24,
+                        fontSize: { xs: 20, sm: 22, xl: 24 },
                         fontWeight: 800,
-                        lineHeight: 1,
+                        lineHeight: 1.1,
+                        overflowWrap: "anywhere",
+                        fontVariantNumeric: "tabular-nums",
                       }}
                     >
                       {metric.value}
                     </Typography>
                     <Typography
-                      sx={{ mt: 1, color: "text.secondary", fontSize: 12 }}
+                      sx={{
+                        mt: 1,
+                        color: "text.secondary",
+                        fontSize: 12,
+                        overflowWrap: "break-word",
+                      }}
                     >
                       {metric.caption}
                     </Typography>
                   </Box>
                   <Box
                     sx={{
-                      width: 48,
-                      height: 48,
+                      width: { xs: 44, sm: 48 },
+                      height: { xs: 44, sm: 48 },
+                      flexShrink: 0,
                       display: "grid",
                       placeItems: "center",
                       borderRadius: 1.5,
@@ -314,21 +332,19 @@ export default function Sales() {
 
       <Paper
         variant="outlined"
-        sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, mb: 2 }}
+        sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, minWidth: 0, overflow: "hidden" }}
       >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
-          gap={1.25}
-        >
+        <Box sx={{ width: "100%", minWidth: 0 }}>
           <TextField
             size="small"
+            fullWidth
             placeholder="Search artwork, artist, buyer..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             sx={{
-              width: { xs: "100%", sm: 280 },
+              width: "100%",
+              maxWidth: { xs: "100%", sm: 340 },
+              minWidth: 0,
               "& .MuiInputBase-input": { fontSize: 12 },
             }}
             InputProps={{
@@ -339,7 +355,7 @@ export default function Sales() {
               ),
             }}
           />
-        </Stack>
+        </Box>
       </Paper>
 
       {/* View Mode Switcher & Summary Count */}
@@ -350,8 +366,8 @@ export default function Sales() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 1.5,
-          mt: 0.5,
-          mb: 1.5,
+          mt: 2,
+          mb: 1,
         }}
       >
         <Typography

@@ -481,9 +481,14 @@ export default function SellerReviews() {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+            },
             gap: 2,
             mb: 2.5,
+            minWidth: 0,
           }}
         >
           {reviewSummaryCards.map(
@@ -495,24 +500,30 @@ export default function SellerReviews() {
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
                   boxShadow: "none",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  height: "100%",
                 }}
               >
-                <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+                <CardContent sx={{ p: { xs: 1.75, sm: 2.25 }, "&:last-child": { pb: { xs: 1.75, sm: 2.25 } }, height: "100%" }}>
                   <Box
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      gap: 2,
+                      gap: { xs: 1.25, sm: 2 },
+                      minWidth: 0,
+                      height: "100%",
                     }}
                   >
-                    <Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography
                         sx={{
                           color: theme.palette.text.secondary,
                           fontSize: 11,
                           fontWeight: 800,
                           letterSpacing: 1.2,
+                          overflowWrap: "break-word",
                         }}
                       >
                         {label}
@@ -521,9 +532,10 @@ export default function SellerReviews() {
                         sx={{
                           mt: 1,
                           color: theme.palette.text.primary,
-                          fontSize: 30,
+                          fontSize: { xs: 24, sm: 26, xl: 30 },
                           fontWeight: 800,
-                          lineHeight: 1,
+                          lineHeight: 1.1,
+                          overflowWrap: "anywhere",
                         }}
                       >
                         {value}
@@ -533,6 +545,7 @@ export default function SellerReviews() {
                           mt: 1,
                           color: theme.palette.text.secondary,
                           fontSize: 12,
+                          overflowWrap: "break-word",
                         }}
                       >
                         {caption}
@@ -540,8 +553,9 @@ export default function SellerReviews() {
                     </Box>
                     <Box
                       sx={{
-                        width: 54,
-                        height: 54,
+                        width: { xs: 46, sm: 52 },
+                        height: { xs: 46, sm: 52 },
+                        flexShrink: 0,
                         display: "grid",
                         placeItems: "center",
                         borderRadius: 2.5,
@@ -549,7 +563,7 @@ export default function SellerReviews() {
                         color: accent,
                       }}
                     >
-                      {createElement(SummaryIcon, { sx: { fontSize: 26 } })}
+                      {createElement(SummaryIcon, { sx: { fontSize: { xs: 22, sm: 26 } } })}
                     </Box>
                   </Box>
                 </CardContent>
@@ -574,39 +588,25 @@ export default function SellerReviews() {
               <Paper
                 variant="outlined"
                 sx={{
-                  p: { xs: 2, md: 2.5 },
+                  p: { xs: 1.5, sm: 2, md: 2.5 },
                   borderRadius: 2.5,
                   backgroundColor: theme.palette.background.paper,
                   borderColor: theme.palette.divider,
-                  containerType: "inline-size",
-                  containerName: "seller-review-filters",
                   minWidth: 0,
+                  overflow: "hidden",
                   mb: 2.5,
                 }}
               >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: { xs: "column", md: "row" },
-                    justifyContent: "space-between",
-                    alignItems: { xs: "stretch", md: "center" },
-                    gap: 2,
-                  }}
-                >
-                  <Box
+                <Box sx={{ width: "100%", minWidth: 0 }}>
+                  <Autocomplete
+                    fullWidth
+                    id="seller-review-artwork-filter"
                     sx={{
-                      display: "flex",
-                      flexDirection: { xs: "column", sm: "row" },
-                      gap: 2,
-                      width: { xs: "100%", md: "auto" },
+                      width: "100%",
+                      maxWidth: { xs: "100%", lg: 520 },
                       minWidth: 0,
                     }}
-                  >
-                    <Autocomplete
-                      fullWidth
-                      id="seller-review-artwork-filter"
-                      sx={{ width: { xs: "100%", sm: 520 }, maxWidth: "100%" }}
-                      options={artworkOptions}
+                    options={artworkOptions}
                       value={
                         artworkOptions.find(
                           (option) => option.key === selectedArtwork,
@@ -668,7 +668,6 @@ export default function SellerReviews() {
                         />
                       )}
                     />
-                  </Box>
                 </Box>
               </Paper>
             )}

@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Chip,
+  Paper,
   Stack,
   Table,
   TableBody,
@@ -42,8 +43,18 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
 
   return (
     <>
-      <Box sx={{ minWidth: 0 }}>
-        <Box sx={{ px: { xs: 0, sm: 1 }, py: 1, mb: 1.5 }}>
+      <Paper
+        component="section"
+        variant="outlined"
+        aria-label="Seller artwork table"
+        sx={{
+          borderRadius: 3.5,
+          borderColor: "divider",
+          overflow: "hidden",
+          bgcolor: "background.paper",
+        }}
+      >
+        <Box sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
           <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
             Artwork catalog
           </Typography>
@@ -83,7 +94,14 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                 const status = getRequestStatus(artwork);
                 const canRequestVerification = ["unverified", "rejected"].includes(status.toLowerCase());
                 return (
-                  <TableRow key={artwork.artwork_id} hover>
+                  <TableRow
+                    key={artwork.artwork_id}
+                    hover
+                    sx={{
+                      "& td": { py: 1.75, verticalAlign: "middle" },
+                      "&:last-child td": { borderBottom: 0 },
+                    }}
+                  >
                     <TableCell sx={{ minWidth: 240, maxWidth: 360 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
                         <ArtworkImage
@@ -104,7 +122,13 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                     </TableCell>
                     <TableCell sx={{ minWidth: 140 }}>
                       <Typography variant="body2">{artwork.exact_art_type || artwork.art_type || "Not provided"}</Typography>
-                      <Typography variant="caption" color="text.secondary">{artwork.genre || "Style not provided"}</Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ textTransform: "capitalize" }}
+                      >
+                        {artwork.genre || "Style not provided"}
+                      </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 120 }}>
                       <Typography variant="body2">{artwork.product_type || "Premade"}</Typography>
@@ -170,7 +194,7 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
             </TableBody>
           </Table>
         </TableContainer>
-      </Box>
+      </Paper>
       <ArtworkInfo
         open={infoOpen}
         handleClose={() => setInfoOpen(false)}

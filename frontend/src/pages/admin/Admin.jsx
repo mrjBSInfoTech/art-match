@@ -14,11 +14,16 @@ import {
   Slide,
   Snackbar,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import AdminCard from "../../components/admin/Admin/AdminCard";
+import AdminTable from "../../components/admin/Admin/AdminTable";
 import AdminForm from "../../components/admin/Admin/AdminForm";
 import AdminDelete from "../../components/admin/Admin/AdminDelete";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
@@ -46,6 +51,7 @@ export default function Admin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortOption, setSortOption] = useState("az");
+  const [viewMode, setViewMode] = useState("card");
   const [loading, setLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -282,22 +288,27 @@ export default function Admin() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: { xs: 1.25, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
           mt: 2,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
+          minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.25, sm: 1.5 },
             width: "100%",
+            minWidth: 0,
           }}
         >
           <TextField
@@ -306,10 +317,9 @@ export default function Admin() {
             autoComplete="off"
             placeholder="Search username, name, email, or role..."
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", sm: "100%", lg: 260 },
-              maxWidth: { lg: 320 },
-              flex: { lg: 1 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -337,21 +347,17 @@ export default function Admin() {
 
           <Box
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-              width: { xs: "100%", lg: "auto" },
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "minmax(125px, 145px) minmax(150px, 175px)",
+              },
+              gap: { xs: 1.25, sm: 1.25 },
+              minWidth: 0,
             }}
           >
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: { xs: "calc(50% - 4px)", sm: 110 },
-                flex: { xs: 1, sm: "0 0 auto" },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 11 }}
               >
@@ -375,13 +381,7 @@ export default function Admin() {
                 <MenuItem value="za">Z to A</MenuItem>
               </Select>
             </FormControl>
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: { xs: "calc(50% - 4px)", sm: 140 },
-                flex: { xs: 1, sm: "0 0 auto" },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -412,33 +412,110 @@ export default function Admin() {
         </Box>
       </Paper>
 
-      <Paper
-        sx={{ p: { xs: 1.5, sm: 2 }, mt: 2, borderRadius: 2 }}
-        variant="outlined"
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 2,
+          mb: 1,
+        }}
       >
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : filteredAdmins.length > 0 ? (
-          <AdminCard
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredAdmins.length}{" "}
+          {filteredAdmins.length === 1 ? "admin" : "admins"}
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, next) => next && setViewMode(next)}
+          size="small"
+          aria-label="Admin presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": { backgroundColor: theme.palette.error.dark },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {viewMode === "table" && !loading && filteredAdmins.length > 0 ? (
+        <Box>
+          <AdminTable
             admins={filteredAdmins}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
             onPromote={(id) => handleRoleChange(id, "promote")}
             onDemote={(id) => handleRoleChange(id, "demote")}
           />
-        ) : (
-          <Typography
-            color="text.secondary"
-            sx={{ textAlign: "center", py: 5 }}
-          >
-            {searchQuery
-              ? "No admin accounts match your search."
-              : "No admin accounts found."}
-          </Typography>
-        )}
-      </Paper>
+        </Box>
+      ) : (
+        <Paper
+          sx={{
+            p: { xs: 1.5, sm: 2 },
+            borderRadius: 2,
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+          }}
+          variant="outlined"
+        >
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : filteredAdmins.length > 0 ? (
+            <AdminCard
+              admins={filteredAdmins}
+              onEdit={handleOpenEdit}
+              onDelete={handleOpenDelete}
+              onPromote={(id) => handleRoleChange(id, "promote")}
+              onDemote={(id) => handleRoleChange(id, "demote")}
+            />
+          ) : (
+            <Typography
+              color="text.secondary"
+              sx={{ textAlign: "center", py: 5 }}
+            >
+              {searchQuery
+                ? "No admin accounts match your search."
+                : "No admin accounts found."}
+            </Typography>
+          )}
+        </Paper>
+      )}
 
       <AdminForm
         open={openAdminForm}

@@ -36,6 +36,7 @@ export function getArtworkDetailDefaults() {
     light_sensitive: false,
     material_composition: [],
     stock_available: "",
+    max_order_quantity: "",
     stockable: true,
     resolution_width: "",
     resolution_height: "",
@@ -85,11 +86,15 @@ export function getArtworkDetailsPayload(formData) {
   const isPremade = String(formData.product_type || "").trim().toLowerCase() === "premade";
   const isStockable = isArtworkStockable(formData.stockable);
   const materials = materialTags(formData.material_composition);
+  const maxOrderQuantity = integerValue(formData.max_order_quantity);
   const commonDetails = {
     material_composition: materials,
     ...(isPremade ? { stockable: isStockable } : {}),
     ...(!isCustomizable && isPremade && isStockable ? {
       stock_available: integerValue(formData.stock_available) ?? formData.stock_available ?? "",
+    } : {}),
+    ...(isPremade && isStockable && maxOrderQuantity !== null && maxOrderQuantity > 0 ? {
+      max_order_quantity: maxOrderQuantity,
     } : {}),
   };
   if (category === "fine_art") {
@@ -165,6 +170,16 @@ export function getArtworkDetailsErrors(formData) {
     const stock = integerValue(formData.stock_available);
     if (stock === null || stock < 0) {
       errors.stock_available = "Enter stock as a whole number of 0 or more.";
+    }
+    if (
+      formData.max_order_quantity !== undefined &&
+      formData.max_order_quantity !== null &&
+      String(formData.max_order_quantity).trim() !== ""
+    ) {
+      const maxOrder = integerValue(formData.max_order_quantity);
+      if (maxOrder === null || maxOrder <= 0) {
+        errors.max_order_quantity = "Enter a whole number of 1 or more.";
+      }
     }
   }
   if (category === "digital") {

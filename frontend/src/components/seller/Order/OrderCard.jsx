@@ -104,11 +104,14 @@ export default function OrderCard({
         }
       }}
       sx={{
-        p: { xs: 2, sm: 2.5 },
+        p: { xs: 1.75, sm: 2.5 },
         borderRadius: 3.5,
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
+        overflow: "hidden",
+        minWidth: 0,
+        width: "100%",
         cursor: "pointer",
         transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
         "&:hover": {
@@ -124,18 +127,24 @@ export default function OrderCard({
       }}
     >
       <Stack
-        direction={{ xs: "column", md: "row" }}
-        alignItems={{ xs: "flex-start", md: "center" }}
+        direction={{ xs: "column", lg: "row" }}
+        alignItems={{ xs: "stretch", lg: "center" }}
         justifyContent="space-between"
         spacing={2}
+        sx={{ minWidth: 0, width: "100%" }}
       >
         {/* Left Side: Thumbnail / Icon + Title + Meta */}
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+        <Stack
+          direction="row"
+          spacing={{ xs: 1.5, sm: 2 }}
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          sx={{ minWidth: 0, flex: 1, width: "100%" }}
+        >
           {/* Thumbnail / Package Icon Box */}
           <Box
             sx={{
-              width: 58,
-              height: 58,
+              width: { xs: 52, sm: 58 },
+              height: { xs: 52, sm: 58 },
               borderRadius: 2.5,
               bgcolor: "background.default",
               border: "1px solid",
@@ -168,16 +177,24 @@ export default function OrderCard({
           </Box>
 
           {/* Details */}
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
             {/* Title & Status Pill */}
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.35 }}>
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={0.75}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ mb: 0.5, minWidth: 0 }}
+            >
               <Typography
                 variant="subtitle1"
                 sx={{
                   fontWeight: 800,
                   color: "text.primary",
                   lineHeight: 1.3,
-                  overflowWrap: "anywhere",
+                  wordBreak: "normal",
+                  overflowWrap: "break-word",
                 }}
               >
                 {artworkTitle}
@@ -220,15 +237,18 @@ export default function OrderCard({
                 color: "text.secondary",
                 fontSize: 13,
                 fontWeight: 500,
-                mb: 0.35,
+                mb: 0.4,
+                lineHeight: 1.45,
+                wordBreak: "normal",
+                overflowWrap: "break-word",
               }}
             >
               Artist: <strong style={{ color: "inherit" }}>{artistName}</strong> · Buyer: <strong style={{ color: "inherit" }}>{buyerName}</strong>
             </Typography>
 
             {/* Date Sold */}
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+            <Stack direction="row" useFlexGap spacing={0.5} alignItems="center" flexWrap="wrap">
+              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary", flexShrink: 0 }} />
               <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
                 Date Sold: {formatOrderDate(order.date)}
               </Typography>
@@ -237,16 +257,19 @@ export default function OrderCard({
         </Stack>
 
         {/* Right Side: 3 Metric Stat Boxes */}
-        <Stack
-          direction="row"
-          spacing={1.25}
-          alignItems="center"
+        <Box
           sx={{
-            width: { xs: "100%", md: "auto" },
-            justifyContent: { xs: "space-between", md: "flex-end" },
-            pt: { xs: 1, md: 0 },
-            borderTop: { xs: "1px solid", md: "none" },
-            borderColor: { xs: "divider", md: "transparent" },
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(auto-fit, minmax(105px, 1fr))",
+              lg: "repeat(3, minmax(112px, auto))",
+            },
+            gap: 1.25,
+            width: { xs: "100%", lg: "auto" },
+            flexShrink: 0,
+            pt: { xs: 1.5, lg: 0 },
+            borderTop: { xs: "1px solid", lg: "none" },
+            borderColor: { xs: "divider", lg: "transparent" },
           }}
         >
           {/* Price / Gross */}
@@ -256,11 +279,10 @@ export default function OrderCard({
               border: "1px solid",
               borderColor: "divider",
               borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
+              px: { xs: 1.25, sm: 1.75 },
               py: 1,
               textAlign: "center",
-              minWidth: { xs: "auto", sm: 105 },
-              flex: { xs: 1, md: "initial" },
+              minWidth: 0,
             }}
           >
             <Typography
@@ -281,8 +303,9 @@ export default function OrderCard({
               sx={{
                 fontWeight: 800,
                 color: "text.primary",
-                fontSize: 14,
+                fontSize: { xs: 13, sm: 14 },
                 fontVariantNumeric: "tabular-nums",
+                overflowWrap: "anywhere",
                 mt: 0.25,
               }}
             >
@@ -297,11 +320,10 @@ export default function OrderCard({
               border: "1px solid",
               borderColor: "divider",
               borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
+              px: { xs: 1.25, sm: 1.75 },
               py: 1,
               textAlign: "center",
-              minWidth: { xs: "auto", sm: 105 },
-              flex: { xs: 1, md: "initial" },
+              minWidth: 0,
             }}
           >
             <Typography
@@ -322,8 +344,9 @@ export default function OrderCard({
               sx={{
                 fontWeight: 800,
                 color: "text.primary",
-                fontSize: 14,
+                fontSize: { xs: 13, sm: 14 },
                 fontVariantNumeric: "tabular-nums",
+                overflowWrap: "anywhere",
                 mt: 0.25,
               }}
             >
@@ -338,11 +361,10 @@ export default function OrderCard({
               border: "1px solid",
               borderColor: safeAlpha(theme?.palette?.success?.main || "#2e7d32", 0.35),
               borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
+              px: { xs: 1.25, sm: 1.75 },
               py: 1,
               textAlign: "center",
-              minWidth: { xs: "auto", sm: 110 },
-              flex: { xs: 1, md: "initial" },
+              minWidth: 0,
             }}
           >
             <Typography
@@ -363,15 +385,16 @@ export default function OrderCard({
               sx={{
                 fontWeight: 800,
                 color: "success.main",
-                fontSize: 14,
+                fontSize: { xs: 13, sm: 14 },
                 fontVariantNumeric: "tabular-nums",
+                overflowWrap: "anywhere",
                 mt: 0.25,
               }}
             >
               {formatCurrency(netPayout)}
             </Typography>
           </Box>
-        </Stack>
+        </Box>
       </Stack>
     </Paper>
   );

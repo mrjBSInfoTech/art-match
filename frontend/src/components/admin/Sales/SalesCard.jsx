@@ -66,6 +66,8 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
+        minWidth: 0,
+        overflow: "hidden",
         transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
         "&:hover": {
           boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)",
@@ -75,13 +77,14 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
       }}
     >
       <Stack
-        direction={{ xs: "column", md: "row" }}
-        alignItems={{ xs: "flex-start", md: "center" }}
+        direction={{ xs: "column", lg: "row" }}
+        alignItems={{ xs: "stretch", lg: "center" }}
         justifyContent="space-between"
         spacing={2}
+        sx={{ minWidth: 0 }}
       >
         {/* Left Side: Thumbnail / Icon Box + Title + Meta */}
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+        <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} alignItems="flex-start" sx={{ minWidth: 0, flex: 1 }}>
           {/* Thumbnail / Artwork Image Box matching OrderCard */}
           <Box
             sx={{
@@ -111,16 +114,24 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
           </Box>
 
           {/* Details */}
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
             {/* Artwork Title & Status Pill */}
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.35 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ mb: 0.5 }}
+            >
               <Typography
                 variant="subtitle1"
                 sx={{
                   fontWeight: 800,
                   color: "text.primary",
                   lineHeight: 1.3,
-                  overflowWrap: "anywhere",
+                  wordBreak: "normal",
+                  overflowWrap: "break-word",
                 }}
               >
                 {transaction.artwork}
@@ -137,6 +148,7 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
                   color: pillStyle.color,
                   border: `1px solid ${pillStyle.borderColor}`,
                   px: 0.5,
+                  maxWidth: "100%",
                 }}
               />
             </Stack>
@@ -148,7 +160,9 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
                 color: "text.secondary",
                 fontSize: 13,
                 fontWeight: 500,
-                mb: 0.35,
+                mb: 0.45,
+                wordBreak: "normal",
+                overflowWrap: "break-word",
               }}
             >
               Artist: <strong style={{ color: "inherit" }}>{transaction.artist}</strong> · Buyer:{" "}
@@ -156,8 +170,8 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
             </Typography>
 
             {/* Date */}
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+            <Stack direction="row" spacing={0.5} useFlexGap alignItems="center" sx={{ flexWrap: "wrap" }}>
+              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary", flexShrink: 0 }} />
               <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
                 Date Sold: {transaction.date}
               </Typography>
@@ -166,16 +180,21 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
         </Stack>
 
         {/* Right Side: 3 Metric Stat Boxes */}
-        <Stack
-          direction="row"
-          spacing={1.25}
-          alignItems="center"
+        <Box
           sx={{
-            width: { xs: "100%", md: "auto" },
-            justifyContent: { xs: "space-between", md: "flex-end" },
-            pt: { xs: 1, md: 0 },
-            borderTop: { xs: "1px solid", md: "none" },
-            borderColor: { xs: "divider", md: "transparent" },
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(auto-fit, minmax(105px, 1fr))",
+              lg: "repeat(3, minmax(112px, auto))",
+            },
+            gap: 1.25,
+            alignItems: "stretch",
+            width: { xs: "100%", lg: "auto" },
+            flexShrink: 0,
+            minWidth: 0,
+            pt: { xs: 1.5, lg: 0 },
+            borderTop: { xs: "1px solid", lg: "none" },
+            borderColor: { xs: "divider", lg: "transparent" },
           }}
         >
           {/* Price / Gross */}
@@ -185,11 +204,10 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
               border: "1px solid",
               borderColor: "divider",
               borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
+              px: { xs: 1.25, sm: 1.75 },
               py: 1,
               textAlign: "center",
-              minWidth: { xs: "auto", sm: 105 },
-              flex: { xs: 1, md: "initial" },
+              minWidth: 0,
             }}
           >
             <Typography
@@ -213,6 +231,7 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
                 fontSize: 14,
                 fontVariantNumeric: "tabular-nums",
                 mt: 0.25,
+                whiteSpace: "nowrap",
               }}
             >
               {format(transaction.amount)}
@@ -226,11 +245,10 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
               border: "1px solid",
               borderColor: "divider",
               borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
+              px: { xs: 1.25, sm: 1.75 },
               py: 1,
               textAlign: "center",
-              minWidth: { xs: "auto", sm: 105 },
-              flex: { xs: 1, md: "initial" },
+              minWidth: 0,
             }}
           >
             <Typography
@@ -254,6 +272,7 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
                 fontSize: 14,
                 fontVariantNumeric: "tabular-nums",
                 mt: 0.25,
+                whiteSpace: "nowrap",
               }}
             >
               ₱0 (0%)
@@ -270,11 +289,10 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
               border: "1px solid",
               borderColor: safeAlpha(theme?.palette?.success?.main || "#2e7d32", 0.35),
               borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
+              px: { xs: 1.25, sm: 1.75 },
               py: 1,
               textAlign: "center",
-              minWidth: { xs: "auto", sm: 110 },
-              flex: { xs: 1, md: "initial" },
+              minWidth: 0,
             }}
           >
             <Typography
@@ -298,12 +316,13 @@ export function SingleSalesCard({ transaction, formatCurrency }) {
                 fontSize: 14,
                 fontVariantNumeric: "tabular-nums",
                 mt: 0.25,
+                whiteSpace: "nowrap",
               }}
             >
               {format(transaction.amount)}
             </Typography>
           </Box>
-        </Stack>
+        </Box>
       </Stack>
     </Paper>
   );

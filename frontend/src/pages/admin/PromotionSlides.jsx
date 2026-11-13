@@ -322,14 +322,14 @@ export default function PromotionSlides({ registerActions, onNotify }) {
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
-          mb: 2,
         }}
       >
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction={{ xs: "column", md: "row" }}
           justifyContent="space-between"
-          alignItems={{ xs: "stretch", sm: "center" }}
+          alignItems={{ xs: "stretch", md: "center" }}
           gap={1.5}
+          sx={{ minWidth: 0 }}
         >
           <TextField
             size="small"
@@ -338,7 +338,9 @@ export default function PromotionSlides({ registerActions, onNotify }) {
             onChange={(e) => setSearch(e.target.value)}
             fullWidth={Boolean(registerActions)}
             sx={{
-              width: registerActions ? "100%" : { xs: "100%", sm: 360 },
+              width: registerActions ? "100%" : { xs: "100%", md: 340 },
+              maxWidth: "100%",
+              minWidth: 0,
               "& .MuiInputBase-input": { fontSize: 13 },
             }}
             InputProps={{
@@ -410,8 +412,8 @@ export default function PromotionSlides({ registerActions, onNotify }) {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 1.5,
-          mt: 0.5,
-          mb: 1.5,
+          mt: 2,
+          mb: 1,
         }}
       >
         <Typography

@@ -516,6 +516,8 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
         a.product_type,
         a.artwork_details, ci.quantity, ci.selected_products,
         JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.max_order_quantity')) AS max_order_quantity,
+        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.max_order_quantity')) AS max_order_quantity,
         ${getArtworkSoldQuantitySql("a")} AS sold_quantity,
         EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
           AND LOWER(au.request_status) = 'verified') AS is_verified
@@ -1556,6 +1558,7 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
        EXISTS (SELECT 1 FROM artupload au WHERE au.artwork_id = a.artwork_id
          AND LOWER(au.request_status) = 'verified') AS is_verified,
        JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.max_order_quantity')) AS max_order_quantity,
        ${getArtworkSoldQuantitySql("a")} AS sold_quantity
      FROM marketplace_order_item oi LEFT JOIN artwork a ON a.artwork_id = oi.artwork_id
      WHERE oi.order_id IN (?) ORDER BY oi.artwork_id FOR UPDATE`, [orders.map(order => order.order_id)],
@@ -1579,9 +1582,12 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
       Number(item.is_sold) === 1,
       item.product_type,
     );
+    const maxOrder = Number(item.max_order_quantity);
+    const exceedsMaxOrder = Number.isSafeInteger(maxOrder) && maxOrder > 0 && Number(item.quantity || 1) > maxOrder;
     const hasInsufficientArtworkStock = availability.isSoldOut ||
       (availability.hasStockTracking && availability.remainingStock !== null &&
-        Number(item.quantity || 1) > availability.remainingStock);
+        Number(item.quantity || 1) > availability.remainingStock) ||
+      exceedsMaxOrder;
     return String(item.status || "").toLowerCase() !== "available"
       || !Number(item.is_verified)
       || hasInsufficientArtworkStock

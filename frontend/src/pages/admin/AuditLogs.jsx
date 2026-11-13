@@ -195,12 +195,31 @@ export default function AuditLogs() {
             students and sellers, and customers.
           </Typography>
         </Box>
+        <Button
+          variant="contained"
+          startIcon={<DownloadOutlinedIcon />}
+          onClick={() => setReportDialogOpen(true)}
+          disabled={loading || !logs.length}
+          sx={{
+            alignSelf: { xs: "stretch", sm: "auto" },
+            minHeight: 44,
+            backgroundColor: "error.main",
+            color: "#fff",
+            boxShadow: "none",
+            fontSize: 12,
+            fontWeight: 700,
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            "&:hover": { backgroundColor: "error.dark", boxShadow: "none" },
+          }}
+        >
+          Export Audit Logs
+        </Button>
       </Box>
 
       <Paper
         sx={{
           p: { xs: 1.5, sm: 2 },
-          mt: 2.5,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -214,22 +233,24 @@ export default function AuditLogs() {
         )}
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.25, sm: 1.5 },
             width: "100%",
+            minWidth: 0,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search logs..."
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", lg: 280 },
-              maxWidth: { lg: 300 },
-              flex: { lg: 1 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -257,12 +278,15 @@ export default function AuditLogs() {
 
           <Box
             sx={{
-              display: "flex",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "minmax(165px, 190px) minmax(145px, 165px)",
+              },
+              gap: { xs: 1.25, sm: 1.25 },
               alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-              justifyContent: { xs: "stretch", lg: "flex-end" },
-              width: { xs: "100%", lg: "auto" },
+              minWidth: 0,
             }}
           >
             <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -274,10 +298,10 @@ export default function AuditLogs() {
                 slotProps={{
                   textField: {
                     size: "small",
+                    fullWidth: true,
                     placeholder: "Select Date",
                     sx: {
-                      width: { xs: "100%", sm: 180 },
-                      minWidth: { xs: "100%", sm: 180 },
+                      minWidth: 0,
                       "& .MuiOutlinedInput-root": {
                         fontSize: 13,
                         color: theme.palette.text.primary,
@@ -294,13 +318,7 @@ export default function AuditLogs() {
               />
             </LocalizationProvider>
 
-            <FormControl
-              size="small"
-              sx={{
-                minWidth: { xs: "100%", sm: 150 },
-                width: { xs: "100%", sm: "auto" },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <Select
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
@@ -326,11 +344,23 @@ export default function AuditLogs() {
         </Box>
       </Paper>
 
+      {!loading && !logsErrorMessage && (
+        <Box sx={{ mt: 0.5, mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            aria-live="polite"
+            sx={{ fontWeight: 600 }}
+          >
+            Showing {Math.min(visibleCount, logs.length)} of {logs.length} entries
+          </Typography>
+        </Box>
+      )}
+
       {/* Table Section */}
       <Paper
         sx={{
-          mt: 2,
-          borderRadius: 2,
+          borderRadius: 3.5,
           overflow: "hidden",
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
@@ -339,43 +369,24 @@ export default function AuditLogs() {
       >
         <Box
           sx={{
-            px: { xs: 1.5, sm: 2 },
-            py: 1.5,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 1,
-            borderBottom: `1px solid ${theme.palette.divider}`,
+            px: { xs: 2, sm: 3 },
+            py: 2,
+            borderBottom: "1px solid",
+            borderColor: "divider",
           }}
         >
-          <Typography
-            sx={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase" }}
-          >
+          <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
             All System Activity
           </Typography>
-          {!loading && !logsErrorMessage && (
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Typography sx={{ color: theme.palette.text.secondary, fontSize: 12 }}>
-                Showing {Math.min(visibleCount, logs.length)} of {logs.length} entries
-              </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DownloadOutlinedIcon />}
-                onClick={() => setReportDialogOpen(true)}
-                disabled={!logs.length}
-                sx={{ textTransform: "none", whiteSpace: "nowrap" }}
-              >
-                Download Report
-              </Button>
-            </Stack>
-          )}
-          <ReportFormatDialog
-            open={reportDialogOpen}
-            onClose={() => setReportDialogOpen(false)}
-            onSelectFormat={handleDownloadReport}
-          />
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+            Review recorded activity across the system.
+          </Typography>
         </Box>
+        <ReportFormatDialog
+          open={reportDialogOpen}
+          onClose={() => setReportDialogOpen(false)}
+          onSelectFormat={handleDownloadReport}
+        />
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -385,8 +396,15 @@ export default function AuditLogs() {
             No audit logs found
           </Typography>
         ) : (
-          <TableContainer sx={{ overflowX: "auto" }}>
-            <Table size="small" sx={{ minWidth: 760 }}>
+          <TableContainer
+            sx={{ maxHeight: { xs: 580, md: 720 }, overflowX: "auto" }}
+          >
+            <Table
+              size="small"
+              stickyHeader
+              aria-label="System audit log table"
+              sx={{ minWidth: 760 }}
+            >
               <TableHead
                 sx={{
                   backgroundColor:
@@ -425,6 +443,7 @@ export default function AuditLogs() {
                   <TableRow
                     key={log.audit_id}
                     sx={{
+                      "& td": { py: 1.75, verticalAlign: "middle" },
                       "&:hover": { backgroundColor: "action.hover" },
                       "&:last-child td": { borderBottom: 0 },
                     }}

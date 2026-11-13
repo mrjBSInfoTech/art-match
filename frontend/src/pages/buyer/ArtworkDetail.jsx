@@ -44,7 +44,7 @@ import ProductSelectionDialog from "../../components/buyer/Artwork/ProductSelect
 import CustomizeOrderDialog from "../../components/buyer/Artwork/CustomizeOrderDialog";
 import { getSavedProductOptions } from "../../utils/productOptions";
 import { getArtworkDetailCategory } from "../../utils/artworkDetails";
-import { isArtworkSoldOut, getArtworkRemainingStock } from "../../utils/artworkAvailability";
+import { isArtworkSoldOut, getArtworkRemainingStock, getArtworkOrderLimit } from "../../utils/artworkAvailability";
 import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
@@ -349,10 +349,12 @@ export default function ArtworkDetail() {
         (option) => Number(option.remaining_stock ?? option.quantity ?? 0) <= 0,
       ));
   const remainingStock = getArtworkRemainingStock(artwork);
+  const orderLimit = getArtworkOrderLimit(artwork);
   const isCustom =
     String(artwork?.product_type || "")
       .trim()
       .toLowerCase() === "customize";
+  const maxBuyable = orderLimit !== null && !isCustom ? orderLimit : 999999;
   const detailCategory = getArtworkDetailCategory(
     artwork.art_type,
     artwork.product,
@@ -732,7 +734,10 @@ export default function ArtworkDetail() {
                       </Typography>
                       {remainingStock !== null && !isCustom ? (
                         <Typography variant="caption" color="text.secondary">
-                          {remainingStock} available (Max: {remainingStock})
+                          {remainingStock} available
+                          {orderLimit !== null && orderLimit < remainingStock
+                            ? ` (Limit: ${orderLimit} per order)`
+                            : ` (Max: ${remainingStock})`}
                         </Typography>
                       ) : isCustom ? (
                         <Typography variant="caption" color="text.secondary">
@@ -769,21 +774,14 @@ export default function ArtworkDetail() {
                           }
                           const val = Number(raw);
                           if (Number.isSafeInteger(val)) {
-                            const max =
-                              remainingStock !== null && !isCustom
-                                ? remainingStock
-                                : 999999;
                             setOrderQuantity(
-                              Math.min(Math.max(1, val), max),
+                              Math.min(Math.max(1, val), maxBuyable),
                             );
                           }
                         }}
                         inputProps={{
                           min: 1,
-                          max:
-                            remainingStock !== null && !isCustom
-                              ? remainingStock
-                              : 999999,
+                          max: maxBuyable,
                           style: {
                             textAlign: "center",
                             width: 38,
@@ -810,18 +808,13 @@ export default function ArtworkDetail() {
                       <IconButton
                         size="small"
                         disabled={
-                          (remainingStock !== null &&
-                            !isCustom &&
-                            orderQuantity >= remainingStock) ||
+                          (maxBuyable < 999999 &&
+                            orderQuantity >= maxBuyable) ||
                           addingToCart
                         }
                         onClick={() => {
-                          const max =
-                            remainingStock !== null && !isCustom
-                              ? remainingStock
-                              : 999999;
                           setOrderQuantity((prev) =>
-                            Math.min(max, prev + 1),
+                            Math.min(maxBuyable, prev + 1),
                           );
                         }}
                         sx={{

@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   Paper,
   Slide,
   Snackbar,
@@ -82,7 +81,7 @@ export default function SellerPayout() {
     setRefresh((value) => value + 1);
   };
 
-  if (loading && !data) {
+  if (loading) {
     return (
       <SellerLoadingPanel
         title="Settlement and Payout"
@@ -150,25 +149,9 @@ export default function SellerPayout() {
             reload();
           }}
         />
-        {loading && (
-          <Stack alignItems="center" sx={{ py: 3 }}>
-            <CircularProgress aria-label="Loading seller earnings" />
-          </Stack>
-        )}
         {data && (
-          <>
+          <Box sx={{ minWidth: 0 }}>
             <PayoutMetrics totals={data.totals} />
-            {data.providerCapability?.enabled === false && (
-              <Alert severity="warning">
-                {data.providerCapability.message}
-              </Alert>
-            )}
-            {data.providerCapability?.enabled === true &&
-              data.providerCapability?.mode === "test" && (
-                <Alert severity="info">
-                  TEST payouts only. No real funds are transferred.
-                </Alert>
-              )}
             {/* View Mode Switcher & Summary Count */}
             <Box
               sx={{
@@ -177,8 +160,8 @@ export default function SellerPayout() {
                 alignItems: "center",
                 flexWrap: "wrap",
                 gap: 1.5,
-                mt: 1,
-                mb: 0.5,
+                mt: 2,
+                mb: 1,
               }}
             >
               <Typography
@@ -246,11 +229,15 @@ export default function SellerPayout() {
                 <PayoutCard orders={data.orders} />
               </Paper>
             )}
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 1.5 }}
+            >
               Cash on Delivery orders are handled separately and are not paid
               from the ArtMatch PayMongo Wallet.
             </Typography>
-          </>
+          </Box>
         )}
       </Stack>
       <Snackbar

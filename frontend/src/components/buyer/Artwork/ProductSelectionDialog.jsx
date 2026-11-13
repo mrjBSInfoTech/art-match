@@ -22,6 +22,7 @@ import {
   getSavedProductOptions,
   getSelectedProductsTotalQuantity,
 } from "../../../utils/productOptions";
+import { getArtworkMaxOrderQuantity } from "../../../utils/artworkAvailability";
 
 const Transition = forwardRef(function Transition(props, ref) {
   return (
@@ -173,6 +174,8 @@ export default function ProductSelectionDialog({
             {options.map((option) => {
               const quantity = Number(quantities[option.id] || 0);
               const available = Number(option.remaining_stock ?? option.quantity);
+              const maxOrderQty = getArtworkMaxOrderQuantity(artwork);
+              const maxBuyable = maxOrderQty !== null && maxOrderQty > 0 ? Math.min(available, maxOrderQty) : available;
               const isSelected = quantity > 0;
               const price = priceMode === "manual" ? Number(option.price) : Number(artwork?.price);
               return (
@@ -252,7 +255,9 @@ export default function ProductSelectionDialog({
                         {formatPrice(price)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {available > 0 ? `${available} available` : "Out of stock"}
+                        {available > 0
+                          ? `${available} available${maxOrderQty !== null && maxOrderQty < available ? ` (Limit: ${maxOrderQty}/order)` : ""}`
+                          : "Out of stock"}
                       </Typography>
                     </Box>
                   </Box>
@@ -296,7 +301,7 @@ export default function ProductSelectionDialog({
                             setQuantities((current) => ({
                               ...current,
                               [option.id]: Number.isSafeInteger(value)
-                                ? Math.min(Math.max(value, 1), available)
+                                ? Math.min(Math.max(value, 1), maxBuyable)
                                 : 1,
                             }));
                           }}
@@ -310,7 +315,7 @@ export default function ProductSelectionDialog({
                           }}
                           inputProps={{
                             min: 1,
-                            max: available,
+                            max: maxBuyable,
                             step: 1,
                             style: {
                               textAlign: "center",
@@ -333,11 +338,11 @@ export default function ProductSelectionDialog({
                         <Button
                           size="small"
                           variant="outlined"
-                          disabled={quantity >= available || isSubmitting}
+                          disabled={quantity >= maxBuyable || isSubmitting}
                           onClick={() =>
                             setQuantities((current) => ({
                               ...current,
-                              [option.id]: Math.min(available, quantity + 1),
+                              [option.id]: Math.min(maxBuyable, quantity + 1),
                             }))
                           }
                           sx={{ minWidth: 26, width: 26, height: 32, p: 0, borderRadius: 1 }}

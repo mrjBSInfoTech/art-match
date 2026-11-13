@@ -149,17 +149,19 @@ export default function PayMongoWalletPanel({
         <Paper
           variant="outlined"
           sx={{
-            p: 2.5,
+            p: { xs: 2, sm: 2.5 },
             height: "100%",
+            minWidth: 0,
+            overflow: "hidden",
             boxSizing: "border-box",
             borderRadius: 3,
             bgcolor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AccountBalanceWalletIcon color="primary" sx={{ fontSize: 22 }} />
+          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap gap={1} sx={{ mb: 1.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+              <AccountBalanceWalletIcon color="primary" sx={{ fontSize: 22, flexShrink: 0 }} />
               <Typography variant="subtitle1" fontWeight={700}>
                 Active PayMongo Wallet
               </Typography>
@@ -172,13 +174,13 @@ export default function PayMongoWalletPanel({
             />
           </Stack>
 
-          <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: theme.palette.background.default, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-            <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>
+          <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: theme.palette.background.default, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 13, overflowWrap: "anywhere", minWidth: 0 }}>
               {currentWalletId || "(None configured in system)"}
             </Typography>
             {currentWalletId && (
               <Tooltip title={copied ? "Copied!" : "Copy Wallet ID"}>
-                <IconButton size="small" onClick={handleCopyWallet}>
+                <IconButton size="small" onClick={handleCopyWallet} sx={{ flexShrink: 0 }}>
                   <ContentCopyIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
@@ -193,15 +195,17 @@ export default function PayMongoWalletPanel({
         <Paper
           variant="outlined"
           sx={{
-            p: 2.5,
+            p: { xs: 2, sm: 2.5 },
             height: "100%",
+            minWidth: 0,
+            overflow: "hidden",
             boxSizing: "border-box",
             borderRadius: 3,
             bgcolor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap gap={1} sx={{ mb: 1.5 }}>
             <Typography variant="subtitle1" fontWeight={700}>
               Payout Settlement Status
             </Typography>
@@ -277,18 +281,18 @@ export default function PayMongoWalletPanel({
           </Box>
 
           <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} sm={6}>
-              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+            <Grid size={{ xs: 12, sm: 6 }} sx={{ minWidth: 0 }}>
+              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, minWidth: 0, overflow: "hidden" }}>
                 <Typography variant="caption" color="text.secondary">Current Active Wallet</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700 }}>
+                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, overflowWrap: "anywhere" }}>
                   {activeRequest.currentWalletId || "(none)"}
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderColor: "primary.main" }}>
+            <Grid size={{ xs: 12, sm: 6 }} sx={{ minWidth: 0 }}>
+              <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderColor: "primary.main", minWidth: 0, overflow: "hidden" }}>
                 <Typography variant="caption" color="primary.main" fontWeight={700}>Proposed New Wallet</Typography>
-                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "primary.main" }}>
+                <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 800, color: "primary.main", overflowWrap: "anywhere" }}>
                   {activeRequest.newWalletId}
                 </Typography>
               </Paper>

@@ -18,7 +18,7 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
-import { getArtworkRemainingStock } from "../../../utils/artworkAvailability";
+import { getArtworkRemainingStock, getArtworkOrderLimit } from "../../../utils/artworkAvailability";
 
 export default function CustomizeOrderDialog({
   open,
@@ -38,9 +38,10 @@ export default function CustomizeOrderDialog({
   const [sampleImageFailed, setSampleImageFailed] = useState(false);
 
   const remainingStock = getArtworkRemainingStock(artwork);
+  const orderLimit = getArtworkOrderLimit(artwork);
   const isCustom =
     String(artwork?.product_type || "").trim().toLowerCase() === "customize";
-  const maxStock = remainingStock !== null && !isCustom ? remainingStock : 999999;
+  const maxStock = orderLimit !== null && !isCustom ? orderLimit : 999999;
 
   useEffect(() => {
     if (open) {
@@ -277,7 +278,10 @@ export default function CustomizeOrderDialog({
                   </Typography>
                   {remainingStock !== null && !isCustom ? (
                     <Typography variant="caption" color="text.secondary">
-                      {remainingStock} available (Max: {remainingStock})
+                      {remainingStock} available
+                      {orderLimit !== null && orderLimit < remainingStock
+                        ? ` (Limit: ${orderLimit} per order)`
+                        : ` (Max: ${remainingStock})`}
                     </Typography>
                   ) : isCustom ? (
                     <Typography variant="caption" color="text.secondary">

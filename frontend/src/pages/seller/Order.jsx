@@ -228,12 +228,13 @@ export default function SellerOrder() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(4, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
           },
           gap: 2,
           mb: 2.5,
+          minWidth: 0,
         }}
       >
         {[
@@ -269,24 +270,30 @@ export default function SellerOrder() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2.5,
               boxShadow: "none",
+              minWidth: 0,
+              overflow: "hidden",
+              height: "100%",
             }}
           >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+            <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.5, sm: 2 },
+                  minWidth: 0,
+                  height: "100%",
                 }}
               >
-                <Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
                       color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {label}
@@ -295,10 +302,11 @@ export default function SellerOrder() {
                     sx={{
                       mt: 0.5,
                       color: theme.palette.text.primary,
-                      fontSize: 30,
+                      fontSize: { xs: 24, sm: 26, xl: 30 },
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.1,
                       fontVariantNumeric: "tabular-nums",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {value}
@@ -308,6 +316,7 @@ export default function SellerOrder() {
                       mt: 1,
                       color: theme.palette.text.secondary,
                       fontSize: 12,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {caption}
@@ -315,8 +324,9 @@ export default function SellerOrder() {
                 </Box>
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
+                    width: { xs: 44, sm: 50 },
+                    height: { xs: 44, sm: 50 },
+                    flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,
@@ -337,102 +347,82 @@ export default function SellerOrder() {
 
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, sm: 2, md: 2.5 },
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
-          mb: 2.5,
+          minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "minmax(0, 1fr) minmax(150px, 190px)",
+            },
+            alignItems: "center",
+            gap: { xs: 1.5, sm: 2 },
+            minWidth: 0,
           }}
         >
-          <Box
+          <TextField
+            variant="outlined"
+            placeholder="Search by order, customer, or artwork..."
+            inputProps={{ "aria-label": "Search orders" }}
+            size="small"
+            fullWidth
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              justifyContent: "space-between",
-              alignItems: { xs: "stretch", md: "center" },
-              gap: 2,
+              minWidth: 0,
+              "& .MuiOutlinedInput-root": {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                "& fieldset": { borderColor: theme.palette.divider },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.text.secondary,
+                },
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
             }}
-          >
-            <TextField
-              variant="outlined"
-              placeholder="Search by order, customer, or artwork..."
-              inputProps={{ "aria-label": "Search orders" }}
-              size="small"
-              sx={{
-                flex: { xs: "1 1 100%", lg: "1 1 320px" },
-                width: { xs: "100%", lg: "auto" },
-                minWidth: 0,
-                "& .MuiOutlinedInput-root": {
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  "& fieldset": { borderColor: theme.palette.divider },
-                  "&:hover fieldset": {
-                    borderColor: theme.palette.text.secondary,
-                  },
-                },
-                "& .MuiInputBase-input::placeholder": {
-                  color: theme.palette.text.secondary,
-                  opacity: 1,
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </Box>
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
 
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-              width: { xs: "100%", lg: "auto" },
-            }}
-          >
-            <FormControl
-              size="small"
-              sx={{ minWidth: { xs: "100%", sm: 160 } }}
+          <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
+            <InputLabel id="seller-order-status-label">Status</InputLabel>
+            <Select
+              labelId="seller-order-status-label"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              label="Status"
+              sx={{
+                fontSize: 12,
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.default,
+                ".MuiOutlinedInput-notchedOutline": {
+                  borderColor: theme.palette.divider,
+                },
+              }}
             >
-              <InputLabel id="seller-order-status-label">Status</InputLabel>
-              <Select
-                labelId="seller-order-status-label"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                label="Status"
-                sx={{
-                  fontSize: 12,
-                  color: theme.palette.text.primary,
-                  backgroundColor: theme.palette.background.default,
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.divider,
-                  },
-                }}
-              >
-                {orderStatuses.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {status}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
+              {orderStatuses.map((status) => (
+                <MenuItem key={status} value={status}>
+                  {status}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
       </Paper>
 
@@ -444,8 +434,8 @@ export default function SellerOrder() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 1.5,
-          mt: 0.5,
-          mb: 0.5,
+          mt: 2,
+          mb: 1,
         }}
       >
         <Typography

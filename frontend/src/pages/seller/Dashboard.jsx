@@ -183,11 +183,12 @@ export default function Dashboard() {
           mt: 3,
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
           },
           gap: 2,
+          minWidth: 0,
         }}
       >
         {[
@@ -237,24 +238,29 @@ export default function Dashboard() {
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: "none",
               overflow: "hidden",
+              minWidth: 0,
+              height: "100%",
             }}
           >
-            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.5, sm: 2 },
+                  minWidth: 0,
+                  height: "100%",
                 }}
               >
-                <Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
                       color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1.2,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {label}
@@ -263,9 +269,11 @@ export default function Dashboard() {
                     sx={{
                       mt: 1,
                       color: theme.palette.text.primary,
-                      fontSize: 30,
+                      fontSize: { xs: 24, sm: 26, xl: 30 },
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.1,
+                      fontVariantNumeric: "tabular-nums",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {loading && label === "TOTAL ARTWORKS" ? (
@@ -281,6 +289,7 @@ export default function Dashboard() {
                       mt: 1,
                       color: theme.palette.text.secondary,
                       fontSize: 12,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {caption}
@@ -288,8 +297,9 @@ export default function Dashboard() {
                 </Box>
                 <Box
                   sx={{
-                    width: 56,
-                    height: 56,
+                    width: { xs: 46, sm: 52 },
+                    height: { xs: 46, sm: 52 },
+                    flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 3,
@@ -297,7 +307,7 @@ export default function Dashboard() {
                     color: accent,
                   }}
                 >
-                  {createElement(MetricIcon, { sx: { fontSize: 26 } })}
+                  {createElement(MetricIcon, { sx: { fontSize: { xs: 22, sm: 26 } } })}
                 </Box>
               </Box>
             </CardContent>

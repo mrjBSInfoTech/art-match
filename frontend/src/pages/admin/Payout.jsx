@@ -5,7 +5,6 @@ import {
   Badge,
   Box,
   Button,
-  CircularProgress,
   MenuItem,
   Paper,
   Slide,
@@ -211,7 +210,7 @@ export default function AdminPayout() {
     setRefresh((value) => value + 1);
   };
 
-  if (loading && !data && !permissionStatus) {
+  if (loading) {
     return (
       <AdminLoadingPanel
         title="Seller Payouts"
@@ -605,13 +604,7 @@ export default function AdminPayout() {
       {/* TAB 0: PAYOUT TRANSACTIONS */}
       {currentTab === 0 && (
         <Stack spacing={2.5}>
-          {loading && (
-            <Stack alignItems="center" sx={{ py: 3 }}>
-              <CircularProgress aria-label="Loading payout review" />
-            </Stack>
-          )}
-
-          {!isAuthorizedAdmin && !isSuperAdmin && !loading && (
+          {!isAuthorizedAdmin && !isSuperAdmin && (
             <Alert severity="warning">
               You do not currently have authorized access to approve or process payout transactions. Obtain permission from a Super Admin in the <strong>Permission Status</strong> tab.
             </Alert>
@@ -693,22 +686,28 @@ export default function AdminPayout() {
               )}
 
               <PayoutMetrics totals={data.totals} />
-              <Paper
-                sx={{
-                  p: { xs: 1.25, sm: 1.5 },
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  borderColor: theme.palette.divider,
-                }}
-                variant="outlined"
-              >
+              <Box sx={{ minWidth: 0 }}>
+                <Paper
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    borderColor: theme.palette.divider,
+                    minWidth: 0,
+                    overflow: "hidden",
+                  }}
+                  variant="outlined"
+                >
                 <Box
                   sx={{
-                    display: "flex",
-                    flexDirection: { xs: "column", lg: "row" },
-                    justifyContent: "space-between",
-                    alignItems: { xs: "stretch", lg: "center" },
-                    gap: 1.25,
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "minmax(0, 1fr)",
+                      sm: "minmax(0, 1fr) minmax(170px, 210px)",
+                    },
+                    alignItems: "center",
+                    gap: { xs: 1.5, sm: 2 },
+                    minWidth: 0,
                   }}
                 >
                   <TextField
@@ -716,8 +715,9 @@ export default function AdminPayout() {
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     size="small"
+                    fullWidth
                     sx={{
-                      width: { xs: "100%", lg: 255 },
+                      minWidth: 0,
                       "& .MuiOutlinedInput-root": {
                         color: theme.palette.text.primary,
                         backgroundColor: theme.palette.background.default,
@@ -738,7 +738,8 @@ export default function AdminPayout() {
                     value={status}
                     onChange={(event) => setStatus(event.target.value)}
                     size="small"
-                    sx={{ minWidth: 180 }}
+                    fullWidth
+                    sx={{ minWidth: 0 }}
                   >
                     {statuses.map((item) => (
                       <MenuItem value={item} key={item}>
@@ -757,8 +758,8 @@ export default function AdminPayout() {
                   alignItems: "center",
                   flexWrap: "wrap",
                   gap: 1.5,
-                  mt: 0.5,
-                  mb: 0.5,
+                  mt: 2,
+                  mb: 1,
                 }}
               >
                 <Typography
@@ -852,6 +853,7 @@ export default function AdminPayout() {
                   />
                 </Paper>
               )}
+              </Box>
             </>
           )}
         </Stack>

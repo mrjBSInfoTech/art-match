@@ -71,12 +71,13 @@ export default function AdminLoadingPanel({
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
             },
             gap: 2,
             mb: 2.5,
+            minWidth: 0,
           }}
         >
           {[0, 1, 2].map((index) => (
@@ -87,23 +88,26 @@ export default function AdminLoadingPanel({
                 border: `1px solid ${theme.palette?.divider || "rgba(148, 163, 184, 0.2)"}`,
                 borderRadius: 2.5,
                 boxShadow: "none",
+                minWidth: 0,
+                overflow: "hidden",
               }}
             >
-              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } } }}>
                 <Box
                   sx={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 2,
+                    gap: { xs: 1.25, sm: 2 },
+                    minWidth: 0,
                   }}
                 >
-                  <Box sx={{ flex: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Skeleton variant="text" width="55%" height={16} />
                     <Skeleton variant="text" width="35%" height={38} sx={{ mt: 0.5 }} />
                     <Skeleton variant="text" width="70%" height={16} sx={{ mt: 0.5 }} />
                   </Box>
-                  <Skeleton variant="rounded" width={50} height={50} sx={{ borderRadius: 2 }} />
+                  <Skeleton variant="rounded" width={50} height={50} sx={{ borderRadius: 2, flexShrink: 0 }} />
                 </Box>
               </CardContent>
             </Card>
@@ -121,28 +125,42 @@ export default function AdminLoadingPanel({
             backgroundColor: theme.palette?.background?.paper,
             borderColor: theme.palette?.divider,
             mb: 2,
+            minWidth: 0,
+            overflow: "hidden",
           }}
         >
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            alignItems="center"
-            justifyContent="space-between"
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                md: "minmax(200px, 1fr) auto",
+              },
+              gap: 1.5,
+              alignItems: "center",
+              minWidth: 0,
+            }}
           >
             <Skeleton
               variant="rounded"
               height={40}
-              sx={{ width: { xs: "100%", sm: "60%" }, borderRadius: 1.5 }}
+              sx={{ width: "100%", borderRadius: 1.5 }}
             />
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ width: { xs: "100%", sm: "auto" }, justifyContent: "flex-end" }}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(2, minmax(0, 1fr))",
+                  md: "110px 130px",
+                },
+                gap: 1,
+                minWidth: 0,
+              }}
             >
-              <Skeleton variant="rounded" width={110} height={40} sx={{ borderRadius: 2 }} />
-              <Skeleton variant="rounded" width={130} height={40} sx={{ borderRadius: 2 }} />
-            </Stack>
-          </Stack>
+              <Skeleton variant="rounded" height={40} sx={{ width: "100%", borderRadius: 2 }} />
+              <Skeleton variant="rounded" height={40} sx={{ width: "100%", borderRadius: 2 }} />
+            </Box>
+          </Box>
         </Paper>
       )}
 

@@ -379,11 +379,12 @@ export default function Dashboard() {
           mt: 3,
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
           },
           gap: 2,
+          minWidth: 0,
         }}
       >
         {[
@@ -417,6 +418,8 @@ export default function Dashboard() {
             variant="outlined"
             sx={{
               position: "relative",
+              minWidth: 0,
+              height: "100%",
               borderRadius: 4,
               background: (theme) =>
                 theme.palette.mode === "dark"
@@ -435,22 +438,25 @@ export default function Dashboard() {
               },
             }}
           >
-            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+            <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.25, sm: 2 },
+                  minWidth: 0,
+                  height: "100%",
                 }}
               >
-                <Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
                       color: "text.secondary",
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1.2,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {label}
@@ -459,9 +465,11 @@ export default function Dashboard() {
                     sx={{
                       mt: 1,
                       color: "text.primary",
-                      fontSize: 30,
+                      fontSize: { xs: 22, sm: 26, xl: 30 },
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.1,
+                      overflowWrap: "anywhere",
+                      fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     {value}
@@ -471,6 +479,7 @@ export default function Dashboard() {
                       mt: 1,
                       color: "text.secondary",
                       fontSize: 12,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {caption}
@@ -478,8 +487,9 @@ export default function Dashboard() {
                 </Box>
                 <Box
                   sx={{
-                    width: 56,
-                    height: 56,
+                    width: { xs: 46, sm: 54 },
+                    height: { xs: 46, sm: 54 },
+                    flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 3,
@@ -624,35 +634,35 @@ export default function Dashboard() {
               aria-pressed={distributionMode === "students"}
               sx={{
                 minWidth: 0,
-                px: 1.75,
+                px: { xs: 1.5, sm: 2 },
                 py: 0.6,
                 flex: { xs: 1, sm: "0 0 auto" },
                 textTransform: "none",
-                fontSize: { xs: 11, sm: 12 },
-                fontWeight: distributionMode === "students" ? 700 : 600,
+                fontSize: { xs: 11.5, sm: 12.5 },
+                fontWeight: 700,
                 borderRadius: 2,
                 border: "1px solid",
                 borderColor:
-                  distributionMode === "students" ? "transparent" : "divider",
+                  distributionMode === "students" ? "primary.main" : "divider",
                 bgcolor:
                   distributionMode === "students"
-                    ? "error.main"
+                    ? "primary.main"
                     : theme.palette.mode === "dark"
                       ? "rgba(148, 163, 184, 0.08)"
                       : "#ffffff",
                 color:
                   distributionMode === "students"
                     ? "#ffffff !important"
-                    : "text.secondary",
+                    : "text.primary",
                 boxShadow:
                   distributionMode === "students"
-                    ? "0 2px 8px rgba(211, 47, 47, 0.28)"
+                    ? "0 2px 8px rgba(37, 99, 235, 0.28)"
                     : "none",
                 transition: "all 0.15s ease-in-out",
                 "&:hover": {
                   bgcolor:
                     distributionMode === "students"
-                      ? "error.dark"
+                      ? "primary.dark"
                       : theme.palette.mode === "dark"
                         ? "rgba(148, 163, 184, 0.16)"
                         : "#f1f5f9",
@@ -672,35 +682,35 @@ export default function Dashboard() {
               aria-pressed={distributionMode === "artworks"}
               sx={{
                 minWidth: 0,
-                px: 1.75,
+                px: { xs: 1.5, sm: 2 },
                 py: 0.6,
                 flex: { xs: 1, sm: "0 0 auto" },
                 textTransform: "none",
-                fontSize: { xs: 11, sm: 12 },
-                fontWeight: distributionMode === "artworks" ? 700 : 600,
+                fontSize: { xs: 11.5, sm: 12.5 },
+                fontWeight: 700,
                 borderRadius: 2,
                 border: "1px solid",
                 borderColor:
-                  distributionMode === "artworks" ? "transparent" : "divider",
+                  distributionMode === "artworks" ? "primary.main" : "divider",
                 bgcolor:
                   distributionMode === "artworks"
-                    ? "error.main"
+                    ? "primary.main"
                     : theme.palette.mode === "dark"
                       ? "rgba(148, 163, 184, 0.08)"
                       : "#ffffff",
                 color:
                   distributionMode === "artworks"
                     ? "#ffffff !important"
-                    : "text.secondary",
+                    : "text.primary",
                 boxShadow:
                   distributionMode === "artworks"
-                    ? "0 2px 8px rgba(211, 47, 47, 0.28)"
+                    ? "0 2px 8px rgba(37, 99, 235, 0.28)"
                     : "none",
                 transition: "all 0.15s ease-in-out",
                 "&:hover": {
                   bgcolor:
                     distributionMode === "artworks"
-                      ? "error.dark"
+                      ? "primary.dark"
                       : theme.palette.mode === "dark"
                         ? "rgba(148, 163, 184, 0.16)"
                         : "#f1f5f9",
@@ -1018,7 +1028,7 @@ export default function Dashboard() {
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            md: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(2, minmax(0, 1fr))",
           },
           gap: { xs: 2, sm: 2.5 },
           mt: 3,
@@ -1050,18 +1060,19 @@ export default function Dashboard() {
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
+              gap: 1.5,
               mb: 2,
+              width: "100%",
             }}
           >
             <Typography
               variant="h6"
               sx={{
                 fontWeight: "bold",
-                fontSize: { xs: 15, sm: 16, md: 17 },
+                fontSize: { xs: 14.5, sm: 16 },
                 lineHeight: 1.3,
                 minWidth: 0,
+                flex: 1,
               }}
             >
               Artworks Pending Verification
@@ -1079,8 +1090,9 @@ export default function Dashboard() {
                 borderRadius: "8px",
                 px: { xs: 1, sm: 1.5 },
                 py: 0.5,
-                minWidth: 0,
+                minWidth: "fit-content",
                 flexShrink: 0,
+                whiteSpace: "nowrap",
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
                   backgroundColor: "rgba(152, 4, 4, 0.08)",
@@ -1257,18 +1269,19 @@ export default function Dashboard() {
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
+              gap: 1.5,
               mb: 2,
+              width: "100%",
             }}
           >
             <Typography
               variant="h6"
               sx={{
                 fontWeight: "bold",
-                fontSize: { xs: 15, sm: 16, md: 17 },
+                fontSize: { xs: 14.5, sm: 16 },
                 lineHeight: 1.3,
                 minWidth: 0,
+                flex: 1,
               }}
             >
               Recent System Activity
@@ -1286,8 +1299,9 @@ export default function Dashboard() {
                 borderRadius: "8px",
                 px: { xs: 1, sm: 1.5 },
                 py: 0.5,
-                minWidth: 0,
+                minWidth: "fit-content",
                 flexShrink: 0,
+                whiteSpace: "nowrap",
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
                   backgroundColor: "rgba(152, 4, 4, 0.08)",
@@ -1355,25 +1369,24 @@ export default function Dashboard() {
                     <Box
                       sx={{
                         display: "flex",
-                        alignItems: "center",
+                        alignItems: "baseline",
                         justifyContent: "space-between",
                         gap: 1,
+                        flexWrap: "wrap",
                         minWidth: 0,
                         width: "100%",
                         maxWidth: "100%",
                       }}
                     >
                       <Typography
-                        noWrap
                         sx={{
-                          fontSize: { xs: 11, sm: 12 },
+                          fontSize: { xs: 11.5, sm: 12 },
                           fontWeight: 700,
                           minWidth: 0,
-                          flex: 1,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          wordBreak: "break-word",
+                          lineHeight: 1.35,
+                          color: "text.primary",
                         }}
-                        title={log.action || "System activity"}
                       >
                         {log.action || "System activity"}
                       </Typography>
@@ -1399,7 +1412,7 @@ export default function Dashboard() {
                         wordBreak: "break-word",
                         overflowWrap: "anywhere",
                         whiteSpace: "normal",
-                        lineHeight: 1.4,
+                        lineHeight: 1.45,
                         mt: 0.35,
                         width: "100%",
                         maxWidth: "100%",

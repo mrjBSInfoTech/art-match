@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, Divider, LinearProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Divider, LinearProgress, MenuItem, Paper, Skeleton, Stack, TextField, Typography } from "@mui/material";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { fetchPayoutAccount, fetchPayoutInstitutions, savePayoutAccount } from "../../../api/seller/payoutAPI";
 import { verifyPassword } from "../../../api/seller/sellerAPI";
@@ -112,7 +112,11 @@ export default function PayoutAccount({ onSaved }) {
         </Typography>
       </Box>
 
-      {loading ? <CircularProgress size={24} aria-label="Loading payout destination" /> : <>
+      {loading ? (
+        <Stack spacing={1.5} sx={{ py: 1 }}>
+          <Skeleton variant="rounded" height={44} />
+        </Stack>
+      ) : <>
         {error && <Alert severity="error">{error}</Alert>}
         {success && <Alert severity="success">{success}</Alert>}
         {capability?.enabled === false && <Alert severity="info">{capability.message || "Outbound payouts are not enabled for this PayMongo account."}</Alert>}

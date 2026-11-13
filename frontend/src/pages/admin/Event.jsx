@@ -475,12 +475,13 @@ export default function Event() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
           },
           gap: 2,
           mb: 2.5,
+          minWidth: 0,
         }}
       >
         {metrics.map((metric) => {
@@ -493,24 +494,30 @@ export default function Event() {
                 border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2.5,
                 boxShadow: "none",
+                minWidth: 0,
+                overflow: "hidden",
+                height: "100%",
               }}
             >
-              <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+              <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
                 <Box
                   sx={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 2,
+                    gap: { xs: 1.25, sm: 2 },
+                    minWidth: 0,
+                    height: "100%",
                   }}
                 >
-                  <Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                       sx={{
                         color: theme.palette.text.secondary,
                         fontSize: 11,
                         fontWeight: 800,
                         letterSpacing: 1,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {metric.label}
@@ -519,9 +526,10 @@ export default function Event() {
                       sx={{
                         mt: 0.5,
                         color: theme.palette.text.primary,
-                        fontSize: 28,
+                        fontSize: { xs: 24, sm: 26, xl: 28 },
                         fontWeight: 800,
-                        lineHeight: 1,
+                        lineHeight: 1.1,
+                        overflowWrap: "anywhere",
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
@@ -532,6 +540,7 @@ export default function Event() {
                         mt: 1,
                         color: theme.palette.text.secondary,
                         fontSize: 12,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {metric.caption}
@@ -539,8 +548,9 @@ export default function Event() {
                   </Box>
                   <Box
                     sx={{
-                      width: 50,
-                      height: 50,
+                      width: { xs: 44, sm: 50 },
+                      height: { xs: 44, sm: 50 },
+                      flexShrink: 0,
                       display: "grid",
                       placeItems: "center",
                       borderRadius: 2,
@@ -595,7 +605,6 @@ export default function Event() {
               containerType: "inline-size",
               containerName: "event-filters",
               minWidth: 0,
-              mb: 1.5,
             }}
           >
             <Box sx={{ display: "flex", width: "100%", minWidth: 0 }}>
@@ -633,7 +642,8 @@ export default function Event() {
               alignItems: "center",
               flexWrap: "wrap",
               gap: 1.5,
-              mb: 2,
+              mt: 2,
+              mb: 1,
             }}
           >
             <Typography

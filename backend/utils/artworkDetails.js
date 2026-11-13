@@ -141,6 +141,9 @@ export function validateArtworkDetails(rawDetails, artType, product, productType
   if (isPremade && !(category === "product" && normalize(artType) === "product") && stockable) {
     commonDetails.stock_available = integerValue(details.stock_available, 0, "Stock available");
   }
+  if (isPremade && stockable && Object.hasOwn(details, "max_order_quantity") && details.max_order_quantity !== null && details.max_order_quantity !== undefined && String(details.max_order_quantity).trim() !== "") {
+    commonDetails.max_order_quantity = integerValue(details.max_order_quantity, 1, "Max quantity per order");
+  }
   if (category === "fine_art") {
     return {
       is_fragile: booleanFlag(details, "is_fragile", "Fragility"),

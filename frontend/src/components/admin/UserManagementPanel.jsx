@@ -202,12 +202,13 @@ export default function UserManagementPanel({
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(4, minmax(0, 1fr))",
           },
           gap: 2,
+          minWidth: 0,
         }}
       >
         {filteredUsers.map((user) => {
@@ -230,6 +231,7 @@ export default function UserManagementPanel({
               key={userId}
               sx={{
                 overflow: "hidden",
+                minWidth: 0,
                 display: "flex",
                 flexDirection: "column",
                 border: "1px solid",

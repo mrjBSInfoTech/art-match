@@ -90,3 +90,15 @@ export function getArtworkAvailability(
     isSoldOut: remainingStock === 0,
   };
 }
+
+export function getArtworkOrderLimit(availability, maxOrderQuantity) {
+  const maxOrder = Number(maxOrderQuantity);
+  const hasMaxOrder = Number.isSafeInteger(maxOrder) && maxOrder > 0;
+  if (!hasMaxOrder) {
+    return availability?.remainingStock ?? null;
+  }
+  if (availability?.remainingStock !== null && availability?.remainingStock !== undefined) {
+    return Math.min(availability.remainingStock, maxOrder);
+  }
+  return maxOrder;
+}

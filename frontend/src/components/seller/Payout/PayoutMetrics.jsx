@@ -18,29 +18,31 @@ export default function PayoutMetrics({ totals = {} }) {
   return (
     <Grid container spacing={2}>
       {metrics.map(([label, value, hint, MetricIcon]) => (
-        <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={label}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={label} sx={{ minWidth: 0 }}>
           <Card
             variant="outlined"
             sx={{
               height: "100%",
               minWidth: 0,
+              overflow: "hidden",
               borderRadius: 2.5,
               backgroundColor: theme?.palette?.background?.paper || "#fff",
               borderColor: theme?.palette?.divider || "rgba(0,0,0,0.12)",
               boxShadow: "none",
             }}
           >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+            <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.25, sm: 2 },
                   minWidth: 0,
+                  height: "100%",
                 }}
               >
-                <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
                       color: theme?.palette?.text?.secondary || "text.secondary",
@@ -48,6 +50,7 @@ export default function PayoutMetrics({ totals = {} }) {
                       fontWeight: 800,
                       letterSpacing: 1,
                       textTransform: "uppercase",
+                      overflowWrap: "break-word",
                     }}
                   >
                     {label}
@@ -56,10 +59,11 @@ export default function PayoutMetrics({ totals = {} }) {
                     sx={{
                       mt: 0.5,
                       color: theme?.palette?.text?.primary || "text.primary",
-                      fontSize: 30,
+                      fontSize: { xs: 22, sm: 26, xl: 30 },
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.1,
                       overflowWrap: "anywhere",
+                      fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     {formatPayoutCurrency(value)}
@@ -69,6 +73,7 @@ export default function PayoutMetrics({ totals = {} }) {
                       mt: 1,
                       color: theme?.palette?.text?.secondary || "text.secondary",
                       fontSize: 12,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {hint}
@@ -76,9 +81,9 @@ export default function PayoutMetrics({ totals = {} }) {
                 </Box>
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
-                    flex: "0 0 54px",
+                    width: { xs: 44, sm: 50 },
+                    height: { xs: 44, sm: 50 },
+                    flex: { xs: "0 0 44px", sm: "0 0 50px" },
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,

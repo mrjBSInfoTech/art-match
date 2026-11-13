@@ -5,6 +5,7 @@ import {
   getArtworkAvailability,
   getArtworkSoldOutSql,
   getArtworkSoldQuantitySql,
+  getArtworkOrderLimit,
 } from "../../utils/artworkAvailability.js";
 import {
   getProductOptions,
@@ -97,7 +98,9 @@ router.get("/", authenticateBuyer, (req, res) => {
       a.art_type,
       a.product,
       a.art_size,
+      a.artwork_details,
       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.max_order_quantity')) AS max_order_quantity,
       ${getArtworkSoldQuantitySql()} AS sold_quantity,
       ${getArtworkSoldOutSql()} AS is_sold_out,
       CONCAT(s.first_name, ' ', s.last_name) AS artist,
@@ -157,7 +160,9 @@ router.post("/", authenticateBuyer, (req, res) => {
        a.product_type,
        a.price,
        a.artwork_details,
-       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+       a.artwork_details,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.max_order_quantity')) AS max_order_quantity,
       ${getArtworkSoldQuantitySql()} AS sold_quantity,
 
       a.is_sold,
@@ -283,6 +288,13 @@ router.post("/", authenticateBuyer, (req, res) => {
                   });
                 }
 
+                const maxOrderLimit = getArtworkOrderLimit(availability, productDetails?.max_order_quantity ?? artworks[0].max_order_quantity);
+                if (maxOrderLimit !== null && nextQuantity > maxOrderLimit) {
+                  return res.status(409).json({
+                    message: `Maximum purchase limit for this artwork is ${maxOrderLimit} ${maxOrderLimit === 1 ? "unit" : "units"} per order.`,
+                  });
+                }
+
                 const upsert = () => {
                   const payload = [cartId, artworkId, requestedQuantity];
                   const queryText = existingItems.length
@@ -382,7 +394,9 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
        a.product_type,
        a.price,
        a.artwork_details,
-       JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+       a.artwork_details,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
+      JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.max_order_quantity')) AS max_order_quantity,
        ${getArtworkSoldQuantitySql()} AS sold_quantity,
        a.is_sold,
        a.status
@@ -412,6 +426,14 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
       if (availability.hasStockTracking && availability.remainingStock !== null && requestedQuantity > availability.remainingStock) {
         return res.status(409).json({
           message: `Only ${availability.remainingStock} ${availability.remainingStock === 1 ? "unit" : "units"} available for this artwork.`,
+        });
+      }
+
+      const patchProductDetails = parseArtworkDetails(artworks[0].artwork_details);
+      const patchMaxOrderLimit = getArtworkOrderLimit(availability, patchProductDetails?.max_order_quantity ?? artworks[0].max_order_quantity);
+      if (patchMaxOrderLimit !== null && requestedQuantity > patchMaxOrderLimit) {
+        return res.status(409).json({
+          message: `Maximum purchase limit for this artwork is ${patchMaxOrderLimit} ${patchMaxOrderLimit === 1 ? "unit" : "units"} per order.`,
         });
       }
 

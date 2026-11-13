@@ -152,33 +152,38 @@ export default function PromotionHeaderCard({
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  lg: "repeat(3, minmax(0, 1fr))",
+                },
                 gap: 2,
                 pt: 1,
+                minWidth: 0,
               }}
             >
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: isDark ? "background.default" : "#f8fafc", border: "1px solid", borderColor: "divider" }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: isDark ? "background.default" : "#f8fafc", border: "1px solid", borderColor: "divider", minWidth: 0, overflow: "hidden" }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={700}>
                   BUTTON LABEL
                 </Typography>
-                <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5 }}>
+                <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5, overflowWrap: "break-word" }}>
                   {header.button_label || "—"}
                 </Typography>
               </Box>
 
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: isDark ? "background.default" : "#f8fafc", border: "1px solid", borderColor: "divider" }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: isDark ? "background.default" : "#f8fafc", border: "1px solid", borderColor: "divider", minWidth: 0, overflow: "hidden" }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={700}>
                   DESTINATION URL
                 </Typography>
-                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
-                  <LinkOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
-                  <Typography variant="body2" fontWeight={600} sx={{ wordBreak: "break-all" }}>
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5, minWidth: 0 }}>
+                  <LinkOutlinedIcon sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }} />
+                  <Typography variant="body2" fontWeight={600} sx={{ overflowWrap: "anywhere", minWidth: 0 }}>
                     {header.button_url || "—"}
                   </Typography>
                 </Stack>
               </Box>
 
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: isDark ? "background.default" : "#f8fafc", border: "1px solid", borderColor: "divider" }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: isDark ? "background.default" : "#f8fafc", border: "1px solid", borderColor: "divider", minWidth: 0, overflow: "hidden" }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={700}>
                   MESSAGE LENGTH
                 </Typography>
@@ -259,10 +264,11 @@ export default function PromotionHeaderCard({
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "1fr",
+                xs: "minmax(0, 1fr)",
                 md: "repeat(2, minmax(0, 1fr))",
               },
               gap: 2,
+              minWidth: 0,
             }}
           >
             {requests.map((request) => {
@@ -278,12 +284,14 @@ export default function PromotionHeaderCard({
                     bgcolor: "background.paper",
                     display: "flex",
                     flexDirection: "column",
+                    minWidth: 0,
+                    overflow: "hidden",
                   }}
                 >
-                  <CardContent sx={{ p: 2.5, flex: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight={800}>
+                  <CardContent sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 1, minWidth: 0 }}>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="subtitle2" fontWeight={800} sx={{ overflowWrap: "break-word" }}>
                           {request.first_name} {request.last_name}
                         </Typography>
                         {request.student_number && (

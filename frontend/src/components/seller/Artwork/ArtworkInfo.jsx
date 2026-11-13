@@ -18,6 +18,11 @@ import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import { getSellerProfile } from "../../../api/seller/sellerAPI";
 import ArtworkImage from "../../common/ArtworkImage";
+import {
+  isArtworkSoldOut,
+  getArtworkRemainingStock,
+  getArtworkMaxOrderQuantity,
+} from "../../../utils/artworkAvailability";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -157,19 +162,39 @@ function ArtworkInfo({
     artworkDetails = {};
   }
   const productType = String(artwork?.product_type || "Premade").trim().toLowerCase();
+  const isCustomProduct = productType === "customize";
   const isDigitalProduct = productType === "digital" || String(artwork?.art_type || "").trim().toLowerCase() === "digital";
   const isPhysicalProduct = productType === "premade" && !isDigitalProduct;
-  const soldQuantity = Number(artwork?.sold_quantity);
-  const isSold = Boolean(artwork) && (
-    (Number.isSafeInteger(soldQuantity) && soldQuantity > 0)
-    || [true, 1, "1", "true"].includes(artwork.is_sold)
-    || String(artwork.status || "").trim().toLowerCase() === "sold"
-  );
   const productOptions = Array.isArray(artwork?.product_options)
     ? artwork.product_options
     : Array.isArray(artworkDetails.product_options)
       ? artworkDetails.product_options
       : [];
+
+  const rawStock = artwork?.stock_available ?? artworkDetails?.stock_available;
+  const hasExplicitStock = rawStock !== null && rawStock !== undefined && rawStock !== "" && Number.isSafeInteger(Number(rawStock));
+  const isStockable = hasExplicitStock || productOptions.length > 0 || Boolean(artworkDetails?.stockable);
+
+  const remainingStock = getArtworkRemainingStock(artwork);
+  const maxOrderQuantity = getArtworkMaxOrderQuantity(artwork);
+  const isSoldOut = isArtworkSoldOut(artwork) || (isStockable && remainingStock !== null && remainingStock <= 0);
+
+  const isSold = Boolean(
+    !isCustomProduct && (
+      isSoldOut ||
+      (isStockable && remainingStock !== null && remainingStock <= 0) ||
+      (!isStockable && (
+        [true, 1, "1", "true"].includes(artwork?.is_sold) ||
+        String(artwork?.status || "").trim().toLowerCase() === "sold" ||
+        (Number.isFinite(Number(artwork?.sold_quantity)) && Number(artwork?.sold_quantity) > 0) ||
+        ["delivered", "completed"].includes(String(artwork?.order_status || "").trim().toLowerCase()) ||
+        ["delivered", "completed"].includes(String(artwork?.delivery_status || "").trim().toLowerCase())
+      ))
+    )
+  );
+
+  const saleStatusLabel = isSold ? "Sold" : "Available";
+  const saleStatusColor = isSold ? "default" : "success";
   const rawStatus = artwork?.request_status;
   const requestStatus = (!rawStatus || String(rawStatus).trim().toLowerCase() === "available")
     ? "unverified"
@@ -340,13 +365,41 @@ function ArtworkInfo({
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Sale Status</Typography>
-                <Chip
-                  label={isSold ? "Sold" : "Not sold"}
-                  size="small"
-                  color={isSold ? "default" : "success"}
-                  sx={{ fontWeight: 700 }}
-                />
+                <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+                  <Chip
+                    label={saleStatusLabel}
+                    size="small"
+                    color={saleStatusColor}
+                    sx={{ fontWeight: 700, color: "#fff" }}
+                  />
+                  {isStockable && remainingStock !== null && remainingStock <= 0 && (
+                    <Chip
+                      label="Stockable"
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: 10, fontWeight: 600 }}
+                    />
+                  )}
+                </Stack>
               </Box>
+              {isStockable && (
+                <Box>
+                  <Typography sx={detailLabelSx}>Stock Available</Typography>
+                  <Typography sx={detailValueSx}>
+                    {remainingStock !== null
+                      ? `${remainingStock} ${remainingStock === 1 ? "unit" : "units"}${remainingStock === 0 ? " (Sold)" : ""}`
+                      : "0 units (Sold)"}
+                  </Typography>
+                </Box>
+              )}
+              {maxOrderQuantity !== null && maxOrderQuantity !== undefined && (
+                <Box>
+                  <Typography sx={detailLabelSx}>Max Quantity Per Order</Typography>
+                  <Typography sx={detailValueSx}>
+                    {`${maxOrderQuantity} ${maxOrderQuantity === 1 ? "unit" : "units"}`}
+                  </Typography>
+                </Box>
+              )}
               <Box>
                 <Typography sx={detailLabelSx}>Style</Typography>
                 <Typography sx={detailValueSx}>

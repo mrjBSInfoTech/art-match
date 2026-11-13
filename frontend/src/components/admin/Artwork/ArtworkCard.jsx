@@ -63,12 +63,13 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
+            xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            md: "repeat(3, minmax(0, 1fr))",
-            lg: "repeat(5, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(5, minmax(0, 1fr))",
           },
           gap: { xs: 1.5, sm: 2 },
+          minWidth: 0,
         }}
       >
         {pendingArtworks.map((artwork) => (
@@ -79,6 +80,7 @@ export default function ArtworkCard({ artworks, onVerify, onReject }) {
               display: "flex",
               flexDirection: "column",
               borderRadius: 1.5,
+              minWidth: 0,
               boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
               transition: "border-color 0.2s, box-shadow 0.2s",
               "&:hover": {

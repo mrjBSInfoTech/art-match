@@ -68,12 +68,13 @@ export default function EventCard({
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
+            xs: "minmax(0, 1fr)",
             sm: "repeat(2, minmax(0, 1fr))",
-            md: "repeat(3, minmax(0, 1fr))",
-            lg: "repeat(5, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+            xl: "repeat(5, minmax(0, 1fr))",
           },
           gap: 2,
+          minWidth: 0,
         }}
       >
         {events.map((eventItem) => (
@@ -81,6 +82,7 @@ export default function EventCard({
             key={eventItem.event_id}
             sx={{
               overflow: "hidden",
+              minWidth: 0,
               display: "flex",
               flexDirection: "column",
               border: "1px solid",

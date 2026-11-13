@@ -222,6 +222,32 @@ export default function Artwork() {
     );
   }
 
+  const artworkDisplay = loading ? (
+    <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+      <CircularProgress />
+    </Box>
+  ) : filteredArtworks.length > 0 ? (
+    viewMode === "table" ? (
+      <ArtworkTable
+        artworks={filteredArtworks}
+        onVerify={setVerificationArtwork}
+        onReject={setRejectionArtwork}
+      />
+    ) : (
+      <ArtworkCard
+        artworks={filteredArtworks}
+        onVerify={setVerificationArtwork}
+        onReject={setRejectionArtwork}
+      />
+    )
+  ) : (
+    <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+      {searchQuery
+        ? "No artworks match your search."
+        : "No artworks found for this status."}
+    </Typography>
+  );
+
   return (
     <Box
       sx={{
@@ -271,9 +297,14 @@ export default function Artwork() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
           gap: 2,
           mb: 2.5,
+          minWidth: 0,
         }}
       >
         {[
@@ -303,24 +334,30 @@ export default function Artwork() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2.5,
               boxShadow: "none",
+              minWidth: 0,
+              overflow: "hidden",
+              height: "100%",
             }}
           >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+            <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.25, sm: 2 },
+                  minWidth: 0,
+                  height: "100%",
                 }}
               >
-                <Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
                       color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {label}
@@ -329,9 +366,10 @@ export default function Artwork() {
                     sx={{
                       mt: 0.5,
                       color: theme.palette.text.primary,
-                      fontSize: 30,
+                      fontSize: { xs: 24, sm: 26, xl: 30 },
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.1,
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {value}
@@ -341,6 +379,7 @@ export default function Artwork() {
                       mt: 1,
                       color: theme.palette.text.secondary,
                       fontSize: 12,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {caption}
@@ -348,8 +387,9 @@ export default function Artwork() {
                 </Box>
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
+                    width: { xs: 44, sm: 50 },
+                    height: { xs: 44, sm: 50 },
+                    flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,
@@ -370,20 +410,25 @@ export default function Artwork() {
 
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, sm: 2, md: 2.5 },
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
+          minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.5, sm: 2 },
+            minWidth: 0,
           }}
         >
           <TextField
@@ -391,8 +436,9 @@ export default function Artwork() {
             placeholder="Search artworks..."
             inputProps={{ "aria-label": "Search artworks" }}
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", lg: 255 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -420,9 +466,12 @@ export default function Artwork() {
           <Box
             sx={{
               display: "flex",
-              alignItems: "center",
-              gap: 1,
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              justifyContent: { lg: "flex-end" },
+              gap: 1.25,
               flexWrap: "wrap",
+              minWidth: 0,
             }}
           >
             {!isVerifiedSection && (
@@ -432,11 +481,13 @@ export default function Artwork() {
                 value={pendingStatusFilter}
                 onChange={(_, value) => value && setPendingStatusFilter(value)}
                 sx={{
+                  width: { xs: "100%", sm: "auto" },
                   "& .MuiToggleButton-root": {
-                    px: 1,
+                    flex: { xs: 1, sm: "initial" },
+                    px: 1.25,
                     py: 0.5,
-                    minHeight: 44,
-                    minWidth: { xs: 90, sm: 100 },
+                    minHeight: 40,
+                    minWidth: { xs: 0, sm: 96 },
                     fontSize: 11,
                     color: theme.palette.text.secondary,
                     borderColor: theme.palette.divider,
@@ -457,7 +508,7 @@ export default function Artwork() {
             )}
             <FormControl
               size="small"
-              sx={{ minWidth: { xs: "100%", sm: 130 } }}
+              sx={{ minWidth: { xs: 0, sm: 145 }, width: { xs: "100%", sm: "auto" } }}
             >
               <Select
                 value={sortOption}
@@ -491,8 +542,8 @@ export default function Artwork() {
           alignItems: "center",
           flexWrap: "wrap",
           gap: 1.5,
-          mt: 0.5,
-          mb: 0.5,
+          mt: 2,
+          mb: 1,
         }}
       >
         <Typography
@@ -543,45 +594,21 @@ export default function Artwork() {
         </ToggleButtonGroup>
       </Box>
 
-      <Paper
-        sx={{
-          p: { xs: 1.5, sm: 2 },
-          mt: 1,
-          borderRadius: 2,
-          backgroundColor: theme.palette.background.paper,
-          borderColor: theme.palette.divider,
-        }}
-        variant="outlined"
-      >
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : filteredArtworks.length > 0 ? (
-          viewMode === "table" ? (
-            <ArtworkTable
-              artworks={filteredArtworks}
-              onVerify={setVerificationArtwork}
-              onReject={setRejectionArtwork}
-            />
-          ) : (
-            <ArtworkCard
-              artworks={filteredArtworks}
-              onVerify={setVerificationArtwork}
-              onReject={setRejectionArtwork}
-            />
-          )
-        ) : (
-          <Typography
-            color="text.secondary"
-            sx={{ textAlign: "center", py: 4 }}
-          >
-            {searchQuery
-              ? "No artworks match your search."
-              : "No artworks found for this status."}
-          </Typography>
-        )}
-      </Paper>
+      {viewMode === "table" ? (
+        <Box>{artworkDisplay}</Box>
+      ) : (
+        <Paper
+          sx={{
+            p: { xs: 1.5, sm: 2 },
+            borderRadius: 2,
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+          }}
+          variant="outlined"
+        >
+          {artworkDisplay}
+        </Paper>
+      )}
 
       <ArtworkVerify
         open={Boolean(verificationArtwork)}

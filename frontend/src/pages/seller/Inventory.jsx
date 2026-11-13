@@ -342,12 +342,13 @@ export default function Inventory() {
           mt: 3,
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(4, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
           },
           gap: 2,
           mb: 2.5,
+          minWidth: 0,
         }}
       >
         {summaryCards.map(
@@ -360,24 +361,29 @@ export default function Inventory() {
                 border: `1px solid ${theme.palette.divider}`,
                 boxShadow: "none",
                 overflow: "hidden",
+                minWidth: 0,
+                height: "100%",
               }}
             >
-              <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
                 <Box
                   sx={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 2,
+                    gap: { xs: 1.5, sm: 2 },
+                    minWidth: 0,
+                    height: "100%",
                   }}
                 >
-                  <Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                       sx={{
                         color: theme.palette.text.secondary,
                         fontSize: 11,
                         fontWeight: 800,
                         letterSpacing: 1.2,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {label}
@@ -386,9 +392,11 @@ export default function Inventory() {
                       sx={{
                         mt: 1,
                         color: theme.palette.text.primary,
-                        fontSize: 30,
+                        fontSize: { xs: 24, sm: 26, xl: 30 },
                         fontWeight: 800,
-                        lineHeight: 1,
+                        lineHeight: 1.1,
+                        fontVariantNumeric: "tabular-nums",
+                        overflowWrap: "anywhere",
                       }}
                     >
                       {value}
@@ -398,6 +406,7 @@ export default function Inventory() {
                         mt: 1,
                         color: theme.palette.text.secondary,
                         fontSize: 12,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {caption}
@@ -405,8 +414,9 @@ export default function Inventory() {
                   </Box>
                   <Box
                     sx={{
-                      width: 56,
-                      height: 56,
+                      width: { xs: 46, sm: 52 },
+                      height: { xs: 46, sm: 52 },
+                      flexShrink: 0,
                       display: "grid",
                       placeItems: "center",
                       borderRadius: 3,
@@ -414,7 +424,7 @@ export default function Inventory() {
                       color: accent,
                     }}
                   >
-                    {createElement(SummaryIcon, { sx: { fontSize: 26 } })}
+                    {createElement(SummaryIcon, { sx: { fontSize: { xs: 22, sm: 26 } } })}
                   </Box>
                 </Box>
               </CardContent>
@@ -425,37 +435,36 @@ export default function Inventory() {
 
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, sm: 2, md: 2.5 },
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
-          containerType: "inline-size",
-          containerName: "inventory-filters",
           minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.5, sm: 2 },
+            minWidth: 0,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search artworks..."
             size="small"
+            fullWidth
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             sx={{
               minWidth: 0,
-              gridColumn: "1 / -1",
-              "@container inventory-filters (min-width: 900px)": {
-                gridColumn: "auto",
-              },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
                 opacity: 1,
@@ -472,22 +481,17 @@ export default function Inventory() {
           />
           <Box
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(2, minmax(155px, 180px))",
+              },
+              gap: { xs: 1.5, sm: 2 },
+              minWidth: 0,
             }}
           >
-            <FormControl
-              size="small"
-              fullWidth
-              sx={{
-                gridColumn: "1 / -1",
-                "@container inventory-filters (min-width: 600px)": {
-                  gridColumn: "auto",
-                },
-              }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="seller-inventory-status-label">Status</InputLabel>
               <Select
                 value={stockFilter}
@@ -503,7 +507,7 @@ export default function Inventory() {
                 <MenuItem value="out-of-stock">Out of Stock</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="seller-inventory-sort-label">Sort</InputLabel>
               <Select
                 value={sortOption}

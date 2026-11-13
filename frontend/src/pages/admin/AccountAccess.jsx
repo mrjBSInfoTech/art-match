@@ -217,7 +217,8 @@ export default function AccountAccess() {
           </Typography>
         </Box>
         <Button
-          variant="outlined"
+          variant="contained"
+          color="error"
           startIcon={<DownloadOutlinedIcon />}
           onClick={() => setReportDialogOpen(true)}
           disabled={reportLoading}
@@ -235,29 +236,35 @@ export default function AccountAccess() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, sm: 2, md: 2.5 },
           mt: 2.5,
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
+          minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.5, sm: 2 },
+            minWidth: 0,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search accounts..."
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", lg: 280 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -284,16 +291,17 @@ export default function AccountAccess() {
 
           <Box
             sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(2, minmax(145px, 165px))",
+              },
+              gap: { xs: 1.5, sm: 1.5 },
+              minWidth: 0,
             }}
           >
-            <FormControl
-              size="small"
-              sx={{ minWidth: { xs: "100%", sm: 140 } }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -318,10 +326,7 @@ export default function AccountAccess() {
               </Select>
             </FormControl>
 
-            <FormControl
-              size="small"
-              sx={{ minWidth: { xs: "100%", sm: 140 } }}
-            >
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
@@ -350,11 +355,46 @@ export default function AccountAccess() {
         </Box>
       </Paper>
 
+      {!loading && (
+        <Box sx={{ mt: 0.5, mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            aria-live="polite"
+            sx={{ fontWeight: 600 }}
+          >
+            Showing {filteredAccounts.length} of {accounts.length} accounts
+          </Typography>
+        </Box>
+      )}
+
       {/* Table Section */}
       <Paper
-        sx={{ p: { xs: 1, md: 1.5 }, mt: 2.5, borderRadius: 2.5 }}
+        component="section"
         variant="outlined"
+        aria-label="Account access table"
+        sx={{
+          borderRadius: 3.5,
+          borderColor: "divider",
+          overflow: "hidden",
+          bgcolor: "background.paper",
+        }}
       >
+        <Box
+          sx={{
+            px: { xs: 2, sm: 3 },
+            py: 2,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h6" fontWeight={800} sx={{ fontSize: 16 }}>
+            Account access activity
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
+            Review account roles, contact details, and strike status.
+          </Typography>
+        </Box>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
             <CircularProgress />
@@ -364,10 +404,33 @@ export default function AccountAccess() {
             No accounts found
           </Typography>
         ) : (
-          <TableContainer>
-            <Table size="small">
+          <TableContainer
+            sx={{ maxHeight: { xs: 580, md: 720 }, overflowX: "auto" }}
+          >
+            <Table
+              size="small"
+              stickyHeader
+              aria-label="Account access records"
+              sx={{ minWidth: 760 }}
+            >
               <TableHead
-                sx={{ backgroundColor: theme.palette.background.default }}
+                sx={{
+                  "& th": {
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "background.paper"
+                        : "#f8fafc",
+                    fontWeight: 800,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    color: "text.secondary",
+                    py: 1.5,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    whiteSpace: "nowrap",
+                  },
+                }}
               >
                 <TableRow>
                   {["Role", "Account", "Email", "Strikes", "Status"].map(
@@ -394,6 +457,7 @@ export default function AccountAccess() {
                   <TableRow
                     key={`${account.role}-${account.account_id}`}
                     sx={{
+                      "& td": { py: 1.75, verticalAlign: "middle" },
                       "&:hover": {
                         backgroundColor: theme.palette.action.hover,
                       },
@@ -424,7 +488,7 @@ export default function AccountAccess() {
                         size="small"
                         label={account.is_banned ? "Banned" : "Active"}
                         color={account.is_banned ? "error" : "success"}
-                        sx={{ fontWeight: 700, fontSize: 11 }}
+                        sx={{ fontWeight: 700, fontSize: 11, color: "#fff" }}
                       />
                     </TableCell>
                   </TableRow>

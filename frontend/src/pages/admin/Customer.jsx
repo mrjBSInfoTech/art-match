@@ -10,10 +10,13 @@ import {
   Slide,
   Snackbar,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CustomerCard from "../../components/admin/Customer/CustomerCard";
+import CustomerTable from "../../components/admin/Customer/CustomerTable";
 import {
   deleteCustomer,
   fetchCustomers,
@@ -21,6 +24,8 @@ import {
 } from "../../api/admin/customerAPI";
 import SearchIcon from "@mui/icons-material/Search";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import CustomerDelete from "../../components/admin/Customer/CustomerDelete";
 import ReportFormatDialog from "../../components/admin/ReportFormatDialog";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
@@ -52,6 +57,7 @@ export default function Customer() {
   const [loading, setLoading] = useState(true);
   const [customerErrorMessage, setCustomerErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("card");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [openCustomerDelete, setOpenCustomerDelete] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -250,32 +256,26 @@ export default function Customer() {
 
       <Paper
         sx={{
-          p: { xs: 1.25, sm: 1.5 },
+          p: { xs: 1.5, sm: 2 },
           mt: 2,
           borderRadius: 2,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
+          minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", lg: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", lg: "center" },
-            gap: 1.25,
-            width: "100%",
-          }}
-        >
+        <Box sx={{ width: "100%", minWidth: 0 }}>
           <TextField
             variant="outlined"
             placeholder="Search customers..."
             size="small"
+            fullWidth
             sx={{
-              width: { xs: "100%", lg: 320 },
-              maxWidth: { lg: 360 },
-              flex: { lg: 1 },
+              width: "100%",
+              maxWidth: { xs: "100%", sm: 360 },
+              minWidth: 0,
               "& .MuiOutlinedInput-root": {
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.background.default,
@@ -303,27 +303,103 @@ export default function Customer() {
         </Box>
       </Paper>
 
-      <Paper
-        sx={{ p: { xs: 1.5, sm: 2 }, mt: 2, borderRadius: 2 }}
-        variant="outlined"
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          mt: 2,
+          mb: 1,
+        }}
       >
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : filteredCustomers.length === 0 ? (
-          <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
-            No customer records found.
-          </Typography>
-        ) : (
-          <CustomerCard
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          aria-live="polite"
+          sx={{ fontWeight: 600 }}
+        >
+          Showing {filteredCustomers.length}{" "}
+          {filteredCustomers.length === 1 ? "customer" : "customers"}
+        </Typography>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, next) => next && setViewMode(next)}
+          size="small"
+          aria-label="Customer presentation mode"
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2.5,
+            border: `1px solid ${theme.palette.divider}`,
+            p: 0.3,
+            "& .MuiToggleButton-root": {
+              border: "none",
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.5,
+              fontSize: 12,
+              fontWeight: 700,
+              textTransform: "none",
+              color: theme.palette.text.secondary,
+              gap: 0.75,
+            },
+            "& .MuiToggleButton-root.Mui-selected": {
+              backgroundColor: theme.palette.error.main,
+              color: "#fff",
+              "&:hover": { backgroundColor: theme.palette.error.dark },
+            },
+          }}
+        >
+          <ToggleButton value="card" aria-label="Card view">
+            <ViewModuleIcon sx={{ fontSize: 18 }} />
+            Cards
+          </ToggleButton>
+          <ToggleButton value="table" aria-label="Table view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+            Table
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      {viewMode === "table" && !loading && filteredCustomers.length > 0 ? (
+        <Box>
+          <CustomerTable
             customers={filteredCustomers}
             onSave={saveCustomer}
             onDelete={handleOpenDelete}
             onAccessChange={loadCustomers}
           />
-        )}
-      </Paper>
+        </Box>
+      ) : (
+        <Paper
+          sx={{
+            p: { xs: 1.5, sm: 2 },
+            borderRadius: 2,
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+          }}
+          variant="outlined"
+        >
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : filteredCustomers.length === 0 ? (
+            <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
+              No customer records found.
+            </Typography>
+          ) : (
+            <CustomerCard
+              customers={filteredCustomers}
+              onSave={saveCustomer}
+              onDelete={handleOpenDelete}
+              onAccessChange={loadCustomers}
+            />
+          )}
+        </Paper>
+      )}
 
       <CustomerDelete
         open={openCustomerDelete}

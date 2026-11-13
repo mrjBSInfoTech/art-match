@@ -11,7 +11,6 @@ import {
   payoutDisplayStatus,
   payoutIdentifier,
   payoutStatusMessage,
-  payoutValue,
 } from "./payoutDisplay";
 
 const safeAlpha = (color, opacity) =>
@@ -141,11 +140,14 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
         }
       }}
       sx={{
-        p: { xs: 2, sm: 2.5 },
+        p: { xs: 1.75, sm: 2.5 },
         borderRadius: 3.5,
         border: "1px solid",
         borderColor: "divider",
         bgcolor: "background.paper",
+        overflow: "hidden",
+        minWidth: 0,
+        width: "100%",
         cursor: admin && typeof onReview === "function" ? "pointer" : "default",
         transition: "all 180ms cubic-bezier(0.4, 0, 0.2, 1)",
         "&:hover": {
@@ -161,18 +163,24 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
       }}
     >
       <Stack
-        direction={{ xs: "column", md: "row" }}
-        alignItems={{ xs: "flex-start", md: "center" }}
+        direction={{ xs: "column", lg: "row" }}
+        alignItems={{ xs: "stretch", lg: "center" }}
         justifyContent="space-between"
         spacing={2}
+        sx={{ minWidth: 0, width: "100%" }}
       >
         {/* Left Side: Thumbnail / Icon Box + Title + Meta */}
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+        <Stack
+          direction="row"
+          spacing={{ xs: 1.5, sm: 2 }}
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          sx={{ minWidth: 0, flex: 1, width: "100%" }}
+        >
           {/* Thumbnail / Artwork Image Box matching OrderCard */}
           <Box
             sx={{
-              width: 58,
-              height: 58,
+              width: { xs: 52, sm: 58 },
+              height: { xs: 52, sm: 58 },
               borderRadius: 2.5,
               bgcolor: "background.default",
               border: "1px solid",
@@ -197,16 +205,24 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
           </Box>
 
           {/* Details */}
-          <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
             {/* Title & Status Pills */}
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.35 }}>
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={0.75}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ mb: 0.5, minWidth: 0 }}
+            >
               <Typography
                 variant="subtitle1"
                 sx={{
                   fontWeight: 800,
                   color: "text.primary",
                   lineHeight: 1.3,
-                  overflowWrap: "anywhere",
+                  wordBreak: "normal",
+                  overflowWrap: "break-word",
                 }}
               >
                 {payout.orderNumber}
@@ -266,7 +282,10 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
                 color: "text.secondary",
                 fontSize: 13,
                 fontWeight: 500,
-                mb: 0.35,
+                mb: 0.4,
+                lineHeight: 1.45,
+                wordBreak: "normal",
+                overflowWrap: "break-word",
               }}
             >
               {admin && payout.sellerName && (
@@ -304,13 +323,20 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
             </Typography>
 
             {/* Date Eligible & Provider / Transfer ID */}
-            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
-              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+            <Stack direction="row" useFlexGap spacing={0.75} alignItems="center" flexWrap="wrap">
+              <CalendarTodayOutlinedIcon sx={{ fontSize: 13, color: "text.secondary", flexShrink: 0 }} />
               <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12 }}>
                 Payout eligible from: {formatPayoutDate(payout.eligibleAt)}
               </Typography>
               {payout.providerTransferId && (
-                <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 12, ml: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: 12,
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   · Transfer ID: {payout.providerTransferId}
                   {payout.providerBatchId ? ` (${payout.providerBatchId})` : ""}
                 </Typography>
@@ -321,145 +347,158 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
 
         {/* Right Side: 3 Metric Stat Boxes (+ Review button if admin) */}
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           spacing={1.25}
-          alignItems="center"
+          alignItems={{ xs: "stretch", sm: "center" }}
           sx={{
-            width: { xs: "100%", md: "auto" },
-            justifyContent: { xs: "space-between", md: "flex-end" },
-            pt: { xs: 1, md: 0 },
-            borderTop: { xs: "1px solid", md: "none" },
-            borderColor: { xs: "divider", md: "transparent" },
+            width: { xs: "100%", lg: "auto" },
+            flexShrink: 0,
+            pt: { xs: 1.5, lg: 0 },
+            borderTop: { xs: "1px solid", lg: "none" },
+            borderColor: { xs: "divider", lg: "transparent" },
           }}
         >
-          {/* Price / Gross */}
           <Box
             sx={{
-              bgcolor: "background.default",
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
-              py: 1,
-              textAlign: "center",
-              minWidth: { xs: "auto", sm: 105 },
-              flex: { xs: 1, md: "initial" },
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(auto-fit, minmax(105px, 1fr))",
+                lg: "repeat(3, minmax(112px, auto))",
+              },
+              gap: 1.25,
+              flex: { xs: 1, lg: "initial" },
+              width: { xs: "100%", lg: "auto" },
             }}
           >
-            <Typography
-              variant="caption"
+            {/* Price / Gross */}
+            <Box
               sx={{
-                display: "block",
-                fontSize: 10,
-                fontWeight: 700,
-                color: "text.secondary",
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+                bgcolor: "background.default",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                px: { xs: 1.25, sm: 1.75 },
+                py: 1,
+                textAlign: "center",
+                minWidth: 0,
               }}
             >
-              PRICE / GROSS
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 800,
-                color: "text.primary",
-                fontSize: 14,
-                fontVariantNumeric: "tabular-nums",
-                mt: 0.25,
-              }}
-            >
-              {formatPayoutCurrency(grossAmount)}
-            </Typography>
-          </Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "text.secondary",
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                PRICE / GROSS
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 800,
+                  color: "text.primary",
+                  fontSize: { xs: 13, sm: 14 },
+                  fontVariantNumeric: "tabular-nums",
+                  overflowWrap: "anywhere",
+                  mt: 0.25,
+                }}
+              >
+                {formatPayoutCurrency(grossAmount)}
+              </Typography>
+            </Box>
 
-          {/* Platform Take / Deductions */}
-          <Box
-            sx={{
-              bgcolor: "background.default",
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
-              py: 1,
-              textAlign: "center",
-              minWidth: { xs: "auto", sm: 105 },
-              flex: { xs: 1, md: "initial" },
-            }}
-          >
-            <Typography
-              variant="caption"
+            {/* Platform Take / Deductions */}
+            <Box
               sx={{
-                display: "block",
-                fontSize: 10,
-                fontWeight: 700,
-                color: "text.secondary",
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+                bgcolor: "background.default",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                px: { xs: 1.25, sm: 1.75 },
+                py: 1,
+                textAlign: "center",
+                minWidth: 0,
               }}
             >
-              {refundAmount > 0 && recordedFee === 0
-                ? "REFUNDED"
-                : refundAmount > 0
-                ? "DEDUCTIONS"
-                : "PLATFORM TAKE"}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 800,
-                color: refundAmount > 0 ? "error.main" : "text.primary",
-                fontSize: 14,
-                fontVariantNumeric: "tabular-nums",
-                mt: 0.25,
-              }}
-            >
-              {formatPayoutCurrency(totalDeduction)} ({platformTakePercent}%)
-            </Typography>
-          </Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "text.secondary",
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                {refundAmount > 0 && recordedFee === 0
+                  ? "REFUNDED"
+                  : refundAmount > 0
+                  ? "DEDUCTIONS"
+                  : "PLATFORM TAKE"}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 800,
+                  color: refundAmount > 0 ? "error.main" : "text.primary",
+                  fontSize: { xs: 13, sm: 14 },
+                  fontVariantNumeric: "tabular-nums",
+                  overflowWrap: "anywhere",
+                  mt: 0.25,
+                }}
+              >
+                {formatPayoutCurrency(totalDeduction)} ({platformTakePercent}%)
+              </Typography>
+            </Box>
 
-          {/* Net Payout */}
-          <Box
-            sx={{
-              bgcolor: safeAlpha(
-                theme?.palette?.success?.main || "#2e7d32",
-                isDark ? 0.12 : 0.08
-              ),
-              border: "1px solid",
-              borderColor: safeAlpha(theme?.palette?.success?.main || "#2e7d32", 0.35),
-              borderRadius: 2,
-              px: { xs: 1.5, sm: 2 },
-              py: 1,
-              textAlign: "center",
-              minWidth: { xs: "auto", sm: 110 },
-              flex: { xs: 1, md: "initial" },
-            }}
-          >
-            <Typography
-              variant="caption"
+            {/* Net Payout */}
+            <Box
               sx={{
-                display: "block",
-                fontSize: 10,
-                fontWeight: 700,
-                color: "success.main",
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+                bgcolor: safeAlpha(
+                  theme?.palette?.success?.main || "#2e7d32",
+                  isDark ? 0.12 : 0.08
+                ),
+                border: "1px solid",
+                borderColor: safeAlpha(theme?.palette?.success?.main || "#2e7d32", 0.35),
+                borderRadius: 2,
+                px: { xs: 1.25, sm: 1.75 },
+                py: 1,
+                textAlign: "center",
+                minWidth: 0,
               }}
             >
-              NET PAYOUT
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 800,
-                color: "success.main",
-                fontSize: 14,
-                fontVariantNumeric: "tabular-nums",
-                mt: 0.25,
-              }}
-            >
-              {formatPayoutCurrency(netPayout)}
-            </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "success.main",
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                NET PAYOUT
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 800,
+                  color: "success.main",
+                  fontSize: { xs: 13, sm: 14 },
+                  fontVariantNumeric: "tabular-nums",
+                  overflowWrap: "anywhere",
+                  mt: 0.25,
+                }}
+              >
+                {formatPayoutCurrency(netPayout)}
+              </Typography>
+            </Box>
           </Box>
 
           {/* Admin Review Action Button */}
@@ -477,6 +516,8 @@ export function SinglePayoutCard({ payout, admin = false, onReview }) {
                 fontWeight: 700,
                 height: 42,
                 px: 2,
+                flexShrink: 0,
+                width: { xs: "100%", sm: "auto" },
                 borderColor: "primary.main",
                 color: "primary.main",
                 "&:hover": {

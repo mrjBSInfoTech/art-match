@@ -329,9 +329,14 @@ export default function Voucher() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
           gap: 2,
           mb: 2.5,
+          minWidth: 0,
         }}
       >
         {[
@@ -365,24 +370,30 @@ export default function Voucher() {
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2.5,
               boxShadow: "none",
+              minWidth: 0,
+              overflow: "hidden",
+              height: "100%",
             }}
           >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+            <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2,
+                  gap: { xs: 1.25, sm: 2 },
+                  minWidth: 0,
+                  height: "100%",
                 }}
               >
-                <Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
                       color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
                       letterSpacing: 1,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {label}
@@ -391,9 +402,10 @@ export default function Voucher() {
                     sx={{
                       mt: 0.5,
                       color: theme.palette.text.primary,
-                      fontSize: 30,
+                      fontSize: { xs: 24, sm: 26, xl: 30 },
                       fontWeight: 800,
-                      lineHeight: 1,
+                      lineHeight: 1.1,
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {value}
@@ -403,6 +415,7 @@ export default function Voucher() {
                       mt: 1,
                       color: theme.palette.text.secondary,
                       fontSize: 12,
+                      overflowWrap: "break-word",
                     }}
                   >
                     {caption}
@@ -410,8 +423,9 @@ export default function Voucher() {
                 </Box>
                 <Box
                   sx={{
-                    width: 54,
-                    height: 54,
+                    width: { xs: 44, sm: 50 },
+                    height: { xs: 44, sm: 50 },
+                    flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
                     borderRadius: 2,
@@ -433,13 +447,12 @@ export default function Voucher() {
       {/* Filter Section */}
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
+          p: { xs: 1.5, sm: 2, md: 2.5 },
           borderRadius: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderColor: theme.palette.divider,
-          containerType: "inline-size",
-          containerName: "artwork-filters",
           minWidth: 0,
+          overflow: "hidden",
         }}
         variant="outlined"
       >
@@ -453,25 +466,23 @@ export default function Voucher() {
         </Typography>
         <Box
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "stretch", md: "center" },
-            gap: 2,
-            mt: 2,
-            mb: 2,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(220px, 1fr) auto",
+            },
+            alignItems: "center",
+            gap: { xs: 1.5, sm: 2 },
+            minWidth: 0,
           }}
         >
           <TextField
             variant="outlined"
             placeholder="Search vouchers..."
             size="small"
+            fullWidth
             sx={{
               minWidth: 0,
-              gridColumn: "1 / -1",
-              "@container artwork-filters (min-width: 900px)": {
-                gridColumn: "auto",
-              },
               "& .MuiInputBase-input::placeholder": {
                 color: theme.palette.text.secondary,
                 opacity: 1,
@@ -490,13 +501,18 @@ export default function Voucher() {
           />
           <Box
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 2,
-              width: { xs: "100%", md: "auto" },
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(auto-fit, minmax(145px, 1fr))",
+                lg: "repeat(3, minmax(136px, 160px))",
+                xl: "repeat(3, minmax(150px, 175px))",
+              },
+              gap: { xs: 1.5, sm: 2 },
+              minWidth: 0,
             }}
           >
-            <FormControl size="small" fullWidth sx={{ minWidth: { sm: 140 } }}>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="voucher-status-label">Status</InputLabel>
               <Select
                 labelId="voucher-status-label"
@@ -510,7 +526,7 @@ export default function Voucher() {
                 <MenuItem value="expired">Expired</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth sx={{ minWidth: { sm: 160 } }}>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="voucher-type-label">Discount type</InputLabel>
               <Select
                 labelId="voucher-type-label"
@@ -524,7 +540,7 @@ export default function Voucher() {
                 <MenuItem value="freebie">Freebie</MenuItem>
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth sx={{ minWidth: { sm: 150 } }}>
+            <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel id="voucher-sort-label">Sort by</InputLabel>
               <Select
                 labelId="voucher-sort-label"
