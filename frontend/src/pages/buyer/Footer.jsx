@@ -33,9 +33,26 @@ const defaultFooterContent = {
     {
       title: "Programs",
       links: [
-        { label: "Architecture", url: "/buyer/programs/architecture" },
-        { label: "Interior Design", url: "/buyer/programs/interior-design" },
-        { label: "Fine Arts", url: "/buyer/programs/fine-arts" },
+        {
+          label: "Bachelor of Science in Architecture",
+          url: "/buyer/programs/architecture",
+        },
+        {
+          label: "Bachelor of Fine Arts in Painting",
+          url: "/buyer/programs/fine-arts",
+        },
+        {
+          label: "Bachelor of Fine Arts in Advertising Arts",
+          url: "/buyer/programs/advertising-arts",
+        },
+        {
+          label: "Bachelor of Science in Interior Design",
+          url: "/buyer/programs/interior-design",
+        },
+        {
+          label: "Bachelor of Fine Arts in Industrial Design",
+          url: "/buyer/programs/industrial-design",
+        },
       ],
     },
     {
@@ -73,7 +90,31 @@ const Footer = () => {
     let active = true;
     fetchFooterContent()
       .then((savedContent) => {
-        if (active) setContent(savedContent);
+        if (active) {
+          const programLinks =
+            defaultFooterContent.columns.find(
+              (column) => column.title === "Programs",
+            )?.links || [];
+          setContent({
+            ...savedContent,
+            columns: savedContent.columns.map((column) =>
+              column.title === "Programs"
+                ? {
+                    ...column,
+                    links: [
+                      ...programLinks,
+                      ...column.links.filter(
+                        (link) =>
+                          !programLinks.some(
+                            (programLink) => programLink.url === link.url,
+                          ),
+                      ),
+                    ],
+                  }
+                : column,
+            ),
+          });
+        }
       })
       .catch((error) => {
         console.error("Unable to load saved footer content:", error.message);

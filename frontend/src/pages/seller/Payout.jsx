@@ -142,8 +142,13 @@ export default function SellerPayout() {
       </Box>
       <Stack spacing={2.5} sx={{ mt: 3 }}>
         <PayoutAccount
-          onSaved={() => {
-            setSnackbarMessage("Payout destination saved.");
+          onSaved={(result) => {
+            const needsApproval = Boolean(result?.requiresApproval || result?.pendingRequest?.status === "Pending");
+            setSnackbarMessage(
+              needsApproval
+                ? "Payout method change request sent for admin approval."
+                : "Payout destination saved."
+            );
             setSnackbarSeverity("success");
             setSnackbarOpen(true);
             reload();

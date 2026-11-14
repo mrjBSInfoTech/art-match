@@ -193,8 +193,6 @@ export default function PayoutConfirm({
               textTransform: "none",
               fontWeight: 700,
               color: "#fff",
-              backgroundColor: "#ef3340",
-              "&:hover": { backgroundColor: "#d62835" },
             }}
           >
             {isBusy ? (

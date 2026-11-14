@@ -118,7 +118,13 @@ export default function ReviewResponseForm({
           type="submit"
           variant="contained"
           disabled={!response.trim() || response.trim().length > 600 || saving}
-          sx={{ textTransform: "none", fontWeight: 700, color: "#fff" }}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
         >
           {saving
             ? "Saving..."

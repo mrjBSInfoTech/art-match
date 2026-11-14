@@ -87,9 +87,15 @@ export default function PayoutAccount({ onSaved }) {
       setEditing(false);
       setPasswordDialogOpen(false);
       setPendingPayload(null);
-      setSuccess("Payout destination change request submitted. It requires 3 administrator approvals before taking effect.");
+      const needsApproval = Boolean(result.requiresApproval || result.pendingRequest?.status === "Pending");
+      const requiredApprovals = result.pendingRequest?.requiredApprovals || 1;
+      setSuccess(
+        needsApproval
+          ? `Payout destination change request submitted. It requires ${requiredApprovals} administrator ${requiredApprovals === 1 ? "approval" : "approvals"} before taking effect.`
+          : "Payout destination saved and activated."
+      );
       window.dispatchEvent(new Event("seller-payout-account-changed"));
-      onSaved?.();
+      onSaved?.(result);
     } catch (saveError) {
       setError(payoutErrorMessage(saveError, "Unable to save payout destination."));
       throw saveError;
@@ -98,9 +104,11 @@ export default function PayoutAccount({ onSaved }) {
     }
   };
 
+  const requiredApprovals = pendingRequest?.requiredApprovals || 1;
   const approvalProgress = pendingRequest
-    ? Math.min(100, Math.round(((pendingRequest.approvalCount || 0) / (pendingRequest.requiredApprovals || 3)) * 100))
+    ? Math.min(100, Math.round(((pendingRequest.approvalCount || 0) / requiredApprovals) * 100))
     : 0;
+  const requiresApprovalForSubmit = Boolean(account);
 
   return <>
   <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
@@ -108,7 +116,7 @@ export default function PayoutAccount({ onSaved }) {
       <Box>
         <Typography variant="h6" fontWeight={700}>Payout Destination</Typography>
         <Typography variant="body2" color="text.secondary">
-          Receive earnings in a supported bank or e-wallet account. For security, changing your payout method requires review and 3 administrator approvals.
+          Receive earnings in a supported bank or e-wallet account. Setting up your initial payout method takes effect immediately; changing an existing payout method requires administrator approval.
         </Typography>
       </Box>
 
@@ -143,7 +151,7 @@ export default function PayoutAccount({ onSaved }) {
                 <Chip
                   size="small"
                   color="warning"
-                  label={`Approval Progress: ${pendingRequest.approvalCount} / ${pendingRequest.requiredApprovals || 3}`}
+                  label={`Approval Progress: ${pendingRequest.approvalCount} / ${requiredApprovals}`}
                   sx={{ fontWeight: 700 }}
                 />
               </Stack>
@@ -156,7 +164,7 @@ export default function PayoutAccount({ onSaved }) {
                   Account Number: {pendingRequest.maskedAccountNumber} · Requested on {formatPayoutDate(pendingRequest.requestedAt)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                  Your active payout destination below remains in use until all 3 administrator approvals are received.
+                  Your active payout destination below remains in use until {requiredApprovals === 1 ? "administrator approval is" : `all ${requiredApprovals} administrator approvals are`} received.
                 </Typography>
               </Box>
             </Stack>
@@ -194,7 +202,7 @@ export default function PayoutAccount({ onSaved }) {
         {!editing ? (
           <Box>
             <Button variant="outlined" onClick={openEditor} disabled={institutions.length === 0}>
-              {pendingRequest?.status === "Pending"
+              {account && pendingRequest?.status === "Pending"
                 ? "Update pending change request"
                 : account
                 ? "Request payout destination change"
@@ -210,7 +218,9 @@ export default function PayoutAccount({ onSaved }) {
           <Stack component="form" onSubmit={save} spacing={2} autoComplete="off">
             <Divider />
             <Alert severity="info">
-              Submitting new details creates a change request that requires 3 administrator approvals before updating your active payout destination.
+              {requiresApprovalForSubmit
+                ? "Changing your active payout destination creates a request that requires administrator approval before replacing your current account."
+                : "Since you do not have an active payout destination yet, saving your details will activate this payout method immediately without admin approval."}
             </Alert>
             <TextField select required fullWidth label="Bank or e-wallet" value={selectedInstitution ? institution : ""} onChange={(event) => setInstitution(event.target.value)} disabled={saving}>
               {institutions.map((item) => <MenuItem key={institutionKey(item)} value={institutionKey(item)}>{item.name}</MenuItem>)}
@@ -220,7 +230,9 @@ export default function PayoutAccount({ onSaved }) {
             <Stack direction="row" justifyContent="flex-end" spacing={1}>
               <Button onClick={closeEditor} disabled={saving}>Cancel</Button>
               <Button type="submit" variant="contained" sx={{color:"#fff"}} disabled={saving || !selectedInstitution || !accountName.trim() || !accountNumber.trim()}>
-                {saving ? "Submitting…" : "Submit Change Request"}
+                {saving
+                  ? (requiresApprovalForSubmit ? "Submitting…" : "Saving…")
+                  : (requiresApprovalForSubmit ? "Submit Change Request" : "Save Payout Destination")}
               </Button>
             </Stack>
           </Stack>

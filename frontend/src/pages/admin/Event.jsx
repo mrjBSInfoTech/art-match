@@ -270,9 +270,9 @@ export default function Event() {
       value: archivedCount,
       caption: "Historical concluded exhibitions",
       icon: EventAvailableOutlinedIcon,
-      color: theme.palette.info.main,
+      color: theme.palette.error.main,
       background:
-        theme.palette.mode === "dark" ? "rgba(2, 136, 209, 0.14)" : "#f0f9ff",
+        theme.palette.mode === "dark" ? "rgba(239, 68, 68, 0.14)" : "#fff5f5",
     },
     {
       label: "ACTIVE SECTION",
@@ -284,9 +284,9 @@ export default function Event() {
             : "Header",
       caption: "Current event management area",
       icon: ViewCarouselOutlinedIcon,
-      color: theme.palette.success.main,
+      color: theme.palette.error.main,
       background:
-        theme.palette.mode === "dark" ? "rgba(34, 197, 94, 0.14)" : "#f0fdf4",
+        theme.palette.mode === "dark" ? "rgba(239, 68, 68, 0.14)" : "#fff5f5",
     },
   ];
 

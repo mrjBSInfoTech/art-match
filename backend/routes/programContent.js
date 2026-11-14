@@ -26,7 +26,13 @@ const upload = multer({
     callback(Object.assign(new Error("Upload a JPEG, PNG, or WebP image."), { status: 400 }));
   },
 });
-const programKeys = ["architecture", "interior-design", "fine-arts"];
+const programKeys = [
+  "architecture",
+  "interior-design",
+  "fine-arts",
+  "advertising-arts",
+  "industrial-design",
+];
 const textFields = ["title", "eyebrow", "subtitle", "description", "image", "stat", "statLabel"];
 
 function validateContent(content) {

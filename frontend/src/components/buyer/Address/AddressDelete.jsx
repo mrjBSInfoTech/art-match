@@ -28,12 +28,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
-function AddressDelete({
-  open,
-  handleClose,
-  onSubmit,
-  selectedAddress,
-}) {
+function AddressDelete({ open, handleClose, onSubmit, selectedAddress }) {
   // Handle Enter key for delete
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -67,7 +62,9 @@ function AddressDelete({
   }, [open]);
 
   const handleDelete = () => {
-    onSubmit(selectedAddress?.address_id || selectedAddress?.id || selectedAddress);
+    onSubmit(
+      selectedAddress?.address_id || selectedAddress?.id || selectedAddress,
+    );
     handleClose();
   };
 
@@ -91,30 +88,63 @@ function AddressDelete({
       }}
     >
       <>
-        <DialogTitle id="delete-address-dialog-title" sx={{
-          display: "flex", alignItems: "center", gap: 0.75,
-          px: 2.5, py: 1.75, color: "text.primary", fontSize: 16, fontWeight: 700,
-          borderBottom: "1px solid", borderColor: "divider",
-        }}>
+        <DialogTitle
+          id="delete-address-dialog-title"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            px: 2.5,
+            py: 1.75,
+            color: "text.primary",
+            fontSize: 16,
+            fontWeight: 700,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
           <DeleteOutlineIcon sx={{ color: "#ef3340", fontSize: 20 }} />
           Delete Address
-          <IconButton aria-label="Close delete address confirmation" onClick={handleClose} sx={{
-            width: 28, height: 28, ml: "auto", p: 0, color: "text.secondary",
-          }}>
+          <IconButton
+            aria-label="Close delete address confirmation"
+            onClick={handleClose}
+            sx={{
+              width: 28,
+              height: 28,
+              ml: "auto",
+              p: 0,
+              color: "text.secondary",
+            }}
+          >
             <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
-          <Typography id="delete-address-dialog-description" variant="body2" sx={{ lineHeight: 1.7 }}>
-            Are you sure you want to delete this address? This action cannot be undone.
+          <Typography
+            id="delete-address-dialog-description"
+            variant="body2"
+            sx={{ lineHeight: 1.7 }}
+          >
+            Are you sure you want to delete this address? This action cannot be
+            undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={handleClose} sx={{ color: "text.secondary" }}>Cancel</Button>
-          <Button onClick={handleDelete} color="error" variant="contained" sx={{
-            borderRadius: 1.5, px: 2.5, textTransform: "none", fontWeight: 700,
-            color: "error.contrastText",
-          }}>
+          <Button onClick={handleClose} sx={{ color: "text.secondary" }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDelete}
+            color="error"
+            variant="contained"
+            sx={{
+              borderRadius: 1.5,
+              px: 2.5,
+              textTransform: "none",
+              fontWeight: 700,
+              color: "#fff",
+            }}
+          >
             Delete
           </Button>
         </DialogActions>

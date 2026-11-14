@@ -567,8 +567,6 @@ export default function EventForm({
             textTransform: "none",
             fontWeight: 700,
             color: "#fff",
-            backgroundColor: "error.main",
-            "&:hover": { backgroundColor: "error.dark" },
           }}
           startIcon={
             isSubmitting ? <CircularProgress size={16} color="inherit" /> : null

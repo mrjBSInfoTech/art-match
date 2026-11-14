@@ -228,23 +228,23 @@ export default function StudentCard({
                     >
                       {student.student_number || "No student number"}
                     </Typography>
-                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.75, flexWrap: "wrap" }}>
-                      {student.strikes > 0 && (
-                        <Chip
-                          size="small"
-                          label={`${student.strikes} / 3 strikes`}
-                          color="warning"
-                          sx={{ height: 20, fontSize: 10 }}
-                        />
-                      )}
-                      {student.is_banned && (
-                        <Chip
-                          size="small"
-                          label="Banned"
-                          color="error"
-                          sx={{ height: 20, fontSize: 10 }}
-                        />
-                      )}
+                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+                      <Chip
+                        size="small"
+                        label="Student"
+                        color="secondary"
+                        sx={{
+                          height: 18,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          borderRadius: 1,
+                          color: theme.palette.primary.main,
+                          backgroundColor:
+                            theme.palette.mode === "dark"
+                              ? "rgba(59, 130, 246, 0.16)"
+                              : "#eff6ff",
+                        }}
+                      />
                     </Box>
                   </Box>
 

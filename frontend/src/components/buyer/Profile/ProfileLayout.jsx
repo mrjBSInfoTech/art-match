@@ -1,24 +1,16 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Avatar,
   Box,
   Button,
   Container,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Drawer,
   IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  MenuItem,
-  Select,
   Stack,
   Typography,
   useMediaQuery,
@@ -38,6 +30,9 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 const NAV_ITEMS = [
@@ -65,6 +60,24 @@ const NAV_ITEMS = [
     label: "Security & privacy",
     path: "/buyer/profile/settings",
     icon: <ShieldOutlinedIcon fontSize="small" />,
+  },
+];
+
+const QUICK_LINK_ITEMS = [
+  {
+    label: "Favorites",
+    path: "/buyer/favorites",
+    icon: <FavoriteBorderOutlinedIcon fontSize="small" />,
+  },
+  {
+    label: "Notifications",
+    path: "/buyer/notifications",
+    icon: <NotificationsNoneOutlinedIcon fontSize="small" />,
+  },
+  {
+    label: "Help Support",
+    path: "/buyer/help-support",
+    icon: <HelpOutlineOutlinedIcon fontSize="small" />,
   },
 ];
 
@@ -128,35 +141,15 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
   );
 }
 
-const ProfileLayout = ({ title, showBack = false, children }) => {
+const ProfileLayout = ({ showBack = false, children }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const layoutRootRef = useRef(null);
-  const mobileHeaderRef = useRef(null);
 
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [, refreshProfile] = useState(0);
-
-  useLayoutEffect(() => {
-    const root = layoutRootRef.current;
-    const mobileHeader = mobileHeaderRef.current;
-    if (!root || !mobileHeader) return undefined;
-
-    const updateMobileHeaderHeight = () => {
-      root.style.setProperty(
-        "--buyer-profile-header-height",
-        `${mobileHeader.getBoundingClientRect().height}px`,
-      );
-    };
-
-    updateMobileHeaderHeight();
-    const observer = new ResizeObserver(updateMobileHeaderHeight);
-    observer.observe(mobileHeader);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const refresh = () => refreshProfile((value) => value + 1);
@@ -196,16 +189,13 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
 
   return (
     <Box
-      ref={layoutRootRef}
       sx={{
         minHeight: "100vh",
         bgcolor: "background.default",
         color: "text.primary",
-        "--buyer-profile-header-height": "120px",
       }}
     >
       <Box
-        ref={mobileHeaderRef}
         sx={{
           borderBottom: 1, borderColor: "divider",
           display: { xs: "block", md: "none" },
@@ -354,54 +344,46 @@ const ProfileLayout = ({ title, showBack = false, children }) => {
           )}
 
           <Box component="main" sx={{ flex: 1, minWidth: 0, width: "100%" }}>
-            {!isDesktop && (
-              <Box
-                sx={{
-                  height: 56,
-                  mb: 3,
-                }}
-              >
-                <Select
-                  fullWidth
-                  size="small"
-                  displayEmpty
-                  value={activeItem?.path || ""}
-                  onChange={(event) => handleNavigate(event.target.value)}
-                  sx={{
-                    position: "fixed",
-                    top: "calc(var(--buyer-header-height, 160px) + var(--buyer-profile-header-height, 120px) + 8px)",
-                    left: 16,
-                    right: 16,
-                    width: "auto",
-                    zIndex: theme.zIndex.appBar - 1,
-                    borderRadius: 3,
-                    bgcolor: "background.paper",
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "divider",
-                    },
-                  }}
-                  renderValue={(selected) =>
-                    NAV_ITEMS.find((item) => item.path === selected)?.label ||
-                    "Account navigation"
-                  }
-                >
-                  {NAV_ITEMS.map((item) => (
-                    <MenuItem key={item.path} value={item.path} sx={{ minHeight: 48, px: 2, py: 1 }}>
-                      {item.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </Box>
-            )}
-
             <Stack spacing={2}>
               {!isDesktop && (
-                <AccountIdentityCard
-                  buyerName={buyerName}
-                  username={username}
-                  profileImage={profileImage}
-                  onEdit={() => handleNavigate("/buyer/profile/details")}
-                />
+                <>
+                  <AccountIdentityCard
+                    buyerName={buyerName}
+                    username={username}
+                    profileImage={profileImage}
+                    onEdit={() => handleNavigate("/buyer/profile/details")}
+                  />
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    useFlexGap
+                    flexWrap={{ xs: "nowrap", sm: "wrap" }}
+                  >
+                    {QUICK_LINK_ITEMS.map((item) => (
+                      <Button
+                        key={item.path}
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={item.icon}
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          width: { xs: "100%", sm: "auto" },
+                          minHeight: { xs: 44, sm: 32 },
+                          borderRadius: { xs: 2, sm: 999 },
+                          borderColor: "divider",
+                          bgcolor: { xs: "background.paper", sm: "transparent" },
+                          justifyContent: { xs: "flex-start", sm: "center" },
+                          px: { xs: 2, sm: 1.5 },
+                          textTransform: "none",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {item.label}
+                      </Button>
+                    ))}
+                  </Stack>
+                </>
               )}
               <Stack
                 direction="row"

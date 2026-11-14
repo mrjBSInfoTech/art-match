@@ -418,15 +418,11 @@ export default function PromotionSlideForm({
             disabled={saving}
             startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
             sx={{
-              fontWeight: 700,
-              textTransform: "none",
-              borderRadius: 2,
+              borderRadius: 1.5,
               px: 2.5,
-              bgcolor: theme.palette.error.main,
+              textTransform: "none",
+              fontWeight: 700,
               color: "#fff",
-              "&:hover": {
-                bgcolor: theme.palette.error.dark,
-              },
             }}
           >
             {saving ? "Saving..." : selectedSlide ? "Save Changes" : "Create Slide"}

@@ -1,15 +1,11 @@
-import { useEffect, useState, useCallback, forwardRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Alert,
   Box,
   Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Paper,
   Slide,
+  Snackbar,
   Stack,
   Tab,
   Tabs,
@@ -22,36 +18,24 @@ import { useTheme } from "@mui/material/styles";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import CloseIcon from "@mui/icons-material/Close";
-import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
+import ProgramConfirm from "../../components/admin/Program/ProgramConfirm";
 import {
   fetchProgramContent,
   saveProgramContent,
 } from "../../api/programContentAPI";
 
-const Transition = forwardRef(function Transition(props, ref) {
-  return (
-    <Slide
-      direction="up"
-      ref={ref}
-      {...props}
-      timeout={500}
-      easing={{
-        enter: "cubic-bezier(0.4, 0, 0.2, 1)",
-        exit: "ease-out",
-      }}
-    />
-  );
-});
+function SnackbarTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
 
 const programSlides = [
   {
     slug: "architecture",
-    title: "Architecture",
+    title: "Bachelor of Science in Architecture",
     description:
       "Explore architectural studies, models, and visual experiments shaped by students who think carefully about people, place, and possibility.",
     image:
@@ -63,8 +47,34 @@ const programSlides = [
     statLabel: "studio projects",
   },
   {
+    slug: "fine-arts",
+    title: "Bachelor of Fine Arts in Painting",
+    description:
+      "Discover paintings, sculpture, printmaking, and mixed media works from artists developing their own visual language inside the academy.",
+    image:
+      "https://images.unsplash.com/photo-1577083552431-6e5fd01aa342?auto=format&fit=crop&w=1200&q=85",
+    eyebrow: "CAFA Program",
+    subtitle: "A direct line from studio practice to collection.",
+    focus: ["Painting and color", "Sculptural form", "Experimental media"],
+    stat: "86+",
+    statLabel: "original works",
+  },
+  {
+    slug: "advertising-arts",
+    title: "Bachelor of Fine Arts in Advertising Arts",
+    description:
+      "Explore visual communication, campaign concepts, and creative work shaped by students turning ideas into memorable messages.",
+    image:
+      "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=85",
+    eyebrow: "CAFA Program",
+    subtitle: "Ideas made visible, compelling, and clear.",
+    focus: ["Visual communication", "Campaign concepts", "Creative direction"],
+    stat: "18+",
+    statLabel: "creative projects",
+  },
+  {
     slug: "interior-design",
-    title: "Interior Design",
+    title: "Bachelor of Science in Interior Design",
     description:
       "Meet the makers exploring how light, texture, furniture, and human movement can transform an interior into an experience.",
     image:
@@ -80,17 +90,17 @@ const programSlides = [
     statLabel: "design studies",
   },
   {
-    slug: "fine-arts",
-    title: "Fine Arts",
+    slug: "industrial-design",
+    title: "Bachelor of Fine Arts in Industrial Design",
     description:
-      "Discover paintings, sculpture, printmaking, and mixed media works from artists developing their own visual language inside the academy.",
+      "Discover product and object studies that bring thoughtful form, materials, and everyday use together.",
     image:
-      "https://images.unsplash.com/photo-1577083552431-6e5fd01aa342?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1200&q=85",
     eyebrow: "CAFA Program",
-    subtitle: "A direct line from studio practice to collection.",
-    focus: ["Painting and color", "Sculptural form", "Experimental media"],
-    stat: "86+",
-    statLabel: "original works",
+    subtitle: "Useful objects, considered from every angle.",
+    focus: ["Product development", "Materials and form", "Human-centered design"],
+    stat: "20+",
+    statLabel: "design studies",
   },
 ];
 
@@ -107,10 +117,10 @@ export default function Program() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [saveNotice, setSaveNotice] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [uploadFile, setUploadFile] = useState(null);
-  const [password, setPassword] = useState("");
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
 
   const cardSx = {
@@ -211,7 +221,7 @@ export default function Program() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setSaveError("Program image must be 5MB or smaller.");
+      showSnackbar("Program image must be 5MB or smaller.", "error");
       return;
     }
     setUploadFile(file);
@@ -220,30 +230,40 @@ export default function Program() {
   };
 
   const handleProgramSave = () => {
-    setSaveError("");
-    setSaveNotice("");
-    setPassword("");
     setPasswordDialogOpen(true);
   };
 
-  const confirmProgramSave = async () => {
-    if (!password.trim()) {
-      setSaveError("Admin password is required to save program content.");
-      return;
-    }
+  const confirmProgramSave = async (confirmationPassword) => {
     try {
       setSaving(true);
-      setSaveError("");
-      setSaveNotice("");
-      await saveProgramContent(programContent, password, uploadFile);
-      setSaveNotice("Program content saved and published successfully.");
+      await saveProgramContent(programContent, confirmationPassword, uploadFile);
+      showSnackbar("Program content saved and published successfully.");
       setPasswordDialogOpen(false);
-      setPassword("");
       setUploadFile(null);
-    } catch (error) {
-      setSaveError(error.message || "Unable to save program content.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "success":
+        return "success.light";
+      case "error":
+        return "error.light";
+      default:
+        return "primary.light";
     }
   };
 
@@ -317,21 +337,13 @@ export default function Program() {
         </Box>
       </Stack>
 
-      {saveError && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-          {saveError}
-        </Alert>
-      )}
-      {saveNotice && (
-        <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
-          {saveNotice}
-        </Alert>
-      )}
-
       <Paper elevation={0} sx={cardSx}>
         <Tabs
           value={activeProgram}
           onChange={(_, value) => setActiveProgram(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{
             mb: 3,
             borderBottom: "1px solid",
@@ -594,8 +606,6 @@ export default function Program() {
                 color: "#fff",
                 textTransform: "none",
                 fontWeight: 700,
-                boxShadow: "0 2px 10px rgba(239, 51, 64, 0.3)",
-                "&:hover": { bgcolor: "#d62835" },
               }}
             >
               {saving ? "Saving..." : "Save Program Changes"}
@@ -604,99 +614,51 @@ export default function Program() {
         </Stack>
       </Paper>
 
-      {/* Password Confirmation Dialog */}
-      <Dialog
+      <ProgramConfirm
         open={passwordDialogOpen}
-        onClose={() => !saving && setPasswordDialogOpen(false)}
-        TransitionComponent={Transition}
-        keepMounted
-        PaperProps={{
-          sx: {
-            width: "min(100% - 24px, 470px)",
-            maxWidth: "470px",
-            borderRadius: 3,
-            overflow: "hidden",
-            backgroundColor: theme.palette.background.paper,
-          },
-        }}
+        handleClose={() => setPasswordDialogOpen(false)}
+        onSubmit={confirmProgramSave}
+        submitting={saving}
+        title="Confirm Program Changes"
+        message="Enter your admin password to publish these updates to the student and public catalogue."
+      />
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SnackbarTransition}
       >
-        <DialogTitle
+        <Alert
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
+          variant="filled"
           sx={{
-            display: "flex",
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
             alignItems: "center",
-            gap: 0.75,
-            px: 2.5,
-            py: 1.75,
-            color: theme.palette.text.primary,
-            fontSize: 16,
-            fontWeight: 700,
-            borderBottom: `1px solid ${theme.palette.divider}`,
+            "& .MuiAlert-icon": { color: "#fff", mr: 1 },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
           }}
         >
-          <SchoolOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
-          Confirm Program Changes
-          <Button
-            aria-label="Close"
-            onClick={() => setPasswordDialogOpen(false)}
-            disabled={saving}
-            sx={{
-              minWidth: 28,
-              width: 28,
-              height: 28,
-              ml: "auto",
-              p: 0,
-              color: theme.palette.text.secondary,
-            }}
-          >
-            <CloseIcon sx={{ fontSize: 18 }} />
-          </Button>
-        </DialogTitle>
-        <DialogContent dividers sx={{ px: 3, py: 2.5 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enter your admin password to publish these updates to the student
-            and public catalogue.
-          </Typography>
-          <TextField
-            autoFocus
-            label="Admin password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            size="small"
-            disabled={saving}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") confirmProgramSave();
-            }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            onClick={() => setPasswordDialogOpen(false)}
-            disabled={saving}
-            color="inherit"
-            sx={{ textTransform: "none", color: "text.secondary" }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmProgramSave}
-            variant="contained"
-            disabled={saving || !password.trim()}
-            sx={{
-              borderRadius: 1.5,
-              px: 2.5,
-              textTransform: "none",
-              fontWeight: 700,
-              color: "#fff",
-              backgroundColor: "#ef3340",
-              "&:hover": { backgroundColor: "#d62835" },
-            }}
-          >
-            {saving ? "Saving..." : "Confirm & Save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

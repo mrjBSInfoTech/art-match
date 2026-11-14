@@ -4,16 +4,33 @@ import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 
 function SellerArtworkImage({ artwork, background }) {
   return (
-    <Box sx={{ width: "100%", aspectRatio: "4 / 3", bgcolor: background, display: "grid", placeItems: "center", overflow: "hidden" }}>
+    <Box
+      sx={{
+        width: "100%",
+        aspectRatio: { xs: "1.12 / 1", sm: "1.05 / 1" },
+        bgcolor: background,
+        display: "grid",
+        placeItems: "center",
+        overflow: "hidden",
+      }}
+    >
       {artwork?.image ? (
         <WatermarkedArtworkImage
           image={artwork.image}
           alt={artwork.title || "Artwork"}
           variant="thumb"
-          sx={{ width: "100%", height: "100%", minHeight: 0, objectFit: "contain", display: "block" }}
+          sx={{
+            width: "100%",
+            height: "100%",
+            minHeight: 0,
+            objectFit: "contain",
+            display: "block",
+          }}
         />
       ) : (
-        <Typography variant="body2" color="text.secondary">Image unavailable</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Image unavailable
+        </Typography>
       )}
     </Box>
   );
@@ -51,9 +68,11 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
           color={Number(artwork.is_sold_out) === 1 ? "default" : "success"}
           sx={{
             position: "absolute",
-            top: 12,
-            right: 12,
+            top: { xs: 8, sm: 12 },
+            right: { xs: 8, sm: 12 },
             zIndex: 1,
+            height: { xs: 20, sm: 24 },
+            fontSize: { xs: 9.5, sm: 11 },
             fontWeight: 700,
             color: Number(artwork.is_sold_out) === 1 ? undefined : "#fff",
           }}
@@ -65,9 +84,11 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
             color="primary"
             sx={{
               position: "absolute",
-              top: 12,
-              left: 12,
+              top: { xs: 8, sm: 12 },
+              left: { xs: 8, sm: 12 },
               zIndex: 1,
+              height: { xs: 20, sm: 24 },
+              fontSize: { xs: 9.5, sm: 11 },
               fontWeight: 700,
               color:"#fff",
             }}
@@ -76,17 +97,36 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
         <SellerArtworkImage artwork={artwork} background={colors.card} />
       </Box>
 
-      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <CardContent
+        sx={{
+          p: { xs: 1, sm: 2 },
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
         <Typography
           variant="h6"
-          sx={{ fontSize: { xs: "1.05rem", sm: "1.15rem" }, fontWeight: 800, mb: 0.5, overflowWrap: "anywhere" }}
+          sx={{
+            fontSize: { xs: 13, sm: 16 },
+            fontWeight: 800,
+            mb: 0.35,
+            overflowWrap: "anywhere",
+          }}
+          noWrap
         >
           {artwork.title}
         </Typography>
         <Typography
           variant="body2"
           color="text.secondary"
-          sx={{ mb: 1.5, fontSize: "0.9rem", overflowWrap: "anywhere" }}
+          sx={{
+            mb: { xs: 0.75, sm: 1.5 },
+            fontSize: { xs: 11, sm: 12.5 },
+            overflowWrap: "anywhere",
+          }}
+          noWrap
         >
           {artistName}
           {artwork.genre ? ` · ${artwork.genre}` : ""}
@@ -95,7 +135,15 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ mb: 1.5, fontSize: "0.9rem", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+            sx={{
+              display: { xs: "none", sm: "-webkit-box" },
+              mb: 1.5,
+              fontSize: "0.8rem",
+              lineHeight: 1.5,
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
           >
             {artwork.description}
           </Typography>
@@ -105,11 +153,15 @@ export default function SellerArtworkCard({ artwork, artistName, isPinned = fals
           direction="row"
           alignItems="center"
           justifyContent="space-between"
-          sx={{ mt: "auto", gap: 1, flexWrap: "wrap", overflowWrap: "anywhere" }}
+          sx={{ mt: "auto", gap: 0.75, flexWrap: "wrap", overflowWrap: "anywhere" }}
         >
           <Typography
             variant="h6"
-            sx={{ fontWeight: 800, color: colors.accent }}
+            sx={{
+              fontSize: { xs: 14.5, sm: 18 },
+              fontWeight: 800,
+              color: colors.accent,
+            }}
           >
             {formatPrice(artwork.price)}
           </Typography>

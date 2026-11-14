@@ -12,7 +12,7 @@ import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 
 const defaultPrograms = {
   architecture: {
-    title: "Architecture",
+    title: "Bachelor of Science in Architecture",
     eyebrow: "CAFA Program",
     subtitle: "Spaces that give ideas a place to live.",
     description:
@@ -26,7 +26,7 @@ const defaultPrograms = {
     statLabel: "studio projects",
   },
   "interior-design": {
-    title: "Interior Design",
+    title: "Bachelor of Science in Interior Design",
     eyebrow: "CAFA Program",
     subtitle: "Objects, rooms, and moods in conversation.",
     description:
@@ -44,7 +44,7 @@ const defaultPrograms = {
     statLabel: "design studies",
   },
   "fine-arts": {
-    title: "Fine Arts",
+    title: "Bachelor of Fine Arts in Painting",
     eyebrow: "CAFA Program",
     subtitle: "A direct line from studio practice to collection.",
     description:
@@ -56,6 +56,34 @@ const defaultPrograms = {
     focus: ["Painting and color", "Sculptural form", "Experimental media"],
     stat: "86+",
     statLabel: "original works",
+  },
+  "advertising-arts": {
+    title: "Bachelor of Fine Arts in Advertising Arts",
+    eyebrow: "CAFA Program",
+    subtitle: "Ideas made visible, compelling, and clear.",
+    description:
+      "Explore visual communication, campaign concepts, and creative work shaped by students turning ideas into memorable messages.",
+    image:
+      "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=85",
+    icon: PaletteOutlinedIcon,
+    accent: "#b53a3a",
+    focus: ["Visual communication", "Campaign concepts", "Creative direction"],
+    stat: "18+",
+    statLabel: "creative projects",
+  },
+  "industrial-design": {
+    title: "Bachelor of Fine Arts in Industrial Design",
+    eyebrow: "CAFA Program",
+    subtitle: "Useful objects, considered from every angle.",
+    description:
+      "Discover product and object studies that bring thoughtful form, materials, and everyday use together.",
+    image:
+      "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1200&q=85",
+    icon: ChairOutlinedIcon,
+    accent: "#ad7b35",
+    focus: ["Product development", "Materials and form", "Human-centered design"],
+    stat: "20+",
+    statLabel: "design studies",
   },
 };
 

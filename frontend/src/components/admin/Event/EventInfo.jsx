@@ -207,11 +207,13 @@ export default function EventInfo({
         <Button
           onClick={handleClose}
           sx={{
+            ml: "auto",
             backgroundColor: theme.palette.action.hover,
             color: theme.palette.text.primary,
-            fontSize: 11,
-            fontWeight: 600,
-            "&:hover": { backgroundColor: theme.palette.action.selected },
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
           }}
         >
           Close

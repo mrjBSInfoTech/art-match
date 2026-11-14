@@ -156,17 +156,17 @@ function ArtworkCardSkeleton() {
         animation="wave"
         sx={{
           width: "100%",
-          aspectRatio: "1.05 / 1",
+          aspectRatio: { xs: "1.12 / 1", sm: "1.05 / 1" },
           transform: "none",
         }}
       />
       <Box
         sx={{
-          p: { xs: 1.5, sm: 2 },
+          p: { xs: 1, sm: 2 },
           display: "flex",
           flex: 1,
           flexDirection: "column",
-          gap: 0.75,
+          gap: { xs: 0.4, sm: 0.75 },
         }}
       >
         <Stack
@@ -699,12 +699,12 @@ export default function Main() {
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "repeat(1,1fr)",
-              sm: "repeat(2,1fr)",
-              md: "repeat(4,1fr)",
-              lg: "repeat(4,1fr)",
+              xs: "repeat(2, minmax(0, 1fr))",
+              sm: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(4, minmax(0, 1fr))",
+              lg: "repeat(4, minmax(0, 1fr))",
             },
-            gap: { xs: 2, md: 2.5 },
+            gap: { xs: 1.25, sm: 2, md: 2.5 },
           }}
         >
           {artworksLoading ? (
@@ -747,12 +747,12 @@ export default function Main() {
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
-                  xs: "repeat(1,1fr)",
-                  sm: "repeat(2,1fr)",
-                  md: "repeat(4,1fr)",
-                  lg: "repeat(4,1fr)",
+                  xs: "repeat(2, minmax(0, 1fr))",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "repeat(4, minmax(0, 1fr))",
+                  lg: "repeat(4, minmax(0, 1fr))",
                 },
-                gap: { xs: 2, md: 2.5 },
+                gap: { xs: 1.25, sm: 2, md: 2.5 },
               }}
             >
               {Array.from({ length: 4 }).map((_, index) => (
@@ -773,12 +773,12 @@ export default function Main() {
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
-                  xs: "repeat(1,1fr)",
-                  sm: "repeat(2,1fr)",
-                  md: "repeat(4,1fr)",
-                  lg: "repeat(4,1fr)",
+                  xs: "repeat(2, minmax(0, 1fr))",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "repeat(4, minmax(0, 1fr))",
+                  lg: "repeat(4, minmax(0, 1fr))",
                 },
-                gap: { xs: 2, md: 2.5 },
+                gap: { xs: 1.25, sm: 2, md: 2.5 },
               }}
             >
               {followedArtworks.map((artwork) => (
@@ -1316,12 +1316,12 @@ export default function Main() {
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "repeat(1,1fr)",
-              sm: "repeat(2,1fr)",
-              md: "repeat(4,1fr)",
-              lg: "repeat(4,1fr)",
+              xs: "repeat(2, minmax(0, 1fr))",
+              sm: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(4, minmax(0, 1fr))",
+              lg: "repeat(4, minmax(0, 1fr))",
             },
-            gap: { xs: 2, md: 2.5 },
+            gap: { xs: 1.25, sm: 2, md: 2.5 },
           }}
         >
           {artworksLoading ? (
@@ -1390,11 +1390,11 @@ export default function Main() {
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "repeat(1, 1fr)",
-                sm: "repeat(2, 1fr)",
-                md: "repeat(4, 1fr)",
+                xs: "repeat(2, minmax(0, 1fr))",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(4, minmax(0, 1fr))",
               },
-              gap: { xs: 2, md: 2.5 },
+              gap: { xs: 1.25, sm: 2, md: 2.5 },
             }}
           >
             {recommendationsLoading ? (
@@ -1421,6 +1421,7 @@ export default function Main() {
         onClose={closeSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         TransitionComponent={SlideTransition}
+        sx={{ bottom: { xs: 80, md: 24 } }}
       >
         <Alert
           onClose={closeSnackbar}

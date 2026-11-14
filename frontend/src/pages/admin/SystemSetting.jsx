@@ -5,11 +5,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Grid,
   IconButton,
   MenuItem,
@@ -25,6 +20,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
+import SystemSettingsConfirm from "../../components/admin/SystemSettings/SystemSettingsConfirm";
 import { fetchAboutContent, saveAboutContent } from "../../api/aboutContentAPI";
 import { fetchFooterContent, saveFooterContent } from "../../api/footerContentAPI";
 
@@ -143,7 +139,6 @@ export default function SystemSetting() {
   const [notice, setNotice] = useState("");
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [confirmationPassword, setConfirmationPassword] = useState("");
 
   const loadContent = useCallback(async () => {
     setLoading(true);
@@ -317,14 +312,12 @@ export default function SystemSetting() {
 
     setError("");
     setNotice("");
-    setConfirmationPassword("");
     setPasswordDialogOpen(true);
   };
 
-  const handleConfirmSave = async () => {
+  const handleConfirmSave = async (confirmationPassword) => {
     if (!confirmationPassword) {
-      setError(`Enter your admin password to save ${activeSection === "footer" ? "Footer" : "About Us"} changes.`);
-      return;
+      throw new Error("Enter your admin password to continue.");
     }
 
     setSaving(true);
@@ -340,20 +333,20 @@ export default function SystemSetting() {
         setContent(saved);
         setNotice("About page content saved successfully.");
       }
-      setConfirmationPassword("");
       setPasswordDialogOpen(false);
     } catch (saveError) {
+      let errorMessage = saveError?.message || "Unable to save system content.";
       try {
         if (activeSection === "footer") {
           setFooterContent(await fetchFooterContent());
         } else {
           setContent(await fetchAboutContent());
         }
-        setError(saveError.message);
       } catch (reloadError) {
-        setError(`${saveError.message} Could not reload saved content: ${reloadError.message}`);
+        errorMessage = `${errorMessage} Could not reload saved content: ${reloadError.message}`;
       }
-      setConfirmationPassword("");
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -792,57 +785,14 @@ export default function SystemSetting() {
           {saving ? "Saving…" : "Save changes"}
         </Button>
       )}
-      <Dialog
+      <SystemSettingsConfirm
         open={passwordDialogOpen}
-        onClose={() => {SystemSetting
-          if (!saving) {
-            setPasswordDialogOpen(false);
-            setConfirmationPassword("");
-          }
-        }}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Confirm your password</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            Enter your admin password to save these {activeSection === "footer" ? "Footer" : "About Us"} changes.
-          </DialogContentText>
-          <TextField
-            autoFocus
-            required
-            fullWidth
-            type="password"
-            label="Admin password"
-            value={confirmationPassword}
-            onChange={(event) => setConfirmationPassword(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && confirmationPassword && !saving) {
-                handleConfirmSave();
-              }
-            }}
-            autoComplete="current-password"
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => {
-              setPasswordDialogOpen(false);
-              setConfirmationPassword("");
-            }}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleConfirmSave}
-            disabled={!confirmationPassword || saving}
-          >
-            {saving ? "Saving…" : "Confirm & save"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        handleClose={() => setPasswordDialogOpen(false)}
+        onSubmit={handleConfirmSave}
+        submitting={saving}
+        title="Confirm System Settings Changes"
+        message={`Enter your admin password to save these ${activeSection === "footer" ? "Footer" : "About Us"} changes.`}
+      />
     </Box>
   );
 }

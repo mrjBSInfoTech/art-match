@@ -149,12 +149,10 @@ export default function PromotionSlideInfo({
                   top: 10,
                   right: 10,
                   height: 22,
+                  color: "#fff",
                   backgroundColor: isPublished
                     ? theme.palette.success.main
                     : theme.palette.action.selected,
-                  color: isPublished
-                    ? theme.palette.success.contrastText
-                    : theme.palette.text.secondary,
                   border: `1px solid ${
                     isPublished
                       ? theme.palette.success.main

@@ -215,11 +215,7 @@ export default function PromotionHeaderForm({
             px: 2.5,
             textTransform: "none",
             fontWeight: 700,
-            bgcolor: "#ef3340",
             color: "#fff",
-            "&:hover": {
-              bgcolor: "#d6202e",
-            },
           }}
         >
           {saving && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}

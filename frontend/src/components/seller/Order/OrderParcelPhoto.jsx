@@ -221,10 +221,15 @@ export default function OrderParcelPhoto({
         </Button>
         <Button
           variant="contained"
-          color="error"
           onClick={onSubmit}
           disabled={saving}
-          sx={{ color: "#fff", textTransform: "none" }}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
         >
           {saving ? "Saving..." : `Mark ${fulfillmentTarget?.status || "Packed"}`}
         </Button>

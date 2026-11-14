@@ -373,8 +373,6 @@ function ChangePassword({
             textTransform: "none",
             fontWeight: 700,
             color: "#fff",
-            backgroundColor: "#ef3340",
-            "&:hover": { backgroundColor: "#d62835" },
           }}
         >
           Update Password

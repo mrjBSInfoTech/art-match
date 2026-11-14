@@ -55,6 +55,8 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
   const imageUrl = /^https?:\/\//i.test(image || "") ? image : image
     ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
     : "http://localhost:5000/uploads/buyer/profile.jpg";
+  const strikes = Number(customer?.strikes || 0);
+  const isBanned = Boolean(customer?.is_banned);
 
   return (
     <Dialog
@@ -135,21 +137,6 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                   objectFit: "cover",
                 }}
               />
-              <Chip
-                label={customer.is_banned ? "BANNED" : "ACTIVE"}
-                size="small"
-                sx={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  height: 22,
-                  backgroundColor: theme.palette.background.paper,
-                  color: customer.is_banned ? "#dc2626" : "#15803d",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  boxShadow: "0 1px 4px rgba(15, 23, 42, 0.16)",
-                }}
-              />
             </Box>
 
             <Box
@@ -200,6 +187,24 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                 <Typography sx={detailValueSx}>
                   {customer.address || "N/A"}
                 </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Ban Status</Typography>
+                <Chip
+                  label={isBanned ? "Banned" : "Not banned"}
+                  size="small"
+                  color={isBanned ? "error" : "success"}
+                  sx={{ height: 22, fontSize: 10, fontWeight: 700, color: "#fff" }}
+                />
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Strikes</Typography>
+                <Chip
+                  label={`${strikes} / 3`}
+                  size="small"
+                  color={strikes > 0 ? "warning" : "default"}
+                  sx={{ height: 22, fontSize: 10, fontWeight: 700 }}
+                />
               </Box>
             </Box>
           </Box>

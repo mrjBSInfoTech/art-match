@@ -739,7 +739,6 @@ export default function Marketing() {
                   height: 6,
                   flex: 1,
                   borderRadius: 99,
-                  backgroundColor: "action.disabledBackground",
                 },
               }}
             >

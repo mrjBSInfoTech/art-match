@@ -414,11 +414,22 @@ export default function AdminForm({
           </Button>
         </Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={handleClose} color="text.secondary" disabled={loading}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit} variant="contained" disabled={loading}>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={loading}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
+        >
           {isEditMode ? "Update Access" : "Create Account"}
         </Button>
       </DialogActions>

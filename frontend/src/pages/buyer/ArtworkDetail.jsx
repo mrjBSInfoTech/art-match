@@ -1204,10 +1204,10 @@ export default function ArtworkDetail() {
             Similar artworks
           </Typography>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 1.25, sm: 2.5, md: 3 }}>
             {similarArtworks.map((item) => (
               <Grid
-                size={{ xs: 12, sm: 6, md: 3 }}
+                size={{ xs: 6, sm: 6, md: 3 }}
                 key={item.id || item.artwork_id}
               >
                 <ArtworkCard artwork={item} onAddToCart={handleAddToCart} />

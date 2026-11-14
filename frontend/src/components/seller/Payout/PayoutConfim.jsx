@@ -158,8 +158,6 @@ export default function PayoutConfirm({ open, handleClose, onSubmit, submitting 
               textTransform: "none",
               fontWeight: 700,
               color: "#fff",
-              backgroundColor: "#ef3340",
-              "&:hover": { backgroundColor: "#d62835" },
             }}
           >
             {submitting ? "Verifying..." : "Confirm Password"}

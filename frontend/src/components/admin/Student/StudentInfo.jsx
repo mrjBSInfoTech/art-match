@@ -61,7 +61,8 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
     ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
     : "http://localhost:5000/uploads/seller/profile.jpg";
 
-  const status = student?.register_status || "Pending";
+  const strikes = Number(student?.strikes || 0);
+  const isBanned = Boolean(student?.is_banned);
 
   return (
     <Dialog
@@ -214,9 +215,27 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Account Status</Typography>
-                <Typography sx={detailValueSx}>
+                <Typography sx={{ ...detailValueSx, textTransform: "capitalize" }}>
                   {student.account_status || "Active"}
                 </Typography>
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Ban Status</Typography>
+                <Chip
+                  label={isBanned ? "Banned" : "Not banned"}
+                  size="small"
+                  color={isBanned ? "error" : "success"}
+                  sx={{ height: 22, fontSize: 10, fontWeight: 700, color: "#fff" }}
+                />
+              </Box>
+              <Box>
+                <Typography sx={detailLabelSx}>Strikes</Typography>
+                <Chip
+                  label={`${strikes} / 3`}
+                  size="small"
+                  color={strikes > 0 ? "warning" : "default"}
+                  sx={{ height: 22, fontSize: 10, fontWeight: 700 }}
+                />
               </Box>
               <Box>
                 <Typography sx={detailLabelSx}>Expires</Typography>

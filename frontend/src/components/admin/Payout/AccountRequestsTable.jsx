@@ -416,9 +416,11 @@ export default function AccountRequestsTable({
       .includes(search.trim().toLowerCase());
     return matchesStatus && matchesSearch;
   });
-  const allVisibleSelected = filtered.length > 0
-    && filtered.every((request) => selectedRequestIds.has(request.requestId));
-  const someVisibleSelected = filtered.some((request) => selectedRequestIds.has(request.requestId));
+  const isRequestSelectable = (request) => request?.status !== "Approved";
+  const selectableVisibleRequests = filtered.filter(isRequestSelectable);
+  const allVisibleSelected = selectableVisibleRequests.length > 0
+    && selectableVisibleRequests.every((request) => selectedRequestIds.has(request.requestId));
+  const someVisibleSelected = selectableVisibleRequests.some((request) => selectedRequestIds.has(request.requestId));
   const selectedPendingRequests = requests.filter(
     (request) =>
       selectedRequestIds.has(request.requestId) &&
@@ -427,7 +429,7 @@ export default function AccountRequestsTable({
   );
 
   const toggleAllVisibleRequests = (event) => {
-    const visibleIds = filtered.map((request) => request.requestId);
+    const visibleIds = selectableVisibleRequests.map((request) => request.requestId);
     setSelectedRequestIds((current) => {
       const next = new Set(current);
       visibleIds.forEach((requestId) => {
@@ -438,11 +440,12 @@ export default function AccountRequestsTable({
     });
   };
 
-  const toggleRequestSelection = (requestId) => {
+  const toggleRequestSelection = (request) => {
+    if (!isRequestSelectable(request)) return;
     setSelectedRequestIds((current) => {
       const next = new Set(current);
-      if (next.has(requestId)) next.delete(requestId);
-      else next.add(requestId);
+      if (next.has(request.requestId)) next.delete(request.requestId);
+      else next.add(request.requestId);
       return next;
     });
   };
@@ -463,6 +466,12 @@ export default function AccountRequestsTable({
   const handleApprove = async () => {
     if (!selected || busy) return;
     await onApprove(selected.requestId, comment);
+    setSelectedRequestIds((current) => {
+      if (!current.has(selected.requestId)) return current;
+      const next = new Set(current);
+      next.delete(selected.requestId);
+      return next;
+    });
     closeDialog();
   };
 
@@ -475,7 +484,7 @@ export default function AccountRequestsTable({
   const getStatusChip = (status) => {
     if (status === "Approved") return <Chip size="small" color="success" label="Approved" sx={{ color: "#fff", fontWeight: 700 }} />;
     if (status === "Rejected") return <Chip size="small" color="error" label="Rejected" sx={{ color: "#fff", fontWeight: 700 }} />;
-    return <Chip size="small" color="warning" label="Pending (1 Approval)" sx={{ fontWeight: 700 }} />;
+    return <Chip size="small" color="warning" label="Pending" sx={{ fontWeight: 700 }} />;
   };
 
   return (
@@ -590,7 +599,7 @@ export default function AccountRequestsTable({
                   });
                 }
               }}
-              sx={{ minHeight: 44, fontWeight: 700 }}
+              sx={{ minHeight: 44, fontWeight: 700, color:"#fff" }}
             >
               Approve selected ({selectedPendingRequests.length})
             </Button>
@@ -604,6 +613,7 @@ export default function AccountRequestsTable({
                   <Checkbox
                     checked={allVisibleSelected}
                     indeterminate={!allVisibleSelected && someVisibleSelected}
+                    disabled={selectableVisibleRequests.length === 0}
                     onChange={toggleAllVisibleRequests}
                     inputProps={{ "aria-label": "Select all visible payout method requests" }}
                   />
@@ -630,8 +640,9 @@ export default function AccountRequestsTable({
                   <TableRow key={req.requestId} hover>
                     <TableCell padding="checkbox">
                       <Checkbox
-                        checked={selectedRequestIds.has(req.requestId)}
-                        onChange={() => toggleRequestSelection(req.requestId)}
+                        checked={isRequestSelectable(req) && selectedRequestIds.has(req.requestId)}
+                        disabled={!isRequestSelectable(req)}
+                        onChange={() => toggleRequestSelection(req)}
                         inputProps={{ "aria-label": `Select payout method request from ${req.studentName || "student"}` }}
                       />
                     </TableCell>

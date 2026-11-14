@@ -129,6 +129,7 @@ export default function DeactivateAccountDialog({
               px: 2.5,
               textTransform: "none",
               fontWeight: 700,
+              color: "#fff",
             }}
           >
             {loading ? "Deactivating..." : "Confirm Deactivation"}

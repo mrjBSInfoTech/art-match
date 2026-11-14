@@ -182,16 +182,34 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
         },
       }}
     >
-      <DialogTitle id="buyer-address-dialog-title" sx={{
-        display: "flex", alignItems: "center", gap: 0.75,
-        px: 2.5, py: 1.75, color: "text.primary", fontSize: 16, fontWeight: 700,
-        borderBottom: "1px solid", borderColor: "divider",
-      }}>
+      <DialogTitle
+        id="buyer-address-dialog-title"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          px: 2.5,
+          py: 1.75,
+          color: "text.primary",
+          fontSize: 16,
+          fontWeight: 700,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
         <LocationOnOutlinedIcon sx={{ color: "#ef3340", fontSize: 20 }} />
         {selectedAddress ? "Edit Address" : "Add Address"}
-        <IconButton aria-label="Close address form" onClick={handleClose} sx={{
-          width: 28, height: 28, ml: "auto", p: 0, color: "text.secondary",
-        }}>
+        <IconButton
+          aria-label="Close address form"
+          onClick={handleClose}
+          sx={{
+            width: 28,
+            height: 28,
+            ml: "auto",
+            p: 0,
+            color: "text.secondary",
+          }}
+        >
           <CloseIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </DialogTitle>
@@ -284,7 +302,6 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
             label="Use as default address"
             sx={{ gridColumn: { sm: "1 / -1" }, mt: 0.5 }}
           />
-
         </Box>
       </DialogContent>
 
@@ -293,10 +310,18 @@ function AddressForm({ open, handleClose, onSubmit, selectedAddress }) {
           Cancel
         </Button>
 
-        <Button onClick={handleSubmit} variant="contained" color="error" sx={{
-          borderRadius: 1.5, px: 2.5, textTransform: "none", fontWeight: 700,
-          color: "#fff",
-        }}>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          color="error"
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
+        >
           {selectedAddress ? "Update" : "Add Address"}
         </Button>
       </DialogActions>

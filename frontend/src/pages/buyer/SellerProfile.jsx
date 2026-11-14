@@ -22,6 +22,8 @@ import {
   useTheme,
 } from "@mui/material";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import SellerRecommendations from "../../components/buyer/Profile/SellerRecommendations";
 import SellerArtworkCard from "../../components/buyer/Seller/SellerArtworkCard";
 import {
@@ -371,276 +373,396 @@ export default function SellerProfile() {
       </Helmet>
       <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
+          component="section"
+          aria-label={`${selectedSeller.shopName || selectedSeller.name} artist profile`}
           sx={{
             display: "grid",
             gridTemplateColumns: {
               xs: "minmax(0, 1fr)",
-              lg: "minmax(0, 1fr) 280px",
+              sm: "160px minmax(0, 1fr)",
+              md: "200px minmax(0, 1fr)",
+              lg: "220px minmax(0, 1fr) 270px",
             },
-            alignItems: "start",
-            gap: { xs: 2, md: 2.5 },
+            overflow: "hidden",
+            border: `1px solid ${colors.border}`,
+            borderRadius: { xs: 3, md: 4 },
+            background: colors.card,
+            boxShadow: isDark
+              ? "0 20px 55px rgba(0, 0, 0, 0.24)"
+              : "0 20px 55px rgba(68, 41, 15, 0.09)",
           }}
         >
-          {/* Main Profile Info Section */}
-          <Box sx={{ minWidth: 0, width: "100%" }}>
-            <Box
+          <Box
+            sx={{
+              minHeight: { xs: 220, sm: 300, lg: 340 },
+              p: { xs: 2.5, sm: 2, md: 3 },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+              background: isDark
+                ? "radial-gradient(circle at 50% 35%, rgba(248, 113, 113, 0.18), transparent 55%), #172033"
+                : "radial-gradient(circle at 50% 35%, rgba(217, 84, 84, 0.16), transparent 55%), #f1e2d5",
+            }}
+          >
+            <Typography
+              variant="overline"
               sx={{
-                background: colors.card,
-                border: `1px solid ${colors.border}`,
-                borderRadius: { xs: 3, md: 4 },
-                p: { xs: 2, sm: 2.5, md: 3 },
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                alignItems: { xs: "center", sm: "flex-start" },
-                textAlign: { xs: "center", sm: "left" },
-                gap: { xs: 2, sm: 2.5 },
-                boxShadow: isDark
-                  ? "0 16px 40px rgba(0, 0, 0, 0.18)"
-                  : "0 16px 40px rgba(68, 41, 15, 0.06)",
+                color: colors.accent,
+                fontWeight: 800,
+                letterSpacing: "0.14em",
+                alignSelf: "flex-start",
               }}
             >
-              <Avatar
-                src={selectedSeller.image}
-                alt={selectedSeller.name}
-                sx={{
-                  width: { xs: 88, sm: 104, md: 116 },
-                  height: { xs: 88, sm: 104, md: 116 },
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: `2px solid ${colors.border}`,
-                  flexShrink: 0,
-                  background: colors.cardAlt,
-                }}
-              >
-                {!selectedSeller.image &&
-                  getProfileInitials(selectedSeller.name)}
-              </Avatar>
-
-              <Box sx={{ flex: 1, minWidth: 0, width: "100%" }}>
-                <Stack alignItems={{ xs: "center", sm: "flex-start" }} spacing={0.75} sx={{ mb: 1 }}>
-                  <Typography
-                    component="h1"
-                    sx={{
-                      fontWeight: 800,
-                      letterSpacing: "-0.04em",
-                      lineHeight: 1.08,
-                      color: colors.text,
-                      fontSize: { xs: "1.75rem", sm: "2.1rem", md: "2.45rem" },
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {selectedSeller.shopName || selectedSeller.name}
-                  </Typography>
-                  {selectedSeller.department && (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: colors.muted,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {selectedSeller.department}
-                    </Typography>
-                  )}
-                </Stack>
-
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent={{ xs: "center", sm: "flex-start" }}
-                  spacing={1}
-                  sx={{ mb: 1.25, minHeight: 24 }}
-                  aria-label={
-                    averageRating === null
-                      ? "Seller rating"
-                      : `Average seller rating: ${averageRating.toFixed(1)} out of 5`
-                  }
-                >
-                  {reviewsLoading ? (
-                    <CircularProgress size={16} />
-                  ) : reviewsError ? (
-                    <Typography variant="body2" sx={{ color: colors.subtle }}>
-                      Rating unavailable
-                    </Typography>
-                  ) : averageRating === null ? (
-                    <Typography variant="body2" sx={{ color: colors.subtle }}>
-                      No reviews yet
-                    </Typography>
-                  ) : (
-                    <>
-                      <Rating
-                        value={averageRating}
-                        precision={0.1}
-                        readOnly
-                        size="small"
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{ color: colors.text, fontWeight: 700 }}
-                      >
-                        {averageRating.toFixed(1)}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: colors.subtle }}>
-                        ({sellerReviews.length}{" "}
-                        {sellerReviews.length === 1 ? "review" : "reviews"})
-                      </Typography>
-                    </>
-                  )}
-                </Stack>
-
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: colors.muted,
-                    maxWidth: 620,
-                    lineHeight: 1.6,
-                    mb: 1.75,
-                    mx: { xs: "auto", sm: 0 },
-                    fontSize: { xs: "0.95rem", sm: "1rem" },
-                  }}
-                >
-                  {selectedSeller.bio ||
-                    "This seller hasn’t added an About description yet."}
-                </Typography>
-
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent={{ xs: "center", sm: "flex-start" }}
-                  sx={{ flexWrap: "wrap", rowGap: 1 }}
-                >
-                  {[
-                    { label: "Artworks", value: sellerArtworks.length },
-                    {
-                      label: "Sales",
-                      value: selectedSeller.sales == null ? "—" : selectedSeller.sales,
-                    },
-                  ].map((stat) => (
-                    <Box
-                      key={stat.label}
-                      sx={{
-                        minWidth: 92,
-                        px: 1.5,
-                        py: 1,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 2,
-                        backgroundColor: colors.cardAlt,
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        sx={{ fontWeight: 800, lineHeight: 1.1, color: colors.text }}
-                      >
-                        {stat.value}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: colors.subtle }}>
-                        {stat.label}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-
-                <Button
-                  variant="contained"
-                  startIcon={<ChatBubbleOutlineIcon />}
-                  onClick={() =>
-                    navigate(
-                      `/buyer/messages?seller=${encodeURIComponent(selectedSeller.student_id)}`,
-                    )
-                  }
-                  sx={{
-                    mt: 1.5,
-                    minHeight: 44,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    color: "#fff",
-                    width: { xs: "100%", sm: "auto" },
-                    px: 2.5,
-                    borderRadius: 999,
-                  }}
-                >
-                  Message Artist
-                </Button>
-              </Box>
-            </Box>
+              ARTIST PROFILE
+            </Typography>
+            <Avatar
+              src={selectedSeller.image}
+              alt={selectedSeller.name}
+              sx={{
+                width: { xs: 132, sm: 116, md: 148, lg: 164 },
+                height: { xs: 132, sm: 116, md: 148, lg: 164 },
+                border: `6px solid ${colors.card}`,
+                boxShadow: `0 0 0 1px ${colors.border}, 0 16px 32px rgba(0, 0, 0, 0.16)`,
+                backgroundColor: colors.cardAlt,
+                color: colors.text,
+                fontSize: "2rem",
+                fontWeight: 800,
+              }}
+            >
+              {!selectedSeller.image &&
+                getProfileInitials(selectedSeller.name)}
+            </Avatar>
+            <Typography
+              variant="caption"
+              sx={{
+                color: colors.muted,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textAlign: "center",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {selectedSeller.department || "Independent artist"}
+            </Typography>
           </Box>
 
-          {/* Sidebar Info Section (Member Since & Specialties) */}
-          <Box sx={{ minWidth: 0, width: "100%" }}>
-            <Box
+          <Box
+            sx={{
+              minWidth: 0,
+              p: { xs: 2.5, sm: 2.5, md: 3.5, lg: 4 },
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            <Typography
+              variant="overline"
               sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  lg: "minmax(0, 1fr)",
-                },
-                gap: { xs: 1.5, md: 2 },
+                color: colors.accent,
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                mb: 0.5,
               }}
             >
-              <Paper
-                elevation={0}
-                sx={{
-                  p: { xs: 2, sm: 2.25 },
-                  borderRadius: 3,
-                  background: colors.sideCard,
-                  border: `1px solid ${colors.border}`,
-                }}
-              >
-                <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 800, mb: 0.75 }}>
-                  Member Since
-                </Typography>
-                <Typography variant="body2" sx={{ color: colors.muted }}>
-                  {memberSince}
-                </Typography>
-              </Paper>
+              THE PERSON BEHIND THE WORK
+            </Typography>
+            <Typography
+              component="h1"
+              sx={{
+                color: colors.text,
+                fontSize: {
+                  xs: "2rem",
+                  sm: "2.1rem",
+                  md: "2.65rem",
+                  xl: "3.2rem",
+                },
+                fontWeight: 850,
+                letterSpacing: "-0.055em",
+                lineHeight: 1.03,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {selectedSeller.shopName || selectedSeller.name}
+            </Typography>
 
-              <Paper
-                elevation={0}
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ mt: 1.5, minHeight: 24, flexWrap: "wrap", rowGap: 0.5 }}
+              aria-label={
+                averageRating === null
+                  ? "Seller rating"
+                  : `Average seller rating: ${averageRating.toFixed(1)} out of 5`
+              }
+            >
+              {reviewsLoading ? (
+                <CircularProgress size={16} />
+              ) : reviewsError ? (
+                <Typography variant="body2" sx={{ color: colors.subtle }}>
+                  Rating unavailable
+                </Typography>
+              ) : averageRating === null ? (
+                <Typography variant="body2" sx={{ color: colors.subtle }}>
+                  No reviews yet
+                </Typography>
+              ) : (
+                <>
+                  <Rating
+                    value={averageRating}
+                    precision={0.1}
+                    readOnly
+                    size="small"
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ color: colors.text, fontWeight: 800 }}
+                  >
+                    {averageRating.toFixed(1)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: colors.subtle }}>
+                    {sellerReviews.length}{" "}
+                    {sellerReviews.length === 1 ? "review" : "reviews"}
+                  </Typography>
+                </>
+              )}
+            </Stack>
+
+            <Box
+              sx={{
+                mt: 2.5,
+                p: { xs: 1.75, sm: 2 },
+                borderLeft: `3px solid ${colors.accent}`,
+                borderRadius: "0 12px 12px 0",
+                backgroundColor: colors.cardAlt,
+              }}
+            >
+              <Typography
+                variant="body1"
                 sx={{
-                  p: { xs: 2, sm: 2.25 },
-                  borderRadius: 3,
-                  background: colors.sideCard,
-                  border: `1px solid ${colors.border}`,
+                  color: colors.muted,
+                  lineHeight: 1.75,
+                  fontSize: { xs: "0.95rem", sm: "1rem" },
+                  whiteSpace: "pre-line",
+                  overflowWrap: "anywhere",
                 }}
               >
-                <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 800, mb: 0.75 }}>
-                  Specialties
-                </Typography>
-                {specialtiesLoadError ? (
-                  <Typography variant="body2" color="error">
-                    {specialtiesLoadError}
-                  </Typography>
-                ) : specialties.length > 0 ? (
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ flexWrap: "wrap", rowGap: 1 }}
+                {selectedSeller.bio ||
+                  "This seller hasn’t added an About description yet."}
+              </Typography>
+            </Box>
+
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              alignItems={{ xs: "stretch", md: "center" }}
+              justifyContent="space-between"
+              spacing={2}
+              sx={{
+                mt: 2.5,
+                pt: 2.5,
+                borderTop: `1px solid ${colors.border}`,
+              }}
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={{ xs: 2, sm: 3 }}
+                divider={
+                  <Box
+                    sx={{
+                      width: "1px",
+                      height: 38,
+                      backgroundColor: colors.border,
+                    }}
+                  />
+                }
+              >
+                <Box>
+                  <Typography
+                    sx={{
+                      color: colors.text,
+                      fontSize: { xs: "1.5rem", sm: "1.8rem" },
+                      fontWeight: 850,
+                      lineHeight: 1,
+                    }}
                   >
-                    {specialties.map((item) => (
-                      <Chip
-                        key={item}
-                        label={item}
-                        size="small"
-                        sx={{
-                          background: colors.chip,
-                          color: colors.muted,
-                          borderRadius: 999,
-                          fontWeight: 600,
-                          border: `1px solid ${colors.chipBorder}`,
-                        }}
-                      />
-                    ))}
-                  </Stack>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No specialties selected yet.
+                    {sellerArtworks.length}
                   </Typography>
-                )}
-              </Paper>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: colors.subtle, fontWeight: 700 }}
+                  >
+                    ARTWORKS
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      color: colors.text,
+                      fontSize: { xs: "1.5rem", sm: "1.8rem" },
+                      fontWeight: 850,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {selectedSeller.sales == null ? "—" : selectedSeller.sales}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: colors.subtle, fontWeight: 700 }}
+                  >
+                    SALES
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Button
+                variant="contained"
+                startIcon={<ChatBubbleOutlineIcon />}
+                onClick={() =>
+                  navigate(
+                    `/buyer/messages?seller=${encodeURIComponent(selectedSeller.student_id)}`,
+                  )
+                }
+                sx={{
+                  minHeight: 48,
+                  px: 2.5,
+                  borderRadius: 999,
+                  textTransform: "none",
+                  fontWeight: 750,
+                  color: "#fff",
+                  backgroundColor: isDark ? colors.accent : "#b93838",
+                  boxShadow: "none",
+                  "&:hover": {
+                    backgroundColor: isDark ? colors.accent : "#a63232",
+                    boxShadow: "none",
+                  },
+                }}
+              >
+                Message Artist
+              </Button>
+            </Stack>
+          </Box>
+
+          <Box
+            component="aside"
+            aria-label="Artist details"
+            sx={{
+              gridColumn: { xs: "auto", sm: "1 / -1", lg: "auto" },
+              p: { xs: 2.5, sm: 2.5, md: 3 },
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "minmax(0, 1fr)",
+              },
+              alignContent: "center",
+              gap: { xs: 2.5, sm: 0, lg: 3 },
+              borderTop: {
+                xs: `1px solid ${colors.border}`,
+                sm: `1px solid ${colors.border}`,
+                lg: "none",
+              },
+              borderLeft: { lg: `1px solid ${colors.border}` },
+              backgroundColor: colors.sideCard,
+            }}
+          >
+            <Box sx={{ pr: { sm: 3, lg: 0 } }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ mb: 1.25 }}
+              >
+                <CalendarMonthOutlinedIcon
+                  sx={{ color: colors.accent, fontSize: 20 }}
+                />
+                <Typography
+                  component="h2"
+                  variant="overline"
+                  sx={{
+                    color: colors.subtle,
+                    fontWeight: 800,
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  MEMBER SINCE
+                </Typography>
+              </Stack>
+              <Typography
+                sx={{
+                  color: colors.text,
+                  fontSize: { xs: "1.15rem", sm: "1.25rem" },
+                  fontWeight: 800,
+                }}
+              >
+                {memberSince}
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                pt: { xs: 2.5, sm: 0, lg: 3 },
+                pl: { sm: 3, lg: 0 },
+                borderTop: {
+                  xs: `1px solid ${colors.border}`,
+                  sm: "none",
+                  lg: `1px solid ${colors.border}`,
+                },
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ mb: 1.25 }}
+              >
+                <PaletteOutlinedIcon
+                  sx={{ color: colors.accent, fontSize: 20 }}
+                />
+                <Typography
+                  component="h2"
+                  variant="overline"
+                  sx={{
+                    color: colors.subtle,
+                    fontWeight: 800,
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  SPECIALTIES
+                </Typography>
+              </Stack>
+              {specialtiesLoadError ? (
+                <Typography variant="body2" color="error">
+                  {specialtiesLoadError}
+                </Typography>
+              ) : specialties.length > 0 ? (
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  sx={{ flexWrap: "wrap", rowGap: 0.75 }}
+                >
+                  {specialties.map((item) => (
+                    <Chip
+                      key={item}
+                      label={item}
+                      size="small"
+                      sx={{
+                        background: colors.chip,
+                        color: colors.muted,
+                        borderRadius: 999,
+                        fontWeight: 650,
+                        border: `1px solid ${colors.chipBorder}`,
+                      }}
+                    />
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" sx={{ color: colors.subtle }}>
+                  No specialties selected yet.
+                </Typography>
+              )}
             </Box>
           </Box>
         </Box>
@@ -692,45 +814,126 @@ export default function SellerProfile() {
               tabIndex={0}
               sx={{ minWidth: 0 }}
             >
-              <ToggleButtonGroup
-                exclusive
-                value={availabilityFilter}
-                onChange={(event, value) => {
-                  if (value) setAvailabilityFilter(value);
-                }}
-                aria-label="Filter artworks by availability"
-                size="small"
+              <Box
+                component="section"
+                aria-label="Artwork availability filters"
                 sx={{
-                  mt: 2.5,
-                  flexWrap: "wrap",
-                  gap: 0.75,
-                  "& .MuiToggleButton-root": {
-                    minHeight: 44,
-                    px: { xs: 1.25, sm: 2 },
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 999,
-                    color: colors.muted,
-                    fontSize: { xs: "0.75rem", sm: "0.85rem" },
-                    "&.Mui-selected": {
-                      color: "#fff",
-                      backgroundColor: colors.accent,
-                      borderColor: colors.accent,
-                      "&:hover": { backgroundColor: colors.accent },
-                    },
-                  },
+                  mt: 2,
+                  mb: 2,
+                  py: { xs: 1.5, sm: 2 },
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "stretch", sm: "center" },
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                  borderBottom: `1px solid ${colors.border}`,
                 }}
               >
-                <ToggleButton value="all">All ({sellerArtworks.length})</ToggleButton>
-                <ToggleButton value="available">
-                  Available ({availableArtworks.length})
-                </ToggleButton>
-                <ToggleButton value="sold_out">
-                  Sold out ({soldOutArtworks.length})
-                </ToggleButton>
-              </ToggleButtonGroup>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  spacing={2}
+                >
+                  <Typography
+                    component="h2"
+                    sx={{ color: colors.text, fontWeight: 700, fontSize: "0.95rem" }}
+                  >
+                    Filter artworks
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    aria-live="polite"
+                    sx={{ color: colors.subtle, whiteSpace: "nowrap" }}
+                  >
+                    Showing {displayedArtworks.length} of {sellerArtworks.length}
+                  </Typography>
+                </Stack>
+
+                <ToggleButtonGroup
+                  exclusive
+                  value={availabilityFilter}
+                  onChange={(event, value) => {
+                    if (value) setAvailabilityFilter(value);
+                  }}
+                  aria-label="Filter artworks by availability"
+                  sx={{
+                    width: { xs: "100%", sm: "auto" },
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: 0,
+                    p: 0.5,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 999,
+                    backgroundColor: colors.cardAlt,
+                    "& .MuiToggleButtonGroup-grouped": {
+                      m: 0,
+                      minWidth: 0,
+                      minHeight: 40,
+                      px: { xs: 1, sm: 1.5 },
+                      border: 0,
+                      borderRadius: "999px !important",
+                      color: colors.muted,
+                      textTransform: "none",
+                      fontSize: { xs: "0.72rem", sm: "0.82rem" },
+                      fontWeight: 700,
+                      "&:not(:first-of-type)": {
+                        borderLeft: 0,
+                      },
+                      "&.Mui-selected": {
+                        color: "#fff",
+                        backgroundColor: theme.palette.error.dark,
+                        "&:hover": {
+                          backgroundColor: theme.palette.error.dark,
+                        },
+                      },
+                    },
+                  }}
+                >
+                  {[
+                    { value: "all", label: "All", count: sellerArtworks.length },
+                    {
+                      value: "available",
+                      label: "Available",
+                      count: availableArtworks.length,
+                    },
+                    {
+                      value: "sold_out",
+                      label: "Sold out",
+                      count: soldOutArtworks.length,
+                    },
+                  ].map((option) => {
+                    const selected = availabilityFilter === option.value;
+                    return (
+                      <ToggleButton
+                        key={option.value}
+                        value={option.value}
+                        aria-label={`${option.label} artworks, ${option.count}`}
+                      >
+                        <Box
+                          component="span"
+                          sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {option.label}{" "}
+                          <Box
+                            component="span"
+                            sx={{ opacity: selected ? 0.85 : 0.65 }}
+                          >
+                            {option.count}
+                          </Box>
+                        </Box>
+                      </ToggleButton>
+                    );
+                  })}
+                </ToggleButtonGroup>
+              </Box>
               <Grid
                 container
-                spacing={{ xs: 2, md: 2.5 }}
+                spacing={{ xs: 1.25, sm: 2 }}
                 sx={{ mt: 0.5, alignItems: "stretch" }}
               >
               {displayedArtworks.length === 0 ? (
@@ -759,7 +962,7 @@ export default function SellerProfile() {
               ) : (
                 displayedArtworks.map((artwork) => (
                   <Grid
-                    size={{ xs: 12, sm: 6, md: 4 }}
+                    size={{ xs: 6, sm: 6, md: 3 }}
                     key={artwork.artwork_id}
                     sx={{ minWidth: 0 }}
                   >

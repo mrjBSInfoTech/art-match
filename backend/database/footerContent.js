@@ -16,9 +16,26 @@ export const defaultFooterContent = {
     {
       title: "Programs",
       links: [
-        { label: "Architecture", url: "/buyer/programs/architecture" },
-        { label: "Interior Design", url: "/buyer/programs/interior-design" },
-        { label: "Fine Arts", url: "/buyer/programs/fine-arts" },
+        {
+          label: "Bachelor of Science in Architecture",
+          url: "/buyer/programs/architecture",
+        },
+        {
+          label: "Bachelor of Fine Arts in Painting",
+          url: "/buyer/programs/fine-arts",
+        },
+        {
+          label: "Bachelor of Fine Arts in Advertising Arts",
+          url: "/buyer/programs/advertising-arts",
+        },
+        {
+          label: "Bachelor of Science in Interior Design",
+          url: "/buyer/programs/interior-design",
+        },
+        {
+          label: "Bachelor of Fine Arts in Industrial Design",
+          url: "/buyer/programs/industrial-design",
+        },
       ],
     },
     {

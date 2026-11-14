@@ -231,8 +231,6 @@ export default function DispatchAlert({
             fontWeight: 700,
             color: "#fff",
             backgroundColor: "#ef3340",
-            boxShadow: "0 2px 10px rgba(239, 51, 64, 0.3)",
-            "&:hover": { backgroundColor: "#d62835" },
           }}
         >
           {isSubmitting && (

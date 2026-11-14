@@ -189,14 +189,11 @@ export default function PromotionHeaderForm({
               )
             }
             sx={{
-              minHeight: 44,
               borderRadius: 1.5,
               px: 2.5,
               textTransform: "none",
               fontWeight: 700,
               color: "#fff",
-              backgroundColor: theme.palette.error.main,
-              "&:hover": { backgroundColor: theme.palette.error.dark },
             }}
           >
             {saving ? "Requesting..." : "Request"}

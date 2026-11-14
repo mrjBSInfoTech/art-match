@@ -553,7 +553,6 @@ export default function VouvherForm({
             fontWeight: 700,
             color: "#fff",
           }}
-          color="error"
         >
           {saving && (
             <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />

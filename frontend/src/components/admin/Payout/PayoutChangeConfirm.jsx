@@ -283,7 +283,7 @@ export default function PayoutChangeConfirm({
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ px: 2.5, py: 2 }}>
+      <DialogActions>
         <Button onClick={onClose} disabled={busy} color="inherit" sx={{ color: "text.secondary" }}>
           Cancel
         </Button>
@@ -291,14 +291,7 @@ export default function PayoutChangeConfirm({
           onClick={handleConfirmClick}
           disabled={busy || !acknowledged}
           variant="contained"
-          color="error"
-          sx={{
-            borderRadius: 1.5,
-            px: 2.5,
-            textTransform: "none",
-            fontWeight: 700,
-            color: "#fff",
-          }}
+          color="error" 
         >
           {busy && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
           {busy

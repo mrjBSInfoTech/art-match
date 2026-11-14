@@ -779,6 +779,11 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
         </Button>
       </DialogTitle>
       <DialogContent dividers>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         {uploadError && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {uploadError}
@@ -1203,11 +1208,6 @@ function ArtworkForm({ open, handleClose, onSubmit, selectedArtwork = null, init
           </Box>
         </Stack>
       </DialogContent>
-      {error && (
-        <Box sx={{ px: 3, pt: 2 }}>
-          <Alert severity="error">{error}</Alert>
-        </Box>
-      )}
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={handleClose} disabled={isSubmitting} color="text.secondary">
           Cancel

@@ -71,6 +71,8 @@ import {
 } from "../api/buyer/recommendationAPI";
 import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
+import MobileSearchFilterDrawer from "../components/buyer/Layout/MobileSearchFilterDrawer";
+import MobileBottomNav from "../components/buyer/Layout/MobileBottomNav";
 
 const DEFAULT_PROMOTION_HEADER = {
   message: "Special Spring Exhibition: Post-Digital Sculptures by Class of 2026 out now.",
@@ -100,6 +102,7 @@ function BuyerLayoutContent({ children }) {
   const { theme, mode } = useThemeMode();
   const inlineSearch = useMediaQuery(theme.breakpoints.up("md"));
   const searchInputRef = useRef(null);
+  const mobileSearchInputRef = useRef(null);
   const appBarRef = useRef(null);
   const headerRootRef = useRef(null);
   const headerSpacerRef = useRef(null);
@@ -408,7 +411,7 @@ function BuyerLayoutContent({ children }) {
   });
   const [draftPriceRange, setDraftPriceRange] = useState([0, PRICE_LIMIT]);
 
-  const handleCategoriesOpen = (event) => {
+  const syncDraftFiltersFromUrl = React.useCallback(() => {
     const params = new URLSearchParams(location.search);
     setDraftCategories({
       art_type: params.getAll("art_type"),
@@ -417,6 +420,23 @@ function BuyerLayoutContent({ children }) {
       color: params.getAll("color"),
     });
     setDraftPriceRange(readPriceRange(params));
+  }, [location.search]);
+
+  const openMobileSearch = React.useCallback(() => {
+    syncDraftFiltersFromUrl();
+    setSearchOpen(true);
+  }, [syncDraftFiltersFromUrl]);
+
+  useEffect(() => {
+    const handleOpenEvent = () => openMobileSearch();
+    window.addEventListener("buyer-open-search-filter", handleOpenEvent);
+    return () => {
+      window.removeEventListener("buyer-open-search-filter", handleOpenEvent);
+    };
+  }, [openMobileSearch]);
+
+  const handleCategoriesOpen = (event) => {
+    syncDraftFiltersFromUrl();
 
     const buttonRect = event.currentTarget.getBoundingClientRect();
     const navigationRect = event.currentTarget
@@ -463,15 +483,42 @@ function BuyerLayoutContent({ children }) {
     clearDraftPrice();
   };
 
+  const activeUrlParams = new URLSearchParams(location.search);
+  const [activeMinPrice, activeMaxPrice] = readPriceRange(activeUrlParams);
+  const activeFilterCount =
+    categoryFilterTypes.reduce(
+      (total, filterType) => total + activeUrlParams.getAll(filterType).length,
+      0,
+    ) + (activeMinPrice > 0 || activeMaxPrice < PRICE_LIMIT ? 1 : 0);
+
   const hasDraftCategories = categoryFilterTypes.some(
     (filterType) => (draftCategories[filterType] || []).length > 0,
   );
   const hasDraftPrice =
     draftPriceRange[0] > 0 || draftPriceRange[1] < PRICE_LIMIT;
   const hasAnyDraftFilters = hasDraftCategories || hasDraftPrice;
+  const draftFilterCount =
+    categoryFilterTypes.reduce(
+      (total, filterType) => total + (draftCategories[filterType] || []).length,
+      0,
+    ) + (hasDraftPrice ? 1 : 0);
 
-  const handleApplyFiltersAndSearch = () => {
+  const handleApplyFiltersAndSearch = ({ includeSearchQuery = false } = {}) => {
     const params = new URLSearchParams(location.search);
+
+    if (includeSearchQuery) {
+      const query = searchQuery.trim();
+      if (query) {
+        void recordRecommendationEvent({
+          event_type: "search",
+          search_query: query,
+          source_page: "buyer_layout",
+        });
+        params.set("q", query);
+      } else {
+        params.delete("q");
+      }
+    }
 
     // Clear previous filter and price params
     categoryFilterTypes.forEach((filterType) => params.delete(filterType));
@@ -515,6 +562,7 @@ function BuyerLayoutContent({ children }) {
     }
 
     setCategoriesAnchorPosition(null);
+    setSearchOpen(false);
 
     const pathname = location.pathname.startsWith("/buyer/shop")
       ? location.pathname
@@ -598,9 +646,9 @@ function BuyerLayoutContent({ children }) {
             alignItems: "center",
             justifyContent: "space-between",
             gap: { xs: 1, lg: 2 },
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
             py: { xs: 0.75, lg: 0 },
-            minHeight: { xs: 64, lg: 72 },
+            minHeight: { xs: 60, lg: 72 },
             px: { xs: 2, sm: 4, lg: 6 },
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
@@ -675,16 +723,14 @@ function BuyerLayoutContent({ children }) {
 
           <Box
             sx={{
-              display: { xs: searchOpen ? "flex" : "none", md: "flex" },
+              display: { xs: "none", md: "flex" },
               flexGrow: 1,
-              flexBasis: { xs: "100%", md: "auto" },
               minWidth: 0,
-              order: { xs: 2, md: 0 },
               justifyContent: "center",
               width: "100%",
             }}
           >
-            {/* Inline on larger tablets; toggled below the header on smaller screens. */}
+            {/* Inline on tablet/desktop; mobile uses MobileSearchFilterDrawer from the top-right Search trigger. */}
             <Paper
               id="buyer-header-search"
               component="form"
@@ -926,7 +972,7 @@ function BuyerLayoutContent({ children }) {
                   Addresses
                 </MenuItem>
                 <MenuItem
-                  onClick={() => handleAccountNavigation("/buyer/messages")}
+                  onClick={() => handleAccountNavigation("/buyer/profile/messages")}
                 >
                   <ListItemIcon>
                     <ChatIcon fontSize="small" />
@@ -1021,18 +1067,62 @@ function BuyerLayoutContent({ children }) {
             </DialogActions>
           </Dialog>
 
-          {/* MOBILE/TABLET BUTTONS (Visible below LG breakpoint) */}
+          {/* MOBILE UPPER-RIGHT ACTIONS (Search & Cart below MD) */}
           <Box
-            sx={{ display: { xs: "flex", lg: "none" }, gap: 1, flexShrink: 0, justifySelf: "end" }}
+            sx={{
+              display: { xs: "flex", md: "none" },
+              alignItems: "center",
+              gap: 0.5,
+              flexShrink: 0,
+              justifySelf: "end",
+            }}
           >
             <IconButton
-              onClick={() => setSearchOpen((current) => !current)}
-              aria-label={searchOpen ? "Hide search" : "Show search"}
+              onClick={openMobileSearch}
+              aria-label="Open search and filters"
               aria-expanded={searchOpen}
-              aria-controls="buyer-header-search"
-              sx={{ display: { xs: "inline-flex", md: "none" }, color: theme.palette.text.primary, width: 44, height: 44 }}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
             >
-              <SearchIcon />
+              <Badge
+                badgeContent={activeFilterCount}
+                color="error"
+                invisible={activeFilterCount === 0}
+                max={9}
+              >
+                <SearchIcon />
+              </Badge>
+            </IconButton>
+            <IconButton
+              aria-label="View shopping cart"
+              onClick={() => navigate("/buyer/cart")}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
+            >
+              <Badge
+                badgeContent={cartCount}
+                color="error"
+                invisible={cartCount === 0}
+              >
+                <ShoppingBagIcon />
+              </Badge>
+            </IconButton>
+          </Box>
+
+          {/* TABLET ACTIONS (MD to LG) */}
+          <Box
+            sx={{ display: { xs: "none", md: "flex", lg: "none" }, gap: 1, flexShrink: 0, justifySelf: "end" }}
+          >
+            <IconButton
+              aria-label="View shopping cart"
+              onClick={() => navigate("/buyer/cart")}
+              sx={{ color: theme.palette.text.primary, width: 44, height: 44 }}
+            >
+              <Badge
+                badgeContent={cartCount}
+                color="error"
+                invisible={cartCount === 0}
+              >
+                <ShoppingBagIcon />
+              </Badge>
             </IconButton>
             <IconButton
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -1047,7 +1137,7 @@ function BuyerLayoutContent({ children }) {
         <Box
           component="nav"
           sx={{
-            display: "flex",
+            display: { xs: "none", md: "flex" },
             flexDirection: { xs: "column", sm: "row" },
             alignItems: "center",
             justifyContent: { xs: "space-between", sm: "space-between" },
@@ -1414,7 +1504,7 @@ function BuyerLayoutContent({ children }) {
               variant="contained"
               color="error"
               startIcon={<SearchIcon />}
-              onClick={handleApplyFiltersAndSearch}
+              onClick={() => handleApplyFiltersAndSearch()}
               sx={{
                 textTransform: "none",
                 borderRadius: "8px",
@@ -1536,6 +1626,26 @@ function BuyerLayoutContent({ children }) {
         </Box>
       </Drawer>
 
+      {/* MOBILE SEARCH & FILTER DRAWER (Below MD) */}
+      <MobileSearchFilterDrawer
+        open={searchOpen && !inlineSearch}
+        onClose={() => setSearchOpen(false)}
+        inputRef={mobileSearchInputRef}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        categoryGroups={categoryGroups}
+        draftCategories={draftCategories}
+        draftPriceRange={draftPriceRange}
+        onDraftPriceChange={setDraftPriceRange}
+        onToggleCategory={handleDraftCategoryToggle}
+        onToggleColor={handleDraftColorToggle}
+        onClearPrice={clearDraftPrice}
+        onResetAll={resetAllDraftFilters}
+        onApply={() => handleApplyFiltersAndSearch({ includeSearchQuery: true })}
+        hasAnyDraftFilters={hasAnyDraftFilters}
+        draftFilterCount={draftFilterCount}
+      />
+
       <Box
         component="main"
         sx={{
@@ -1545,6 +1655,7 @@ function BuyerLayoutContent({ children }) {
           alignItems: "flex-start",
           p: 0,
           m: 0,
+          pb: { xs: "calc(72px + env(safe-area-inset-bottom, 0px))", md: 0 },
         }}
       >
         <Container
@@ -1556,6 +1667,14 @@ function BuyerLayoutContent({ children }) {
           <Footer />
         </Container>
       </Box>
+
+      {/* MOBILE BOTTOM NAVIGATION (Below MD) */}
+      <MobileBottomNav
+        pathname={location.pathname}
+        loggedIn={loggedIn}
+        unreadAccountCount={unreadNotificationCount + unreadMessageCount}
+        onNavigate={handleNavigation}
+      />
     </Box>
   );
 }

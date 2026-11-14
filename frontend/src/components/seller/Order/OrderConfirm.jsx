@@ -30,7 +30,8 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 const getConfirmationMessage = (status, order) => {
-  const orderNumber = order?.orderNumber || order?.orderId || order?.id || "this order";
+  const orderNumber =
+    order?.orderNumber || order?.orderId || order?.id || "this order";
   const messages = {
     Confirmed: `Confirm order ${orderNumber} and start preparing it?`,
     Packed: `Confirm order ${orderNumber} is packed and ready to move forward?`,
@@ -70,7 +71,10 @@ export default function OrderConfirm({
       const saved = await onConfirm();
       if (saved) onClose();
     } catch (confirmSubmitError) {
-      setConfirmError(confirmSubmitError.message || "Unable to update this order. Please try again.");
+      setConfirmError(
+        confirmSubmitError.message ||
+          "Unable to update this order. Please try again.",
+      );
     } finally {
       confirmingRef.current = false;
       setConfirming(false);
@@ -131,7 +135,11 @@ export default function OrderConfirm({
         </Button>
       </DialogTitle>
       <DialogContent dividers>
-        {(error || confirmError) && <Alert severity="error" sx={{ mb: 2 }}>{error || confirmError}</Alert>}
+        {(error || confirmError) && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error || confirmError}
+          </Alert>
+        )}
         <Typography>{getConfirmationMessage(status, order)}</Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
@@ -141,11 +149,18 @@ export default function OrderConfirm({
         <Button
           onClick={handleConfirm}
           disabled={isBusy}
-          color="error"
           variant="contained"
-          sx={{ borderRadius: 1.5, px: 2.5, textTransform: "none", fontWeight: 700, color: "#fff" }}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
         >
-          {isBusy && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
+          {isBusy && (
+            <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+          )}
           {isBusy ? "Updating..." : `Confirm ${status || "update"}`}
         </Button>
       </DialogActions>

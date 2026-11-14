@@ -322,13 +322,11 @@ export default function PromotionSlideForm({
             variant="contained"
             disabled={saving}
             sx={{
-              fontWeight: 700,
-              textTransform: "none",
-              borderRadius: 2,
+              borderRadius: 1.5,
               px: 2.5,
-              bgcolor: theme.palette.error.main,
+              textTransform: "none",
+              fontWeight: 700,
               color: "#fff",
-              "&:hover": { bgcolor: theme.palette.error.dark },
             }}
           >
             {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Slide"}

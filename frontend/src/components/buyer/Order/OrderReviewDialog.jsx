@@ -38,9 +38,17 @@ export default function OrderReviewDialog({
       {reviewTarget && (
         <>
           <DialogTitle>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
               <Box>
-                <Typography variant="overline" color="error.main" fontWeight={800}>
+                <Typography
+                  variant="overline"
+                  color="error.main"
+                  fontWeight={800}
+                >
                   {reviewTarget.order.id}
                 </Typography>
                 <Typography variant="h5" fontWeight={800}>
@@ -55,7 +63,8 @@ export default function OrderReviewDialog({
           <DialogContent>
             {reviewSubmitted ? (
               <Alert severity="success">
-                Thanks. Your rating and feedback are saved and will appear on the seller profile.
+                Thanks. Your rating and feedback are saved and will appear on
+                the seller profile.
               </Alert>
             ) : (
               <Stack spacing={2}>
@@ -97,6 +106,13 @@ export default function OrderReviewDialog({
                   variant="contained"
                   disabled={!rating || reviewText.length > 600 || reviewSaving}
                   onClick={onSubmit}
+                  sx={{
+                    borderRadius: 1.5,
+                    px: 2.5,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    color: "#fff",
+                  }}
                 >
                   {reviewSaving ? "Submitting..." : "Submit review"}
                 </Button>
@@ -108,4 +124,3 @@ export default function OrderReviewDialog({
     </Dialog>
   );
 }
-

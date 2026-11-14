@@ -64,6 +64,10 @@ const initials = (name) =>
     .map((part) => part[0]?.toUpperCase())
     .join("") || "A";
 
+const isOtherBuyerIssue = (issueType, accountRole) =>
+  String(accountRole || "").trim().toLowerCase() === "buyer" &&
+  String(issueType || "").trim().toLowerCase() === "other";
+
 const toAbsoluteMediaUrl = (url) => {
   if (!url) return null;
   if (/^(https?:|blob:|data:)/i.test(url)) return url;
@@ -115,7 +119,6 @@ export default function ChatSupport() {
   const [attachedPreview, setAttachedPreview] = useState(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
@@ -248,7 +251,6 @@ export default function ChatSupport() {
     if (String(conversationId) === String(selectedId)) return;
     clearAttachment();
     setError("");
-    setNotice("");
     setConversations((prev) => clearConversationUnread(prev, conversationId));
     setSelectedId(conversationId);
   };
@@ -275,7 +277,6 @@ export default function ChatSupport() {
 
     setSending(true);
     setError("");
-    setNotice("");
     try {
       let payload;
       if (attachedFile) {
@@ -294,19 +295,12 @@ export default function ChatSupport() {
         loadThread(selectedId, { silent: true }),
         loadInbox({ silent: true }),
       ]);
-      setNotice("Reply sent.");
     } catch (sendError) {
       setError(sendError.message || "Unable to send your reply.");
     } finally {
       setSending(false);
     }
   };
-
-  useEffect(() => {
-    if (!notice) return undefined;
-    const timer = window.setTimeout(() => setNotice(""), 3000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
 
   const inboxFilters = useMemo(() => {
     const unreadCount = conversations.filter((item) => Number(item.unread_count || 0) > 0).length;
@@ -416,19 +410,10 @@ export default function ChatSupport() {
           setSelectedId(null);
         }}
         alerts={
-          (error || notice) && (
-            <Stack spacing={1} sx={{ mb: 1.5 }}>
-              {error && (
-                <Alert severity="error" onClose={() => setError("")}>
-                  {error}
-                </Alert>
-              )}
-              {notice && (
-                <Alert severity="success" onClose={() => setNotice("")}>
-                  {notice}
-                </Alert>
-              )}
-            </Stack>
+          error && (
+            <Alert severity="error" onClose={() => setError("")}>
+              {error}
+            </Alert>
           )
         }
         searchPlaceholder="Search buyer or seller..."
@@ -463,7 +448,11 @@ export default function ChatSupport() {
               color: "default",
               variant: "outlined",
             },
-            ...(conversation.last_issue_type
+            ...(conversation.last_issue_type &&
+            !isOtherBuyerIssue(
+              conversation.last_issue_type,
+              conversation.account_role,
+            )
               ? [
                   {
                     label: conversation.last_issue_type,
@@ -534,7 +523,11 @@ export default function ChatSupport() {
                     sx={{ height: 22, fontSize: 11 }}
                   />
                 )}
-                {selectedConversation?.last_issue_type && (
+                {selectedConversation?.last_issue_type &&
+                  !isOtherBuyerIssue(
+                    selectedConversation.last_issue_type,
+                    selectedConversation.account_role,
+                  ) && (
                   <Chip
                     size="small"
                     color="error"
@@ -604,7 +597,14 @@ export default function ChatSupport() {
                   key={message.support_message_id}
                   isMine={isMine}
                   senderName={!isMine ? message.sender_name : ""}
-                  issueType={message.issue_type}
+                  issueType={
+                    isOtherBuyerIssue(
+                      message.issue_type,
+                      selectedConversation?.account_role,
+                    )
+                      ? ""
+                      : message.issue_type
+                  }
                   text={message.message_data}
                   image={toAbsoluteMediaUrl(message.image)}
                   mediaType={message.media_type}

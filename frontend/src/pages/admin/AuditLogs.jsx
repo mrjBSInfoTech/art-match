@@ -176,7 +176,7 @@ export default function AuditLogs() {
         <Box>
           <Typography
             sx={{
-              fontSize: { xs: 28, sm: 38 },
+              fontSize: { xs: 28, sm: 34 },
               fontWeight: 800,
               lineHeight: 1.1,
               color: theme.palette.text.primary,

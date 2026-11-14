@@ -469,14 +469,19 @@ export default function OrderTrack({
         {!isMeetupOrder && onSubmit && (
           <Button
             variant="contained"
-            color="error"
             onClick={onSubmit}
             disabled={
               saving ||
               !activeCourierValue?.trim() ||
               !activeTrackingUrl?.trim()
             }
-            sx={{ color: "#fff", textTransform: "none" }}
+            sx={{
+              borderRadius: 1.5,
+              px: 2.5,
+              textTransform: "none",
+              fontWeight: 700,
+              color: "#fff",
+            }}
           >
             {saving
               ? "Saving..."

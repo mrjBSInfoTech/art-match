@@ -414,11 +414,11 @@ export default function BuyerFavorites() {
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "repeat(1, minmax(0, 1fr))",
+                xs: "repeat(2, minmax(0, 1fr))",
                 sm: "repeat(2, minmax(0, 1fr))",
                 md: "repeat(4, minmax(0, 1fr))",
               },
-              gap: { xs: 1.5, sm: 2 },
+              gap: { xs: 1.25, sm: 2 },
               py: 4,
             }}
           >

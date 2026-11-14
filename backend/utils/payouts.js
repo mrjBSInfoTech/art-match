@@ -206,12 +206,24 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     const institution = institutions.find(value => value.code === body.institutionCode && value.provider === body.provider);
     if (!institution) fail(400, "Choose a currently supported payout institution.");
     const ciphertext = encryptPayoutAccount(number, sellerId);
+    let requiresApproval = false;
     await transaction(async connection => {
       const sellers = await rows(connection, "SELECT student_id FROM student WHERE student_id = ? FOR UPDATE", [sellerId]);
       if (!sellers.length) fail(404, "Seller not found.");
       const processing = await rows(connection, "SELECT split_id FROM seller_payment_split WHERE seller_id = ? AND payout_status = 'Processing' LIMIT 1", [sellerId]);
       if (processing.length) fail(409, "A payout is processing. Update your destination after it finishes.");
-      
+
+      const existingAccount = await rows(connection, "SELECT payout_account_id FROM seller_payout_account WHERE student_id = ? FOR UPDATE", [sellerId]);
+      if (!existingAccount.length) {
+        await rows(connection, `
+          INSERT INTO seller_payout_account (student_id, destination_type, institution_code, institution_name, institution_provider, account_name, account_number_ciphertext)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [sellerId, institution.destinationType || "bank", institution.code, institution.name, institution.provider, name, ciphertext]);
+        await rows(connection, "DELETE FROM seller_payout_account_request WHERE student_id = ? AND status = 'Pending'", [sellerId]);
+        return;
+      }
+
+      requiresApproval = true;
       const existingPending = await rows(connection, "SELECT request_id FROM seller_payout_account_request WHERE student_id = ? AND status = 'Pending' FOR UPDATE", [sellerId]);
       if (existingPending.length) {
         const reqId = existingPending[0].request_id;
@@ -228,7 +240,16 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
           [sellerId, institution.destinationType || "bank", institution.code, institution.name, institution.provider, name, ciphertext]);
       }
     });
-    return getAccount(sellerId);
+    await audit({
+      action: requiresApproval ? "PAYOUT_ACCOUNT_CHANGE_REQUESTED" : "PAYOUT_ACCOUNT_CONFIGURED",
+      actor: String(sellerId),
+      role: "Student",
+      status: "SUCCESS",
+      information: requiresApproval
+        ? "Seller submitted a payout destination change request for admin approval."
+        : "Seller configured initial payout destination immediately.",
+    }).catch(error => console.error("Seller payout account audit failed:", error.code || error.name));
+    return { ...(await getAccount(sellerId)), requiresApproval };
   };
 
   const list = async ({ sellerId, payoutId, adminId } = {}) => {

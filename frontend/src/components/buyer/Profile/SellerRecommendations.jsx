@@ -175,11 +175,11 @@ export default function SellerRecommendations({
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
+                  xs: "repeat(2, minmax(0, 1fr))",
                   sm: "repeat(2, minmax(0, 1fr))",
                   md: "repeat(4, minmax(0, 1fr))",
                 },
-                gap: 3,
+                gap: { xs: 1.25, sm: 2.5, md: 3 },
                 "& > *": { minWidth: 0 },
               }}
             >

@@ -218,7 +218,7 @@ export default function ArtworkCard({
             position: "relative",
             display: "flex",
             width: "100%",
-            aspectRatio: "1.05 / 1",
+            aspectRatio: { xs: "1.12 / 1", sm: "1.05 / 1" },
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
@@ -252,16 +252,16 @@ export default function ArtworkCard({
             component="span"
             sx={{
               position: "absolute",
-              top: 10,
-              left: 10,
-              maxWidth: "calc(100% - 70px)",
+              top: { xs: 7, sm: 10 },
+              left: { xs: 7, sm: 10 },
+              maxWidth: { xs: "calc(100% - 48px)", sm: "calc(100% - 70px)" },
               overflow: "hidden",
-              px: 1.25,
-              py: 0.4,
+              px: { xs: 0.9, sm: 1.25 },
+              py: { xs: 0.25, sm: 0.4 },
               borderRadius: 999,
               backgroundColor: soldOut ? "text.secondary" : "#ef3340",
               color: "#fff",
-              fontSize: 11,
+              fontSize: { xs: 9.5, sm: 11 },
               fontWeight: 800,
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -276,8 +276,8 @@ export default function ArtworkCard({
           <Box
             sx={{
               position: "absolute",
-              top: 10,
-              right: 10,
+              top: { xs: 7, sm: 10 },
+              right: { xs: 7, sm: 10 },
               zIndex: 2,
             }}
           >
@@ -288,8 +288,8 @@ export default function ArtworkCard({
               title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               onClick={handleFavoriteClick}
               sx={{
-                width: 36,
-                height: 36,
+                width: { xs: 30, sm: 36 },
+                height: { xs: 30, sm: 36 },
                 borderRadius: 999,
                 backgroundColor: darkMode
                   ? "rgba(30, 41, 59, 0.92)"
@@ -311,9 +311,9 @@ export default function ArtworkCard({
               }}
             >
               {isFavorite ? (
-                <FavoriteIcon sx={{ fontSize: 20, color: "#ef3340" }} />
+                <FavoriteIcon sx={{ fontSize: { xs: 16, sm: 20 }, color: "#ef3340" }} />
               ) : (
-                <FavoriteBorderIcon sx={{ fontSize: 20 }} />
+                <FavoriteBorderIcon sx={{ fontSize: { xs: 16, sm: 20 } }} />
               )}
             </IconButton>
           </Box>
@@ -322,11 +322,11 @@ export default function ArtworkCard({
         {/* Card Content Area */}
         <Box
           sx={{
-            p: { xs: 1.5, sm: 2 },
+            p: { xs: 1, sm: 2 },
             display: "flex",
             flex: 1,
             flexDirection: "column",
-            gap: 0.5,
+            gap: { xs: 0.25, sm: 0.5 },
           }}
         >
           {/* Row 1: Title on the left, Rating on the right */}
@@ -334,7 +334,7 @@ export default function ArtworkCard({
             direction="row"
             alignItems="center"
             justifyContent="space-between"
-            spacing={1}
+            spacing={{ xs: 0.5, sm: 1 }}
           >
             <Typography
               title={artwork.title || "Untitled artwork"}
@@ -342,7 +342,7 @@ export default function ArtworkCard({
                 minWidth: 0,
                 flex: 1,
                 color: "text.primary",
-                fontSize: { xs: 15, sm: 16 },
+                fontSize: { xs: 13, sm: 16 },
                 fontWeight: 800,
                 lineHeight: 1.3,
                 overflow: "hidden",
@@ -357,7 +357,7 @@ export default function ArtworkCard({
               <Stack
                 direction="row"
                 alignItems="center"
-                spacing={0.4}
+                spacing={0.35}
                 sx={{ flexShrink: 0 }}
                 title={
                   ratingCount > 0
@@ -365,10 +365,10 @@ export default function ArtworkCard({
                     : undefined
                 }
               >
-                <StarRateRoundedIcon sx={{ color: "#f59e0b", fontSize: 20 }} />
+                <StarRateRoundedIcon sx={{ color: "#f59e0b", fontSize: { xs: 15, sm: 20 } }} />
                 <Typography
                   sx={{
-                    fontSize: 13.5,
+                    fontSize: { xs: 11.5, sm: 13.5 },
                     fontWeight: 700,
                     color: "text.primary",
                   }}
@@ -384,7 +384,7 @@ export default function ArtworkCard({
             variant="caption"
             sx={{
               color: "text.secondary",
-              fontSize: 12.5,
+              fontSize: { xs: 11, sm: 12.5 },
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -394,19 +394,19 @@ export default function ArtworkCard({
           </Typography>
 
           {/* Spacer */}
-          <Box sx={{ flex: 1, minHeight: 10 }} />
+          <Box sx={{ flex: 1, minHeight: { xs: 4, sm: 10 } }} />
 
           {/* Row 3: Price on the left, Add to Cart icon button on the lower right */}
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="space-between"
-            sx={{ pt: 1 }}
+            sx={{ pt: { xs: 0.5, sm: 1 } }}
           >
             <Typography
               sx={{
                 color: "#ef3340",
-                fontSize: { xs: 17, sm: 18 },
+                fontSize: { xs: 14.5, sm: 18 },
                 fontWeight: 800,
               }}
               noWrap
@@ -421,9 +421,9 @@ export default function ArtworkCard({
                 disabled={(soldOut && !isInCart) || isAdding}
                 onClick={handleCartClick}
                 sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2.5,
+                  width: { xs: 32, sm: 40 },
+                  height: { xs: 32, sm: 40 },
+                  borderRadius: { xs: 2, sm: 2.5 },
                   border: "1px solid",
                   borderColor: darkMode
                     ? "rgba(255, 255, 255, 0.15)"
@@ -450,11 +450,11 @@ export default function ArtworkCard({
                 }}
               >
                 {isAdding ? (
-                  <CircularProgress size={18} color="inherit" />
+                  <CircularProgress size={16} color="inherit" />
                 ) : (
                   isInCart
-                    ? <RemoveShoppingCartOutlinedIcon sx={{ fontSize: 20 }} />
-                    : <ShoppingCartOutlinedIcon sx={{ fontSize: 20 }} />
+                    ? <RemoveShoppingCartOutlinedIcon sx={{ fontSize: { xs: 16, sm: 20 } }} />
+                    : <ShoppingCartOutlinedIcon sx={{ fontSize: { xs: 16, sm: 20 } }} />
                 )}
               </IconButton>
             )}

@@ -102,7 +102,6 @@ export default function ProfileConfirm({
           <Button
             onClick={onConfirm}
             disabled={confirming}
-            color="error"
             variant="contained"
             startIcon={<EditOutlinedIcon />}
             sx={{

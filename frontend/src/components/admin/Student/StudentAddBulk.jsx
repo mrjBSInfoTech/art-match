@@ -60,7 +60,13 @@ const COLUMN_ALIASES = {
 
   address: ["address", "home address", "residential address"],
 
-  phone_number: ["phone number", "phone", "mobile number", "contact number", "telephone"],
+  phone_number: [
+    "phone number",
+    "phone",
+    "mobile number",
+    "contact number",
+    "telephone",
+  ],
 
   course: ["course", "program", "degree", "degree program"],
 
@@ -257,11 +263,7 @@ const formatPersonName = (value) => {
     .join("");
 };
 
-export default function StudentBulkAdd({
-  open,
-  handleClose,
-  onSuccess,
-}) {
+export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
   const theme = useTheme();
   const fileInputRef = useRef(null);
   const [parsedData, setParsedData] = useState([]);
@@ -279,7 +281,9 @@ export default function StudentBulkAdd({
     setParsedData([]);
 
     try {
-      const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+      const extension = file.name
+        .slice(file.name.lastIndexOf("."))
+        .toLowerCase();
       if (![".xlsx", ".csv"].includes(extension)) {
         throw new Error("Choose an .xlsx or .csv file.");
       }
@@ -287,7 +291,10 @@ export default function StudentBulkAdd({
         throw new Error("The file must be 5 MiB or smaller.");
       }
 
-      const sheets = await readStudentSpreadsheet(await file.arrayBuffer(), extension);
+      const sheets = await readStudentSpreadsheet(
+        await file.arrayBuffer(),
+        extension,
+      );
       let bestSheet = null;
 
       for (const { sheetName, rows } of sheets) {
@@ -308,16 +315,14 @@ export default function StudentBulkAdd({
       const { rowIndex, columnMap } = header;
       const dataRows = rows.slice(rowIndex + 1);
       if (dataRows.length > MAX_IMPORT_ROWS) {
-        throw new Error(`The file cannot contain more than ${MAX_IMPORT_ROWS} student rows.`);
+        throw new Error(
+          `The file cannot contain more than ${MAX_IMPORT_ROWS} student rows.`,
+        );
       }
 
       const students = dataRows
         .map((row) => {
-          const studentNumber = getCellValue(
-            row,
-            columnMap,
-            "student_number",
-          );
+          const studentNumber = getCellValue(row, columnMap, "student_number");
           const firstName = formatPersonName(
             getCellValue(row, columnMap, "first_name"),
           );
@@ -497,7 +502,8 @@ export default function StudentBulkAdd({
           Ensure your column headers match the required format.
         </Typography>
         <Alert severity="info" sx={{ mb: 2 }}>
-          Each new student's initial password will be their surname in uppercase.
+          Each new student's initial password will be their surname in
+          uppercase.
         </Alert>
 
         <Button
@@ -540,7 +546,7 @@ export default function StudentBulkAdd({
           onChange={handleFileChange}
         />
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button
           onClick={handleCloseDialog}
           color="text.secondary"
@@ -554,11 +560,11 @@ export default function StudentBulkAdd({
           color="primary"
           disabled={parsedData.length === 0 || isSubmitting}
           sx={{
-            color: theme.palette.text.primary,
             borderRadius: 1.5,
             px: 2.5,
             textTransform: "none",
             fontWeight: 700,
+            color: "#fff",
           }}
         >
           {isSubmitting ? <CircularProgress size={24} /> : "Import Data"}

@@ -140,14 +140,19 @@ export default function OrderTrack({
         </Button>
         <Button
           variant="contained"
-          color="error"
           onClick={onSubmit}
           disabled={
             saving ||
             !courier.trim() ||
             !trackingUrl.trim()
           }
-          sx={{ color: "#fff", textTransform: "none" }}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
         >
           {saving ? "Saving..." : `Mark ${fulfillmentTarget?.status || "Shipped"}`}
         </Button>

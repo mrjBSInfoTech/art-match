@@ -126,8 +126,9 @@ export default function OrderReceived({
           {statusError && <Alert severity="error">{statusError}</Alert>}
 
           <Typography variant="body2" color="text.secondary">
-            Confirm receipt of this order and upload up to 5 photos showing the delivered item.
-            These images help document the buyer&apos;s delivery confirmation.
+            Confirm receipt of this order and upload up to 5 photos showing the
+            delivered item. These images help document the buyer&apos;s delivery
+            confirmation.
           </Typography>
 
           <Box
@@ -172,7 +173,9 @@ export default function OrderReceived({
                         size="small"
                         aria-label={`Remove photo ${index + 1}`}
                         onClick={() => {
-                          setReceivedPhotos((prev) => prev.filter((_, i) => i !== index));
+                          setReceivedPhotos((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          );
                         }}
                         disabled={saving}
                         sx={{
@@ -199,7 +202,9 @@ export default function OrderReceived({
                 fullWidth
                 sx={{ textTransform: "none", alignSelf: "flex-start" }}
               >
-                {receivedPhotos.length ? "Add more delivery photos" : "Choose delivery photos"}
+                {receivedPhotos.length
+                  ? "Add more delivery photos"
+                  : "Choose delivery photos"}
                 <input
                   hidden
                   type="file"
@@ -210,8 +215,8 @@ export default function OrderReceived({
               </Button>
 
               <FormHelperText sx={{ mt: 0 }}>
-                {receivedPhotos.length} of 5 photos selected. Accepted: JPEG, PNG, or WebP.
-                Each file must be 5 MB or smaller.
+                {receivedPhotos.length} of 5 photos selected. Accepted: JPEG,
+                PNG, or WebP. Each file must be 5 MB or smaller.
               </FormHelperText>
             </Stack>
           </Box>
@@ -226,7 +231,9 @@ export default function OrderReceived({
               rows={3}
               placeholder="Add notes about the delivery or meetup handover (e.g., handed over directly to buyer at campus entrance)..."
               value={deliveryNotes}
-              onChange={(e) => setDeliveryNotes && setDeliveryNotes(e.target.value)}
+              onChange={(e) =>
+                setDeliveryNotes && setDeliveryNotes(e.target.value)
+              }
               disabled={saving}
               inputProps={{ maxLength: 1000 }}
               helperText={`${(deliveryNotes || "").length}/1000 characters`}
@@ -235,14 +242,19 @@ export default function OrderReceived({
 
           {order && (
             <Typography variant="body2" color="text.secondary">
-              Marking this order as received for <strong>{order.orderNumber || order.id || "this order"}</strong>.
+              Marking this order as received for{" "}
+              <strong>{order.orderNumber || order.id || "this order"}</strong>.
             </Typography>
           )}
         </Stack>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} disabled={saving} sx={{ color: "text.secondary" }}>
+        <Button
+          onClick={onClose}
+          disabled={saving}
+          sx={{ color: "text.secondary" }}
+        >
           Cancel
         </Button>
         <Button
@@ -250,7 +262,13 @@ export default function OrderReceived({
           color="success"
           onClick={onSubmit}
           disabled={saving}
-          sx={{ color: "#fff", textTransform: "none" }}
+          sx={{
+            borderRadius: 1.5,
+            px: 2.5,
+            textTransform: "none",
+            fontWeight: 700,
+            color: "#fff",
+          }}
         >
           {saving ? "Saving..." : "Confirm Received"}
         </Button>

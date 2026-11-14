@@ -25,8 +25,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import CreditScoreIcon from "@mui/icons-material/CreditScore";
 
 import { fetchBuyerOrders } from "../../api/buyer/orderAPI";
-import PurchaseTable from "../../components/buyer/Purhcase/PurchaseTable";
-import PurchaseInfo from "../../components/buyer/Purhcase/PurchaseInfo";
+import PurchaseTable from "../../components/buyer/Purchase/PurchaseTable.jsx";
+import PurchaseInfo from "../../components/buyer/Purchase/PurchaseInfo.jsx";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import {
   getPaymentColor,

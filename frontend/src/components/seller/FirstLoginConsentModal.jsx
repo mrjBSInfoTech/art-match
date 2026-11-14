@@ -433,8 +433,6 @@ export default function FirstLoginConsentModal({
               textTransform: "none",
               fontWeight: 700,
               color: "#fff",
-              bgcolor: "#ef3340",
-              "&:hover": { bgcolor: "#d62835" },
             }}
           >
             {submitting ? "Saving..." : "Accept & Complete Setup"}

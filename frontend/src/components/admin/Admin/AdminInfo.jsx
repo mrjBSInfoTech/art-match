@@ -137,9 +137,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
         </Button>
       </DialogTitle>
 
-      <DialogContent
-        sx={{ p: 2.5 }}
-      >
+      <DialogContent sx={{ p: 2.5 }}>
         {admin ? (
           <Box>
             <Box
@@ -251,13 +249,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
         ) : null}
       </DialogContent>
 
-      <DialogActions
-        sx={{
-          px: 2.5,
-          py: 1.5,
-          borderTop: `1px solid ${theme.palette.divider}`,
-        }}
-      >
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button
           onClick={handleClose}
           sx={{
@@ -268,7 +260,6 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
             px: 2.5,
             textTransform: "none",
             fontWeight: 700,
-            "&:hover": { backgroundColor: theme.palette.action.selected },
           }}
         >
           Close

@@ -171,7 +171,6 @@ function CartConfirm({ open, handleClose, onSubmit, selectedItems = [], total = 
             onClick={handleConfirm}
             disabled={!selectedItems.length}
             variant="contained"
-            color="error"
             sx={{
               borderRadius: 1.5,
               px: 2.5,

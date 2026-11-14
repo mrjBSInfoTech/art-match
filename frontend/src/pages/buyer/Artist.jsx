@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -28,6 +29,7 @@ import StarRateRoundedIcon from "@mui/icons-material/StarRateRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { getProfileInitials } from "../../utils/profileInitials.js";
 import { isAuthenticated } from "../../../utils/auth";
+import { courseOptions } from "../../components/admin/Student/studentOptions";
 
 const API_URL = "http://localhost:5000";
 
@@ -48,11 +50,17 @@ const parseSpecialties = (value) => {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
   } catch {
-    return value.split(",").map((item) => item.trim()).filter(Boolean);
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 };
 
-const buildArtistSummaries = (artworks = [], engagementByArtist = new Map()) => {
+const buildArtistSummaries = (
+  artworks = [],
+  engagementByArtist = new Map(),
+) => {
   const grouped = new Map();
 
   artworks.forEach((artwork) => {
@@ -138,17 +146,21 @@ export default function Artist() {
         ? artworkResponse
         : artworkResponse?.data;
       if (!Array.isArray(list)) {
-        throw new Error("Artist listings were returned in an unexpected format.");
+        throw new Error(
+          "Artist listings were returned in an unexpected format.",
+        );
       }
       const engagementByArtist = new Map(
-        (Array.isArray(artistSummaries) ? artistSummaries : []).map((summary) => [
-          String(summary.student_id),
-          {
-            averageRating: Number(summary.averageRating) || 0,
-            followerCount: Number(summary.followerCount) || 0,
-            isFollowing: Boolean(summary.isFollowing),
-          },
-        ]),
+        (Array.isArray(artistSummaries) ? artistSummaries : []).map(
+          (summary) => [
+            String(summary.student_id),
+            {
+              averageRating: Number(summary.averageRating) || 0,
+              followerCount: Number(summary.followerCount) || 0,
+              isFollowing: Boolean(summary.isFollowing),
+            },
+          ],
+        ),
       );
       setArtists(buildArtistSummaries(list, engagementByArtist));
     } catch (err) {
@@ -170,26 +182,41 @@ export default function Artist() {
       return;
     }
     setFollowError("");
-    setArtists((current) => current.map((item) =>
-      item.student_id === artist.student_id ? { ...item, followPending: true } : item));
+    setArtists((current) =>
+      current.map((item) =>
+        item.student_id === artist.student_id
+          ? { ...item, followPending: true }
+          : item,
+      ),
+    );
 
     try {
       const result = artist.isFollowing
         ? await unfollowArtist(artist.student_id)
         : await followArtist(artist.student_id);
-      setArtists((current) => current.map((item) =>
-        item.student_id === artist.student_id
-          ? {
-              ...item,
-              followerCount: Number(result.followerCount),
-              isFollowing: Boolean(result.isFollowing),
-              followPending: false,
-            }
-          : item));
+      setArtists((current) =>
+        current.map((item) =>
+          item.student_id === artist.student_id
+            ? {
+                ...item,
+                followerCount: Number(result.followerCount),
+                isFollowing: Boolean(result.isFollowing),
+                followPending: false,
+              }
+            : item,
+        ),
+      );
     } catch (followRequestError) {
-      setArtists((current) => current.map((item) =>
-        item.student_id === artist.student_id ? { ...item, followPending: false } : item));
-      setFollowError(followRequestError.message || "Unable to update artist follow.");
+      setArtists((current) =>
+        current.map((item) =>
+          item.student_id === artist.student_id
+            ? { ...item, followPending: false }
+            : item,
+        ),
+      );
+      setFollowError(
+        followRequestError.message || "Unable to update artist follow.",
+      );
     }
   };
 
@@ -213,7 +240,7 @@ export default function Artist() {
   }, [artists]);
 
   const availableTypes = useMemo(() => {
-    const counts = new Map();
+    const counts = new Map(courseOptions.map((course) => [course, 0]));
     artists.forEach((artist) => {
       const type = artist.department || artist.specialties?.[0];
       if (type && type.trim()) {
@@ -250,13 +277,14 @@ export default function Artist() {
       }
       if (sortMode === "rating") {
         return (
-          Number(second.averageRating || 0) - Number(first.averageRating || 0) ||
-          second.works - first.works
+          Number(second.averageRating || 0) -
+            Number(first.averageRating || 0) || second.works - first.works
         );
       }
       if (sortMode === "followers") {
         return (
-          Number(second.followerCount || 0) - Number(first.followerCount || 0) ||
+          Number(second.followerCount || 0) -
+            Number(first.followerCount || 0) ||
           Number(second.averageRating || 0) - Number(first.averageRating || 0)
         );
       }
@@ -273,10 +301,7 @@ export default function Artist() {
 
   if (error && !loading && artists.length === 0) {
     return (
-      <ConnectionErrorPanel
-        title="Artists Unavailable"
-        onRetry={loadArtists}
-      />
+      <ConnectionErrorPanel title="Artists Unavailable" onRetry={loadArtists} />
     );
   }
 
@@ -288,6 +313,9 @@ export default function Artist() {
         py: { xs: 2.5, md: 4 },
       }}
     >
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Artist</title>
+      </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 4 } }}>
         <Stack spacing={{ xs: 2.5, md: 3 }}>
           <Box
@@ -339,7 +367,8 @@ export default function Artist() {
                   lineHeight: 1.6,
                 }}
               >
-                Discover the people behind the work, explore their collections, and find your next favorite creator.
+                Discover the people behind the work, explore their collections,
+                and find your next favorite creator.
               </Typography>
             </Box>
           </Box>
@@ -393,7 +422,9 @@ export default function Artist() {
                   pr: { xs: 0.5, sm: 1 },
                 }}
               >
-                <AutoAwesomeOutlinedIcon sx={{ fontSize: 20, color: "error.main" }} />
+                <AutoAwesomeOutlinedIcon
+                  sx={{ fontSize: 20, color: "error.main" }}
+                />
                 <Typography
                   sx={{
                     fontSize: { xs: "0.8rem", sm: "0.85rem" },
@@ -433,7 +464,9 @@ export default function Artist() {
                   return (
                     <Button
                       key={artist.student_id}
-                      onClick={() => navigate(`/buyer/seller/${artist.student_id}`)}
+                      onClick={() =>
+                        navigate(`/buyer/seller/${artist.student_id}`)
+                      }
                       aria-label={`View ${artist.name}'s profile, rated ${formatArtistRating(artist.averageRating)} out of 5`}
                       sx={{
                         display: "inline-flex",
@@ -587,9 +620,7 @@ export default function Artist() {
                     },
                   }}
                 >
-                  <MenuItem value="all">
-                    All Types ({artists.length})
-                  </MenuItem>
+                  <MenuItem value="all">All Types ({artists.length})</MenuItem>
                   {availableTypes.map((type) => (
                     <MenuItem key={type.name} value={type.name}>
                       {type.name} ({type.count})
@@ -683,7 +714,18 @@ export default function Artist() {
               ))}
             </Box>
           ) : error ? null : filteredAndSortedArtists.length ? (
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, alignItems: "stretch", gap: { xs: 2, md: 2.5 } }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  lg: "repeat(3, minmax(0, 1fr))",
+                },
+                alignItems: "stretch",
+                gap: { xs: 2, md: 2.5 },
+              }}
+            >
               {filteredAndSortedArtists.map((artist) => (
                 <ArtistCard
                   key={artist.student_id}
@@ -694,7 +736,9 @@ export default function Artist() {
               ))}
             </Box>
           ) : (
-            <Alert severity="info">No artists match the selected criteria.</Alert>
+            <Alert severity="info">
+              No artists match the selected criteria.
+            </Alert>
           )}
         </Stack>
       </Container>

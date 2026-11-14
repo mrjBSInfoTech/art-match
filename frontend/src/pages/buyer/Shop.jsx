@@ -18,6 +18,7 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
 import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
@@ -500,18 +501,43 @@ export default function Shop() {
               {hasPriceFilter && ` · ${formatPriceRange([minimumPrice, maximumPrice])}`}
             </Typography>
           </Box>
-          {!loading && !loadError && (
-            <Typography
-              aria-live="polite"
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.25}
+            sx={{ width: { xs: "100%", sm: "auto" }, justifyContent: "space-between" }}
+          >
+            {!loading && !loadError && (
+              <Typography
+                aria-live="polite"
+                sx={{
+                  color: "text.secondary",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {visibleArtworks.length} {visibleArtworks.length === 1 ? "artwork" : "artworks"}
+              </Typography>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              startIcon={<TuneRoundedIcon fontSize="small" />}
+              onClick={() => window.dispatchEvent(new Event("buyer-open-search-filter"))}
               sx={{
-                color: "text.secondary",
-                fontSize: 13,
+                display: { xs: "inline-flex", md: "none" },
+                borderRadius: 999,
+                borderColor: "divider",
+                textTransform: "none",
                 fontWeight: 700,
+                px: 1.5,
+                minHeight: 36,
               }}
             >
-              {visibleArtworks.length} {visibleArtworks.length === 1 ? "artwork" : "artworks"}
-            </Typography>
-          )}
+              Search & Filter
+            </Button>
+          </Stack>
         </Stack>
 
         {loading && (
@@ -521,11 +547,11 @@ export default function Shop() {
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "minmax(0, 1fr)",
+                xs: "repeat(2, minmax(0, 1fr))",
                 sm: "repeat(2, minmax(0, 1fr))",
                 md: "repeat(4, minmax(0, 1fr))",
               },
-              gap: { xs: 1.5, sm: 2 },
+              gap: { xs: 1.25, sm: 2 },
             }}
           >
             {Array.from({ length: PAGE_SIZE }, (_, index) => (
@@ -535,15 +561,15 @@ export default function Shop() {
                   overflow: "hidden",
                   border: "1px solid",
                   borderColor: "divider",
-                  borderRadius: 2,
+                  borderRadius: 3,
                   backgroundColor: "background.paper",
                 }}
               >
-                <Skeleton variant="rectangular" sx={{ aspectRatio: "1.25 / 1" }} />
-                <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
-                  <Skeleton width="72%" height={26} />
-                  <Skeleton width="52%" height={20} sx={{ mt: 0.5 }} />
-                  <Skeleton width="38%" height={28} sx={{ mt: 1 }} />
+                <Skeleton variant="rectangular" sx={{ aspectRatio: { xs: "1.12 / 1", sm: "1.05 / 1" } }} />
+                <Box sx={{ p: { xs: 1, sm: 2 } }}>
+                  <Skeleton width="72%" height={24} />
+                  <Skeleton width="52%" height={18} sx={{ mt: 0.5 }} />
+                  <Skeleton width="38%" height={24} sx={{ mt: 1 }} />
                 </Box>
               </Box>
             ))}
@@ -589,11 +615,11 @@ export default function Shop() {
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
-                  xs: "repeat(1, minmax(0, 1fr))",
+                  xs: "repeat(2, minmax(0, 1fr))",
                   sm: "repeat(2, minmax(0, 1fr))",
                   md: "repeat(4, minmax(0, 1fr))",
                 },
-                gap: { xs: 1.5, sm: 2 },
+                gap: { xs: 1.25, sm: 2 },
               }}
             >
               {pageArtworks.map((artwork) => (
@@ -695,6 +721,7 @@ export default function Shop() {
         autoHideDuration={3000}
         onClose={() => setCartSnackbarOpen(false)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        sx={{ bottom: { xs: 80, md: 24 } }}
       >
         <Alert
           onClose={() => setCartSnackbarOpen(false)}
