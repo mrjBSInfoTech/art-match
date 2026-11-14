@@ -22,7 +22,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import CloudDownloadOutlinedIcon from "@mui/icons-material/CloudDownloadOutlined";
 import { Helmet } from "react-helmet-async";
-import ThemeModeSetting from "../../components/admin/Settings/ThemeModeSetting";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import {
@@ -283,9 +282,6 @@ export default function Mechanicals() {
       </Stack>
 
       <Stack spacing={2.5}>
-        {/* Appearance & Theme Section */}
-        <ThemeModeSetting />
-
         {/* Reactivation Time Frame Section */}
         <Paper elevation={0} sx={cardSx}>
           <Box

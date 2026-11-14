@@ -11,6 +11,7 @@ import {
   FormControlLabel,
   FormGroup,
   FormHelperText,
+  IconButton,
   Slide,
   Stack,
   Typography,
@@ -69,6 +70,12 @@ export default function OrderParcelPhoto({
     }
     setStatusError("");
     setParcelPhotos((current) => [...current, ...files]);
+  };
+
+  const handleRemovePhoto = (index) => {
+    if (saving) return;
+    setStatusError("");
+    setParcelPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index));
   };
 
   return (
@@ -176,18 +183,46 @@ export default function OrderParcelPhoto({
                   {photoPreviews.map((preview, index) => (
                     <Box
                       key={preview}
-                      component="img"
-                      src={preview}
-                      alt={`Parcel photo ${index + 1}`}
                       sx={{
+                        position: "relative",
                         width: 88,
                         height: 88,
-                        objectFit: "cover",
                         borderRadius: 1.5,
-                        border: "1px solid",
-                        borderColor: theme.palette.divider,
+                        overflow: "hidden",
                       }}
-                    />
+                    >
+                      <Box
+                        component="img"
+                        src={preview}
+                        alt={`Parcel photo ${index + 1}`}
+                        sx={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          border: "1px solid",
+                          borderColor: theme.palette.divider,
+                          borderRadius: 1.5,
+                        }}
+                      />
+                      <IconButton
+                        aria-label={`Remove parcel photo ${index + 1}`}
+                        onClick={() => handleRemovePhoto(index)}
+                        disabled={saving}
+                        sx={{
+                          position: "absolute",
+                          top: 2,
+                          right: 2,
+                          width: 44,
+                          height: 44,
+                          color: theme.palette.text.primary,
+                          backgroundColor: theme.palette.background.paper,
+                          boxShadow: 1,
+                          "&:hover": { backgroundColor: theme.palette.action.hover },
+                        }}
+                      >
+                        <CloseIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Box>
                   ))}
                 </Box>
               )}

@@ -285,7 +285,7 @@ export default function SearchCertificate() {
           {/* Search TextField matching Artwork.jsx */}
           <TextField
             variant="outlined"
-            placeholder="Search certificates by title, artist, or certificate ID..."
+            placeholder="Search by certificate ID..."
             size="small"
             fullWidth
             sx={adminSearchInputSx(theme, { minWidth: 0 })}
@@ -298,7 +298,7 @@ export default function SearchCertificate() {
             }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            inputProps={{ "aria-label": "Search certificates" }}
+            inputProps={{ "aria-label": "Search by certificate ID" }}
           />
 
           {/* Filter Select Controls Container matching Artwork.jsx */}

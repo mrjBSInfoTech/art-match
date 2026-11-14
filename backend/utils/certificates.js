@@ -407,28 +407,8 @@ export async function searchCertificates(currentSellerId, { query: rawQuery = ""
   let searchCondition = "";
   if (searchQuery) {
     const likePattern = `%${searchQuery}%`;
-    searchCondition = `
-      AND (
-        c.certificate_id LIKE ?
-        OR a.title LIKE ?
-        OR CONCAT(COALESCE(s.first_name, ''), ' ', COALESCE(s.last_name, '')) LIKE ?
-        OR s.first_name LIKE ?
-        OR s.last_name LIKE ?
-        OR a.genre LIKE ?
-        OR a.art_type LIKE ?
-        OR i.public_token = ?
-      )
-    `;
-    params.push(
-      likePattern,
-      likePattern,
-      likePattern,
-      likePattern,
-      likePattern,
-      likePattern,
-      likePattern,
-      searchQuery,
-    );
+    searchCondition = "AND c.certificate_id LIKE ?";
+    params.push(likePattern);
   }
 
   params.push(maxLimit);

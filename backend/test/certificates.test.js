@@ -266,13 +266,15 @@ test("revokeCertificateAccessForReturn updates access and delivery records for r
   assert.equal(current.calls.length, 2);
 });
 
-test("searchCertificates queries certificates and excludes current seller by default", async () => {
+test("searchCertificates searches only certificate IDs and excludes current seller by default", async () => {
   const current = loadService({
     queryHandler: async (sql, params) => {
       if (/FROM marketplace_certificate c/.test(sql)) {
         assert.match(sql, /c\.seller_id != \?/);
+        assert.match(sql, /c\.certificate_id LIKE \?/);
+        assert.doesNotMatch(sql, /OR\s+(?:a\.title LIKE|s\.first_name LIKE|s\.last_name LIKE|a\.genre LIKE|a\.art_type LIKE|i\.public_token\s*=)/);
         assert.equal(params[0], 5);
-        assert.equal(params[1], "%Landscape%");
+        assert.equal(params[1], "%RN-2026-LNDS%");
         return [[
           {
             artwork_id: 101,
@@ -298,7 +300,7 @@ test("searchCertificates queries certificates and excludes current seller by def
     },
   });
 
-  const results = await current.service.searchCertificates(5, { query: "Landscape", excludeSelf: true });
+  const results = await current.service.searchCertificates(5, { query: "RN-2026-LNDS", excludeSelf: true });
   assert.equal(results.length, 1);
   assert.equal(results[0].certificateId, "RN-2026-LNDS");
   assert.equal(results[0].artwork.title, "Golden Landscape");

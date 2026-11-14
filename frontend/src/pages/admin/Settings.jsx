@@ -19,6 +19,7 @@ import ChangePassword from "../../components/admin/Settings/ChangePassword";
 import ChangeInfoProfile from "../../components/admin/Settings/ChangeInfoProfile";
 import ChangeProfileImage from "../../components/admin/Settings/ChangeProfileImage";
 import DispatchAlert from "../../components/admin/Settings/DispatchAlert";
+import ThemeModeSetting from "../../components/admin/Settings/ThemeModeSetting";
 import {
   changePassword,
   getAdminProfile,
@@ -324,6 +325,8 @@ export default function Settings() {
       </Stack>
 
       <Stack spacing={2.5}>
+        <ThemeModeSetting />
+
         {/* Profile Picture Card */}
         <Paper elevation={0} sx={cardSx}>
           <Box
