@@ -4,19 +4,17 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
-  Button,
   CircularProgress,
   Dialog,
   DialogContent,
-  DialogTitle,
   Slide,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ConnectionErrorPanel from "../ConnectionErrorPanel";
+import { SupportDialogTitle } from "./SupportTopicDialog";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -62,37 +60,14 @@ export default function FAQInfo({
       }}
       aria-labelledby="faq-info-title"
     >
-      <DialogTitle
+      <SupportDialogTitle
         id="faq-info-title"
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.75,
-          px: 2.5,
-          py: 1.75,
-          color: theme.palette.text.primary,
-          fontSize: { xs: "1.1rem", sm: "1.25rem" },
-          fontWeight: 700,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <HelpOutlineOutlinedIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
-        Frequently Asked Questions
-        <Button
-          aria-label="Close frequently asked questions"
-          onClick={handleClose}
-          sx={{
-            minWidth: 28,
-            width: 28,
-            height: 28,
-            ml: "auto",
-            p: 0,
-            color: theme.palette.text.secondary,
-          }}
-        >
-          <CloseIcon sx={{ fontSize: 18 }} />
-        </Button>
-      </DialogTitle>
+        icon={HelpOutlineOutlinedIcon}
+        title="Frequently Asked Questions"
+        subtitle="Quick answers about ordering, shipping, payments, and buyer protection."
+        onClose={handleClose}
+        closeLabel="Close frequently asked questions"
+      />
       <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>

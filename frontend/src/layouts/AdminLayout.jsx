@@ -84,6 +84,15 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
+function formatAdminRoleLabel(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "Administrator";
+  return normalized
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function AdminLayoutContent() {
   //Info
   const [firstName, setFirstName] = useState("");
@@ -205,6 +214,7 @@ function AdminLayoutContent() {
 
   // Check if user has permissions to manage admins (can add or edit)
   const canManageAdmins = canAdd || canEdit;
+  const roleLabel = formatAdminRoleLabel(role);
 
   // Sidebar menu items
   const navigation = [
@@ -439,7 +449,7 @@ function AdminLayoutContent() {
       session={{
         user: {
           name: `${firstName} ${lastName}`,
-          position: "Administrator",
+          position: roleLabel,
         },
       }}
       theme={theme}
@@ -539,7 +549,7 @@ function AdminLayoutContent() {
                 {firstName} {lastName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Administrator
+                {roleLabel}
               </Typography>
             </Stack>
           </Stack>

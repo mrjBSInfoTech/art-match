@@ -8,9 +8,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Stack,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PinInput from "./PinInput";
 
@@ -23,7 +26,9 @@ export default function ChatPinDialog({
   error = "",
   onSubmit,
   onReset,
+  onClose,
 }) {
+  const theme = useTheme();
   const [pin, setPin] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
@@ -71,13 +76,40 @@ export default function ChatPinDialog({
     <>
       <Dialog
         open={open}
-        disableEscapeKeyDown
+        onClose={() => {
+          if (!busy && onClose) onClose();
+        }}
+        disableEscapeKeyDown={busy || !onClose}
         fullWidth
         maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: 3, px: 1 } }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            px: 1,
+            backgroundColor: theme.palette.background.paper,
+            backgroundImage: "none",
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
         TransitionProps={{ onEntered: () => pinInputRef.current?.focus() }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
+        <DialogTitle sx={{ pb: 1, position: "relative" }}>
+          {onClose && (
+            <IconButton
+              aria-label="Close passkey dialog"
+              disabled={busy}
+              onClick={onClose}
+              size="small"
+              sx={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          )}
           <Stack alignItems="center" spacing={1.5} sx={{ pt: 1 }}>
             <Box
               sx={{
@@ -171,6 +203,14 @@ export default function ChatPinDialog({
         onClose={() => !busy && setResetConfirmation(false)}
         fullWidth
         maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            backgroundColor: theme.palette.background.paper,
+            backgroundImage: "none",
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
       >
         <DialogTitle>Start with a new chat key?</DialogTitle>
         <DialogContent>

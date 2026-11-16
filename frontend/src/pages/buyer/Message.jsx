@@ -332,6 +332,7 @@ export default function Messages({ embedded = false }) {
     setRecoveryError("");
     try {
       await resetBuyerChatRecoveryBackup();
+      setPinDialogMode("");
       setRecoveryMode("");
       const keyPair = await createChatKeyPair(recoveryStorageKeyRef.current);
       privateKeyRef.current = keyPair.privateKey;
@@ -1507,12 +1508,13 @@ export default function Messages({ embedded = false }) {
       />
 
       <ChatPinDialog
-        open={showChatUnlockDialogs && pinDialogOpen}
+        open={showChatUnlockDialogs && pinDialogOpen && !recoveryMode}
         mode={pinDialogMode}
         busy={recoveryBusy}
         error={recoveryError}
         onSubmit={handleRecoverySubmit}
         onReset={handleRecoveryReset}
+        onClose={() => setPinDialogMode("")}
       />
 
       <MessageDelete

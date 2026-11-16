@@ -130,6 +130,8 @@ export default function ChatRecoveryDialog({
             borderRadius: 3,
             overflow: "hidden",
             backgroundColor: theme.palette.background.paper,
+            backgroundImage: "none",
+            border: `1px solid ${theme.palette.divider}`,
           },
         }}
       >
@@ -199,7 +201,10 @@ export default function ChatRecoveryDialog({
                     sx={{
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: 2,
-                      backgroundColor: theme.palette.grey[100],
+                      backgroundColor:
+                        theme.palette.mode === "dark"
+                          ? "rgba(255, 255, 255, 0.06)"
+                          : theme.palette.grey[100],
                       px: 1.5,
                       py: 1.25,
                       textAlign: "center",
@@ -293,7 +298,20 @@ export default function ChatRecoveryDialog({
           )}
         </DialogActions>
       </Dialog>
-      <Dialog open={resetConfirmation} onClose={() => !busy && setResetConfirmation(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={resetConfirmation}
+        onClose={() => !busy && setResetConfirmation(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            backgroundColor: theme.palette.background.paper,
+            backgroundImage: "none",
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
         <DialogTitle>Start with a new chat key?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
