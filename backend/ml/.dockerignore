@@ -1,0 +1,14 @@
+datasets/
+__pycache__/
+*.pyc
+.env
+.env.*
+test_*.py
+clean_dataset.py
+rename_dataset.py
+train_*.py
+calibrate_*.py
+create_feature_annotations.py
+dataset_sync.py
+feature_annotation_helper.py
+

@@ -28,8 +28,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI()
 
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 class ImageRequest(BaseModel):
-    image_path: str
+    image_path: str | None = None
+    image_base64: str | None = None
+    image_url: str | None = None
     artwork_type: str = "auto"  # Art Type from the artwork form; legacy physical values supported
     product: str = ""            # "painting" or "3d_object"
 
@@ -784,11 +791,36 @@ def prepare_physical_art_scan(original_rgba):
 
 @app.post("/analyze")
 def analyze_artwork(req: ImageRequest):
-    if not os.path.exists(req.image_path):
-        raise HTTPException(status_code=404, detail="Image path not found")
+    image_b64 = getattr(req, "image_base64", None)
+    image_url = getattr(req, "image_url", None)
 
-    with Image.open(req.image_path) as uploaded_image:
-        original_rgba = uploaded_image.convert("RGBA")
+    if image_b64:
+        import base64
+        import io
+
+        raw = image_b64.split(",", 1)[-1].strip()
+        try:
+            image_bytes = base64.b64decode(raw, validate=True)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid base64 image payload") from exc
+        with Image.open(io.BytesIO(image_bytes)) as uploaded_image:
+            original_rgba = uploaded_image.convert("RGBA")
+    elif image_url:
+        import io
+        import urllib.request
+
+        if not image_url.startswith(("http://", "https://")):
+            raise HTTPException(status_code=400, detail="Invalid image_url scheme")
+        with urllib.request.urlopen(image_url, timeout=15) as resp:
+            image_bytes = resp.read()
+        with Image.open(io.BytesIO(image_bytes)) as uploaded_image:
+            original_rgba = uploaded_image.convert("RGBA")
+    else:
+        if not req.image_path or not os.path.exists(req.image_path):
+            raise HTTPException(status_code=404, detail="Image path not found")
+
+        with Image.open(req.image_path) as uploaded_image:
+            original_rgba = uploaded_image.convert("RGBA")
 
     original_rgb = original_rgba.convert("RGB")
 

@@ -52,7 +52,10 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-async function scanArtwork(absoluteImagePath, art_type, product) {
+const ML_ANALYZE_URL =
+  process.env.ML_ANALYZE_URL || "http://127.0.0.1:8000/analyze";
+
+async function scanArtwork(absoluteImagePath, art_type, product, imageBuffer = null) {
   let detectedColors = "Pending";
   let detectedFeatures = null;
   const type = art_type.trim().toLowerCase();
@@ -63,10 +66,14 @@ async function scanArtwork(absoluteImagePath, art_type, product) {
 
   // Analyze colors, features, and mediums when the seller uploads artwork.
   try {
-    const mlResponse = await fetch("http://127.0.0.1:8000/analyze", {
+    const buffer =
+      imageBuffer ||
+      (absoluteImagePath ? await fs.promises.readFile(absoluteImagePath) : null);
+    const mlResponse = await fetch(ML_ANALYZE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(buffer ? { image_base64: buffer.toString("base64") } : {}),
         image_path: absoluteImagePath,
         artwork_type: type,
         product: product.trim().toLowerCase(),
@@ -478,7 +485,7 @@ router.post(
       const absoluteImagePath = path.join(uploadDir, req.file.filename);
       const compressedImage = await compressArtworkImage(absoluteImagePath);
       const { detectedColors, detectedFeatures, detectedMediums } =
-        await scanArtwork(absoluteImagePath, art_type, product);
+        await scanArtwork(absoluteImagePath, art_type, product, compressedImage);
       const scanAttributes = applyArtworkScanOverrides({
         feature_scanned: detectedFeatures,
         mediums_used: detectedMediums,

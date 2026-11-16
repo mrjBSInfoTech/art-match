@@ -1,11 +1,17 @@
 import rateLimit from "express-rate-limit";
 
+const getCookieSameSite = () => {
+  if (process.env.NODE_ENV !== "production") return "lax";
+  const configured = String(process.env.COOKIE_SAME_SITE || "none").trim().toLowerCase();
+  return ["strict", "lax", "none"].includes(configured) ? configured : "none";
+};
+
 export const getAuthCookieOptions = (days = 7) => {
   const isProduction = process.env.NODE_ENV === "production";
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "strict" : "lax",
+    sameSite: getCookieSameSite(),
     path: "/",
     maxAge: days * 24 * 60 * 60 * 1000,
   };
@@ -16,7 +22,7 @@ export const clearAuthCookieOptions = () => {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "strict" : "lax",
+    sameSite: getCookieSameSite(),
     path: "/",
   };
 };
@@ -50,6 +56,10 @@ export const cookieMiddleware = (req, res, next) => {
 };
 
 export const getAllowedOrigins = () => {
+  const extraOrigins = String(process.env.CORS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
   return new Set(
     [
       "http://localhost:5173",
@@ -58,6 +68,7 @@ export const getAllowedOrigins = () => {
       "http://127.0.0.1:3000",
       process.env.FRONTEND_URL,
       process.env.PUBLIC_APP_URL,
+      ...extraOrigins,
     ]
       .filter(Boolean)
       .map((url) => url.replace(/\/+$/, "")),

@@ -147,6 +147,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 const allowedOrigins = getAllowedOrigins();
 
 app.disable("x-powered-by");

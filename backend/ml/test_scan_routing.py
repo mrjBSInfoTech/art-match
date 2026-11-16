@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 
 class ScanRoutingTests(unittest.TestCase):
-    def analyze(self, art_type, product):
+    def analyze(self, art_type, product, image_path="example.png", image_base64=None):
         source = ast.parse(Path(__file__).with_name("main.py").read_text(encoding="utf-8"))
         handler = next(node for node in source.body if isinstance(node, ast.FunctionDef) and node.name == "analyze_artwork")
         handler.decorator_list = []
@@ -21,17 +21,25 @@ class ScanRoutingTests(unittest.TestCase):
         image = MagicMock()
         image.convert.return_value = image
         image.__enter__.return_value = image
+
+        def fake_open(arg):
+            if arg is None:
+                raise AssertionError("Image.open should not receive None when image_base64 is used")
+            return image
+
         namespace = {
             **constants,
             "os": SimpleNamespace(path=SimpleNamespace(exists=lambda _: True)),
-            "Image": SimpleNamespace(open=lambda _: image),
+            "Image": SimpleNamespace(open=fake_open),
             "prepare_physical_art_scan": MagicMock(return_value=(image, image)),
             "extract_features": MagicMock(return_value=["landscape", "sculptures"]),
             "extract_mediums": MagicMock(return_value=["oil", "wood_sculpture"]),
             "extract_all_detailed_colors": MagicMock(return_value=["Blue"]),
         }
         exec(compile(ast.Module(body=[handler], type_ignores=[]), "main.py", "exec"), namespace)
-        result = namespace["analyze_artwork"](SimpleNamespace(image_path="example.png", artwork_type=art_type, product=product))
+        result = namespace["analyze_artwork"](
+            SimpleNamespace(image_path=image_path, image_base64=image_base64, image_url=None, artwork_type=art_type, product=product)
+        )
         return result, namespace
 
     def test_photography_and_print_skip_medium_model(self):
@@ -80,6 +88,11 @@ class ScanRoutingTests(unittest.TestCase):
                 self.assertTrue(calls["extract_mediums"].call_args.args[1])
                 self.assertEqual(result["mediums"], ["wood_sculpture"])
                 self.assertEqual(result["features"], ["sculptures"])
+
+    def test_base64_does_not_require_image_path(self):
+        result, _ = self.analyze("digital", "painting", image_path=None, image_base64="data:image/png;base64,iVBORw0KGgo=")
+        self.assertEqual(result["mediums"], ["Digital"])
+        self.assertEqual(result["features"], ["landscape"])
 
 
 if __name__ == "__main__":
