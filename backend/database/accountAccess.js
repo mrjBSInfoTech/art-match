@@ -1,4 +1,4 @@
-import db from "./db.js";
+import db, { formatDbError } from "./db.js";
 import { logAudit } from "../utils/auditLogger.js";
 
 const createTableSql = `
@@ -79,7 +79,7 @@ export const ensureAccountAccessTable = async () => {
       await query("ALTER TABLE account_notifications ADD INDEX idx_account_notifications_order (order_id)");
     }
   } catch (error) {
-    console.error("Unable to initialize account access tables:", error.message);
+    console.error("Unable to initialize account access tables:", formatDbError(error));
     throw error;
   }
 };

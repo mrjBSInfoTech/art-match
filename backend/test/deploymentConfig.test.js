@@ -6,6 +6,7 @@ import {
   getAuthCookieOptions,
 } from "../utils/authCookies.js";
 import { validateEnv } from "../utils/validateEnv.js";
+import { formatDbError, resolveDbConfig } from "../database/db.js";
 
 test("production auth cookie options default to sameSite='none' and secure=true for cross-origin Vercel + backend hosting", () => {
   const previousNodeEnv = process.env.NODE_ENV;
@@ -96,6 +97,67 @@ test("validateEnv in production rejects PayMongo test keys unless PAYMONGO_ALLOW
       else process.env[k] = saved[k];
     }
   }
+});
+
+test("resolveDbConfig supports DB_*, Railway MYSQL*, and MYSQL_URL fallbacks cleanly", () => {
+  assert.deepEqual(
+    resolveDbConfig({
+      DB_HOST: "mysql.railway.internal",
+      DB_PORT: "3306",
+      DB_USER: "root",
+      DB_PASSWORD: "secret",
+      DB_NAME: "railway",
+    }),
+    {
+      host: "mysql.railway.internal",
+      port: 3306,
+      user: "root",
+      password: "secret",
+      database: "railway",
+    },
+  );
+
+  assert.deepEqual(
+    resolveDbConfig({
+      DB_PASSWORD: "",
+      MYSQLHOST: "mysql.railway.internal",
+      MYSQLPORT: "3306",
+      MYSQLUSER: "root",
+      MYSQLPASSWORD: "pw",
+      MYSQLDATABASE: "railway",
+    }),
+    {
+      host: "mysql.railway.internal",
+      port: 3306,
+      user: "root",
+      password: "pw",
+      database: "railway",
+    },
+  );
+
+  assert.deepEqual(
+    resolveDbConfig({
+      MYSQL_URL: "mysql://root:pass%40word@zephyr.proxy.rlwy.net:40905/railway",
+    }),
+    {
+      host: "zephyr.proxy.rlwy.net",
+      port: 40905,
+      user: "root",
+      password: "pass@word",
+      database: "railway",
+    },
+  );
+});
+
+test("formatDbError exposes inner AggregateError causes instead of an empty string", () => {
+  const err = new AggregateError(
+    [new Error("connect ECONNREFUSED ::1:3306"), new Error("connect ECONNREFUSED 127.0.0.1:3306")],
+    "",
+  );
+  err.code = "ECONNREFUSED";
+  const formatted = formatDbError(err);
+  assert.match(formatted, /ECONNREFUSED/);
+  assert.match(formatted, /127\.0\.0\.1:3306/);
 });
 
 

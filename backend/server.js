@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import db from "./database/db.js";
+import db, { formatDbError } from "./database/db.js";
 import { authenticateAdmin } from "./middleware/adminAuthMiddleware.js";
 import { authenticateBuyer } from "./middleware/buyerAuthMiddleware.js";
 import { authenticateSeller } from "./middleware/sellerAuthMiddleware.js";
@@ -1060,6 +1060,6 @@ ensureAccountAccessTable()
     );
   })
   .catch((error) => {
-    console.error("Unable to initialize database schema:", error.message);
+    console.error("Unable to initialize database schema:", formatDbError(error));
     process.exit(1);
   });

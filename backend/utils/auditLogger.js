@@ -1,4 +1,4 @@
-import db from "../database/db.js";
+import db, { formatDbError } from "../database/db.js";
 
 const createTableSql = `CREATE TABLE IF NOT EXISTS audit_logs (
       audit_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -13,7 +13,7 @@ const createTableSql = `CREATE TABLE IF NOT EXISTS audit_logs (
 export const createAuditLogsTable = () => new Promise((resolve, reject) => {
   db.query(createTableSql, (error) => {
     if (error) {
-      console.error("Unable to initialize audit_logs table:", error.message);
+      console.error("Unable to initialize audit_logs table:", formatDbError(error));
       reject(error);
       return;
     }
