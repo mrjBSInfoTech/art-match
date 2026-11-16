@@ -326,7 +326,7 @@ export default function SellerProfile() {
           <Helmet titleTemplate="%s - ArtMatch">
             <title>Seller Profile</title>
           </Helmet>
-          <ConnectionErrorPanel title="Seller profile unavailable" />
+          <ConnectionErrorPanel title="Seller Profile Unavailable" />
         </Box>
       );
     }

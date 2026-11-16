@@ -149,7 +149,7 @@ export default function Gallery() {
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Gallery</title>
         </Helmet>
-        <ConnectionErrorPanel title="Gallery unavailable" />
+        <ConnectionErrorPanel title="Gallery Unavailable" />
       </Box>
     );
   }

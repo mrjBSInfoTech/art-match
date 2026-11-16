@@ -67,7 +67,6 @@ test("validateEnv in production rejects PayMongo test keys unless PAYMONGO_ALLOW
     "PAYMONGO_SECRET_KEY",
     "PAYMONGO_WEBHOOK_SECRET",
     "PAYMONGO_ALLOW_TEST_MODE",
-    "API_KEY",
   ];
   const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
 
@@ -78,7 +77,6 @@ test("validateEnv in production rejects PayMongo test keys unless PAYMONGO_ALLOW
   process.env.B2_KEY_ID = "real_b2_key_id";
   process.env.B2_APPLICATION_KEY = "real_b2_app_key";
   process.env.PAYMONGO_WEBHOOK_SECRET = "whsk_real_test_webhook_secret";
-  process.env.API_KEY = "real_gemini_api_key";
 
   try {
     process.env.PAYMONGO_SECRET_KEY = "sk_test_123456";

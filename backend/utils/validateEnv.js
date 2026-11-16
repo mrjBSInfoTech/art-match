@@ -68,9 +68,6 @@ export function validateEnv() {
     if (isPlaceholderCredential(process.env.PAYMONGO_WEBHOOK_SECRET)) {
       errors.push("PAYMONGO_WEBHOOK_SECRET cannot use placeholder values in production.");
     }
-    if (isPlaceholderCredential(process.env.API_KEY)) {
-      errors.push("API_KEY cannot use placeholder values in production.");
-    }
   } else {
     // Non-production warnings
     if (isPlaceholderCredential(process.env.B2_KEY_ID)) {
