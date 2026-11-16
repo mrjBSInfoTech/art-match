@@ -13,6 +13,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -67,8 +68,8 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
   };
 
   const imageUrl = admin?.image
-    ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
-    : "http://localhost:5000/uploads/profile.jpg";
+    ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
+    : `${API_BASE_URL}/uploads/profile.jpg`;
 
   const permissionChip = (label, value) => (
     <Chip
@@ -158,7 +159,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
                 alt={`${admin.first_name || "Admin"} profile`}
                 onError={(event) => {
                   event.currentTarget.src =
-                    "http://localhost:5000/uploads/profile.jpg";
+                    `${API_BASE_URL}/uploads/profile.jpg`;
                 }}
                 sx={{
                   width: "100%",

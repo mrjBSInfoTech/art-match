@@ -29,6 +29,7 @@ import {
   addAccountStrike,
   setAccountBan,
 } from "../../../api/admin/accountAccessAPI";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 export default function StudentCard({
   students = [],
@@ -175,14 +176,14 @@ export default function StudentCard({
                   }}
                   image={
                     /^https?:\/\//i.test(image || "") ? image : image
-                      ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
-                      : "http://localhost:5000/uploads/seller/profile.jpg"
+                      ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
+                      : `${API_BASE_URL}/uploads/seller/profile.jpg`
                   }
                   alt={getName(student)}
                   onError={(event) => {
                     event.target.onerror = null;
                     event.target.src =
-                      "http://localhost:5000/uploads/seller/profile.jpg";
+                      `${API_BASE_URL}/uploads/seller/profile.jpg`;
                   }}
                 />
               </Box>

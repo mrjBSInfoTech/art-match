@@ -17,12 +17,13 @@ import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import GalleryCard from "../../components/buyer/Gallery/GalleryCard";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { isAuthenticated } from "../../../utils/auth";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const profileImageUrl = (image) => {
-  if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
+  if (!image) return `${API_BASE_URL}/uploads/seller/profile.jpg`;
   return image.startsWith("http")
     ? image
-    : `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
+    : `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
 };
 
 const groupArtworksByArtist = (artworks) => {

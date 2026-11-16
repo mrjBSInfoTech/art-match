@@ -27,6 +27,7 @@ import {
   addAccountStrike,
   setAccountBan,
 } from "../../api/admin/accountAccessAPI";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const emptyValue = "Not provided";
 
@@ -268,8 +269,8 @@ export default function UserManagementPanel({
                   }}
                   image={
                     user.image
-                      ? `http://localhost:5000/uploads/uploadUser/${encodeURIComponent(user.image)}`
-                      : `http://localhost:5000/uploads/profile.jpg`
+                      ? `${API_BASE_URL}/uploads/uploadUser/${encodeURIComponent(user.image)}`
+                      : `${API_BASE_URL}/uploads/profile.jpg`
                   }
                   onError={(e) => {
                     e.target.onerror = null;

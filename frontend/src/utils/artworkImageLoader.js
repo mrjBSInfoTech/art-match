@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5000";
+import { API_BASE_URL } from "../api/apiBase.js";
 const CACHE_TTL_MS = 180_000;
 
 // Share requests across cards, dialogs and StrictMode remounts. Cache blobs,

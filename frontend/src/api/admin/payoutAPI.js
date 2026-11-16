@@ -1,8 +1,9 @@
 import axios from "axios";
 import { clearAuthData } from "../../../utils/auth";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
-  withCredentials: true, baseURL: "http://localhost:5000/api/admin/payouts", timeout: 30000 });
+  withCredentials: true, baseURL: `${API_BASE_URL}/api/admin/payouts`, timeout: 30000 });
 
 // HttpOnly cookies handle authentication automatically
 

@@ -7,14 +7,15 @@ import {
   followArtist,
   unfollowArtist,
 } from "../../../api/buyer/artworkAPI";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const getProfileImage = (artist) => {
   const image = artist.profile_image;
   if (typeof image === "string" && image.trim()) {
     if (image.startsWith("http")) return image;
-    return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
+    return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
   }
-  return "http://localhost:5000/uploads/seller/profile.jpg";
+  return `${API_BASE_URL}/uploads/seller/profile.jpg`;
 };
 
 export default function RelatedArtists({

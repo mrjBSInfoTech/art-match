@@ -34,6 +34,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { updateAdmin } from "../../api/admin/adminAPI";
 import { getAdminProfile } from "../../api/admin/adminAuthenticationAPI";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive",
@@ -54,8 +55,8 @@ const DropZone = styled(Box, {
 
 const getImageUrl = (image) =>
   image
-    ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
-    : "http://localhost:5000/uploads/profile.jpg";
+    ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
+    : `${API_BASE_URL}/uploads/profile.jpg`;
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {

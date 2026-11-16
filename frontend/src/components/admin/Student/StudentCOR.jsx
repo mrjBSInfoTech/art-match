@@ -10,6 +10,7 @@ import {
   Button,
   Slide,
 } from "@mui/material";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -49,7 +50,7 @@ function StudentCOR({ open, handleClose, selectedStudent }) {
 
     const url = /^https?:\/\//i.test(rawCor)
       ? rawCor
-      : `http://localhost:5000/uploads/seller/uploadCOR/${encodeURIComponent(rawCor)}`;
+      : `${API_BASE_URL}/uploads/seller/uploadCOR/${encodeURIComponent(rawCor)}`;
 
     setLoading(true);
     setError("");

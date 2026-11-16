@@ -73,6 +73,7 @@ import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
 import MobileSearchFilterDrawer from "../components/buyer/Layout/MobileSearchFilterDrawer";
 import MobileBottomNav from "../components/buyer/Layout/MobileBottomNav";
+import { API_BASE_URL } from "../api/apiBase.js";
 
 const DEFAULT_PROMOTION_HEADER = {
   message: "Special Spring Exhibition: Post-Digital Sculptures by Class of 2026 out now.",
@@ -876,8 +877,8 @@ function BuyerLayoutContent({ children }) {
                   <Avatar
                     src={
                       profileImage
-                        ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
-                        : "http://localhost:5000/uploads/buyer/profile.jpg"
+                        ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
+                        : `${API_BASE_URL}/uploads/buyer/profile.jpg`
                     }
                     sx={{ width: 60, height: 60, flexShrink: 0 }}
                   >

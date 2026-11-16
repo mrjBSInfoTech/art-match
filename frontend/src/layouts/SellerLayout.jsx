@@ -66,6 +66,7 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
+import { API_BASE_URL } from "../api/apiBase.js";
 
 const SELLER_SIDEBAR_PREFERENCES = {
   orders: "seller_sidebar_orders_expanded",
@@ -442,7 +443,7 @@ function SellerLayoutContent() {
         <Avatar
           src={
             profileImage
-              ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+              ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
               : undefined
           }
           imgProps={{
@@ -547,7 +548,7 @@ function SellerLayoutContent() {
             <Avatar
               src={
                 profileImage
-                  ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+                  ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
                   : undefined
               }
               imgProps={{

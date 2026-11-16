@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_BASE_URL } from "./apiBase.js";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api/footer-content",
+  baseURL: `${API_BASE_URL}/api/footer-content`,
   timeout: 10000,
   withCredentials: true,
   headers: {

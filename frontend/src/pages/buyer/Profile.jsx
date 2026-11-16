@@ -22,6 +22,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 import { cacheBuyerProfile, getBuyerSecuritySettings, updateBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -209,8 +210,8 @@ export default function Profile() {
               <Avatar
                 src={
                   profileImage
-                    ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
-                    : "http://localhost:5000/uploads/buyer/profile.jpg"
+                    ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
+                    : `${API_BASE_URL}/uploads/buyer/profile.jpg`
                 }
                 sx={{
                   width: 86,

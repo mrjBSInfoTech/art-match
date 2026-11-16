@@ -7,8 +7,7 @@ import {
 } from "../../../utils/artworkImageProtection";
 import { loadArtworkImage } from "../../../utils/artworkImageLoader.js";
 import { isAuthenticated } from "../../../../utils/auth";
-
-const API_BASE_URL = "http://localhost:5000";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const getArtworkFilename = (image) => {
   let pathname;

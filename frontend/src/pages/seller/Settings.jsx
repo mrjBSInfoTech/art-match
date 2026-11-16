@@ -59,6 +59,7 @@ import ContactMailOutlinedIcon from "@mui/icons-material/ContactMailOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ThemeModeSetting from "../../components/seller/Settings/ThemeModeSetting";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -500,7 +501,7 @@ export default function Settings() {
             <Avatar
               src={
                 profileImage
-                  ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
+                  ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
                   : undefined
               }
               alt="Seller profile"

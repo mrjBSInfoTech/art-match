@@ -73,6 +73,7 @@ import {
   loadChatKeyPair,
   restoreChatKeyPair,
 } from "../../utils/chatEncryption";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const SUPPORT_CHAT_ID = "support";
 
@@ -100,18 +101,18 @@ const isConnectionFailure = (error) =>
 const toAbsoluteMediaUrl = (url) => {
   if (!url) return null;
   if (/^https?:\/\//i.test(url)) return url;
-  if (url.startsWith("/")) return `http://localhost:5000${url}`;
-  return `http://localhost:5000/${url}`;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}/${url}`;
 };
 
 const toAbsoluteProfileImageUrl = (image, accountType) => {
   if (!image) return accountType === "seller"
-    ? "http://localhost:5000/uploads/seller/profile.jpg"
-    : "http://localhost:5000/uploads/buyer/profile.jpg";
+    ? `${API_BASE_URL}/uploads/seller/profile.jpg`
+    : `${API_BASE_URL}/uploads/buyer/profile.jpg`;
   if (/^https?:\/\//i.test(image)) return image;
-  if (image.startsWith("/")) return `http://localhost:5000${image}`;
+  if (image.startsWith("/")) return `${API_BASE_URL}${image}`;
   const folder = "uploadProfile";
-  return `http://localhost:5000/uploads/${accountType}/${folder}/${encodeURIComponent(image)}`;
+  return `${API_BASE_URL}/uploads/${accountType}/${folder}/${encodeURIComponent(image)}`;
 };
 
 export default function Messages({ embedded = false }) {

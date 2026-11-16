@@ -20,6 +20,7 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AdminInfo from "./AdminInfo";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 export default function AdminCard({
   admins,
@@ -139,12 +140,12 @@ export default function AdminCard({
               }}
               image={
                 admin.image
-                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
-                  : `http://localhost:5000/uploads/profile.jpg`
+                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
+                  : `${API_BASE_URL}/uploads/profile.jpg`
               }
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = "http://localhost:5000/uploads/profile.jpg";
+                e.target.src = `${API_BASE_URL}/uploads/profile.jpg`;
               }}
               alt={admin.first_name}
             />

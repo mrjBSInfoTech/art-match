@@ -48,6 +48,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import { getProfileInitials } from "../../utils/profileInitials.js";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const getProfileFallback = () => "";
 
@@ -63,10 +64,10 @@ const getProfileImage = (artist) => {
   }
 
   if (imageName.startsWith("/uploads/")) {
-    return `http://localhost:5000${imageName}`;
+    return `${API_BASE_URL}${imageName}`;
   }
 
-  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
+  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
 };
 
 const buildArtistSummaries = (artworks = []) => {

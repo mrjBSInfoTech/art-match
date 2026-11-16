@@ -60,6 +60,7 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
+import { API_BASE_URL } from "../api/apiBase.js";
 
 const ADMIN_SIDEBAR_PREFERENCES = {
   artVerification: "admin_sidebar_art_verification_expanded",
@@ -412,7 +413,7 @@ function AdminLayoutContent() {
         <Avatar
           src={
             image
-              ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
+              ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
               : undefined
           }
           alt={firstName}
@@ -525,8 +526,8 @@ function AdminLayoutContent() {
             <Avatar
               src={
                 image
-                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
-                  : "http://localhost:5000/uploads/profile.jpg"
+                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
+                  : `${API_BASE_URL}/uploads/profile.jpg`
               }
               alt={firstName}
               sx={{ width: 48, height: 48, flexShrink: 0, bgcolor: "#f6f6f6" }}

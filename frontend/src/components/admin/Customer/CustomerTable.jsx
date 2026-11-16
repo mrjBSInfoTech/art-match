@@ -34,6 +34,7 @@ import {
 } from "../../../api/admin/accountAccessAPI";
 import { startSupportConversation } from "../../../api/admin/supportChatAPI";
 import { adminTableButtonSx } from "../adminTableStyles";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const fields = [
   ["username", "Username"],
@@ -221,8 +222,8 @@ export default function CustomerTable({
                 const imageUrl = /^https?:\/\//i.test(image || "")
                   ? image
                   : image
-                    ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
-                    : "http://localhost:5000/uploads/buyer/profile.jpg";
+                    ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
+                    : `${API_BASE_URL}/uploads/buyer/profile.jpg`;
                 const strikes = Number(customer.strikes || 0);
                 const isBanned = Boolean(customer.is_banned);
 
@@ -244,7 +245,7 @@ export default function CustomerTable({
                           onError={(event) => {
                             event.target.onerror = null;
                             event.target.src =
-                              "http://localhost:5000/uploads/buyer/profile.jpg";
+                              `${API_BASE_URL}/uploads/buyer/profile.jpg`;
                           }}
                           sx={{
                             width: 44,

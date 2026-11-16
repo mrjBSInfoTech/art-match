@@ -33,6 +33,7 @@ import {
 } from "../../api/buyer/artworkAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { getProfileInitials } from "../../utils/profileInitials.js";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const getProfileFallback = () => "";
 
@@ -51,7 +52,7 @@ const getProfileImage = (artist) => {
   const imageName = artist?.profile_image || artist?.image;
   if (!imageName) return getProfileFallback(artist?.name || "Artist");
   if (imageName.startsWith("http")) return imageName;
-  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
+  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
 };
 
 const buildSellerSummaries = (artworks = []) => {

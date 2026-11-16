@@ -1,9 +1,10 @@
 import axios from "axios";
 import { getRecommendationSessionId } from "./recommendationAPI";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/buyer/cart",
+  baseURL: `${API_BASE_URL}/api/buyer/cart`,
   timeout: 5000,
 });
 

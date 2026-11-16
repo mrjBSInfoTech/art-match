@@ -10,10 +10,11 @@ import {
   getProductOptionsErrors,
   getProductOptionsPayload,
 } from "../../utils/productOptions.js";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/seller",
+  baseURL: `${API_BASE_URL}/api/seller`,
   timeout: 120000,
 });
 

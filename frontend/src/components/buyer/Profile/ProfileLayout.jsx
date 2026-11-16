@@ -34,6 +34,7 @@ import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlin
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const NAV_ITEMS = [
   {
@@ -102,8 +103,8 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
         <Avatar
           src={
             profileImage
-              ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
-              : "http://localhost:5000/uploads/buyer/profile.jpg"
+              ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
+              : `${API_BASE_URL}/uploads/buyer/profile.jpg`
           }
           sx={{ width: 48, height: 48, flexShrink: 0 }}
         >

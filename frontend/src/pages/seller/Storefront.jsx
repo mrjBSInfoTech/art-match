@@ -32,6 +32,7 @@ import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import MarketingSectionBanner from "../../components/seller/Marketing/MarketingSectionBanner";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -77,9 +78,9 @@ const getSavedSpecialties = (response) => {
 };
 
 const getProfileImage = (profileImage) => {
-  if (!profileImage) return "http://localhost:5000/uploads/seller/profile.jpg";
+  if (!profileImage) return `${API_BASE_URL}/uploads/seller/profile.jpg`;
   if (profileImage.startsWith("http")) return profileImage;
-  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`;
+  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`;
 };
 
 export default function Storefront() {

@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/support-chat",
+  baseURL: `${API_BASE_URL}/api/support-chat`,
   timeout: 15000,
 });
 

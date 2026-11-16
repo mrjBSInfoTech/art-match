@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/buyer/returns",
+  baseURL: `${API_BASE_URL}/api/buyer/returns`,
   timeout: 15000,
 });
 

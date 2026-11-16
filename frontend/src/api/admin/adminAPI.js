@@ -1,9 +1,10 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
 // Create an Axios instance (you can set global options here)
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api",
+  baseURL: `${API_BASE_URL}/api`,
   timeout: 5000, // wait max 5 seconds
 });
 

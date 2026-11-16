@@ -1,4 +1,5 @@
-const chatEventsUrl = "http://localhost:5000/api/chat";
+import { API_BASE_URL } from "./apiBase.js";
+const chatEventsUrl = `${API_BASE_URL}/api/chat`;
 
 export const subscribeToChatEvents = (role, onEvent) => {
   let closed = false;

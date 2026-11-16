@@ -40,6 +40,7 @@ import ChatComposer, {
 } from "../../components/chat/ChatComposer";
 import MessageMedia from "../../components/seller/Message/MessageMedia";
 import MessageMediaPreview from "../../components/seller/Message/MessageMediaPreview";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const POLL_INTERVAL = 5000;
 
@@ -71,18 +72,18 @@ const isOtherBuyerIssue = (issueType, accountRole) =>
 const toAbsoluteMediaUrl = (url) => {
   if (!url) return null;
   if (/^(https?:|blob:|data:)/i.test(url)) return url;
-  if (url.startsWith("/")) return `http://localhost:5000${url}`;
-  return `http://localhost:5000/${url}`;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}/${url}`;
 };
 
 const toAbsoluteProfileImageUrl = (image, role) => {
   const folderRole = role === "seller" ? "seller" : "buyer";
   if (!image) {
-    return `http://localhost:5000/uploads/${folderRole}/profile.jpg`;
+    return `${API_BASE_URL}/uploads/${folderRole}/profile.jpg`;
   }
   if (/^https?:\/\//i.test(image)) return image;
-  if (image.startsWith("/")) return `http://localhost:5000${image}`;
-  return `http://localhost:5000/uploads/${folderRole}/uploadProfile/${encodeURIComponent(image)}`;
+  if (image.startsWith("/")) return `${API_BASE_URL}${image}`;
+  return `${API_BASE_URL}/uploads/${folderRole}/uploadProfile/${encodeURIComponent(image)}`;
 };
 
 const isVideoAttachment = (url, mediaType) =>

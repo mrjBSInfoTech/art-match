@@ -39,6 +39,7 @@ import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -371,8 +372,8 @@ export default function Settings() {
               component="img"
               src={
                 adminImage
-                  ? `http://localhost:5000/uploads/admin/uploadAdmin/${encodeURIComponent(adminImage)}`
-                  : "http://localhost:5000/uploads/profile.jpg"
+                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(adminImage)}`
+                  : `${API_BASE_URL}/uploads/profile.jpg`
               }
               alt="Admin profile"
               sx={{

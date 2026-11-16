@@ -34,6 +34,7 @@ import {
   setAccountBan,
 } from "../../../api/admin/accountAccessAPI";
 import { adminTableButtonSx } from "../adminTableStyles";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 export default function StudentTable({
   students = [],
@@ -187,8 +188,8 @@ export default function StudentTable({
                 const imageUrl = /^https?:\/\//i.test(image || "")
                   ? image
                   : image
-                    ? `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
-                    : "http://localhost:5000/uploads/seller/profile.jpg";
+                    ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
+                    : `${API_BASE_URL}/uploads/seller/profile.jpg`;
                 const strikes = Number(student.strikes || 0);
                 const isBanned = Boolean(student.is_banned);
                 const isExpired = student.account_status === "expired";
@@ -212,7 +213,7 @@ export default function StudentTable({
                           onError={(event) => {
                             event.target.onerror = null;
                             event.target.src =
-                              "http://localhost:5000/uploads/seller/profile.jpg";
+                              `${API_BASE_URL}/uploads/seller/profile.jpg`;
                           }}
                           sx={{
                             width: 44,

@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/seller/inventory",
+  baseURL: `${API_BASE_URL}/api/seller/inventory`,
   timeout: 10000,
 });
 
@@ -10,7 +11,7 @@ const api = axios.create({
 
 const artworkApi = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/seller",
+  baseURL: `${API_BASE_URL}/api/seller`,
   timeout: 10000,
 });
 

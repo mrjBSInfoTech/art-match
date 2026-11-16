@@ -14,6 +14,7 @@ import { useTheme } from "@mui/material/styles";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -53,8 +54,8 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
 
   const image = customer?.profile_image || customer?.image;
   const imageUrl = /^https?:\/\//i.test(image || "") ? image : image
-    ? `http://localhost:5000/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
-    : "http://localhost:5000/uploads/buyer/profile.jpg";
+    ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
+    : `${API_BASE_URL}/uploads/buyer/profile.jpg`;
   const strikes = Number(customer?.strikes || 0);
   const isBanned = Boolean(customer?.is_banned);
 
@@ -128,7 +129,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                 alt={`${customer.first_name || customer.username || "Customer"} profile`}
                 onError={(event) => {
                   event.currentTarget.src =
-                    "http://localhost:5000/uploads/buyer/profile.jpg";
+                    `${API_BASE_URL}/uploads/buyer/profile.jpg`;
                 }}
                 sx={{
                   width: "100%",

@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: "http://localhost:5000/api/chat",
+  baseURL: `${API_BASE_URL}/api/chat`,
   timeout: 10000,
 });
 
@@ -86,7 +87,7 @@ export const fetchBuyerNotifications = async () => {
 
 export const fetchBuyerParcelPhoto = async (photoPath) => {
   try {
-    const response = await axios.get(`http://localhost:5000${photoPath}`, {
+    const response = await axios.get(`${API_BASE_URL}${photoPath}`, {
       responseType: "blob",
     });
     return response.data;

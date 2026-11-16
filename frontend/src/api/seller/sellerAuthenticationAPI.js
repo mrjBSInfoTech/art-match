@@ -1,8 +1,9 @@
 import axios from "axios";
 import { clearAuthData, isAuthenticated as checkIsAuthenticated } from "../../../utils/auth";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api/seller/authenticate",
+  baseURL: `${API_BASE_URL}/api/seller/authenticate`,
   headers: {
     "Content-Type": "application/json",
   },

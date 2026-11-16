@@ -30,8 +30,7 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { getProfileInitials } from "../../utils/profileInitials.js";
 import { isAuthenticated } from "../../../utils/auth";
 import { courseOptions } from "../../components/admin/Student/studentOptions";
-
-const API_URL = "http://localhost:5000";
+import { API_BASE_URL as API_URL } from "../../api/apiBase.js";
 
 const getProfileFallback = () => "";
 

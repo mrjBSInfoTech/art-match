@@ -23,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
+import { API_BASE_URL } from "../../api/apiBase.js";
 
 const profileFields = [
   "first_name",
@@ -38,9 +39,9 @@ const profileFields = [
 ];
 
 const getProfileImage = (image) => {
-  if (!image) return "http://localhost:5000/uploads/seller/profile.jpg";
+  if (!image) return `${API_BASE_URL}/uploads/seller/profile.jpg`;
   if (image.startsWith("http")) return image;
-  return `http://localhost:5000/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
+  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
 };
 
 const formatDate = (value) => {

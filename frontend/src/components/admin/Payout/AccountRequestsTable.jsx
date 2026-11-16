@@ -29,6 +29,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import AccountRequestsInfo from "./AccountRequestsInfo";
 import { formatPayoutDate } from "../../seller/Payout/payoutDisplay";
 import { adminTableButtonSx } from "../adminTableStyles";
+import { API_BASE_URL } from "../../../api/apiBase.js";
 
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
@@ -84,7 +85,7 @@ function SingleAccountRequestCard({ req, busy, onReview, getStatusChip }) {
             const fullImg = rawImg
               ? (rawImg.startsWith("http") || rawImg.startsWith("data:")
                   ? rawImg
-                  : `http://localhost:5000${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
+                  : `${API_BASE_URL}${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
               : null;
             return (
               <Box
