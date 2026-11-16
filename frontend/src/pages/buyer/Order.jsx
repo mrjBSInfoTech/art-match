@@ -196,7 +196,14 @@ export default function Orders() {
   }, [refresh, search, navigate]);
 
   if (error && !loading) {
-    return <ConnectionErrorPanel title="Orders Unavailable" onRetry={loadOrders} />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Orders</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Orders Unavailable" onRetry={loadOrders} />
+      </Box>
+    );
   }
 
   return (

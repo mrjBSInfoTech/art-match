@@ -56,8 +56,14 @@ export function validateEnv() {
     if (isPlaceholderCredential(process.env.B2_APPLICATION_KEY)) {
       errors.push("B2_APPLICATION_KEY cannot use placeholder values in production.");
     }
-    if (isPlaceholderCredential(process.env.PAYMONGO_SECRET_KEY) || String(process.env.PAYMONGO_SECRET_KEY || "").startsWith("sk_test_")) {
-      errors.push("PAYMONGO_SECRET_KEY must be a valid live key in production.");
+    const allowPaymongoTestMode = String(process.env.PAYMONGO_ALLOW_TEST_MODE || "").trim().toLowerCase() === "true";
+    const paymongoKey = String(process.env.PAYMONGO_SECRET_KEY || "").trim();
+    if (isPlaceholderCredential(paymongoKey)) {
+      errors.push("PAYMONGO_SECRET_KEY cannot use placeholder values in production.");
+    } else if (paymongoKey.startsWith("sk_test_") && !allowPaymongoTestMode) {
+      errors.push("PAYMONGO_SECRET_KEY must be a valid live key in production (or set PAYMONGO_ALLOW_TEST_MODE=true for test deployments).");
+    } else if (paymongoKey.startsWith("sk_test_") && allowPaymongoTestMode) {
+      warnings.push("PAYMONGO_SECRET_KEY is running in test mode (PAYMONGO_ALLOW_TEST_MODE=true).");
     }
     if (isPlaceholderCredential(process.env.PAYMONGO_WEBHOOK_SECRET)) {
       errors.push("PAYMONGO_WEBHOOK_SECRET cannot use placeholder values in production.");
@@ -80,7 +86,7 @@ export function validateEnv() {
     throw new Error(errorMsg);
   }
 
-  if (warnings.length > 0 && !isProduction && process.env.NODE_ENV !== "test") {
+  if (warnings.length > 0 && process.env.NODE_ENV !== "test") {
     console.warn(`[validateEnv] Configuration warnings:\n  - ${warnings.join("\n  - ")}`);
   }
 

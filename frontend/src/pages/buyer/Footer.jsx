@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Box,
   Container,
@@ -15,6 +15,7 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import { useThemeMode } from "../../theme/ThemeModeProvider";
 import { fetchFooterContent } from "../../api/footerContentAPI";
+import { subscribeConnectionError } from "../../utils/connectionErrorState";
 import logo from "../../assets/Nexus.png";
 
 const defaultFooterContent = {
@@ -52,7 +53,7 @@ const defaultFooterContent = {
         {
           label: "Bachelor of Fine Arts in Industrial Design",
           url: "/buyer/programs/industrial-design",
-        },
+        },           
       ],
     },
     {
@@ -83,46 +84,116 @@ const socialIcons = {
 
 const Footer = () => {
   const { theme } = useThemeMode();
-  const [content, setContent] = useState(defaultFooterContent);
+  const location = useLocation();
+  const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine !== false : true,
+  );
+  const [hasPageConnectionError, setHasPageConnectionError] = useState(false);
+  const prevPageErrorRef = useRef(false);
+  const prevPathnameRef = useRef(location.pathname);
+  const hasErrorRef = useRef(false);
+  const requestIdRef = useRef(0);
   const footerText = "#fff7f2";
 
-  useEffect(() => {
-    let active = true;
-    fetchFooterContent()
-      .then((savedContent) => {
-        if (active) {
-          const programLinks =
-            defaultFooterContent.columns.find(
-              (column) => column.title === "Programs",
-            )?.links || [];
-          setContent({
-            ...savedContent,
-            columns: savedContent.columns.map((column) =>
-              column.title === "Programs"
-                ? {
-                    ...column,
-                    links: [
-                      ...programLinks,
-                      ...column.links.filter(
-                        (link) =>
-                          !programLinks.some(
-                            (programLink) => programLink.url === link.url,
-                          ),
+  const loadFooterContent = useCallback(async () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setIsOnline(false);
+      hasErrorRef.current = true;
+      setHasError(true);
+      setContent(null);
+      setLoading(false);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+    setLoading((prevLoading) => prevLoading);
+    try {
+      const savedContent = await fetchFooterContent();
+      if (requestId !== requestIdRef.current) return;
+      const programLinks =
+        defaultFooterContent.columns.find(
+          (column) => column.title === "Programs",
+        )?.links || [];
+      setContent({
+        ...savedContent,
+        columns: savedContent.columns.map((column) =>
+          column.title === "Programs"
+            ? {
+                ...column,
+                links: [
+                  ...programLinks,
+                  ...column.links.filter(
+                    (link) =>
+                      !programLinks.some(
+                        (programLink) => programLink.url === link.url,
                       ),
-                    ],
-                  }
-                : column,
-            ),
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("Unable to load saved footer content:", error.message);
+                  ),
+                ],
+              }
+            : column,
+        ),
       });
-    return () => {
-      active = false;
-    };
+      hasErrorRef.current = false;
+      setHasError(false);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      console.error("Unable to load saved footer content:", error.message);
+      hasErrorRef.current = true;
+      setHasError(true);
+      setContent(null);
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    loadFooterContent();
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setLoading(true);
+      loadFooterContent();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      hasErrorRef.current = true;
+      setHasError(true);
+      setContent(null);
+      setLoading(false);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    const unsubscribeError = subscribeConnectionError(setHasPageConnectionError);
+
+    return () => {
+      requestIdRef.current += 1;
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      unsubscribeError();
+    };
+  }, [loadFooterContent]);
+
+  useEffect(() => {
+    const recoveredFromPageError = prevPageErrorRef.current && !hasPageConnectionError;
+    const navigated = prevPathnameRef.current !== location.pathname;
+    prevPageErrorRef.current = hasPageConnectionError;
+    prevPathnameRef.current = location.pathname;
+
+    if ((recoveredFromPageError || (navigated && hasErrorRef.current)) && isOnline) {
+      setLoading(true);
+      loadFooterContent();
+    }
+  }, [hasPageConnectionError, location.pathname, isOnline, loadFooterContent]);
+
+  if (!isOnline || loading || hasError || hasPageConnectionError || !content) {
+    return null;
+  }
 
   return (
     <Box

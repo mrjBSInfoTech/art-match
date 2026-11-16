@@ -320,7 +320,16 @@ export default function SellerProfile() {
   }
 
   if (error || !selectedSeller) {
-    if (error) return <ConnectionErrorPanel title="Seller profile unavailable" />;
+    if (error) {
+      return (
+        <Box sx={{ minWidth: 0 }}>
+          <Helmet titleTemplate="%s - ArtMatch">
+            <title>Seller Profile</title>
+          </Helmet>
+          <ConnectionErrorPanel title="Seller profile unavailable" />
+        </Box>
+      );
+    }
     return (
       <Container maxWidth="md" sx={{ py: 8 }}>
         <Alert severity="error">This seller could not be found.</Alert>

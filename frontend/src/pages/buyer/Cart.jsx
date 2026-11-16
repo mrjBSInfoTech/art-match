@@ -206,7 +206,14 @@ export default function Cart() {
   const total = subtotal;
 
   if (cartErrorMessage && !loading) {
-    return <ConnectionErrorPanel title="Cart Unavailable" onRetry={() => setRefresh((value) => value + 1)} />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Cart</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Cart Unavailable" onRetry={() => setRefresh((value) => value + 1)} />
+      </Box>
+    );
   }
 
   const onRemove = async (artworkId) => {

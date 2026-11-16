@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Box, Button, Container, Grid, Stack, Typography } from "@mui/material";
+import { Box, Button, Container, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArchitectureOutlinedIcon from "@mui/icons-material/ArchitectureOutlined";
@@ -94,12 +94,28 @@ export default function Program() {
   const [programs, setPrograms] = useState(defaultPrograms);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
-  const loadProgramContent = () => {
+  const retryLoadProgramContent = () => {
+    setRetryCount((count) => count + 1);
+  };
+
+  useEffect(() => {
+    let active = true;
     setLoading(true);
     setLoadError("");
-    return fetchProgramContent()
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setLoadError("You appear to be offline.");
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    fetchProgramContent()
       .then((savedPrograms) => {
+        if (!active) return;
         if (savedPrograms && typeof savedPrograms === "object") {
           setPrograms((current) =>
             Object.fromEntries(
@@ -112,17 +128,18 @@ export default function Program() {
         }
       })
       .catch((error) => {
+        if (!active) return;
         console.error("Unable to load saved program content:", error.message);
         setLoadError(error.message || "Failed to load program details.");
       })
       .finally(() => {
-        setLoading(false);
+        if (active) setLoading(false);
       });
-  };
 
-  useEffect(() => {
-    loadProgramContent();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [retryCount]);
 
   const details = useMemo(
     () =>
@@ -132,12 +149,66 @@ export default function Program() {
   );
   const Icon = details.icon;
 
-  if (loadError && !loading) {
+  if (loading) {
     return (
-      <ConnectionErrorPanel
-        title="Program Unavailable"
-        onRetry={loadProgramContent}
-      />
+      <Box
+        role="status"
+        aria-label="Loading program details"
+        sx={{
+          minHeight: "70vh",
+          backgroundColor:
+            theme.palette.mode === "light"
+              ? "#fff9ef"
+              : theme.palette.background.default,
+        }}
+      >
+        <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
+          <Helmet titleTemplate="%s - Red Nexus">
+            <title>{details.title}</title>
+          </Helmet>
+          <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Skeleton variant="text" width={140} height={24} sx={{ mb: 1.5 }} />
+              <Skeleton variant="text" width="90%" height={64} />
+              <Skeleton variant="text" width="75%" height={64} />
+              <Skeleton variant="text" width="80%" height={34} sx={{ mt: 2 }} />
+              <Skeleton variant="text" width="100%" height={24} sx={{ mt: 2 }} />
+              <Skeleton variant="text" width="92%" height={24} />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 4 }}>
+                <Skeleton variant="rounded" width={210} height={42} sx={{ borderRadius: 999 }} />
+                <Skeleton variant="rounded" width={160} height={42} sx={{ borderRadius: 999 }} />
+              </Stack>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Skeleton variant="rounded" sx={{ height: { xs: 270, md: 420 }, borderRadius: 4 }} />
+            </Grid>
+          </Grid>
+        </Container>
+        <Container maxWidth="lg" sx={{ pb: { xs: 6, md: 8 } }}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={5}>
+              <Skeleton variant="rounded" height={280} sx={{ borderRadius: 3 }} />
+            </Grid>
+            <Grid item xs={12} md={7}>
+              <Skeleton variant="rounded" height={280} sx={{ borderRadius: 3 }} />
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - Red Nexus">
+          <title>{details.title}</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Program Unavailable"
+          onRetry={retryLoadProgramContent}
+        />
+      </Box>
     );
   }
 
@@ -156,6 +227,9 @@ export default function Program() {
         }}
       >
         <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
+          <Helmet titleTemplate="%s - Red Nexus">
+            <title>{details.title}</title>
+          </Helmet>
           <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center">
             <Grid item xs={12} md={6}>
               <Stack

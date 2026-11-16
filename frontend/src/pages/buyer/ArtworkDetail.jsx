@@ -293,7 +293,14 @@ export default function ArtworkDetail() {
   }
 
   if (artworkErrorMessage) {
-    return <ConnectionErrorPanel title="Artwork Unavailable" />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Details</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Artwork Unavailable" />
+      </Box>
+    );
   }
 
   if (!artwork) {

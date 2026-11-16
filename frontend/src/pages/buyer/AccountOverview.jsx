@@ -127,10 +127,15 @@ export default function AccountOverview() {
 
   if (error && !loading && orders.length === 0) {
     return (
-      <ConnectionErrorPanel
-        title="Account Overview Unavailable"
-        onRetry={loadOrders}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Account Center</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Account Overview Unavailable"
+          onRetry={loadOrders}
+        />
+      </Box>
     );
   }
 

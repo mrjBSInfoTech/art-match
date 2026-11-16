@@ -1,12 +1,16 @@
+import { useEffect } from "react";
 import { Box, Button, Paper, Typography } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import { registerConnectionErrorPanel } from "../../utils/connectionErrorState";
 
 export default function ConnectionErrorPanel({
   title = "Page temporarily unavailable",
   onRetry = () => window.location.reload(),
 }) {
   const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+
+  useEffect(() => registerConnectionErrorPanel(), []);
 
   return (
     <Box

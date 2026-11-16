@@ -14,6 +14,7 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import { useEffect, useMemo, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
@@ -269,7 +270,14 @@ export default function BuyerFavorites() {
     navigate(`/buyer/artwork/view/${artworkId}`);
 
   if (loadError && !loading) {
-    return <ConnectionErrorPanel title="Favorites Unavailable" />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Favorites</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Favorites Unavailable" />
+      </Box>
+    );
   }
 
   return (
@@ -280,6 +288,9 @@ export default function BuyerFavorites() {
         color: "text.primary",
       }}
     >
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Favorites</title>
+      </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 5 }, py: 0 }}>
         <Box
           sx={{

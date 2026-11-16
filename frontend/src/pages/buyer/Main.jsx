@@ -614,10 +614,15 @@ export default function Main() {
 
   if (artworkErrorMessage && !artworksLoading && artworks.length === 0) {
     return (
-      <ConnectionErrorPanel
-        title="Gallery Temporarily Unavailable"
-        onRetry={handleRetry}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Main</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Gallery Temporarily Unavailable"
+          onRetry={handleRetry}
+        />
+      </Box>
     );
   }
 

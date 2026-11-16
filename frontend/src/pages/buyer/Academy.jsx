@@ -9,6 +9,7 @@ import {
   Container,
   Divider,
   Grid,
+  Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
@@ -62,28 +63,48 @@ export default function Academy() {
   );
   const Icon = details.icon;
   const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsLoading, setEventsLoading] = useState(section === "exhibitions");
   const [eventsError, setEventsError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
-  const loadEvents = () => {
-    setEventsLoading(true);
-    setEventsError("");
-    return fetchEvents()
-      .then((loadedEvents) => {
-        setEvents(loadedEvents);
-      })
-      .catch((error) => {
-        setEventsError(error.message || "Unable to load upcoming exhibitions.");
-      })
-      .finally(() => {
-        setEventsLoading(false);
-      });
+  const retryLoadEvents = () => {
+    setRetryCount((count) => count + 1);
   };
 
   useEffect(() => {
-    if (section !== "exhibitions") return undefined;
-    loadEvents();
-  }, [section]);
+    if (section !== "exhibitions") {
+      setEventsLoading(false);
+      setEventsError("");
+      return undefined;
+    }
+
+    let active = true;
+    setEventsLoading(true);
+    setEventsError("");
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setEventsError("You appear to be offline.");
+      setEventsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    fetchEvents()
+      .then((loadedEvents) => {
+        if (active) setEvents(loadedEvents);
+      })
+      .catch((error) => {
+        if (active) setEventsError(error.message || "Unable to load upcoming exhibitions.");
+      })
+      .finally(() => {
+        if (active) setEventsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [section, retryCount]);
 
   const formatEventDate = (value) => {
     if (!value) return "Date to be announced";
@@ -96,12 +117,49 @@ export default function Academy() {
     });
   };
 
-  if (section === "exhibitions" && eventsError && !eventsLoading && events.length === 0) {
+  if (section === "exhibitions" && eventsLoading) {
     return (
-      <ConnectionErrorPanel
-        title="Exhibitions Unavailable"
-        onRetry={loadEvents}
-      />
+      <Box
+        role="status"
+        aria-label="Loading exhibitions"
+        sx={{
+          minHeight: "70vh",
+          backgroundColor:
+            theme.palette.mode === "light"
+              ? "#fff9ef"
+              : theme.palette.background.default,
+        }}
+      >
+        <Container maxWidth="lg" sx={{ py: { xs: 6, md: 9 } }}>
+          <Skeleton variant="text" width={160} height={24} sx={{ mb: 1.5 }} />
+          <Skeleton variant="text" width="60%" height={72} />
+          <Skeleton variant="text" width="55%" height={28} sx={{ mt: 1.5 }} />
+          <Skeleton variant="rounded" width={180} height={42} sx={{ mt: 3, borderRadius: 999 }} />
+        </Container>
+        <Container maxWidth="lg" sx={{ pb: { xs: 6, md: 8 } }}>
+          <Grid container spacing={2}>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Grid item xs={12} md={4} key={`academy-skeleton-${index}`}>
+                <Skeleton variant="rounded" height={280} sx={{ borderRadius: 3 }} />
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
+    );
+  }
+
+  if (section === "exhibitions" && eventsError) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - Red Nexus">
+          <title>{details.title}</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Exhibitions Unavailable"
+          onRetry={retryLoadEvents}
+        />
+      </Box>
     );
   }
 

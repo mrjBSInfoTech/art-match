@@ -318,7 +318,14 @@ export default function Shop() {
   };
 
   if (loadError && !loading) {
-    return <ConnectionErrorPanel title="Shop Unavailable" onRetry={loadArtworks} />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>{recommendationsOnly ? "Recommended for You" : "Shop"}</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Shop Unavailable" onRetry={loadArtworks} />
+      </Box>
+    );
   }
 
   return (

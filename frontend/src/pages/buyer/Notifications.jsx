@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
@@ -159,18 +160,26 @@ export default function BuyerNotifications() {
 
   if (loadError && !loading) {
     return (
-      <ConnectionErrorPanel
-        title="Notifications Unavailable"
-        onRetry={() => {
-          setLoading(true);
-          loadNotifications();
-        }}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Notifications</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Notifications Unavailable"
+          onRetry={() => {
+            setLoading(true);
+            loadNotifications();
+          }}
+        />
+      </Box>
     );
   }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Notifications</title>
+      </Helmet>
       <Stack spacing={3}>
         <Box
           sx={{

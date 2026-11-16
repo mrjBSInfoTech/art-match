@@ -143,10 +143,15 @@ export default function Profile() {
 
   if (error && !loading && !username && !email) {
     return (
-      <ConnectionErrorPanel
-        title="Profile Unavailable"
-        onRetry={loadProfile}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Profile</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Profile Unavailable"
+          onRetry={loadProfile}
+        />
+      </Box>
     );
   }
 

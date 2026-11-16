@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Alert,
   Box,
@@ -13,6 +14,7 @@ import {
   DialogTitle,
   Grid,
   MenuItem,
+  Skeleton,
   Slide,
   Stack,
   TextField,
@@ -30,6 +32,7 @@ import {
 } from "../../api/buyer/supportChatAPI";
 import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import FAQInfo from "../../components/buyer/HelpSupport/FAQInfo";
+import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import ContactSupportOutlinedIcon from "@mui/icons-material/ContactSupportOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -153,6 +156,7 @@ export default function HelpSupport() {
   const [faqs, setFaqs] = useState([]);
   const [faqsLoading, setFaqsLoading] = useState(true);
   const [faqsError, setFaqsError] = useState("");
+  const [faqsRetryCount, setFaqsRetryCount] = useState(0);
   const [faqDialogOpen, setFaqDialogOpen] = useState(false);
   const [activeTopic, setActiveTopic] = useState(null);
   const selectedGuide = activeTopic ? TOPIC_GUIDES[activeTopic] : null;
@@ -176,12 +180,7 @@ export default function HelpSupport() {
   }, []);
 
   const retryLoadFaqs = () => {
-    setFaqsLoading(true);
-    setFaqsError("");
-    fetchFaqs()
-      .then((items) => setFaqs(items))
-      .catch((error) => setFaqsError(error.message))
-      .finally(() => setFaqsLoading(false));
+    setFaqsRetryCount((count) => count + 1);
   };
 
   useEffect(() => {
@@ -229,12 +228,23 @@ export default function HelpSupport() {
 
   useEffect(() => {
     let active = true;
+    setFaqsLoading(true);
+    setFaqsError("");
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setFaqsError("You appear to be offline.");
+      setFaqsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
     fetchFaqs()
       .then((data) => {
         if (active) setFaqs(data);
       })
       .catch((error) => {
-        if (active) setFaqsError(error.message);
+        if (active) setFaqsError(error?.message || "Unable to load help and support.");
       })
       .finally(() => {
         if (active) setFaqsLoading(false);
@@ -242,13 +252,58 @@ export default function HelpSupport() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [faqsRetryCount]);
+
+  if (faqsLoading) {
+    return (
+      <Container
+        role="status"
+        aria-label="Loading help and support"
+        maxWidth="lg"
+        sx={{ minHeight: "70vh", py: { xs: 3, md: 8 }, px: { xs: 2, sm: 3 } }}
+      >
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Help &amp; Support</title>
+        </Helmet>
+        <Box sx={{ mb: { xs: 3, md: 5 } }}>
+          <Skeleton variant="text" width={120} height={24} />
+          <Skeleton variant="text" width="68%" height={56} sx={{ mt: 1 }} />
+          <Skeleton variant="text" width="52%" height={28} sx={{ mt: 1 }} />
+        </Box>
+        <Grid container spacing={3} sx={{ mb: { xs: 3, md: 5 } }}>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Grid size={{ xs: 12, md: 6 }} key={`support-skeleton-${index}`}>
+              <Skeleton variant="rounded" height={210} sx={{ borderRadius: 3 }} />
+            </Grid>
+          ))}
+        </Grid>
+        <Skeleton variant="rounded" height={280} sx={{ borderRadius: 3 }} />
+      </Container>
+    );
+  }
+
+  if (faqsError) {
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Help &amp; Support</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Help & Support Unavailable"
+          onRetry={retryLoadFaqs}
+        />
+      </Box>
+    );
+  }
 
   return (
     <Container
       maxWidth="lg"
       sx={{ py: { xs: 3, md: 8 }, px: { xs: 2, sm: 3 } }}
     >
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>Help &amp; Support</title>
+      </Helmet>
       <Box sx={{ mb: { xs: 3, md: 5 } }}>
         <Typography
           variant="overline"

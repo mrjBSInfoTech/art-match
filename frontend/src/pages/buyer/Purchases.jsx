@@ -318,10 +318,15 @@ export default function Purchases() {
 
   if (error && !loading && transactions.length === 0) {
     return (
-      <ConnectionErrorPanel
-        title="Purchases Unavailable"
-        onRetry={loadData}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>My Purchases</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Purchases Unavailable"
+          onRetry={loadData}
+        />
+      </Box>
     );
   }
 

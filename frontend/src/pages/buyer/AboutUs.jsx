@@ -1,4 +1,5 @@
 import { createElement, useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import {
   Box,
   Container,
@@ -115,6 +116,9 @@ export default function AboutUs() {
   if (loading) {
     return (
       <Box sx={{ minHeight: "70vh", backgroundColor: canvas, py: { xs: 2, md: 4 } }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>About Us</title>
+        </Helmet>
         <Container maxWidth="lg">
           <Skeleton variant="rounded" height={150} />
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "250px minmax(0, 1fr)" }, gap: 2, mt: 2 }}>
@@ -131,15 +135,23 @@ export default function AboutUs() {
 
   if (error || !content) {
     return (
-      <ConnectionErrorPanel
-        title="About Page Unavailable"
-        onRetry={() => setRetryCount((count) => count + 1)}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>About Us</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="About Page Unavailable"
+          onRetry={() => setRetryCount((count) => count + 1)}
+        />
+      </Box>
     );
   }
 
   return (
     <Box sx={{ minHeight: "100%", backgroundColor: canvas }}>
+      <Helmet titleTemplate="%s - ArtMatch">
+        <title>About Us</title>
+      </Helmet>
       <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 }, px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
           sx={{

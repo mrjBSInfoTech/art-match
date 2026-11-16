@@ -144,7 +144,14 @@ export default function Gallery() {
   );
 
   if (loadError && !loading) {
-    return <ConnectionErrorPanel title="Gallery unavailable" />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Gallery</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Gallery unavailable" />
+      </Box>
+    );
   }
 
   return (

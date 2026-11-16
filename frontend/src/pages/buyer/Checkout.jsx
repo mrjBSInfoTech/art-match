@@ -718,7 +718,14 @@ export default function Checkout() {
   const paymentClosed = paymentOrders.length > 0 && paymentOrders.every((order) => String(order.status).toLowerCase() === "cancelled") || ["expired", "refunded"].includes(String(payment?.payment_status).toLowerCase());
 
   if (error && !pageLoading && !paymentReference && cartItems.length === 0) {
-    return <ConnectionErrorPanel title="Checkout Unavailable" />;
+    return (
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Checkout</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Checkout Unavailable" />
+      </Box>
+    );
   }
 
   return (

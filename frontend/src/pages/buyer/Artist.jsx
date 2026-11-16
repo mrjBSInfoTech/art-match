@@ -301,7 +301,12 @@ export default function Artist() {
 
   if (error && !loading && artists.length === 0) {
     return (
-      <ConnectionErrorPanel title="Artists Unavailable" onRetry={loadArtists} />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Artist</title>
+        </Helmet>
+        <ConnectionErrorPanel title="Artists Unavailable" onRetry={loadArtists} />
+      </Box>
     );
   }
 

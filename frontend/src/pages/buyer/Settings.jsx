@@ -280,10 +280,15 @@ export default function Settings() {
 
   if (privacyError && !privacyLoading && !username) {
     return (
-      <ConnectionErrorPanel
-        title="Settings Unavailable"
-        onRetry={loadSettings}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Security &amp; Privacy</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Settings Unavailable"
+          onRetry={loadSettings}
+        />
+      </Box>
     );
   }
 

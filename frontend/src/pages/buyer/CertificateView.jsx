@@ -86,10 +86,15 @@ export default function CertificateView() {
 
   if (error && !loading && !svgUrl) {
     return (
-      <ConnectionErrorPanel
-        title="Certificate Unavailable"
-        onRetry={() => window.location.reload()}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet>
+          <title>Certificate of Authenticity | ArtMatch</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Certificate Unavailable"
+          onRetry={() => window.location.reload()}
+        />
+      </Box>
     );
   }
 

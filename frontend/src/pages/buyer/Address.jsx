@@ -72,10 +72,15 @@ export default function Address() {
 
   if (addressLoadError && !loading) {
     return (
-      <ConnectionErrorPanel
-        title="Addresses Unavailable"
-        onRetry={loadAddresses}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Address</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Addresses Unavailable"
+          onRetry={loadAddresses}
+        />
+      </Box>
     );
   }
 

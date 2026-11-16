@@ -1054,10 +1054,15 @@ export default function Messages({ embedded = false }) {
     !supportChatEntry
   ) {
     return (
-      <ConnectionErrorPanel
-        title="Messages Unavailable"
-        onRetry={handleRefresh}
-      />
+      <Box sx={{ minWidth: 0 }}>
+        <Helmet titleTemplate="%s - ArtMatch">
+          <title>Messages</title>
+        </Helmet>
+        <ConnectionErrorPanel
+          title="Messages Unavailable"
+          onRetry={handleRefresh}
+        />
+      </Box>
     );
   }
 
