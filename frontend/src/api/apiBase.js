@@ -1,3 +1,5 @@
-const rawApiBaseUrl = import.meta.env?.VITE_API_URL || "http://localhost:5000";
+const rawApiBaseUrl =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
+  "http://localhost:5000";
 
 export const API_BASE_URL = String(rawApiBaseUrl).trim().replace(/\/+$/, "");

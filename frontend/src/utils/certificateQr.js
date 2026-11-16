@@ -2,8 +2,12 @@ import QRCode from "qrcode";
 
 export const createCertificateQr = (url) => {
   const parsed = new URL(url);
-  const configuredOrigin = import.meta.env?.VITE_PUBLIC_APP_URL
-    ? new URL(import.meta.env.VITE_PUBLIC_APP_URL).origin : null;
+  const configuredUrl =
+    typeof import.meta !== "undefined" && import.meta.env
+      ? import.meta.env.VITE_PUBLIC_APP_URL
+      : "";
+  const configuredOrigin = configuredUrl
+    ? new URL(configuredUrl).origin : null;
   if (!/^https?:$/.test(parsed.protocol) || parsed.username || parsed.password ||
       (typeof window !== "undefined" && parsed.origin !== window.location.origin && parsed.origin !== configuredOrigin) ||
       !/\/buyer\/certificate\/verify\/[a-f0-9]{64}$/.test(parsed.pathname) || parsed.search || parsed.hash) {
