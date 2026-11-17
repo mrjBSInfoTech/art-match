@@ -248,9 +248,9 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
                   color="text.secondary"
                   sx={{ mt: 3, maxWidth: 500, lineHeight: 1.65 }}
                 >
-                  Acquire hand-crafted paintings, fine art printworks, digital
-                  assets and miniature architectural mockups straight from the
-                  studios of Beijing&apos;s premier Fine Arts academy.
+                  Explore unique paintings, prints, digital art, products, and miniature
+                  models created by aspiring artists. Discover the creativity
+                  and passion behind every piece.
                 </Typography>
                 <Stack
                   direction={{ xs: "column", sm: "row" }}

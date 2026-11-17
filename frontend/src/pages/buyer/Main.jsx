@@ -868,43 +868,30 @@ export default function Main() {
           backgroundColor: theme.palette.background.public,
         }}
       >
-        <Stack
-          direction="row"
-          alignItems="flex-end"
-          justifyContent="space-between"
-          sx={{ mb: 3 }}
-        >
-          <Box>
-            <Typography
-              variant="overline"
-              sx={{
-                color: theme.palette.error.main,
-                fontWeight: 800,
-                letterSpacing: 1.5,
-                lineHeight: 1,
-              }}
-            >
-              Popular artists
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{ mt: 1, fontSize: { xs: 23, sm: 27, md: 31 }, fontWeight: 800, lineHeight: 1.2 }}
-            >
-              Top Listed Artists This Month
-            </Typography>
-          </Box>
-          <Button
-            onClick={() => navigate("/buyer/gallery")}
-            endIcon={<ArrowForwardIcon />}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="overline"
             sx={{
-              display: { xs: "none", sm: "inline-flex" },
               color: theme.palette.error.main,
-              fontWeight: 700,
+              fontWeight: 800,
+              letterSpacing: 1.5,
+              lineHeight: 1,
             }}
           >
-            View Gallery
-          </Button>
-        </Stack>
+            Popular artists
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: 650 }}
+          >
+            Discover artists and explore more of their work in the gallery.
+          </Typography>
+          <SectionHeader
+            title="Top Listed Artists This Month"
+            to="/buyer/gallery"
+          />
+        </Box>
 
         {artworksLoading ? (
           <>

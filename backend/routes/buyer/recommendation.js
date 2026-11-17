@@ -123,7 +123,8 @@ const getAvailableCandidateArtworkIds = async () => {
   const [rows] = await db.promise().query(
     `
           SELECT DISTINCT
-            a.artwork_id
+            a.artwork_id,
+            a.date_created
           FROM artwork a
 
           LEFT JOIN accregistration ac
