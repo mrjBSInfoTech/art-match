@@ -3,11 +3,6 @@ import db from "./db.js";
 const EXPIRATION_SETTING_KEY = "student_account_expiration_date";
 const DEFAULT_EXPIRATION_MONTHS = 3;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const DEFAULT_PROMOTION_HEADER = {
-  message: "Special Spring Exhibition: Post-Digital Sculptures by Class of 2026 out now.",
-  button_label: "Explore Collection",
-  button_url: "/buyer/shop",
-};
 const PROMOTION_HEADER_SETTING_KEYS = {
   message: "promotion_header_message",
   button_label: "promotion_header_button_label",
@@ -57,15 +52,6 @@ export const ensureSystemSettingsTable = async () => {
     `INSERT IGNORE INTO system_settings (setting_key, setting_value)
      VALUES (?, ?)`,
     ["promotion_hero_enabled", "1"],
-  );
-  const defaultHeaderRows = Object.entries(PROMOTION_HEADER_SETTING_KEYS).map(
-    ([field, key]) => [key, DEFAULT_PROMOTION_HEADER[field]],
-  );
-  await query(
-    db,
-    `INSERT IGNORE INTO system_settings (setting_key, setting_value)
-     VALUES ${defaultHeaderRows.map(() => "(?, ?)").join(", ")}`,
-    defaultHeaderRows.flat(),
   );
 
   const settings = await query(
@@ -169,7 +155,7 @@ export const getPromotionHeader = async () => {
   return Object.fromEntries(
     Object.entries(PROMOTION_HEADER_SETTING_KEYS).map(([field, key]) => [
       field,
-      values.get(key) || DEFAULT_PROMOTION_HEADER[field],
+      values.get(key) || "",
     ]),
   );
 };

@@ -219,11 +219,6 @@ export default function Artist() {
     }
   };
 
-  const artistCountLabel = useMemo(
-    () => `${artists.length} ${artists.length === 1 ? "artist" : "artists"}`,
-    [artists.length],
-  );
-
   const topPopularArtists = useMemo(() => {
     return [...artists]
       .sort((a, b) => {
@@ -740,9 +735,39 @@ export default function Artist() {
               ))}
             </Box>
           ) : (
-            <Alert severity="info">
-              No artists match the selected criteria.
-            </Alert>
+            <Box
+              sx={{
+                px: 2,
+                py: { xs: 5, sm: 7 },
+                border: "1px dashed",
+                borderColor: "divider",
+                borderRadius: 2,
+                backgroundColor: "background.paper",
+                textAlign: "center",
+              }}
+            >
+              <Typography component="h2" sx={{ fontSize: 20, fontWeight: 800 }}>
+                {artists.length === 0
+                  ? "No artists are featured here yet"
+                  : "No artists match the selected criteria"}
+              </Typography>
+              <Typography sx={{ mt: 0.75, color: "text.secondary" }}>
+                {artists.length === 0
+                  ? "Browse the shop to explore all currently available pieces."
+                  : "Reset the filter to view all available artists."}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() =>
+                  artists.length === 0
+                    ? navigate("/buyer/shop")
+                    : setSelectedType("all")
+                }
+                sx={{ minHeight: 44, mt: 2, fontWeight: 700, textTransform: "none" }}
+              >
+                {artists.length === 0 ? "Browse the shop" : "Show all artists"}
+              </Button>
+            </Box>
           )}
         </Stack>
       </Container>

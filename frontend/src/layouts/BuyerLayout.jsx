@@ -75,12 +75,6 @@ import MobileSearchFilterDrawer from "../components/buyer/Layout/MobileSearchFil
 import MobileBottomNav from "../components/buyer/Layout/MobileBottomNav";
 import { API_BASE_URL } from "../api/apiBase.js";
 
-const DEFAULT_PROMOTION_HEADER = {
-  message: "Special Spring Exhibition: Post-Digital Sculptures by Class of 2026 out now.",
-  button_label: "Explore Collection",
-  button_url: "/buyer/shop",
-};
-
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -178,13 +172,17 @@ function BuyerLayoutContent({ children }) {
           const message =
             (typeof header?.message === "string" && header.message.trim()) ||
             (typeof header?.title === "string" && header.title.trim()) ||
-            DEFAULT_PROMOTION_HEADER.message;
+            "";
+          if (!message) {
+            setPromotionHeader(null);
+            return;
+          }
           const buttonLabel =
             (typeof header?.button_label === "string" && header.button_label.trim()) ||
-            DEFAULT_PROMOTION_HEADER.button_label;
+            "Explore Collection";
           const buttonUrl =
             (typeof header?.button_url === "string" && header.button_url.trim()) ||
-            DEFAULT_PROMOTION_HEADER.button_url;
+            "/buyer/shop";
 
           setPromotionHeader({
             message,

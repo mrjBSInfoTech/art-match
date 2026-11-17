@@ -339,7 +339,7 @@ export default function Gallery() {
               <Button
                 variant="contained"
                 onClick={() => navigate("/buyer/shop")}
-                sx={{ minHeight: 44, mt: 2 }}
+                sx={{ minHeight: 44, mt: 2, fontWeight: 700, textTransform: "none" }}
               >
                 Browse the shop
               </Button>
