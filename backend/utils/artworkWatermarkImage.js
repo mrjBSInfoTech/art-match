@@ -24,7 +24,9 @@ const buildWatermarkPathGroup = (text, fontSize, originX, originY, outlineWidth)
 const createWatermarkSvg = (width, height, code) => {
   const safeCode = code.replace(/[^A-Z0-9]/g, "");
   const watermarkText =
-    code === "GUEST" ? "ArtMatch: Red Nexus" : `ArtMatch | ID: ${safeCode}`;
+    code === "GUEST"
+      ? "ArtMatch: Red Nexus"
+      : `ArtMatch: Red Nexus | ID: ${safeCode}`;
   const fontSize = Math.max(12, Math.min(48, Math.round(width * 0.028)));
   const outlineWidth = Math.max(1, Math.round(fontSize * 0.06));
   const preliminaryTileHeight = Math.max(
