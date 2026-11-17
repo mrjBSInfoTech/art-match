@@ -44,3 +44,7 @@ backend/debug-delete.mjs
 backend/verify-delete.mjs
 backend/add-placeholder.cjs
 restart-backend.ps1
+
+# Local seeder image assets (uploaded straight to Backblaze B2)
+backend/database/seeders/images/
+backend/seed-assets/
