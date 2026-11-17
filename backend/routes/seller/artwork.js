@@ -5,7 +5,6 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { authenticateSeller } from "../../middleware/sellerAuthMiddleware.js";
-import { uploadToB2, deleteFromB2 } from "../../utils/b2Storage.js";
 import {
   ArtworkImageProcessingError,
   compressArtworkImage,
@@ -227,13 +226,7 @@ async function uploadProductOptionImages(assignments) {
       const imageName = `${path.parse(file.filename).name}.webp`;
       uploadedImages.push(imageName);
 
-      if (isB2Configured()) {
-        await uploadToB2({
-          key: `app-uploads/seller/uploadArtwork/${imageName}`,
-          body: compressed,
-          contentType: "image/webp",
-        });
-      }
+      await writeArtworkSource(compressed, imageName);
       await writeDerivatives(compressed, baseNameOf(imageName));
       option.image = imageName;
       removeTemporaryUpload(file);
@@ -241,9 +234,7 @@ async function uploadProductOptionImages(assignments) {
   } catch (error) {
     await Promise.all(
       uploadedImages.map(async (image) => {
-        if (isB2Configured()) {
-          await deleteFromB2(`app-uploads/seller/uploadArtwork/${image}`).catch(() => {});
-        }
+        await removeArtworkSource(image).catch(() => {});
         await removeDerivatives(baseNameOf(image));
       }),
     );
@@ -555,9 +546,10 @@ router.post(
               console.warn("Could not clean up artwork source:", cleanupError.message),
             );
             await removeDerivatives(baseNameOf(artworkImageName));
-            await Promise.all(uploadedProductImageNames.map((image) =>
-              removeDerivatives(baseNameOf(image)),
-            ));
+            await Promise.all(uploadedProductImageNames.map(async (image) => {
+              await removeArtworkSource(image).catch(() => {});
+              await removeDerivatives(baseNameOf(image));
+            }));
             if (productSampleImageName) {
               await removeDerivatives(baseNameOf(productSampleImageName));
             }
@@ -639,9 +631,10 @@ router.post(
         await removeDerivatives(baseNameOf(artworkImageName));
       }
       removeRequestUploads(req);
-      await Promise.all(uploadedProductImageNames.map((image) =>
-        removeDerivatives(baseNameOf(image)),
-      ));
+      await Promise.all(uploadedProductImageNames.map(async (image) => {
+        await removeArtworkSource(image).catch(() => {});
+        await removeDerivatives(baseNameOf(image));
+      }));
       if (productSampleImageName) {
         await removeDerivatives(baseNameOf(productSampleImageName));
       }
@@ -918,7 +911,10 @@ router.put(
         .filter(Boolean));
       await Promise.all(previousProductImages
         .filter((image) => !retainedProductImages.has(image))
-        .map((image) => removeDerivatives(baseNameOf(image))));
+        .map(async (image) => {
+          await removeArtworkSource(image).catch(() => {});
+          await removeDerivatives(baseNameOf(image));
+        }));
 
       // Remove temporary local file.
       removeRequestUploads(req);
@@ -952,9 +948,10 @@ router.put(
         );
         await removeDerivatives(baseNameOf(imageName));
       }
-      await Promise.all(uploadedProductImageNames.map((image) =>
-        removeDerivatives(baseNameOf(image)),
-      ));
+      await Promise.all(uploadedProductImageNames.map(async (image) => {
+        await removeArtworkSource(image).catch(() => {});
+        await removeDerivatives(baseNameOf(image));
+      }));
       if (newProductSampleImageName && !artworkUpdateCommitted) {
         await removeDerivatives(baseNameOf(newProductSampleImageName));
       }
@@ -1039,7 +1036,10 @@ router.delete("/:id", authenticateSeller, async (req, res) => {
     }
     await Promise.all(getProductOptions(artwork.artwork_details)
       .filter((option) => option.image)
-      .map((option) => removeDerivatives(baseNameOf(option.image))));
+      .map(async (option) => {
+        await removeArtworkSource(option.image).catch(() => {});
+        await removeDerivatives(baseNameOf(option.image));
+      }));
     if (artwork.product_sample_image) {
       await removeDerivatives(baseNameOf(artwork.product_sample_image));
     }

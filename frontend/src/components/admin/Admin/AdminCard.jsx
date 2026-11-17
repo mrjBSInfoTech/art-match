@@ -20,7 +20,10 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AdminInfo from "./AdminInfo";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 export default function AdminCard({
   admins,
@@ -138,14 +141,10 @@ export default function AdminCard({
                 objectFit: "cover",
                 objectPosition: "center",
               }}
-              image={
-                admin.image
-                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
-                  : `${API_BASE_URL}/uploads/profile.jpg`
-              }
+              image={resolveProfileImageUrl(admin.image, "admin")}
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = `${API_BASE_URL}/uploads/profile.jpg`;
+                e.target.src = DEFAULT_PROFILE_IMAGE_URL;
               }}
               alt={admin.first_name}
             />

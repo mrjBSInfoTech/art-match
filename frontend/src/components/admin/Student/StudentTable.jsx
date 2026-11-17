@@ -34,7 +34,10 @@ import {
   setAccountBan,
 } from "../../../api/admin/accountAccessAPI";
 import { adminTableButtonSx } from "../adminTableStyles";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 export default function StudentTable({
   students = [],
@@ -185,11 +188,7 @@ export default function StudentTable({
                 const id = getId(student);
                 const fullName = getName(student);
                 const image = student.profile_image || student.image;
-                const imageUrl = /^https?:\/\//i.test(image || "")
-                  ? image
-                  : image
-                    ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
-                    : `${API_BASE_URL}/uploads/seller/profile.jpg`;
+                const imageUrl = resolveProfileImageUrl(image, "seller");
                 const strikes = Number(student.strikes || 0);
                 const isBanned = Boolean(student.is_banned);
                 const isExpired = student.account_status === "expired";
@@ -212,8 +211,7 @@ export default function StudentTable({
                           alt={fullName}
                           onError={(event) => {
                             event.target.onerror = null;
-                            event.target.src =
-                              `${API_BASE_URL}/uploads/seller/profile.jpg`;
+                            event.target.src = DEFAULT_PROFILE_IMAGE_URL;
                           }}
                           sx={{
                             width: 44,

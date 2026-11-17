@@ -24,7 +24,7 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import AdminInfo from "./AdminInfo";
 import { adminTableButtonSx } from "../adminTableStyles";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../../utils/profileImage.js";
 
 export default function AdminTable({
   admins = [],
@@ -153,9 +153,7 @@ export default function AdminTable({
             <TableBody>
               {admins.map((admin) => {
                 const fullName = `${admin.first_name || ""} ${admin.last_name || ""}`.trim() || admin.username || "Unnamed admin";
-                const imageUrl = admin.image
-                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
-                  : `${API_BASE_URL}/uploads/profile.jpg`;
+                const imageUrl = resolveProfileImageUrl(admin.image, "admin");
                 const showMenu =
                   canManageTarget(admin, "can_edit") ||
                   canManageTarget(admin, "can_delete") ||

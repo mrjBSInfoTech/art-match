@@ -495,6 +495,7 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
       year_level,
       course,
       student_number,
+      profile_image,
       password,
       consent_given_at,
       consent_version,
@@ -502,7 +503,7 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
       created_at,
       account_status,
       expire_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, CURRENT_TIMESTAMP, 'active', DATE_ADD(?, INTERVAL 1 DAY))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'profile.jpg', ?, NULL, NULL, 1, CURRENT_TIMESTAMP, 'active', DATE_ADD(?, INTERVAL 1 DAY))
   `;
 
   db.query(

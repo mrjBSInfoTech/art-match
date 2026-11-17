@@ -7,16 +7,10 @@ import {
   followArtist,
   unfollowArtist,
 } from "../../../api/buyer/artworkAPI";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../../utils/profileImage.js";
 
-const getProfileImage = (artist) => {
-  const image = artist.profile_image;
-  if (typeof image === "string" && image.trim()) {
-    if (image.startsWith("http")) return image;
-    return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
-  }
-  return `${API_BASE_URL}/uploads/seller/profile.jpg`;
-};
+const getProfileImage = (artist) =>
+  resolveProfileImageUrl(artist?.profile_image, "seller");
 
 export default function RelatedArtists({
   artists = [], sellerName, description, eyebrow = "Similar specialties",

@@ -577,7 +577,7 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const imageName = req.file ? req.file.safeFilename : null;
+      const imageName = req.file ? req.file.safeFilename : "profile.jpg";
 
       /*
        * Keep your Admin + Admin Role
@@ -896,6 +896,7 @@ router.put(
       if (
         req.file &&
         currentAdmin.image &&
+        path.basename(currentAdmin.image).toLowerCase() !== "profile.jpg" &&
         currentAdmin.image !== req.file.safeFilename
       ) {
         const oldB2Key = `${ADMIN_B2_PREFIX}/${path.basename(
@@ -1034,7 +1035,7 @@ router.delete(
       /*
        * Then clean its B2 image.
        */
-      if (imageName) {
+      if (imageName && path.basename(imageName).toLowerCase() !== "profile.jpg") {
         const b2Key = `${ADMIN_B2_PREFIX}/${path.basename(imageName)}`;
 
         try {

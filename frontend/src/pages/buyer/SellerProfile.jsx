@@ -33,9 +33,7 @@ import {
 } from "../../api/buyer/artworkAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { getProfileInitials } from "../../utils/profileInitials.js";
-import { API_BASE_URL } from "../../api/apiBase.js";
-
-const getProfileFallback = () => "";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const parseArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -48,12 +46,8 @@ const parseArray = (value) => {
   }
 };
 
-const getProfileImage = (artist) => {
-  const imageName = artist?.profile_image || artist?.image;
-  if (!imageName) return getProfileFallback(artist?.name || "Artist");
-  if (imageName.startsWith("http")) return imageName;
-  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
-};
+const getProfileImage = (artist) =>
+  resolveProfileImageUrl(artist?.profile_image || artist?.image, "seller");
 
 const buildSellerSummaries = (artworks = []) => {
   const grouped = new Map();

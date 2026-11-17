@@ -2,9 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 import mysql from "mysql2/promise";
+import bcrypt from "bcryptjs";
+
+dotenv.config({ path: fileURLToPath(new URL("../../.env", import.meta.url)), quiet: true });
 import sharp from "sharp";
 import { uploadToB2, isB2Configured } from "../../utils/b2Storage.js";
+import { encryptPayoutAccount } from "../../utils/payoutAccount.js";
+import { listPayoutInstitutions } from "../../utils/payoutProvider.js";
+import { payoutAccountTableSql } from "../payouts.js";
 import { compressArtworkImage } from "../../utils/compressArtworkImage.js";
 import {
   baseNameOf,
@@ -27,6 +34,14 @@ const PROFILE_UPLOAD_DIR = path.resolve(
   "uploadProfile",
 );
 const ALLOWED_IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const DEFAULT_SEED_SELLER_PASSWORD = process.env.SEED_SELLER_PASSWORD || "ArtMatch@2026";
+const DEFAULT_SEED_GCASH_NUMBER = "999999990001";
+const DEFAULT_GCASH_INSTITUTION = Object.freeze({
+  code: "GXCHPHM2XXX",
+  name: "G-Xchange, Inc. (GCash Demo)",
+  provider: "instapay",
+  destinationType: "ewallet",
+});
 
 export function parseSeedCliArgs(argv = process.argv.slice(2), defaults = {}) {
   const options = {
@@ -35,6 +50,9 @@ export function parseSeedCliArgs(argv = process.argv.slice(2), defaults = {}) {
     offset: Number.isSafeInteger(defaults.offset) && defaults.offset >= 0 ? defaults.offset : 0,
     artworksPerSeller: defaults.artworksPerSeller || 20,
     dryRun: false,
+    sellerPassword: DEFAULT_SEED_SELLER_PASSWORD,
+    sellerPasswordExplicit: false,
+    gcashNumber: DEFAULT_SEED_GCASH_NUMBER,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -58,6 +76,15 @@ export function parseSeedCliArgs(argv = process.argv.slice(2), defaults = {}) {
     } else if (arg.startsWith("--artworks=")) {
       const parsed = Number(arg.slice("--artworks=".length));
       if (Number.isSafeInteger(parsed) && parsed > 0) options.artworksPerSeller = parsed;
+    } else if (arg.startsWith("--seller-password=")) {
+      const value = arg.slice("--seller-password=".length).trim();
+      if (value.length >= 8) {
+        options.sellerPassword = value;
+        options.sellerPasswordExplicit = true;
+      }
+    } else if (arg.startsWith("--gcash=")) {
+      const value = arg.slice("--gcash=".length).trim();
+      if (/^\d{6,34}$/.test(value)) options.gcashNumber = value;
     } else if (!arg.startsWith("--") && !options.url) {
       options.url = arg.trim();
     }
@@ -164,8 +191,9 @@ async function processAndStoreProfileImage(studentId, profileImagePath) {
   return fileName;
 }
 
-async function processAndStoreArtworkImage(studentId, index, sourcePath) {
-  const fileName = `seed-s${studentId}-a${String(index + 1).padStart(2, "0")}-${Date.now()}.webp`;
+async function processAndStoreArtworkImage(studentId, index, sourcePath, suffix = "") {
+  const tag = suffix ? `-${suffix}` : "";
+  const fileName = `seed-s${studentId}-a${String(index + 1).padStart(2, "0")}${tag}-${Date.now()}.webp`;
   const compressed = await compressArtworkImage(sourcePath);
   await writeArtworkSource(compressed, fileName);
   await writeDerivatives(compressed, baseNameOf(fileName));
@@ -198,6 +226,97 @@ async function ensureVerifiedRegistration(connection, studentId, adminId) {
     `INSERT INTO accregistration (student_id, admin_id, registered_date, register_status, approved_date)
      VALUES (?, ?, CURRENT_TIMESTAMP, 'Verified', CURRENT_TIMESTAMP)`,
     [studentId, adminId],
+  );
+}
+
+async function ensureStudentOnboarded(connection, student, sellerPassword, forcePasswordUpdate = false) {
+  const defaultLastNamePassword = String(student.last_name || "").trim().toUpperCase();
+  let isUsingDefaultPassword = false;
+  if (defaultLastNamePassword && student.password) {
+    try {
+      isUsingDefaultPassword = await bcrypt.compare(defaultLastNamePassword, student.password);
+    } catch {
+      isUsingDefaultPassword = false;
+    }
+  }
+
+  const shouldUpdatePassword = forcePasswordUpdate || isUsingDefaultPassword || !student.password;
+  if (shouldUpdatePassword) {
+    const nextPassword = String(sellerPassword || DEFAULT_SEED_SELLER_PASSWORD);
+    if (defaultLastNamePassword && nextPassword.trim().toUpperCase() === defaultLastNamePassword) {
+      throw new Error("Seeded seller password cannot match the student's default last-name password.");
+    }
+    const passwordHash = await bcrypt.hash(nextPassword, 10);
+    await connection.query(
+      `UPDATE student
+       SET password = ?,
+           must_change_password = 0,
+           consent_given_at = COALESCE(consent_given_at, CURRENT_TIMESTAMP),
+           consent_version = COALESCE(consent_version, '1.0')
+       WHERE student_id = ?`,
+      [passwordHash, student.student_id],
+    );
+    return true;
+  }
+
+  await connection.query(
+    `UPDATE student
+     SET must_change_password = 0,
+         consent_given_at = COALESCE(consent_given_at, CURRENT_TIMESTAMP),
+         consent_version = COALESCE(consent_version, '1.0')
+     WHERE student_id = ?`,
+    [student.student_id],
+  );
+  return false;
+}
+
+async function resolveGcashInstitution() {
+  try {
+    const institutions = await listPayoutInstitutions();
+    const gcash = institutions.find(
+      (value) => value.code === "GXCHPHM2XXX" && value.provider === "instapay",
+    ) || institutions.find((value) => value.code === "GXCHPHM2XXX");
+    if (gcash) return gcash;
+  } catch {
+    // PayMongo credentials may not be present when running seeders against demo/local env.
+  }
+  return DEFAULT_GCASH_INSTITUTION;
+}
+
+async function ensureGcashPayoutAccount(connection, student, profile, institution, accountNumber) {
+  const number = String(accountNumber || DEFAULT_SEED_GCASH_NUMBER).trim();
+  if (!/^\d{6,34}$/.test(number)) {
+    throw new Error(`Invalid GCash account number "${number}". Expected 6 to 34 digits.`);
+  }
+  const rawName = [student.first_name, student.last_name].filter(Boolean).join(" ").trim()
+    || profile.shopName
+    || `Seller ${student.student_id}`;
+  const accountName = rawName.slice(0, 180);
+  const ciphertext = encryptPayoutAccount(number, student.student_id);
+
+  await connection.query(
+    `INSERT INTO seller_payout_account (
+       student_id, destination_type, institution_code, institution_name,
+       institution_provider, account_name, account_number_ciphertext
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       destination_type = VALUES(destination_type),
+       institution_code = VALUES(institution_code),
+       institution_name = VALUES(institution_name),
+       institution_provider = VALUES(institution_provider),
+       account_name = VALUES(account_name),
+       account_number_ciphertext = VALUES(account_number_ciphertext),
+       updated_at = CURRENT_TIMESTAMP`,
+    [
+      student.student_id,
+      institution.destinationType || "ewallet",
+      institution.code,
+      institution.name,
+      institution.provider,
+      accountName,
+      ciphertext,
+    ],
   );
 }
 
@@ -266,7 +385,7 @@ export async function runCatalogSeeder(profiles, cliOptions) {
       const targetIds = cliOptions.studentIds.slice(0, requiredSellers);
       const placeholders = targetIds.map(() => "?").join(", ");
       const [rows] = await connection.query(
-        `SELECT student_id, first_name, last_name, student_number, course
+        `SELECT student_id, first_name, last_name, student_number, course, password
          FROM student
          WHERE student_id IN (${placeholders})
          ORDER BY FIELD(student_id, ${placeholders})`,
@@ -275,7 +394,7 @@ export async function runCatalogSeeder(profiles, cliOptions) {
       students = rows;
     } else {
       const [rows] = await connection.query(
-        `SELECT student_id, first_name, last_name, student_number, course
+        `SELECT student_id, first_name, last_name, student_number, course, password
          FROM student
          ORDER BY student_id ASC
          LIMIT ? OFFSET ?`,
@@ -294,6 +413,11 @@ export async function runCatalogSeeder(profiles, cliOptions) {
       "SELECT admin_id FROM admin ORDER BY admin_id ASC LIMIT 1",
     );
     const adminId = adminRow?.admin_id || null;
+
+    const gcashInstitution = cliOptions.dryRun ? DEFAULT_GCASH_INSTITUTION : await resolveGcashInstitution();
+    if (!cliOptions.dryRun) {
+      await connection.query(payoutAccountTableSql);
+    }
 
     console.log(
       `Storage target: ${
@@ -350,6 +474,22 @@ export async function runCatalogSeeder(profiles, cliOptions) {
       }
 
       await ensureVerifiedRegistration(connection, student.student_id, adminId);
+      const passwordUpdated = await ensureStudentOnboarded(
+        connection,
+        student,
+        cliOptions.sellerPassword,
+        cliOptions.sellerPasswordExplicit,
+      );
+      await ensureGcashPayoutAccount(
+        connection,
+        student,
+        profile,
+        gcashInstitution,
+        cliOptions.gcashNumber,
+      );
+      console.log(
+        `  Account verified, policy consent recorded, GCash payout (${cliOptions.gcashNumber}) saved${passwordUpdated ? `, password set to "${cliOptions.sellerPassword}"` : " (existing password kept)"}.`,
+      );
 
       if (profileImage) {
         const storedProfileName = await processAndStoreProfileImage(
@@ -359,6 +499,11 @@ export async function runCatalogSeeder(profiles, cliOptions) {
         await connection.query(
           "UPDATE student SET profile_image = ? WHERE student_id = ?",
           [storedProfileName, student.student_id],
+        );
+      } else {
+        await connection.query(
+          "UPDATE student SET profile_image = COALESCE(NULLIF(TRIM(profile_image), ''), 'profile.jpg') WHERE student_id = ?",
+          [student.student_id],
         );
       }
 
@@ -393,6 +538,25 @@ export async function runCatalogSeeder(profiles, cliOptions) {
           aIdx,
           sourceImage,
         );
+
+        if (Array.isArray(validatedDetails.product_options) && validatedDetails.product_options.length > 0) {
+          for (let optIdx = 0; optIdx < validatedDetails.product_options.length; optIdx += 1) {
+            const option = validatedDetails.product_options[optIdx];
+            if (option.image) continue;
+            if (optIdx === 0) {
+              option.image = storedImageName;
+            } else {
+              const optSource = pool[(cursor + optIdx) % pool.length];
+              option.image = await processAndStoreArtworkImage(
+                student.student_id,
+                aIdx,
+                optSource,
+                `v${optIdx + 1}`,
+              );
+            }
+          }
+        }
+
         const dateCreated = buildStaggeredDate(itemsToSeed.length - aIdx);
 
         const [insertResult] = await connection.query(

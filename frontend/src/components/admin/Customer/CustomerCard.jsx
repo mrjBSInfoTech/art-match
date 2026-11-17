@@ -30,7 +30,10 @@ import {
   setAccountBan,
 } from "../../../api/admin/accountAccessAPI";
 import { startSupportConversation } from "../../../api/admin/supportChatAPI";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 const fields = [
   ["username", "Username"],
@@ -201,16 +204,11 @@ export default function CustomerCard({
                     objectFit: "cover",
                     objectPosition: "center",
                   }}
-                  image={
-                    /^https?:\/\//i.test(image || "") ? image : image
-                      ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
-                      : `${API_BASE_URL}/uploads/buyer/profile.jpg`
-                  }
+                  image={resolveProfileImageUrl(image, "buyer")}
                   alt={getName(customer)}
                   onError={(event) => {
                     event.target.onerror = null;
-                    event.target.src =
-                      `${API_BASE_URL}/uploads/buyer/profile.jpg`;
+                    event.target.src = DEFAULT_PROFILE_IMAGE_URL;
                   }}
                 />
               </Box>

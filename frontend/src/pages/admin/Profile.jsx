@@ -34,7 +34,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { updateAdmin } from "../../api/admin/adminAPI";
 import { getAdminProfile } from "../../api/admin/adminAuthenticationAPI";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
-import { API_BASE_URL } from "../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive",
@@ -53,10 +53,7 @@ const DropZone = styled(Box, {
   "&:hover": { backgroundColor: theme.palette.action.hover },
 }));
 
-const getImageUrl = (image) =>
-  image
-    ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
-    : `${API_BASE_URL}/uploads/profile.jpg`;
+const getImageUrl = (image) => resolveProfileImageUrl(image, "admin");
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {

@@ -155,17 +155,25 @@ test("CLI parser reads --dry-run, --artworks, --offset, --student-ids, and defau
   const withDefaults = parseSeedCliArgs([], { offset: 3 });
   assert.equal(withDefaults.offset, 3);
   assert.equal(withDefaults.artworksPerSeller, 20);
+  assert.equal(withDefaults.gcashNumber, "999999990001");
+  assert.equal(withDefaults.sellerPassword, "ArtMatch@2026");
+  assert.equal(withDefaults.sellerPasswordExplicit, false);
 
   const options = parseSeedCliArgs([
     "--dry-run",
     "--artworks=20",
     "--offset=3",
     "--student-ids=10,11,12",
+    "--gcash=09171234567",
+    "--seller-password=CustomSeed99!",
     "mysql://root:pass@host:3306/railway",
   ]);
   assert.equal(options.dryRun, true);
   assert.equal(options.artworksPerSeller, 20);
   assert.equal(options.offset, 3);
   assert.deepEqual(options.studentIds, [10, 11, 12]);
+  assert.equal(options.gcashNumber, "09171234567");
+  assert.equal(options.sellerPassword, "CustomSeed99!");
+  assert.equal(options.sellerPasswordExplicit, true);
   assert.equal(options.url, "mysql://root:pass@host:3306/railway");
 });

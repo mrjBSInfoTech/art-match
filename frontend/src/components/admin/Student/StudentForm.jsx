@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -261,62 +261,78 @@ export default function StudentForm({
             }}
           >
             <TextField
+              id="student-first-name"
               label="First Name"
               name="first_name"
+              autoComplete="given-name"
               value={formData.first_name}
               onChange={handleChange}
               fullWidth
               autoFocus
             />
             <TextField
+              id="student-middle-name"
               label="Middle Name"
               name="middle_name"
+              autoComplete="additional-name"
               value={formData.middle_name}
               onChange={handleChange}
               fullWidth
             />
             <TextField
+              id="student-last-name"
               label="Last Name"
               name="last_name"
+              autoComplete="family-name"
               value={formData.last_name}
               onChange={handleChange}
               fullWidth
             />
             <TextField
+              id="student-birthdate"
               label="Date of Birth"
               name="birthdate"
               type="date"
+              autoComplete="bday"
               value={formData.birthdate}
               onChange={handleChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
             <TextField
+              id="student-email"
               label="Email"
               name="email"
               type="email"
+              autoComplete="email"
               value={formData.email}
               onChange={handleChange}
               fullWidth
             />
             <TextField
+              id="student-phone-number"
               label="Phone Number"
               name="phone_number"
+              autoComplete="tel"
               value={formData.phone_number}
               onChange={handleChange}
               fullWidth
             />
             <TextField
+              id="student-number"
               label="Student Number"
               name="student_number"
+              autoComplete="off"
               value={formData.student_number}
               onChange={handleChange}
               fullWidth
             />
             <TextField
+              id="student-year-level"
               select
               label="Year Level"
               name="year_level"
+              autoComplete="off"
               value={formData.year_level}
               onChange={handleChange}
               fullWidth
@@ -332,9 +348,11 @@ export default function StudentForm({
             </TextField>
 
             <TextField
+              id="student-course"
               select
               label="Course"
               name="course"
+              autoComplete="off"
               value={formData.course}
               onChange={handleChange}
               fullWidth
@@ -350,8 +368,10 @@ export default function StudentForm({
               ))}
             </TextField>
             <TextField
+              id="student-address"
               label="Address"
               name="address"
+              autoComplete="street-address"
               value={formData.address}
               onChange={handleChange}
               fullWidth
@@ -403,10 +423,13 @@ export default function StudentForm({
               <Button
                 variant="outlined"
                 component="label"
+                htmlFor="student-cor-file-input"
                 sx={{ width: "100%", mt: 1.5 }}
               >
                 Choose COR image
                 <input
+                  id="student-cor-file-input"
+                  name="corFile"
                   hidden
                   accept="image/*"
                   type="file"

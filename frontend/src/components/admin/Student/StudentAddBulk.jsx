@@ -199,35 +199,35 @@ const normalizeCourse = (value) => {
 
     "bfa ptg": "Bachelor of Fine Arts in Painting",
 
-    "bfap": "Bachelor of Fine Arts in Painting",
+    bfap: "Bachelor of Fine Arts in Painting",
 
     "bachelor of fine arts in painting": "Bachelor of Fine Arts in Painting",
 
     "bs architecture": "Bachelor of Science in Architecture",
 
-    "bsarchi": "Bachelor of Science in Architecture",
+    bsarchi: "Bachelor of Science in Architecture",
 
     "bs archi": "Bachelor of Science in Architecture",
 
     "bs arch": "Bachelor of Science in Architecture",
 
-    "bsa": "Bachelor of Science in Architecture",
+    bsa: "Bachelor of Science in Architecture",
 
     "bachelor of science in architecture":
       "Bachelor of Science in Architecture",
 
     "bfa advertising arts": "Bachelor of Fine Arts in Advertising Arts",
 
-    "bfaaa": "Bachelor of Fine Arts in Advertising Arts",
+    bfaaa: "Bachelor of Fine Arts in Advertising Arts",
 
-    "bfaa": "Bachelor of Fine Arts in Advertising Arts",
+    bfaa: "Bachelor of Fine Arts in Advertising Arts",
 
     "bachelor of fine arts in advertising arts":
       "Bachelor of Fine Arts in Advertising Arts",
 
     "bs interior design": "Bachelor of Science in Interior Design",
 
-    "bsid": "Bachelor of Science in Interior Design",
+    bsid: "Bachelor of Science in Interior Design",
 
     "bs id": "Bachelor of Science in Interior Design",
 
@@ -236,7 +236,7 @@ const normalizeCourse = (value) => {
 
     "bfa industrial design": "Bachelor of Fine Arts in Industrial Design",
 
-    "bfaid": "Bachelor of Fine Arts in Industrial Design",
+    bfaid: "Bachelor of Fine Arts in Industrial Design",
 
     "bfa id": "Bachelor of Fine Arts in Industrial Design",
 
@@ -548,10 +548,16 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
         </Box>
 
         <input
+          id="student-bulk-file-input"
+          name="studentBulkFile"
+          aria-label="Upload student spreadsheet"
           type="file"
           accept=".xlsx, .xls, .csv"
           hidden
           ref={fileInputRef}
+          onClick={(event) => {
+            event.target.value = "";
+          }}
           onChange={handleFileChange}
         />
       </DialogContent>
@@ -576,7 +582,10 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
             color: "#fff",
           }}
         >
-          {isSubmitting ? <CircularProgress size={24} /> : "Import Data"}
+          {isSubmitting && (
+            <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
+          )}
+          {isSubmitting ? "Importing" : "Import"}
         </Button>
       </DialogActions>
     </Dialog>

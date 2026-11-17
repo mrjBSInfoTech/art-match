@@ -66,7 +66,10 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
-import { API_BASE_URL } from "../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../utils/profileImage.js";
 
 const SELLER_SIDEBAR_PREFERENCES = {
   orders: "seller_sidebar_orders_expanded",
@@ -256,20 +259,11 @@ function SellerLayoutContent() {
     setProfileDrawerOpen(true);
   };
 
-  const handleLogout = async () => {
-    setOpen(false);
-    await recordLogout();
+  const handleLogout = () => {
+    void recordLogout();
     clearAuthData("seller");
-
-    setTimeout(() => {
-      navigate("/seller/login", { replace: true });
-
-      // Clear browser history for extra security
-      window.history.pushState(null, null, window.location.href);
-      window.onpopstate = function () {
-        window.history.pushState(null, null, window.location.href);
-      };
-    }, 150);
+    setOpen(false);
+    navigate("/seller/login", { replace: true });
   };
 
   // Sidebar menu items
@@ -441,20 +435,17 @@ function SellerLayoutContent() {
           {firstName || "Seller"}
         </Typography>
         <Avatar
-          src={
-            profileImage
-              ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
-              : undefined
-          }
+          src={resolveProfileImageUrl(profileImage, "seller")}
           imgProps={{
             onError: (event) => {
-              event.currentTarget.style.display = "none";
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
             },
           }}
           alt={`${firstName} ${lastName}`}
           sx={{ width: 32, height: 32, bgcolor: "#232b38" }}
         >
-          {!profileImage && getProfileInitials(`${firstName} ${lastName}`)}
+          {getProfileInitials(`${firstName} ${lastName}`)}
         </Avatar>
       </Button>
     </Stack>
@@ -546,20 +537,17 @@ function SellerLayoutContent() {
             sx={{ p: 2 }}
           >
             <Avatar
-              src={
-                profileImage
-                  ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
-                  : undefined
-              }
+              src={resolveProfileImageUrl(profileImage, "seller")}
               imgProps={{
                 onError: (event) => {
-                  event.currentTarget.style.display = "none";
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
                 },
               }}
               alt={`${firstName} ${lastName}`}
               sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
             >
-              {!profileImage && getProfileInitials(`${firstName} ${lastName}`)}
+              {getProfileInitials(`${firstName} ${lastName}`)}
             </Avatar>
             <Stack sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>

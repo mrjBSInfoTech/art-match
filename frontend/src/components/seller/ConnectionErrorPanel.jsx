@@ -1,6 +1,7 @@
 import { Box, Button, Paper, Typography } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import { clearAuthData } from "../../../utils/auth";
 
 export default function ConnectionErrorPanel({
   title = "Page temporarily unavailable",
@@ -78,7 +79,8 @@ export default function ConnectionErrorPanel({
               variant="outlined"
               color="error"
               onClick={() => {
-                window.location.href = "/seller/login";
+                clearAuthData("seller");
+                window.location.replace("/seller/login");
               }}
               sx={{ textTransform: "none", fontWeight: 700 }}
             >

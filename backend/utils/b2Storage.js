@@ -1,3 +1,4 @@
+import https from "node:https";
 import dotenv from "dotenv";
 
 import {
@@ -44,18 +45,26 @@ const getB2Client = () => {
   if (!b2Client) {
     b2Client = new S3Client({
       endpoint:
-        process.env.B2_ENDPOINT,
+        String(process.env.B2_ENDPOINT).trim(),
 
       region:
-        process.env.B2_REGION,
+        String(process.env.B2_REGION).trim(),
+
+      forcePathStyle: true,
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
+      requestHandler: {
+        httpsAgent: new https.Agent({ keepAlive: false }),
+        connectionTimeout: 15000,
+        socketTimeout: 60000,
+      },
 
       credentials: {
         accessKeyId:
-          process.env.B2_KEY_ID,
+          String(process.env.B2_KEY_ID).trim(),
 
         secretAccessKey:
-          process.env
-            .B2_APPLICATION_KEY,
+          String(process.env.B2_APPLICATION_KEY).trim(),
       },
     });
   }
@@ -70,6 +79,20 @@ export const uploadToB2 =
     contentType =
       "application/octet-stream",
   }) => {
+    const normalizedBody = Buffer.isBuffer(body)
+      ? body
+      : ArrayBuffer.isView(body)
+        ? Buffer.from(body.buffer, body.byteOffset, body.byteLength)
+        : body instanceof ArrayBuffer
+          ? Buffer.from(body)
+          : body;
+
+    const contentLength = Buffer.isBuffer(normalizedBody)
+      ? normalizedBody.byteLength
+      : typeof normalizedBody === "string"
+        ? Buffer.byteLength(normalizedBody)
+        : undefined;
+
     await getB2Client().send(
       new PutObjectCommand({
         Bucket:
@@ -77,10 +100,12 @@ export const uploadToB2 =
 
         Key: key,
 
-        Body: body,
+        Body: normalizedBody,
 
         ContentType:
           contentType,
+
+        ...(contentLength !== undefined ? { ContentLength: contentLength } : {}),
       }),
     );
 

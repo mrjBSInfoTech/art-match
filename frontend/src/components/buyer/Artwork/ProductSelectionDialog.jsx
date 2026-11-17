@@ -17,7 +17,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
-import ArtworkImage from "../../common/ArtworkImage";
+import ProductVariationThumbnail from "../../common/ProductVariationThumbnail";
 import {
   getSavedProductOptions,
   getSelectedProductsTotalQuantity,
@@ -199,11 +199,13 @@ export default function ProductSelectionDialog({
                       display: "flex",
                       flex: 1,
                       minWidth: 0,
-                      gap: 1,
+                      gap: 1.25,
                       alignItems: "center",
                     }}
                   >
                     <Checkbox
+                      id={`product-select-${option.id}`}
+                      name={`select-${option.id}`}
                       checked={isSelected}
                       disabled={!Number.isSafeInteger(available) || available <= 0 || isSubmitting}
                       onChange={(event) => {
@@ -215,22 +217,11 @@ export default function ProductSelectionDialog({
                       }}
                       inputProps={{ "aria-label": `Select ${option.name}` }}
                     />
-                    {option.imagePreview && (
-                      <ArtworkImage
-                        image={option.imagePreview}
-                        alt={option.name}
-                        sx={{
-                          width: { xs: 64, sm: 72 },
-                          height: { xs: 64, sm: 72 },
-                          flexShrink: 0,
-                          objectFit: "cover",
-                          borderRadius: 1.5,
-                          border: "1px solid",
-                          borderColor: "divider",
-                          bgcolor: "action.hover",
-                        }}
-                      />
-                    )}
+                    <ProductVariationThumbnail
+                      image={option.imagePreview || option.image}
+                      fallbackImage={artwork?.image}
+                      alt={option.name}
+                    />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography fontWeight={700} sx={{ fontSize: 14.5, overflowWrap: "anywhere" }}>
                         {option.name}
@@ -285,6 +276,8 @@ export default function ProductSelectionDialog({
                           −
                         </Button>
                         <TextField
+                          id={`product-qty-${option.id}`}
+                          name={`quantity-${option.id}`}
                           type="number"
                           size="small"
                           value={quantity}
@@ -314,6 +307,7 @@ export default function ProductSelectionDialog({
                             }
                           }}
                           inputProps={{
+                            "aria-label": `Quantity for ${option.name}`,
                             min: 1,
                             max: maxBuyable,
                             step: 1,
@@ -453,6 +447,8 @@ export default function ProductSelectionDialog({
               Add any special requests for the seller. This is optional.
             </Typography>
             <TextField
+              id="order-request-note"
+              name="orderNote"
               label="Request for this order (optional)"
               placeholder="For example, packaging or personalization instructions"
               value={orderNote}

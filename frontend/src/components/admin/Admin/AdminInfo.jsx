@@ -13,7 +13,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../../utils/profileImage.js";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -67,9 +67,7 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
     lineHeight: 1.35,
   };
 
-  const imageUrl = admin?.image
-    ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(admin.image)}`
-    : `${API_BASE_URL}/uploads/profile.jpg`;
+  const imageUrl = resolveProfileImageUrl(admin?.image, "admin");
 
   const permissionChip = (label, value) => (
     <Chip

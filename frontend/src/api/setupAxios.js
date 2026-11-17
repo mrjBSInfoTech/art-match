@@ -13,8 +13,8 @@ const handleSessionExpiration = (error) => {
     const url = error.config?.url || "";
     const pathname = window.location.pathname || "";
 
-    // Do not clear state or redirect on login/register attempt failures
-    if (url.includes("/login") || url.includes("/register")) {
+    // Do not clear state or redirect on login, register, or logout requests
+    if (url.includes("/login") || url.includes("/register") || url.includes("/logout")) {
       return Promise.reject(error);
     }
 

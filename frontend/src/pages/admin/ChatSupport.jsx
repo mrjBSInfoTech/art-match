@@ -41,6 +41,7 @@ import ChatComposer, {
 import MessageMedia from "../../components/seller/Message/MessageMedia";
 import MessageMediaPreview from "../../components/seller/Message/MessageMediaPreview";
 import { API_BASE_URL } from "../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const POLL_INTERVAL = 5000;
 
@@ -76,15 +77,8 @@ const toAbsoluteMediaUrl = (url) => {
   return `${API_BASE_URL}/${url}`;
 };
 
-const toAbsoluteProfileImageUrl = (image, role) => {
-  const folderRole = role === "seller" ? "seller" : "buyer";
-  if (!image) {
-    return `${API_BASE_URL}/uploads/${folderRole}/profile.jpg`;
-  }
-  if (/^https?:\/\//i.test(image)) return image;
-  if (image.startsWith("/")) return `${API_BASE_URL}${image}`;
-  return `${API_BASE_URL}/uploads/${folderRole}/uploadProfile/${encodeURIComponent(image)}`;
-};
+const toAbsoluteProfileImageUrl = (image, role) =>
+  resolveProfileImageUrl(image, role === "seller" ? "seller" : "buyer");
 
 const isVideoAttachment = (url, mediaType) =>
   mediaType?.startsWith("video/") ||

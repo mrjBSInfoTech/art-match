@@ -14,7 +14,10 @@ import { useTheme } from "@mui/material/styles";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -53,9 +56,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
       : "N/A";
 
   const image = customer?.profile_image || customer?.image;
-  const imageUrl = /^https?:\/\//i.test(image || "") ? image : image
-    ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(image)}`
-    : `${API_BASE_URL}/uploads/buyer/profile.jpg`;
+  const imageUrl = resolveProfileImageUrl(image, "buyer");
   const strikes = Number(customer?.strikes || 0);
   const isBanned = Boolean(customer?.is_banned);
 
@@ -128,8 +129,7 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                 src={imageUrl}
                 alt={`${customer.first_name || customer.username || "Customer"} profile`}
                 onError={(event) => {
-                  event.currentTarget.src =
-                    `${API_BASE_URL}/uploads/buyer/profile.jpg`;
+                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
                 }}
                 sx={{
                   width: "100%",

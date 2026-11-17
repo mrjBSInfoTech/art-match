@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
-import { API_BASE_URL } from "../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const profileFields = [
   "first_name",
@@ -38,11 +38,7 @@ const profileFields = [
   "year_level",
 ];
 
-const getProfileImage = (image) => {
-  if (!image) return `${API_BASE_URL}/uploads/seller/profile.jpg`;
-  if (image.startsWith("http")) return image;
-  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
-};
+const getProfileImage = (image) => resolveProfileImageUrl(image, "seller");
 
 const formatDate = (value) => {
   if (!value) return "N/A";

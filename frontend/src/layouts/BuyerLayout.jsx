@@ -74,6 +74,10 @@ import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
 import MobileSearchFilterDrawer from "../components/buyer/Layout/MobileSearchFilterDrawer";
 import MobileBottomNav from "../components/buyer/Layout/MobileBottomNav";
 import { API_BASE_URL } from "../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../utils/profileImage.js";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -321,17 +325,11 @@ function BuyerLayoutContent({ children }) {
     return () => window.clearInterval(intervalId);
   }, [location.pathname]);
 
-  const handleLogout = async () => {
-    await recordLogout();
+  const handleLogout = () => {
+    void recordLogout();
     clearAuthData("buyer");
     clearRecommendationClientState();
     navigate("/buyer/login", { replace: true });
-
-    // Clear browser history for extra security
-    window.history.pushState(null, null, window.location.href);
-    window.onpopstate = function () {
-      window.history.pushState(null, null, window.location.href);
-    };
   };
 
   // For search functionality
@@ -873,11 +871,13 @@ function BuyerLayoutContent({ children }) {
               >
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar
-                    src={
-                      profileImage
-                        ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
-                        : `${API_BASE_URL}/uploads/buyer/profile.jpg`
-                    }
+                    src={resolveProfileImageUrl(profileImage, "buyer")}
+                    imgProps={{
+                      onError: (event) => {
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+                      },
+                    }}
                     sx={{ width: 60, height: 60, flexShrink: 0 }}
                   >
                     {(firstName || username || "B").charAt(0).toUpperCase()}

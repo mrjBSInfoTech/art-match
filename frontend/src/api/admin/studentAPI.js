@@ -5,7 +5,7 @@ const api = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api/admin/student`,
   headers: { "Content-Type": "application/json" },
-  timeout: 100000,
+  timeout: 120000,
 });
 
 // HttpOnly cookies handle authentication automatically
@@ -45,11 +45,38 @@ export const addStudents = async (studentData) => {
   }
 };
 
-// Bulk Add Students
+const BULK_IMPORT_BATCH_SIZE = 100;
+
+// Bulk Add Students in batches so large spreadsheets never exceed proxy/request timeouts
 export const bulkAddStudents = async (students) => {
   try {
-    const res = await api.post("/bulk", { students });
-    return res.data;
+    const list = Array.isArray(students) ? students : [];
+    if (list.length <= BULK_IMPORT_BATCH_SIZE) {
+      const res = await api.post("/bulk", { students: list });
+      return res.data;
+    }
+
+    const totals = {
+      added: 0,
+      updated: 0,
+      reactivated: 0,
+      skipped: 0,
+    };
+
+    for (let start = 0; start < list.length; start += BULK_IMPORT_BATCH_SIZE) {
+      const batch = list.slice(start, start + BULK_IMPORT_BATCH_SIZE);
+      const res = await api.post("/bulk", { students: batch });
+      const data = res.data || {};
+      totals.added += Number(data.added) || 0;
+      totals.updated += Number(data.updated) || 0;
+      totals.reactivated += Number(data.reactivated) || 0;
+      totals.skipped += Number(data.skipped) || 0;
+    }
+
+    return {
+      ...totals,
+      message: `Bulk import complete: ${totals.added} added, ${totals.updated} updated, ${totals.reactivated} reactivated, ${totals.skipped} unchanged/skipped`,
+    };
   } catch (error) {
     handleError(error);
   }

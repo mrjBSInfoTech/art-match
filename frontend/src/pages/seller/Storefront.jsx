@@ -27,6 +27,7 @@ import {
   fetchStorefront,
   saveStorefront,
 } from "../../api/seller/storefrontAPI";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
 import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
@@ -77,11 +78,8 @@ const getSavedSpecialties = (response) => {
   return parseArray(response.specialties);
 };
 
-const getProfileImage = (profileImage) => {
-  if (!profileImage) return `${API_BASE_URL}/uploads/seller/profile.jpg`;
-  if (profileImage.startsWith("http")) return profileImage;
-  return `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`;
-};
+const getProfileImage = (profileImage) =>
+  resolveProfileImageUrl(profileImage, "seller");
 
 export default function Storefront() {
   const theme = useTheme();

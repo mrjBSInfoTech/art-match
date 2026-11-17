@@ -40,6 +40,10 @@ import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
 import { API_BASE_URL } from "../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../utils/profileImage.js";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -370,11 +374,11 @@ export default function Settings() {
           >
             <Box
               component="img"
-              src={
-                adminImage
-                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(adminImage)}`
-                  : `${API_BASE_URL}/uploads/profile.jpg`
-              }
+              src={resolveProfileImageUrl(adminImage, "admin")}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+              }}
               alt="Admin profile"
               sx={{
                 width: 76,

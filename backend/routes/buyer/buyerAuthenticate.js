@@ -107,7 +107,7 @@ router.post("/register", authRateLimiter, (req, res) => {
       .slice(0, 20) || "1.0";
 
   const sql =
-    "INSERT INTO customer (username, first_name, last_name, email, phone_number, password, consent_given_at, consent_version) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)";
+    "INSERT INTO customer (username, first_name, last_name, email, phone_number, profile_image, password, consent_given_at, consent_version) VALUES (?, ?, ?, ?, ?, 'profile.jpg', ?, CURRENT_TIMESTAMP, ?)";
 
   db.query(
     sql,
@@ -394,7 +394,11 @@ router.put(
             "Buyer opted in to personalized SASRec recommendation profiling.",
         }).catch(() => {});
       }
-      if (req.file && rows[0].profile_image) {
+      if (
+        req.file &&
+        rows[0].profile_image &&
+        path.basename(rows[0].profile_image).toLowerCase() !== "profile.jpg"
+      ) {
         await removeCloudImage(
           `app-uploads/buyer/uploadProfile/${path.basename(rows[0].profile_image)}`,
         );
@@ -708,7 +712,7 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
       )
       .catch(() => {});
 
-    if (customer.profile_image) {
+    if (customer.profile_image && path.basename(customer.profile_image).toLowerCase() !== "profile.jpg") {
       await deleteFromB2(
         `app-uploads/buyer/uploadProfile/${path.basename(customer.profile_image)}`,
       ).catch(() => {});

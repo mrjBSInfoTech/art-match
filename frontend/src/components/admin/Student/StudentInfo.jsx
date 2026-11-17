@@ -14,7 +14,10 @@ import { useTheme } from "@mui/material/styles";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -58,9 +61,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
       : "N/A";
 
   const image = student?.profile_image || student?.image;
-  const imageUrl = /^https?:\/\//i.test(image || "") ? image : image
-    ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`
-    : `${API_BASE_URL}/uploads/seller/profile.jpg`;
+  const imageUrl = resolveProfileImageUrl(image, "seller");
 
   const strikes = Number(student?.strikes || 0);
   const isBanned = Boolean(student?.is_banned);
@@ -134,8 +135,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
                 src={imageUrl}
                 alt={`${student.first_name || "Student"} profile`}
                 onError={(event) => {
-                  event.currentTarget.src =
-                    `${API_BASE_URL}/uploads/seller/profile.jpg`;
+                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
                 }}
                 sx={{
                   width: "100%",

@@ -85,28 +85,37 @@ export default function Student() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
   const [yearLevelFilter, setYearLevelFilter] = useState("all");
   const [viewMode, setViewMode] = useState("card");
 
-  const loadStudents = useCallback(async () => {
+  const loadStudents = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError("");
       setStudents(await fetchStudents());
     } catch (err) {
-      setError(err.message || "Failed to load students.");
+      if (!silent) setError(err.message || "Failed to load students.");
     } finally {
-      setLoading(false);
+      setHasLoadedOnce(true);
+      if (!silent) setLoading(false);
     }
   }, []);
 
+  const hasOpenModal = openStudentForm || openBulkAdd || openStudentDelete || reportDialogOpen;
+
   useEffect(() => {
     loadStudents();
+  }, [loadStudents]);
+
+  useEffect(() => {
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") loadStudents();
+      if (document.visibilityState === "visible" && !hasOpenModal) {
+        loadStudents({ silent: true });
+      }
     };
     window.addEventListener("focus", refreshWhenVisible);
     window.addEventListener("storage", refreshWhenVisible);
@@ -116,7 +125,7 @@ export default function Student() {
       window.removeEventListener("storage", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [loadStudents]);
+  }, [loadStudents, hasOpenModal]);
 
   const saveStudent = async (id, data) => {
     await updateStudent(id, data);
@@ -259,7 +268,7 @@ export default function Student() {
     }
   };
 
-  if (loading && students.length === 0) {
+  if (!hasLoadedOnce && loading && students.length === 0) {
     return (
       <AdminLoadingPanel
         title="Manage Students"
@@ -407,10 +416,16 @@ export default function Student() {
           }}
         >
           <TextField
+            id="student-search-input"
+            name="studentSearch"
+            autoComplete="off"
             variant="outlined"
             placeholder="Search students..."
             size="small"
             fullWidth
+            inputProps={{
+              "aria-label": "Search students",
+            }}
             sx={{
               minWidth: 0,
               "& .MuiOutlinedInput-root": {
@@ -451,14 +466,23 @@ export default function Student() {
           >
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel
+                id="student-course-filter-label"
+                htmlFor="student-course-filter-native"
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
                 Course
               </InputLabel>
               <Select
+                labelId="student-course-filter-label"
+                id="student-course-filter"
+                name="courseFilter"
                 value={courseFilter}
                 label="Course"
                 onChange={(event) => setCourseFilter(event.target.value)}
+                inputProps={{
+                  id: "student-course-filter-native",
+                  name: "courseFilter",
+                }}
                 sx={{
                   fontSize: 12,
                   color: theme.palette.text.primary,
@@ -480,15 +504,22 @@ export default function Student() {
             <FormControl size="small" fullWidth sx={{ minWidth: 0 }}>
               <InputLabel
                 id="student-year-level-filter-label"
+                htmlFor="student-year-level-filter-native"
                 sx={{ color: theme.palette.text.secondary, fontSize: 12 }}
               >
                 Year Level
               </InputLabel>
               <Select
                 labelId="student-year-level-filter-label"
+                id="student-year-level-filter"
+                name="yearLevelFilter"
                 value={yearLevelFilter}
                 label="Year Level"
                 onChange={(event) => setYearLevelFilter(event.target.value)}
+                inputProps={{
+                  id: "student-year-level-filter-native",
+                  name: "yearLevelFilter",
+                }}
                 sx={{
                   fontSize: 12,
                   color: theme.palette.text.primary,

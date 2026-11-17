@@ -30,17 +30,10 @@ import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { getProfileInitials } from "../../utils/profileInitials.js";
 import { isAuthenticated } from "../../../utils/auth";
 import { courseOptions } from "../../components/admin/Student/studentOptions";
-import { API_BASE_URL as API_URL } from "../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
-const getProfileFallback = () => "";
-
-const getProfileImage = (artist) => {
-  const imageName = artist?.profile_image || artist?.image;
-  if (!imageName) return getProfileFallback(artist?.name || "Artist");
-  if (imageName.startsWith("http")) return imageName;
-  if (imageName.startsWith("/uploads/")) return `${API_URL}${imageName}`;
-  return `${API_URL}/uploads/seller/uploadProfile/${encodeURIComponent(imageName)}`;
-};
+const getProfileImage = (artist) =>
+  resolveProfileImageUrl(artist?.profile_image || artist?.image, "seller");
 
 const parseSpecialties = (value) => {
   if (Array.isArray(value)) return value.filter(Boolean);

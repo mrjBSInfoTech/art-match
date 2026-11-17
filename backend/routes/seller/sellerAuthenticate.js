@@ -158,11 +158,11 @@ router.post(
     const sql = `
     INSERT INTO student (
       first_name, middle_name, last_name, birthdate, email, address,
-      phone_number, cor, year_level, course, student_number, password,
+      phone_number, cor, year_level, course, student_number, profile_image, password,
       consent_given_at, consent_version, must_change_password,
       created_at, account_status, expire_date
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 0, CURRENT_TIMESTAMP, 'active',
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'profile.jpg', ?, CURRENT_TIMESTAMP, ?, 0, CURRENT_TIMESTAMP, 'active',
       DATE_ADD(?, INTERVAL 1 DAY)
     )
   `;
@@ -720,6 +720,7 @@ router.put(
       if (
         profileImageFile &&
         currentStudent.profile_image &&
+        path.basename(currentStudent.profile_image).toLowerCase() !== "profile.jpg" &&
         currentStudent.profile_image !== profileImageFile.safeFilename
       ) {
         const oldB2Key = `app-uploads/seller/uploadProfile/${currentStudent.profile_image}`;

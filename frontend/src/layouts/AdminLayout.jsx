@@ -60,7 +60,10 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
-import { API_BASE_URL } from "../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../utils/profileImage.js";
 
 const ADMIN_SIDEBAR_PREFERENCES = {
   artVerification: "admin_sidebar_art_verification_expanded",
@@ -196,20 +199,11 @@ function AdminLayoutContent() {
     setProfileDrawerOpen(true);
   };
 
-  const handleLogout = async () => {
-    setOpen(false);
-    await recordLogout();
+  const handleLogout = () => {
+    void recordLogout();
     clearAuthData("admin");
-
-    setTimeout(() => {
-      navigate("/admin/login", { replace: true });
-
-      // Clear browser history for extra security
-      window.history.pushState(null, null, window.location.href);
-      window.onpopstate = function () {
-        window.history.pushState(null, null, window.location.href);
-      };
-    }, 150);
+    setOpen(false);
+    navigate("/admin/login", { replace: true });
   };
 
   // Check if user has permissions to manage admins (can add or edit)
@@ -421,11 +415,13 @@ function AdminLayoutContent() {
           {firstName || "Admin"}
         </Typography>
         <Avatar
-          src={
-            image
-              ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
-              : undefined
-          }
+          src={resolveProfileImageUrl(image, "admin")}
+          imgProps={{
+            onError: (event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+            },
+          }}
           alt={firstName}
           sx={{
             width: 32,
@@ -534,11 +530,13 @@ function AdminLayoutContent() {
             sx={{ p: 2 }}
           >
             <Avatar
-              src={
-                image
-                  ? `${API_BASE_URL}/uploads/admin/uploadAdmin/${encodeURIComponent(image)}`
-                  : `${API_BASE_URL}/uploads/profile.jpg`
-              }
+              src={resolveProfileImageUrl(image, "admin")}
+              imgProps={{
+                onError: (event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+                },
+              }}
               alt={firstName}
               sx={{ width: 48, height: 48, flexShrink: 0, bgcolor: "#f6f6f6" }}
             >

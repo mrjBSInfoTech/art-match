@@ -667,15 +667,25 @@ app.get("/uploads/seller/uploadArtwork/:filename", artworkImageRateLimit, (req, 
 });
 
 // =====================================================
-// Seller profile images
+// Seller, buyer, and admin profile images
 // =====================================================
+
+const defaultProfileImagePath = path.join(__dirname, "uploads", "profile.jpg");
+const serveDefaultProfileIfRequested = (req, res, next) => {
+  if (String(req.params?.filename || "").trim().toLowerCase() !== "profile.jpg") {
+    return next();
+  }
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Type", "image/jpeg");
+  return res.sendFile(defaultProfileImagePath);
+};
 
 app.get(
   [
     "/uploads/seller/uploadProfile/:filename",
     "/uploads/seller/profile/:filename",
   ],
-
+  serveDefaultProfileIfRequested,
   serveB2Cached({
     keyPrefix: "app-uploads/seller/uploadProfile",
 
@@ -685,16 +695,12 @@ app.get(
   }),
 );
 
-// =====================================================
-// Buyer profile images
-// =====================================================
-
 app.get(
   [
     "/uploads/buyer/uploadProfile/:filename",
     "/uploads/buyer/profile/:filename",
   ],
-
+  serveDefaultProfileIfRequested,
   serveB2Cached({
     keyPrefix: "app-uploads/buyer/uploadProfile",
 
@@ -704,13 +710,9 @@ app.get(
   }),
 );
 
-// =====================================================
-// Admin profile images
-// =====================================================
-
 app.get(
   "/uploads/admin/uploadAdmin/:filename",
-
+  serveDefaultProfileIfRequested,
   serveB2Cached({
     keyPrefix: "app-uploads/admin/uploadAdmin",
 

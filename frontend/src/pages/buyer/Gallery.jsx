@@ -17,14 +17,9 @@ import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import GalleryCard from "../../components/buyer/Gallery/GalleryCard";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { isAuthenticated } from "../../../utils/auth";
-import { API_BASE_URL } from "../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
-const profileImageUrl = (image) => {
-  if (!image) return `${API_BASE_URL}/uploads/seller/profile.jpg`;
-  return image.startsWith("http")
-    ? image
-    : `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(image)}`;
-};
+const profileImageUrl = (image) => resolveProfileImageUrl(image, "seller");
 
 const groupArtworksByArtist = (artworks) => {
   const artists = new Map();

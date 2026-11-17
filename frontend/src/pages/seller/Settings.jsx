@@ -59,7 +59,10 @@ import ContactMailOutlinedIcon from "@mui/icons-material/ContactMailOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ThemeModeSetting from "../../components/seller/Settings/ThemeModeSetting";
-import { API_BASE_URL } from "../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../utils/profileImage.js";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -499,14 +502,13 @@ export default function Settings() {
             alignItems="center"
           >
             <Avatar
-              src={
-                profileImage
-                  ? `${API_BASE_URL}/uploads/seller/uploadProfile/${encodeURIComponent(profileImage)}`
-                  : undefined
-              }
+              src={resolveProfileImageUrl(profileImage, "seller")}
               alt="Seller profile"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
+              imgProps={{
+                onError: (event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+                },
               }}
               sx={{
                 width: 80,
@@ -521,8 +523,7 @@ export default function Settings() {
                 fontWeight: 700,
               }}
             >
-              {!profileImage &&
-                getProfileInitials(
+              {getProfileInitials(
                   `${accountInformation.first_name} ${accountInformation.last_name}`,
                 )}
             </Avatar>

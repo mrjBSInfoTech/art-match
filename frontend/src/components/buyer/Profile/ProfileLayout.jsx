@@ -34,7 +34,10 @@ import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlin
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 const NAV_ITEMS = [
   {
@@ -101,11 +104,13 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
     >
       <Stack direction="row" spacing={1.25} alignItems="center">
         <Avatar
-          src={
-            profileImage
-              ? `${API_BASE_URL}/uploads/buyer/uploadProfile/${encodeURIComponent(profileImage)}`
-              : `${API_BASE_URL}/uploads/buyer/profile.jpg`
-          }
+          src={resolveProfileImageUrl(profileImage, "buyer")}
+          imgProps={{
+            onError: (event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+            },
+          }}
           sx={{ width: 48, height: 48, flexShrink: 0 }}
         >
           {(buyerName || username || "B").charAt(0).toUpperCase()}
@@ -179,12 +184,12 @@ const ProfileLayout = ({ showBack = false, children }) => {
     setLogoutDialogOpen(true);
   };
 
-  const handleLogout = async () => {
-    setLogoutDialogOpen(false);
-    setDrawerOpen(false);
-    await recordLogout();
+  const handleLogout = () => {
+    void recordLogout();
     clearAuthData("buyer");
     clearRecommendationClientState();
+    setLogoutDialogOpen(false);
+    setDrawerOpen(false);
     navigate("/buyer/login", { replace: true });
   };
 

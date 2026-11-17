@@ -35,7 +35,10 @@ import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { formatPayoutDate } from "../../seller/Payout/payoutDisplay";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
@@ -98,12 +101,8 @@ function SingleAdminPermissionCard({
           {/* Admin Avatar container */}
           {(() => {
             const rawImg = request.adminAvatar || request.adminImage;
-            const defaultImage = `${API_BASE_URL}/uploads/profile.jpg`;
-            const fullImg = rawImg
-              ? (rawImg.startsWith("http") || rawImg.startsWith("data:")
-                  ? rawImg
-                  : `${API_BASE_URL}${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
-              : defaultImage;
+            const defaultImage = DEFAULT_PROFILE_IMAGE_URL;
+            const fullImg = resolveProfileImageUrl(rawImg, "admin");
             return (
               <Box
                 sx={{

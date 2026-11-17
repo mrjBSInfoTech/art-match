@@ -74,6 +74,7 @@ import {
   restoreChatKeyPair,
 } from "../../utils/chatEncryption";
 import { API_BASE_URL } from "../../api/apiBase.js";
+import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const SUPPORT_CHAT_ID = "support";
 
@@ -105,15 +106,8 @@ const toAbsoluteMediaUrl = (url) => {
   return `${API_BASE_URL}/${url}`;
 };
 
-const toAbsoluteProfileImageUrl = (image, accountType) => {
-  if (!image) return accountType === "seller"
-    ? `${API_BASE_URL}/uploads/seller/profile.jpg`
-    : `${API_BASE_URL}/uploads/buyer/profile.jpg`;
-  if (/^https?:\/\//i.test(image)) return image;
-  if (image.startsWith("/")) return `${API_BASE_URL}${image}`;
-  const folder = "uploadProfile";
-  return `${API_BASE_URL}/uploads/${accountType}/${folder}/${encodeURIComponent(image)}`;
-};
+const toAbsoluteProfileImageUrl = (image, accountType) =>
+  resolveProfileImageUrl(image, accountType === "seller" ? "seller" : "buyer");
 
 export default function Messages({ embedded = false }) {
   const [searchParams] = useSearchParams();
