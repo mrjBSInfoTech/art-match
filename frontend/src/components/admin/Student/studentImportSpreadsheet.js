@@ -76,8 +76,8 @@ export async function readStudentSpreadsheet(data, extension) {
     return [{ sheetName: "CSV", rows: parsed.data }];
   }
 
-  if (normalizedExtension !== ".xlsx") {
-    throw new Error("Choose an .xlsx or .csv file.");
+  if (![".xlsx", ".xls"].includes(normalizedExtension)) {
+    throw new Error("Choose an .xlsx, .xls, or .csv file.");
   }
 
   const workbook = XLSX.read(data, { type: "array" });

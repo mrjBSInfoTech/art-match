@@ -147,10 +147,7 @@ const findHeaderRow = (rows) => {
     best.score < 7 ||
     best.columnMap.student_number === undefined ||
     best.columnMap.first_name === undefined ||
-    best.columnMap.last_name === undefined ||
-    ["birthdate", "email", "address", "phone_number"].some(
-      (field) => best.columnMap[field] === undefined,
-    )
+    best.columnMap.last_name === undefined
   ) {
     return null;
   }
@@ -202,24 +199,46 @@ const normalizeCourse = (value) => {
 
     "bfa ptg": "Bachelor of Fine Arts in Painting",
 
+    "bfap": "Bachelor of Fine Arts in Painting",
+
     "bachelor of fine arts in painting": "Bachelor of Fine Arts in Painting",
 
     "bs architecture": "Bachelor of Science in Architecture",
+
+    "bsarchi": "Bachelor of Science in Architecture",
+
+    "bs archi": "Bachelor of Science in Architecture",
+
+    "bs arch": "Bachelor of Science in Architecture",
+
+    "bsa": "Bachelor of Science in Architecture",
 
     "bachelor of science in architecture":
       "Bachelor of Science in Architecture",
 
     "bfa advertising arts": "Bachelor of Fine Arts in Advertising Arts",
 
+    "bfaaa": "Bachelor of Fine Arts in Advertising Arts",
+
+    "bfaa": "Bachelor of Fine Arts in Advertising Arts",
+
     "bachelor of fine arts in advertising arts":
       "Bachelor of Fine Arts in Advertising Arts",
 
     "bs interior design": "Bachelor of Science in Interior Design",
 
+    "bsid": "Bachelor of Science in Interior Design",
+
+    "bs id": "Bachelor of Science in Interior Design",
+
     "bachelor of science in interior design":
       "Bachelor of Science in Interior Design",
 
     "bfa industrial design": "Bachelor of Fine Arts in Industrial Design",
+
+    "bfaid": "Bachelor of Fine Arts in Industrial Design",
+
+    "bfa id": "Bachelor of Fine Arts in Industrial Design",
 
     "bachelor of fine arts in industrial design":
       "Bachelor of Fine Arts in Industrial Design",
@@ -284,8 +303,8 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
       const extension = file.name
         .slice(file.name.lastIndexOf("."))
         .toLowerCase();
-      if (![".xlsx", ".csv"].includes(extension)) {
-        throw new Error("Choose an .xlsx or .csv file.");
+      if (![".xlsx", ".xls", ".csv"].includes(extension)) {
+        throw new Error("Choose an .xlsx, .xls, or .csv file.");
       }
       if (file.size > MAX_IMPORT_FILE_SIZE) {
         throw new Error("The file must be 5 MiB or smaller.");
@@ -307,7 +326,7 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
 
       if (!bestSheet) {
         throw new Error(
-          "Could not find all required columns. Include Student Number, First Name, Last Name, Date of Birth, Email, Address, and Phone Number.",
+          "Could not automatically find the required student columns. Include Student Number, First Name, and Last Name.",
         );
       }
 
@@ -366,17 +385,6 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
       if (!students.length) {
         throw new Error(
           "Student columns were found, but no valid student rows were detected.",
-        );
-      }
-
-      const studentWithMissingDetails = students.find((student) =>
-        ["birthdate", "email", "address", "phone_number"].some(
-          (field) => !student[field],
-        ),
-      );
-      if (studentWithMissingDetails) {
-        throw new Error(
-          `Student ${studentWithMissingDetails.student_number} is missing a birthdate, email, address, or phone number.`,
         );
       }
 
@@ -498,8 +506,9 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
         )}
 
         <Typography variant="body2" color="textSecondary" paragraph>
-          Upload an Excel (.xlsx) or CSV file (maximum 5 MiB and 10,000 rows).
-          Ensure your column headers match the required format.
+          Upload an Excel (.xlsx, .xls) or CSV file (maximum 5 MiB and 10,000
+          rows). Matching student columns are imported automatically; at least
+          Student Number, First Name, and Last Name are required.
         </Typography>
         <Alert severity="info" sx={{ mb: 2 }}>
           Each new student's initial password will be their surname in
@@ -540,7 +549,7 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
 
         <input
           type="file"
-          accept=".xlsx, .csv"
+          accept=".xlsx, .xls, .csv"
           hidden
           ref={fileInputRef}
           onChange={handleFileChange}

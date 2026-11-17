@@ -397,49 +397,30 @@ export default function Dashboard() {
             value: artworkCount,
             caption: `${statistics?.pendingArtworks ?? "--"} pending review`,
             icon: ColorLensRoundedIcon,
-            tint: "rgba(244, 114, 182, 0.15)",
-            accent: "primary.main",
           },
           {
             label: "SOLD",
             value: soldCount,
             caption: "Artwork units in paid orders",
             icon: SellRoundedIcon,
-            tint: "rgba(34, 197, 94, 0.18)",
-            accent: "success.main",
           },
           {
             label: "TOTAL SALES",
             value: salesCount == null ? "--" : `₱${Number(salesCount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             caption: "Paid artwork sales (excludes shipping)",
             icon: CreditScoreIcon,
-            tint: "rgba(59, 130, 246, 0.18)",
-            accent: "secondary.main",
           },
-        ].map(({ label, value, caption, icon: MetricIcon, tint, accent }) => (
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
           <Card
             key={label}
-            variant="outlined"
             sx={{
-              position: "relative",
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2.5,
+              boxShadow: "none",
               minWidth: 0,
-              height: "100%",
-              borderRadius: 4,
-              background: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
-                  : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
-              border: "1px solid",
-              borderColor: "divider",
-              boxShadow: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "0 20px 38px rgba(2, 6, 23, 0.28)"
-                  : "0 18px 36px rgba(15, 23, 42, 0.08)",
               overflow: "hidden",
-              transition: "transform 180ms ease, box-shadow 180ms ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-              },
+              height: "100%",
             }}
           >
             <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
@@ -448,7 +429,7 @@ export default function Dashboard() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: { xs: 1.25, sm: 2 },
+                  gap: { xs: 1.5, sm: 2 },
                   minWidth: 0,
                   height: "100%",
                 }}
@@ -456,10 +437,10 @@ export default function Dashboard() {
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography
                     sx={{
-                      color: "text.secondary",
+                      color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
-                      letterSpacing: 1.2,
+                      letterSpacing: 1,
                       overflowWrap: "break-word",
                     }}
                   >
@@ -467,9 +448,9 @@ export default function Dashboard() {
                   </Typography>
                   <Typography
                     sx={{
-                      mt: 1,
-                      color: "text.primary",
-                      fontSize: { xs: 22, sm: 26, xl: 30 },
+                      mt: 0.5,
+                      color: theme.palette.text.primary,
+                      fontSize: { xs: 24, sm: 26, xl: 30 },
                       fontWeight: 800,
                       lineHeight: 1.1,
                       overflowWrap: "anywhere",
@@ -481,7 +462,7 @@ export default function Dashboard() {
                   <Typography
                     sx={{
                       mt: 1,
-                      color: "text.secondary",
+                      color: theme.palette.text.secondary,
                       fontSize: 12,
                       overflowWrap: "break-word",
                     }}
@@ -491,20 +472,17 @@ export default function Dashboard() {
                 </Box>
                 <Box
                   sx={{
-                    width: { xs: 46, sm: 54 },
-                    height: { xs: 46, sm: 54 },
+                    width: { xs: 44, sm: 50 },
+                    height: { xs: 44, sm: 50 },
                     flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
-                    borderRadius: 3,
-                    background: (theme) =>
+                    borderRadius: 2,
+                    backgroundColor:
                       theme.palette.mode === "dark"
-                        ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
-                        : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
-                    color: accent,
-                    border: (theme) =>
-                      `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.06)"}`,
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: theme.palette.error.main,
                   }}
                 >
                   {createElement(MetricIcon)}

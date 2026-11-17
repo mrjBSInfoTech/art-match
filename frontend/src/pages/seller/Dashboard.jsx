@@ -21,7 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { fetchArtworks } from "../../api/seller/artworkAPI";
 import { fetchSellerOrders } from "../../api/seller/orderAPI";
 import { getSellerSalesData } from "../../utils/sellerSales";
@@ -197,22 +197,12 @@ export default function Dashboard() {
             value: loading ? "..." : artworkCount,
             caption: "Your artwork catalog",
             icon: ColorLensRoundedIcon,
-            tint: alpha(
-              theme.palette.primary.main,
-              theme.palette.mode === "dark" ? 0.18 : 0.1,
-            ),
-            accent: theme.palette.primary.main,
           },
           {
             label: "ACTIVE ORDERS",
             value: salesLoading ? "..." : salesError ? "—" : sales.orderCount,
             caption: "Excludes cancelled orders",
             icon: SellRoundedIcon,
-            tint: alpha(
-              theme.palette.success.main,
-              theme.palette.mode === "dark" ? 0.19 : 0.12,
-            ),
-            accent: theme.palette.success.main,
           },
           {
             label: "TOTAL SALES",
@@ -223,22 +213,17 @@ export default function Dashboard() {
                 : formatCurrency(sales.revenue),
             caption: "Total revenue generated",
             icon: CreditScoreIcon,
-            tint: alpha(
-              theme.palette.secondary.main,
-              theme.palette.mode === "dark" ? 0.18 : 0.1,
-            ),
-            accent: theme.palette.secondary.main,
           },
-        ].map(({ label, value, caption, icon: MetricIcon, tint, accent }) => (
+        ].map(({ label, value, caption, icon: MetricIcon }) => (
           <Card
             key={label}
             sx={{
-              borderRadius: 3,
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2.5,
               boxShadow: "none",
-              overflow: "hidden",
               minWidth: 0,
+              overflow: "hidden",
               height: "100%",
             }}
           >
@@ -259,7 +244,7 @@ export default function Dashboard() {
                       color: theme.palette.text.secondary,
                       fontSize: 11,
                       fontWeight: 800,
-                      letterSpacing: 1.2,
+                      letterSpacing: 1,
                       overflowWrap: "break-word",
                     }}
                   >
@@ -267,7 +252,7 @@ export default function Dashboard() {
                   </Typography>
                   <Typography
                     sx={{
-                      mt: 1,
+                      mt: 0.5,
                       color: theme.palette.text.primary,
                       fontSize: { xs: 24, sm: 26, xl: 30 },
                       fontWeight: 800,
@@ -297,17 +282,20 @@ export default function Dashboard() {
                 </Box>
                 <Box
                   sx={{
-                    width: { xs: 46, sm: 52 },
-                    height: { xs: 46, sm: 52 },
+                    width: { xs: 44, sm: 50 },
+                    height: { xs: 44, sm: 50 },
                     flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
-                    borderRadius: 3,
-                    backgroundColor: tint,
-                    color: accent,
+                    borderRadius: 2,
+                    backgroundColor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(239, 68, 68, 0.14)"
+                        : "#fff5f5",
+                    color: theme.palette.error.main,
                   }}
                 >
-                  {createElement(MetricIcon, { sx: { fontSize: { xs: 22, sm: 26 } } })}
+                  {createElement(MetricIcon)}
                 </Box>
               </Box>
             </CardContent>

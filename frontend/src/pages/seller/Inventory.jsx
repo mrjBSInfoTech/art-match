@@ -1,5 +1,4 @@
 import {
-  createElement,
   useCallback,
   useEffect,
   useMemo,
@@ -7,13 +6,11 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   CircularProgress,
   FormControl,
   InputAdornment,
@@ -42,6 +39,7 @@ import InventoryCard from "../../components/seller/Inventory/InventoryCard";
 import InventoryTable from "../../components/seller/Inventory/InventoryTable";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+import SellerMetricCard from "../../components/seller/SellerMetricCard";
 import {
   adminSearchInputSx,
   adminSelectInputSx,
@@ -212,44 +210,24 @@ export default function Inventory() {
       value: loading ? "..." : productCount,
       caption: "Your total artworks",
       icon: ColorLensRoundedIcon,
-      tint: alpha(
-        theme.palette.primary.main,
-        theme.palette.mode === "dark" ? 0.18 : 0.1,
-      ),
-      accent: theme.palette.primary.main,
     },
     {
       label: "IN STOCK",
       value: loading ? "..." : inStockCount,
       caption: "More than 5 units",
       icon: CheckCircleRoundedIcon,
-      tint: alpha(
-        theme.palette.success.main,
-        theme.palette.mode === "dark" ? 0.18 : 0.1,
-      ),
-      accent: theme.palette.success.main,
     },
     {
       label: "LOW STOCK",
       value: loading ? "..." : lowStockCount,
       caption: "5 units or fewer",
       icon: SellRoundedIcon,
-      tint: alpha(
-        theme.palette.warning.main,
-        theme.palette.mode === "dark" ? 0.18 : 0.1,
-      ),
-      accent: theme.palette.warning.main,
     },
     {
       label: "OUT OF STOCK",
       value: loading ? "..." : outOfStockCount,
       caption: "0 units available",
       icon: CreditScoreIcon,
-      tint: alpha(
-        theme.palette.error.main,
-        theme.palette.mode === "dark" ? 0.18 : 0.1,
-      ),
-      accent: theme.palette.error.main,
     },
   ];
 
@@ -362,86 +340,9 @@ export default function Inventory() {
           minWidth: 0,
         }}
       >
-        {summaryCards.map(
-          ({ label, value, caption, icon: SummaryIcon, tint, accent }) => (
-            <Card
-              key={label}
-              sx={{
-                borderRadius: 3,
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                boxShadow: "none",
-                overflow: "hidden",
-                minWidth: 0,
-                height: "100%",
-              }}
-            >
-              <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: { xs: 1.5, sm: 2 },
-                    minWidth: 0,
-                    height: "100%",
-                  }}
-                >
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
-                      sx={{
-                        color: theme.palette.text.secondary,
-                        fontSize: 11,
-                        fontWeight: 800,
-                        letterSpacing: 1.2,
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {label}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        mt: 1,
-                        color: theme.palette.text.primary,
-                        fontSize: { xs: 24, sm: 26, xl: 30 },
-                        fontWeight: 800,
-                        lineHeight: 1.1,
-                        fontVariantNumeric: "tabular-nums",
-                        overflowWrap: "anywhere",
-                      }}
-                    >
-                      {value}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        mt: 1,
-                        color: theme.palette.text.secondary,
-                        fontSize: 12,
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {caption}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      width: { xs: 46, sm: 52 },
-                      height: { xs: 46, sm: 52 },
-                      flexShrink: 0,
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: 3,
-                      backgroundColor: tint,
-                      color: accent,
-                    }}
-                  >
-                    {createElement(SummaryIcon, { sx: { fontSize: { xs: 22, sm: 26 } } })}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          ),
-        )}
+        {summaryCards.map((card) => (
+          <SellerMetricCard key={card.label} {...card} />
+        ))}
       </Box>
 
       <Paper

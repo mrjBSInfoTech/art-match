@@ -138,6 +138,7 @@ export default function FirstLoginConsentModal({
     <Dialog
       open={Boolean(open)}
       onClose={onLogout}
+      scroll="paper"
       TransitionComponent={Transition}
       keepMounted
       disableEscapeKeyDown
@@ -145,6 +146,9 @@ export default function FirstLoginConsentModal({
         sx: {
           width: "min(100% - 24px, 560px)",
           maxWidth: "560px",
+          maxHeight: "calc(100dvh - 32px)",
+          display: "flex",
+          flexDirection: "column",
           borderRadius: 3,
           overflow: "hidden",
           backgroundColor: theme.palette.background.paper,
@@ -156,6 +160,7 @@ export default function FirstLoginConsentModal({
           display: "flex",
           alignItems: "center",
           gap: 0.75,
+          flexShrink: 0,
           px: 2.5,
           py: 1.75,
           color: theme.palette.text.primary,
@@ -182,8 +187,28 @@ export default function FirstLoginConsentModal({
         </Button>
       </DialogTitle>
 
-      <Box component="form" onSubmit={handleSubmit} noValidate>
-        <DialogContent dividers sx={{ px: 3, py: 2.5 }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        noValidate
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          flex: "1 1 auto",
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        <DialogContent
+          dividers
+          sx={{
+            px: 3,
+            py: 2.5,
+            flex: "1 1 auto",
+            minHeight: 0,
+            overflowY: "auto",
+          }}
+        >
           <Stack spacing={2.5}>
             {errorMessage && (
               <Alert severity="error" sx={{ borderRadius: 2 }}>
@@ -413,12 +438,8 @@ export default function FirstLoginConsentModal({
           <Button
             type="button"
             onClick={onLogout}
+            color="text.secondary"
             disabled={submitting}
-            sx={{
-              color: theme.palette.text.secondary,
-              textTransform: "none",
-              fontWeight: 600,
-            }}
           >
             Decline & Log Out
           </Button>

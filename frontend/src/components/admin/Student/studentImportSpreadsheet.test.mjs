@@ -36,10 +36,20 @@ test("student spreadsheet reader handles xlsx and quoted CSV values", async () =
   assert.deepEqual(csvSheets[0].rows[1], ["2026-002", "Ana, Maria", "Cruz"]);
 });
 
-test("student spreadsheet reader enforces extension and row limits", async () => {
+test("student spreadsheet reader handles xls alongside xlsx and enforces limits", async () => {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    ["Student No.", "First Name", "Last Name"],
+    ["2026-003", "Marco", "Reyes"],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+  const xlsData = XLSX.write(workbook, { type: "array", bookType: "xls" });
+  const xlsSheets = await readStudentSpreadsheet(xlsData, ".xls");
+  assert.deepEqual(xlsSheets[0].rows[1], ["2026-003", "Marco", "Reyes"]);
+
   await assert.rejects(
-    readStudentSpreadsheet(new Uint8Array(), ".xls"),
-    /Choose an \.xlsx or \.csv file/,
+    readStudentSpreadsheet(new Uint8Array(), ".txt"),
+    /Choose an \.xlsx, \.xls, or \.csv file/,
   );
 
   const rows = Array.from({ length: MAX_IMPORT_ROWS + 31 }, (_, index) =>

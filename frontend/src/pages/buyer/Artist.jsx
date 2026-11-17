@@ -758,6 +758,7 @@ export default function Artist() {
               </Typography>
               <Button
                 variant="contained"
+                color="error"
                 onClick={() =>
                   artists.length === 0
                     ? navigate("/buyer/shop")

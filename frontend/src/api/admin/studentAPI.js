@@ -5,7 +5,7 @@ const api = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api/admin/student`,
   headers: { "Content-Type": "application/json" },
-  timeout: 60000,
+  timeout: 100000,
 });
 
 // HttpOnly cookies handle authentication automatically

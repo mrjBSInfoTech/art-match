@@ -252,28 +252,21 @@ router.post(
             return;
           }
 
-          if (!String(studentData.year_level || "").trim()) {
-            return res.status(400).json({
-              message: `Missing year level for expired student number ${studentNumber}`,
-            });
-          }
-          if (!String(studentData.course || "").trim()) {
-            return res.status(400).json({
-              message: `Missing course for expired student number ${studentNumber}`,
-            });
-          }
-
           const assignments = changedContactFields.map(({ field }) => `${field} = ?`);
           const values = changedContactFields.map(({ value }) => value);
+          if (String(studentData.year_level || "").trim()) {
+            assignments.push("year_level = ?");
+            values.push(String(studentData.year_level).trim());
+          }
+          if (String(studentData.course || "").trim()) {
+            assignments.push("course = ?");
+            values.push(String(studentData.course).trim());
+          }
           assignments.push(
-            "year_level = ?",
-            "course = ?",
             "account_status = 'active'",
             "expire_date = DATE_ADD(?, INTERVAL 1 DAY)",
           );
           values.push(
-            studentData.year_level.trim(),
-            studentData.course.trim(),
             expirationDate,
             existingStudent.student_id,
           );
@@ -465,12 +458,6 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
   const requiredFields = [
     "first_name",
     "last_name",
-    "birthdate",
-    "email",
-    "address",
-    "phone_number",
-    "year_level",
-    "course",
     "student_number",
   ];
 
@@ -529,8 +516,8 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
       studentData.address || null,
       studentData.phone_number || null,
       studentData.cor || null,
-      studentData.year_level,
-      studentData.course,
+      studentData.year_level || null,
+      studentData.course || null,
       studentData.student_number,
       passwordHash,
       expirationDate,
