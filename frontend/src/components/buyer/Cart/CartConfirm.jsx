@@ -70,6 +70,7 @@ function CartConfirm({ open, handleClose, onSubmit, selectedItems = [], total = 
       keepMounted
       PaperProps={{
         sx: {
+          m: { xs: 1.5, sm: 3 },
           width: "min(100% - 24px, 470px)",
           maxWidth: "470px",
           borderRadius: 3,

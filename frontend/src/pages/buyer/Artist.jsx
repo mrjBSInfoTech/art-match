@@ -27,9 +27,9 @@ import { formatArtistRating } from "../../utils/artistEngagement.js";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import StarRateRoundedIcon from "@mui/icons-material/StarRateRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
-import { getProfileInitials } from "../../utils/profileInitials.js";
 import { isAuthenticated } from "../../../utils/auth";
 import { courseOptions } from "../../components/admin/Student/studentOptions";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const getProfileImage = (artist) =>
@@ -488,8 +488,9 @@ export default function Artist() {
                         },
                       }}
                     >
-                      <Avatar
-                        src={artist.image || undefined}
+                      <ProfileAvatar
+                        src={artist.image}
+                        role="seller"
                         alt={artist.name}
                         sx={{
                           width: 28,
@@ -498,9 +499,7 @@ export default function Artist() {
                           border: "1.5px solid",
                           borderColor: "divider",
                         }}
-                      >
-                        {!artist.image && getProfileInitials(artist.name)}
-                      </Avatar>
+                      />
                       <Typography
                         component="span"
                         sx={{

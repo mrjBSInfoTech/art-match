@@ -32,7 +32,7 @@ import {
   fetchPublicSellerReviews,
 } from "../../api/buyer/artworkAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
-import { getProfileInitials } from "../../utils/profileInitials.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 import { resolveProfileImageUrl } from "../../utils/profileImage.js";
 
 const parseArray = (value) => {
@@ -421,8 +421,9 @@ export default function SellerProfile() {
             >
               ARTIST PROFILE
             </Typography>
-            <Avatar
+            <ProfileAvatar
               src={selectedSeller.image}
+              role="seller"
               alt={selectedSeller.name}
               sx={{
                 width: { xs: 132, sm: 116, md: 148, lg: 164 },
@@ -434,10 +435,7 @@ export default function SellerProfile() {
                 fontSize: "2rem",
                 fontWeight: 800,
               }}
-            >
-              {!selectedSeller.image &&
-                getProfileInitials(selectedSeller.name)}
-            </Avatar>
+            />
             <Typography
               variant="caption"
               sx={{

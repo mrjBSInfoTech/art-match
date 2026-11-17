@@ -287,32 +287,24 @@ export default function Purchases() {
       value: loading ? "..." : transactions.length,
       caption: "Confirmed purchase orders",
       icon: ReceiptLongOutlinedIcon,
-      tint: "rgba(59, 130, 246, 0.18)",
-      accent: "primary.main",
     },
     {
       label: "ARTWORKS PURCHASED",
       value: loading ? "..." : purchasedItems.length,
       caption: "Total acquired artworks",
       icon: ShoppingBagOutlinedIcon,
-      tint: "rgba(244, 114, 182, 0.15)",
-      accent: "secondary.main",
     },
     {
       label: "TOTAL NET SPEND",
       value: loading ? "..." : formatCurrency(totalSpent),
       caption: "Net spent on purchases",
       icon: CreditScoreIcon,
-      tint: "rgba(34, 197, 94, 0.18)",
-      accent: "success.main",
     },
     {
       label: "TOTAL REFUNDED",
       value: loading ? "..." : formatCurrency(totalRefunded),
       caption: "Returned and refunded",
       icon: RefreshIcon,
-      tint: "rgba(246, 59, 84, 0.18)",
-      accent: totalRefunded > 0 ? "error.main" : "text.secondary",
     },
   ];
 
@@ -360,64 +352,67 @@ export default function Purchases() {
           mb: 3,
           display: "grid",
           gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(4, 1fr)",
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(4, minmax(0, 1fr))",
           },
           gap: 2,
+          minWidth: 0,
         }}
       >
         {summaryCards.map(
-          ({ label, value, caption, icon: MetricIcon, tint, accent }) => (
+          ({ label, value, caption, icon: MetricIcon }) => (
             <Card
               key={label}
-              variant="outlined"
               sx={{
-                borderRadius: 4,
-                background: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.84))"
-                    : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94))",
+                backgroundColor: "background.paper",
                 border: "1px solid",
                 borderColor: "divider",
-                boxShadow: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "0 20px 38px rgba(2, 6, 23, 0.28)"
-                    : "0 18px 36px rgba(15, 23, 42, 0.08)",
+                borderRadius: 2.5,
+                boxShadow: "none",
+                minWidth: 0,
                 overflow: "hidden",
-                transition: "transform 180ms ease, box-shadow 180ms ease",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                },
+                height: "100%",
               }}
             >
-              <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <CardContent
+                sx={{
+                  p: { xs: 2, sm: 2.25 },
+                  "&:last-child": { pb: { xs: 2, sm: 2.25 } },
+                  height: "100%",
+                }}
+              >
                 <Box
                   sx={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 2,
+                    gap: { xs: 1.5, sm: 2 },
+                    minWidth: 0,
+                    height: "100%",
                   }}
                 >
-                  <Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                       sx={{
                         color: "text.secondary",
                         fontSize: 11,
                         fontWeight: 800,
-                        letterSpacing: 1.2,
+                        letterSpacing: 1,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {label}
                     </Typography>
                     <Typography
                       sx={{
-                        mt: 1,
+                        mt: 0.5,
                         color: "text.primary",
-                        fontSize: 30,
+                        fontSize: { xs: 24, sm: 26, xl: 30 },
                         fontWeight: 800,
-                        lineHeight: 1,
+                        lineHeight: 1.1,
+                        fontVariantNumeric: "tabular-nums",
+                        overflowWrap: "anywhere",
                       }}
                     >
                       {value}
@@ -427,6 +422,7 @@ export default function Purchases() {
                         mt: 1,
                         color: "text.secondary",
                         fontSize: 12,
+                        overflowWrap: "break-word",
                       }}
                     >
                       {caption}
@@ -434,23 +430,17 @@ export default function Purchases() {
                   </Box>
                   <Box
                     sx={{
-                      width: 56,
-                      height: 56,
+                      width: { xs: 44, sm: 50 },
+                      height: { xs: 44, sm: 50 },
+                      flexShrink: 0,
                       display: "grid",
                       placeItems: "center",
-                      borderRadius: 3,
-                      background: (theme) =>
+                      borderRadius: 2,
+                      backgroundColor: (theme) =>
                         theme.palette.mode === "dark"
-                          ? `linear-gradient(135deg, ${tint}, rgba(15,23,42,0.3))`
-                          : `linear-gradient(135deg, ${tint}, rgba(255,255,255,0.7))`,
-                      color: accent,
-                      border: (theme) =>
-                        `1px solid ${
-                          theme.palette.mode === "dark"
-                            ? "rgba(255,255,255,0.08)"
-                            : "rgba(15,23,42,0.06)"
-                        }`,
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
+                          ? "rgba(239, 68, 68, 0.14)"
+                          : "#fff5f5",
+                      color: "error.main",
                     }}
                   >
                     {createElement(MetricIcon)}

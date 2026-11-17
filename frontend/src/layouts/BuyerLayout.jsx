@@ -74,10 +74,7 @@ import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
 import MobileSearchFilterDrawer from "../components/buyer/Layout/MobileSearchFilterDrawer";
 import MobileBottomNav from "../components/buyer/Layout/MobileBottomNav";
 import { API_BASE_URL } from "../api/apiBase.js";
-import {
-  DEFAULT_PROFILE_IMAGE_URL,
-  resolveProfileImageUrl,
-} from "../utils/profileImage.js";
+import ProfileAvatar from "../components/common/ProfileAvatar";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -870,18 +867,12 @@ function BuyerLayoutContent({ children }) {
                 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Avatar
-                    src={resolveProfileImageUrl(profileImage, "buyer")}
-                    imgProps={{
-                      onError: (event) => {
-                        event.currentTarget.onerror = null;
-                        event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-                      },
-                    }}
+                  <ProfileAvatar
+                    image={profileImage}
+                    role="buyer"
+                    alt={firstName || username || "Buyer"}
                     sx={{ width: 60, height: 60, flexShrink: 0 }}
-                  >
-                    {(firstName || username || "B").charAt(0).toUpperCase()}
-                  </Avatar>
+                  />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography sx={{ fontSize: 18, fontWeight: 700 }} noWrap>
                       {[firstName, lastName].filter(Boolean).join(" ") ||

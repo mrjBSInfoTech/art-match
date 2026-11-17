@@ -20,7 +20,6 @@ import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { recordLogout } from "../api/seller/sellerAuthenticationAPI";
 import { getSellerProfile } from "../api/seller/sellerAPI";
 import { fetchPayoutAccount } from "../api/seller/payoutAPI";
-import { getProfileInitials } from "../utils/profileInitials.js";
 import {
   fetchSellerConversations,
   fetchSellerNotifications,
@@ -66,10 +65,7 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
-import {
-  DEFAULT_PROFILE_IMAGE_URL,
-  resolveProfileImageUrl,
-} from "../utils/profileImage.js";
+import ProfileAvatar from "../components/common/ProfileAvatar";
 
 const SELLER_SIDEBAR_PREFERENCES = {
   orders: "seller_sidebar_orders_expanded",
@@ -434,19 +430,12 @@ function SellerLayoutContent() {
         <Typography variant="body2" noWrap sx={{ display: { xs: "none", sm: "block" }, fontWeight: 600, maxWidth: { sm: 96, lg: 140 } }}>
           {firstName || "Seller"}
         </Typography>
-        <Avatar
-          src={resolveProfileImageUrl(profileImage, "seller")}
-          imgProps={{
-            onError: (event) => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-            },
-          }}
-          alt={`${firstName} ${lastName}`}
+        <ProfileAvatar
+          image={profileImage}
+          role="seller"
+          alt={`${firstName} ${lastName}`.trim() || "Seller"}
           sx={{ width: 32, height: 32, bgcolor: "#232b38" }}
-        >
-          {getProfileInitials(`${firstName} ${lastName}`)}
-        </Avatar>
+        />
       </Button>
     </Stack>
   );
@@ -536,19 +525,12 @@ function SellerLayoutContent() {
             alignItems="center"
             sx={{ p: 2 }}
           >
-            <Avatar
-              src={resolveProfileImageUrl(profileImage, "seller")}
-              imgProps={{
-                onError: (event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-                },
-              }}
-              alt={`${firstName} ${lastName}`}
+            <ProfileAvatar
+              image={profileImage}
+              role="seller"
+              alt={`${firstName} ${lastName}`.trim() || "Seller"}
               sx={{ width: 48, height: 48, bgcolor: "#f6f6f6" }}
-            >
-              {getProfileInitials(`${firstName} ${lastName}`)}
-            </Avatar>
+            />
             <Stack sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                 {firstName} {lastName}

@@ -1,36 +1,52 @@
 import sharp from "sharp";
 import { embedInvisibleArtworkWatermark } from "./invisibleArtworkWatermark.js";
+import { WATERMARK_EM_UNITS, WATERMARK_GLYPHS } from "./watermarkGlyphPaths.js";
+
+const buildWatermarkPathGroup = (text, fontSize, originX, originY, outlineWidth) => {
+  const scale = fontSize / WATERMARK_EM_UNITS;
+  let cursorX = 0;
+  const glyphPaths = [];
+  for (const ch of text) {
+    const entry = WATERMARK_GLYPHS[ch] || WATERMARK_GLYPHS[" "];
+    const [advance, d] = entry;
+    if (d) {
+      glyphPaths.push(`<path d="${d}" transform="translate(${cursorX},0)"/>`);
+    }
+    cursorX += advance;
+  }
+
+  return {
+    textWidth: cursorX * scale,
+    svgGroup: `<g transform="translate(${originX},${originY}) scale(${scale.toFixed(6)})" fill="white" fill-opacity="0.10" stroke="#222" stroke-opacity="0.13" stroke-width="${(outlineWidth / scale).toFixed(2)}" paint-order="stroke" stroke-linejoin="round">${glyphPaths.join("")}</g>`,
+  };
+};
 
 const createWatermarkSvg = (width, height, code) => {
   const safeCode = code.replace(/[^A-Z0-9]/g, "");
   const watermarkText =
     code === "GUEST" ? "ArtMatch: Red Nexus" : `ArtMatch | ID: ${safeCode}`;
   const fontSize = Math.max(12, Math.min(48, Math.round(width * 0.028)));
-  const tileWidth = Math.max(
-    Math.round(width * 0.42),
-    Math.round(fontSize * 13),
-  );
-  const tileHeight = Math.max(
+  const outlineWidth = Math.max(1, Math.round(fontSize * 0.06));
+  const preliminaryTileHeight = Math.max(
     Math.round(width * 0.21),
     Math.round(fontSize * 6.5),
   );
-  const outlineWidth = Math.max(1, Math.round(fontSize * 0.06));
+  const { textWidth, svgGroup } = buildWatermarkPathGroup(
+    watermarkText,
+    fontSize,
+    Math.round(fontSize * 0.5),
+    Math.round(preliminaryTileHeight * 0.55),
+    outlineWidth,
+  );
+  const tileWidth = Math.max(
+    Math.round(width * 0.42),
+    Math.round(textWidth + fontSize * 2.5),
+  );
+  const tileHeight = preliminaryTileHeight;
   const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <pattern id="watermark" width="${tileWidth}" height="${tileHeight}" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)">
-        <text
-          x="${Math.round(fontSize * 0.5)}"
-          y="${Math.round(tileHeight * 0.55)}"
-          fill="white"
-          fill-opacity="0.08"
-          stroke="#222"
-          stroke-opacity="0.1"
-          stroke-width="${outlineWidth}"
-          paint-order="stroke"
-          font-family="Arial,sans-serif"
-          font-size="${fontSize}"
-          font-weight="700"
-        >${watermarkText}</text>
+        ${svgGroup}
       </pattern>
     </defs>
     <rect width="100%" height="100%" fill="url(#watermark)"/>

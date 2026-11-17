@@ -18,7 +18,6 @@ import Slide from "@mui/material/Slide";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Stack,
-  Avatar,
   Typography,
   Divider,
   IconButton,
@@ -30,8 +29,8 @@ import {
 } from "@mui/material";
 import Nexus from "../assets/Nexus.png";
 import SidebarNavigationHeader from "./SidebarNavigationHeader";
-import { clearAuthData } from "../../utils/auth";
-import { recordLogout } from "../api/admin/adminAuthenticationAPI";
+import { clearAuthData, isAuthenticated } from "../../utils/auth";
+import { getAdminProfile, recordLogout } from "../api/admin/adminAuthenticationAPI";
 import { canAccessAdminPayouts } from "../utils/adminPayoutAccess";
 import PasswordWarning from "../components/admin/Dashboard/PasswordWarning";
 //Icons
@@ -60,10 +59,7 @@ import {
   ThemeModeProvider,
   useThemeMode,
 } from "../theme/ThemeModeProvider";
-import {
-  DEFAULT_PROFILE_IMAGE_URL,
-  resolveProfileImageUrl,
-} from "../utils/profileImage.js";
+import ProfileAvatar from "../components/common/ProfileAvatar";
 
 const ADMIN_SIDEBAR_PREFERENCES = {
   artVerification: "admin_sidebar_art_verification_expanded",
@@ -150,6 +146,25 @@ function AdminLayoutContent() {
     };
 
     loadAdminProfile();
+    if (isAuthenticated("admin")) {
+      getAdminProfile()
+        .then((profile) => {
+          if (!profile) return;
+          setFirstName(profile.first_name || "");
+          setLastName(profile.last_name || "");
+          setImage(profile.image || "");
+          setRole(profile.role || "");
+          if (profile.first_name) localStorage.setItem("admin_first_name", profile.first_name);
+          if (profile.last_name) localStorage.setItem("admin_last_name", profile.last_name);
+          if (profile.role) localStorage.setItem("admin_role", profile.role);
+          if (profile.image) {
+            localStorage.setItem("admin_image", profile.image);
+          } else {
+            localStorage.removeItem("admin_image");
+          }
+        })
+        .catch(() => {});
+    }
     window.addEventListener("storage", loadAdminProfile);
     window.addEventListener("admin-profile-updated", loadAdminProfile);
 
@@ -414,25 +429,16 @@ function AdminLayoutContent() {
         >
           {firstName || "Admin"}
         </Typography>
-        <Avatar
-          src={resolveProfileImageUrl(image, "admin")}
-          imgProps={{
-            onError: (event) => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-            },
-          }}
-          alt={firstName}
+        <ProfileAvatar
+          image={image}
+          role="admin"
+          alt={firstName || "Admin"}
           sx={{
             width: 32,
             height: 32,
             bgcolor: "#232b38",
-            fontSize: "14px",
-            fontWeight: 600,
           }}
-        >
-          {firstName ? firstName.charAt(0).toUpperCase() : "A"}
-        </Avatar>
+        />
       </Button>
     </Stack>
   );
@@ -529,19 +535,12 @@ function AdminLayoutContent() {
             alignItems="center"
             sx={{ p: 2 }}
           >
-            <Avatar
-              src={resolveProfileImageUrl(image, "admin")}
-              imgProps={{
-                onError: (event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-                },
-              }}
-              alt={firstName}
+            <ProfileAvatar
+              image={image}
+              role="admin"
+              alt={firstName || "Admin"}
               sx={{ width: 48, height: 48, flexShrink: 0, bgcolor: "#f6f6f6" }}
-            >
-              {firstName ? firstName.charAt(0).toUpperCase() : "A"}
-            </Avatar>
+            />
             <Stack sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
                 {firstName} {lastName}

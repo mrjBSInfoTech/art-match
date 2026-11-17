@@ -552,7 +552,6 @@ export default function PayoutCard({
           p: 4,
           borderRadius: 3,
           textAlign: "center",
-          border: "1px dashed",
           borderColor: "divider",
         }}
       >

@@ -47,13 +47,17 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import { getProfileInitials } from "../../utils/profileInitials.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 import { resolveProfileImageUrl } from "../../utils/profileImage.js";
+import {
+  buildArtistRatingMap,
+  formatArtistRating,
+} from "../../utils/artistEngagement.js";
 
 const getProfileImage = (artist) =>
   resolveProfileImageUrl(artist?.profile_image || artist?.image, "seller");
 
-const buildArtistSummaries = (artworks = []) => {
+const buildArtistSummaries = (artworks = [], artistRatingMap = new Map()) => {
   const artistMap = new Map();
 
   artworks.forEach((artwork) => {
@@ -77,7 +81,7 @@ const buildArtistSummaries = (artworks = []) => {
       shopDescription: artwork.shop_description || "",
       works: 0,
       sales: 0,
-      rating: 4.8,
+      rating: artistRatingMap.get(String(studentId)) ?? 0,
     };
 
     current.works += 1;
@@ -200,6 +204,7 @@ function ArtworkCardSkeleton() {
 
 export default function Main() {
   const [artworks, setArtworks] = useState([]);
+  const [artistRatingMap, setArtistRatingMap] = useState(() => new Map());
   const [artworksLoading, setArtworksLoading] = useState(true);
   const [artworkErrorMessage, setArtworkErrorMessage] = useState("");
   const [followedArtists, setFollowedArtists] = useState([]);
@@ -285,7 +290,11 @@ export default function Main() {
     try {
       setArtworksLoading(true);
       setArtworkErrorMessage("");
-      const response = await fetchArtworks();
+      const [response, summaries] = await Promise.all([
+        fetchArtworks(),
+        fetchArtistSummaries().catch(() => []),
+      ]);
+      setArtistRatingMap(buildArtistRatingMap(summaries));
       if (response && Array.isArray(response)) {
         setArtworks(response);
       } else if (response && response.data && Array.isArray(response.data)) {
@@ -389,6 +398,7 @@ export default function Main() {
       try {
         const summaries = await fetchArtistSummaries();
         if (current === request) {
+          setArtistRatingMap(buildArtistRatingMap(summaries));
           setFollowedArtists((Array.isArray(summaries) ? summaries : [])
             .filter((artist) => artist.isFollowing)
             .map((artist) => String(artist.student_id)));
@@ -452,8 +462,8 @@ export default function Main() {
 
   const genres = artGenres;
   const popularArtists = useMemo(
-    () => buildArtistSummaries(availableArtworks),
-    [availableArtworks],
+    () => buildArtistSummaries(availableArtworks, artistRatingMap),
+    [availableArtworks, artistRatingMap],
   );
 
   const visibleRecommendedArtworks = useMemo(
@@ -719,7 +729,8 @@ export default function Main() {
       </Box>
 
       {/* Recently Added Artworks From the Users Followings */}
-      {Boolean(isAuthenticated("buyer")) && (
+      {Boolean(isAuthenticated("buyer")) &&
+        (followingLoading || followingError || followedArtists.length > 0) && (
         <Box
           sx={{
             px: { xs: 2, sm: 4, lg: 6 },
@@ -1182,7 +1193,7 @@ export default function Main() {
                       <Box component="span" sx={{ color: "#eab308" }}>
                         ★
                       </Box>{" "}
-                      {featuredArtist?.rating || "4.8"}
+                      {formatArtistRating(featuredArtist?.rating)}
                     </Typography>
                   </Box>
                 </Stack>
@@ -1225,8 +1236,9 @@ export default function Main() {
                     backgroundColor: theme.palette.background.paper,
                   }}
                 >
-                  <Avatar
-                    src={artist.image || undefined}
+                  <ProfileAvatar
+                    src={artist.image}
+                    role="seller"
                     alt={artist.name}
                     sx={{
                       width: 56,
@@ -1236,9 +1248,7 @@ export default function Main() {
                       objectFit: "cover",
                       border: `2px solid ${theme.palette.background.default}`,
                     }}
-                  >
-                    {!artist.image && getProfileInitials(artist.name)}
-                  </Avatar>
+                  />
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="body2" noWrap sx={{ fontWeight: 800 }}>
                       <Box
@@ -1262,7 +1272,7 @@ export default function Main() {
                       <Box component="span" sx={{ color: "#eab308" }}>
                         ★
                       </Box>{" "}
-                      {artist.rating}
+                      {formatArtistRating(artist.rating)}
                     </Typography>
                   </Box>
                   <Button

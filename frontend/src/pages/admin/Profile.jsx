@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Avatar,
@@ -34,7 +35,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { updateAdmin } from "../../api/admin/adminAPI";
 import { getAdminProfile } from "../../api/admin/adminAuthenticationAPI";
 import { fetchDashboard } from "../../api/admin/dashboardAPI";
-import { resolveProfileImageUrl } from "../../utils/profileImage.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 
 const DropZone = styled(Box, {
   shouldForwardProp: (prop) => prop !== "isDragActive",
@@ -53,14 +54,13 @@ const DropZone = styled(Box, {
   "&:hover": { backgroundColor: theme.palette.action.hover },
 }));
 
-const getImageUrl = (image) => resolveProfileImageUrl(image, "admin");
-
-// Slide Transition for Snackbar
-function SlideTransition(props) {
+const SlideTransition = (props) => {
   return <Slide {...props} direction="up" />;
-}
+};
 
 export default function Profile() {
+  const navigate = useNavigate();
+
   // Admin's Info
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -100,7 +100,12 @@ export default function Profile() {
       setEmail(profile.email || "");
       setUsername(profile.username || "");
       setImage(profile.image || "");
-      if (profile.image) localStorage.setItem("admin_image", profile.image);
+      if (profile.image) {
+        localStorage.setItem("admin_image", profile.image);
+      } else {
+        localStorage.removeItem("admin_image");
+      }
+      window.dispatchEvent(new Event("admin-profile-updated"));
       setRole(profile.role || "");
       setCreatedAt(profile.created_at || localStorage.getItem("admin_created_at") || "");
       setUpdatedAt(profile.updated_at || localStorage.getItem("admin_updated_at") || "");
@@ -285,7 +290,7 @@ export default function Profile() {
       >
         <Grid container spacing={3} alignItems="center">
           <Grid size={{ xs: 12, sm: "auto" }} sx={{ display: "flex", justifyContent: { xs: "center", sm: "flex-start" } }}>
-            <Avatar
+            <ProfileAvatar
               sx={{
                 width: 90,
                 height: 90,
@@ -294,10 +299,9 @@ export default function Profile() {
                 fontWeight: "bold",
                 boxShadow: 2,
               }}
-              src={
-                getImageUrl(image || localStorage.getItem("admin_image"))
-              }
-              alt={role}
+              image={image || localStorage.getItem("admin_image")}
+              role="admin"
+              alt={`${firstName} ${lastName}`.trim() || role || "Admin"}
             />
           </Grid>
 
@@ -444,8 +448,14 @@ export default function Profile() {
               >
                 Admin Actions
               </Typography>
-              <Button size="small" fullWidth variant="outlined" startIcon={<VisibilityIcon />}>
-                View Activity
+              <Button
+                size="small"
+                fullWidth
+                variant="outlined"
+                startIcon={<VisibilityIcon />}
+                onClick={() => navigate("/admin/audit-logs")}
+              >
+                View Audit Logs
               </Button>
             </Box>
           </Paper>

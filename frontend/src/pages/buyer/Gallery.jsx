@@ -12,16 +12,20 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import GalleryCard from "../../components/buyer/Gallery/GalleryCard";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import { isAuthenticated } from "../../../utils/auth";
 import { resolveProfileImageUrl } from "../../utils/profileImage.js";
+import {
+  buildArtistRatingMap,
+  formatArtistRating,
+} from "../../utils/artistEngagement.js";
 
 const profileImageUrl = (image) => resolveProfileImageUrl(image, "seller");
 
-const groupArtworksByArtist = (artworks) => {
+const groupArtworksByArtist = (artworks, artistRatingMap = new Map()) => {
   const artists = new Map();
 
   artworks.forEach((artwork) => {
@@ -40,6 +44,7 @@ const groupArtworksByArtist = (artworks) => {
       department: artwork.course || artwork.genre || "Independent Artist",
       bio: artwork.shop_description || artwork.description || "",
       profileImage: artwork.profile_image || "",
+      rating: artistRatingMap.get(String(artistId)) ?? 0,
       artworks: [],
     };
 
@@ -71,14 +76,24 @@ export default function Gallery() {
       try {
         setLoading(true);
         setLoadError("");
-        const response = await fetchArtworks();
+        const [response, summaries] = await Promise.all([
+          fetchArtworks(),
+          fetchArtistSummaries().catch(() => []),
+        ]);
         const artworks = Array.isArray(response)
           ? response
           : response?.data || [];
         const availableArtworks = artworks.filter(
           (artwork) => Number(artwork.is_sold_out) !== 1,
         );
-        if (active) setArtists(groupArtworksByArtist(availableArtworks));
+        if (active) {
+          setArtists(
+            groupArtworksByArtist(
+              availableArtworks,
+              buildArtistRatingMap(summaries),
+            ),
+          );
+        }
       } catch (loadError) {
         if (active)
           setLoadError(loadError.message || "Failed to load the gallery.");
@@ -434,7 +449,7 @@ export default function Gallery() {
                       variant="caption"
                       sx={{ color: "text.secondary", fontSize: 12 }}
                     >
-                      ★ 4.8
+                      ★ {formatArtistRating(artist.rating)}
                     </Typography>
                   </Stack>
                   <Button

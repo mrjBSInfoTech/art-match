@@ -68,12 +68,13 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
       sx={{
         display: "grid",
         gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-            md: "repeat(3, minmax(0, 1fr))",
-            lg: "repeat(5, minmax(0, 1fr))",
-          },
+          xs: "minmax(0, 1fr)",
+          sm: "repeat(2, minmax(0, 1fr))",
+          md: "repeat(3, minmax(0, 1fr))",
+          lg: "repeat(5, minmax(0, 1fr))",
+        },
         gap: 2,
+        minWidth: 0,
       }}
     >
       {artworks.map((artwork) => (
@@ -83,6 +84,8 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            minWidth: 0,
+            height: "100%",
             border: "1px solid",
             borderColor: "divider",
             borderRadius: 2.5,
@@ -148,10 +151,12 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
                 display: "flex",
                 alignItems: "flex-start",
                 justifyContent: "space-between",
+                gap: 0.5,
+                minWidth: 0,
                 mb: 1,
               }}
             >
-              <Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   variant="subtitle2"
                   sx={{
@@ -182,9 +187,13 @@ export default function ArtworkCard({ artworks, onEdit, onVerify, onDelete }) {
               </Box>
               <IconButton
                 size="small"
+                aria-label="Artwork actions"
                 onClick={(e) => handleMenuOpen(e, artwork)}
                 sx={{
+                  flexShrink: 0,
                   ml: "auto",
+                  mr: -0.5,
+                  mt: -0.35,
                   "&:hover": {
                     backgroundColor: "action.hover",
                   },

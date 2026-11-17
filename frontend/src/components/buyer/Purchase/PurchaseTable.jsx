@@ -98,6 +98,7 @@ export default function PurchaseTable({
               component={RouterLink}
               to="/buyer/shop"
               variant="contained"
+              color="error"
               sx={{ mt: 2.5, textTransform: "none", fontWeight: 700, borderRadius: 2 }}
             >
               Explore Artwork Gallery

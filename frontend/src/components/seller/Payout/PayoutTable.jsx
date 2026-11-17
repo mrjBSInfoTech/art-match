@@ -103,7 +103,6 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
           px: 3,
           borderRadius: 3.5,
           textAlign: "center",
-          border: "1px dashed",
           borderColor: "divider",
           bgcolor: "background.paper",
         }}

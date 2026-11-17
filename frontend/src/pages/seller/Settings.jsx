@@ -39,7 +39,6 @@ import {
   deleteSellerAccount,
 } from "../../api/seller/sellerAPI";
 import { clearAuthData } from "../../../utils/auth";
-import { getProfileInitials } from "../../utils/profileInitials.js";
 import {
   getMissingSellerProfileFields,
   requiredSellerProfileFields,
@@ -59,10 +58,7 @@ import ContactMailOutlinedIcon from "@mui/icons-material/ContactMailOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ThemeModeSetting from "../../components/seller/Settings/ThemeModeSetting";
-import {
-  DEFAULT_PROFILE_IMAGE_URL,
-  resolveProfileImageUrl,
-} from "../../utils/profileImage.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -501,15 +497,10 @@ export default function Settings() {
             spacing={3}
             alignItems="center"
           >
-            <Avatar
-              src={resolveProfileImageUrl(profileImage, "seller")}
+            <ProfileAvatar
+              image={profileImage}
+              role="seller"
               alt="Seller profile"
-              imgProps={{
-                onError: (event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-                },
-              }}
               sx={{
                 width: 80,
                 height: 80,
@@ -522,11 +513,7 @@ export default function Settings() {
                 fontSize: 24,
                 fontWeight: 700,
               }}
-            >
-              {getProfileInitials(
-                  `${accountInformation.first_name} ${accountInformation.last_name}`,
-                )}
-            </Avatar>
+            />
             <Box>
               <Button
                 variant="outlined"

@@ -34,10 +34,7 @@ import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlin
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
-import {
-  DEFAULT_PROFILE_IMAGE_URL,
-  resolveProfileImageUrl,
-} from "../../../utils/profileImage.js";
+import ProfileAvatar from "../../common/ProfileAvatar";
 
 const NAV_ITEMS = [
   {
@@ -103,18 +100,12 @@ function AccountIdentityCard({ buyerName, username, profileImage, onEdit }) {
       }}
     >
       <Stack direction="row" spacing={1.25} alignItems="center">
-        <Avatar
-          src={resolveProfileImageUrl(profileImage, "buyer")}
-          imgProps={{
-            onError: (event) => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-            },
-          }}
+        <ProfileAvatar
+          image={profileImage}
+          role="buyer"
+          alt={buyerName || username || "Buyer"}
           sx={{ width: 48, height: 48, flexShrink: 0 }}
-        >
-          {(buyerName || username || "B").charAt(0).toUpperCase()}
-        </Avatar>
+        />
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: 14, fontWeight: 700 }} noWrap>
             {buyerName}

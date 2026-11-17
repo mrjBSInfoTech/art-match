@@ -22,10 +22,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 import { cacheBuyerProfile, getBuyerSecuritySettings, updateBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
-import {
-  DEFAULT_PROFILE_IMAGE_URL,
-  resolveProfileImageUrl,
-} from "../../utils/profileImage.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -210,14 +207,10 @@ export default function Profile() {
               }}
             />
             <Stack spacing={2.5} sx={{ position: "relative", height: "100%" }}>
-              <Avatar
-                src={resolveProfileImageUrl(profileImage, "buyer")}
-                imgProps={{
-                  onError: (event) => {
-                    event.currentTarget.onerror = null;
-                    event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-                  },
-                }}
+              <ProfileAvatar
+                image={profileImage}
+                role="buyer"
+                alt={username || "Buyer"}
                 sx={{
                   width: 86,
                   height: 86,
@@ -226,9 +219,7 @@ export default function Profile() {
                   fontSize: 34,
                   fontWeight: 800,
                 }}
-              >
-                {username ? username.charAt(0).toUpperCase() : "U"}
-              </Avatar>
+              />
               <Button
                 type="button"
                 variant="outlined"

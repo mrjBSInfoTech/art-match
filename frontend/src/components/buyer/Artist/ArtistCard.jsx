@@ -14,8 +14,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import WatermarkedArtworkImage from "../Artwork/WatermarkedArtworkImage";
 import { formatArtistRating } from "../../../utils/artistEngagement.js";
-import { getProfileInitials } from "../../../utils/profileInitials.js";
-import { DEFAULT_PROFILE_IMAGE_URL } from "../../../utils/profileImage.js";
+import ProfileAvatar from "../../common/ProfileAvatar";
 const BIO_FALLBACK = "The seller currently doesn't have a bio.";
 
 export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
@@ -70,14 +69,9 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
       }}
     >
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
-        <Avatar
-          src={artist.image || DEFAULT_PROFILE_IMAGE_URL}
-          imgProps={{
-            onError: (event) => {
-              event.currentTarget.onerror = null;
-              event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
-            },
-          }}
+        <ProfileAvatar
+          src={artist.image}
+          role="seller"
           alt={artist.name}
           sx={{
             width: 60,
@@ -86,9 +80,7 @@ export default function ArtistCard({ artist, onViewProfile, onToggleFollow }) {
             border: "2px solid",
             borderColor: "divider",
           }}
-        >
-          {getProfileInitials(artist.name)}
-        </Avatar>
+        />
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             component="h3"
