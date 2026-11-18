@@ -214,32 +214,78 @@ export default function HelpSupport() {
 
   if (faqsLoading) {
     return (
-      <Container
+      <Box
         role="status"
         aria-label="Loading help and support"
-        maxWidth="lg"
-        sx={{ minHeight: "70vh", py: { xs: 3, md: 8 }, px: { xs: 2, sm: 3 } }}
+        sx={{ minHeight: "70vh", minWidth: 0 }}
       >
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Help &amp; Support</title>
         </Helmet>
-        <Box sx={{ mb: { xs: 3, md: 5 } }}>
-          <Skeleton variant="text" width={120} height={24} />
-          <Skeleton variant="text" width="68%" height={56} sx={{ mt: 1 }} />
-          <Skeleton variant="text" width="52%" height={28} sx={{ mt: 1 }} />
+        <Box
+          sx={{
+            minHeight: "40vh",
+            backgroundColor:
+              theme.palette.mode === "light"
+                ? "#fff9ef"
+                : theme.palette.background.default,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Container maxWidth="lg" sx={{ py: { xs: 5, sm: 6, md: 9 } }}>
+            <Skeleton variant="text" width={150} height={24} />
+            <Skeleton
+              variant="text"
+              sx={{
+                width: { xs: "100%", sm: "68%" },
+                height: { xs: 56, md: 72 },
+                mt: 1,
+              }}
+            />
+            <Skeleton variant="text" width="60%" height={28} sx={{ mt: 1 }} />
+          </Container>
         </Box>
-        <Grid container spacing={3} sx={{ mb: { xs: 3, md: 5 } }}>
-          {Array.from({ length: visibleSupportCards.length }).map((_, index) => (
-            <Grid
-              size={{ xs: 12, md: visibleSupportCards.length === 3 ? 4 : 6 }}
-              key={`support-skeleton-${index}`}
-            >
-              <Skeleton variant="rounded" height={210} sx={{ borderRadius: 3 }} />
+        <Box
+          sx={{
+            minHeight: "40vh",
+            backgroundColor:
+              theme.palette.mode === "light"
+                ? "#f5f5f5"
+                : theme.palette.background.default,
+          }}
+        >
+          <Container maxWidth="lg" sx={{ py: { xs: 5, sm: 6, md: 8 } }}>
+            <Skeleton variant="text" width={240} height={44} />
+            <Skeleton variant="text" width="55%" height={28} sx={{ mb: 3 }} />
+            <Grid container spacing={3} sx={{ mb: { xs: 3, md: 5 } }}>
+              {Array.from({ length: visibleSupportCards.length }).map(
+                (_, index) => (
+                  <Grid
+                    size={{
+                      xs: 12,
+                      md: visibleSupportCards.length === 3 ? 4 : 6,
+                    }}
+                    key={`support-skeleton-${index}`}
+                  >
+                    <Skeleton
+                      variant="rounded"
+                      height={210}
+                      sx={{ borderRadius: 3 }}
+                    />
+                  </Grid>
+                ),
+              )}
             </Grid>
-          ))}
-        </Grid>
-        {loggedIn && <Skeleton variant="rounded" height={280} sx={{ borderRadius: 3 }} />}
-      </Container>
+            {loggedIn && (
+              <Skeleton
+                variant="rounded"
+                height={280}
+                sx={{ borderRadius: 3 }}
+              />
+            )}
+          </Container>
+        </Box>
+      </Box>
     );
   }
 
@@ -249,54 +295,143 @@ export default function HelpSupport() {
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Help &amp; Support</title>
         </Helmet>
-        <ConnectionErrorPanel
-          title="Help & Support Unavailable"
-          onRetry={retryLoadFaqs}
-        />
+        <Box
+          sx={{
+            backgroundColor:
+              theme.palette.mode === "light"
+                ? "#fff9ef"
+                : theme.palette.background.default,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Container maxWidth="lg" sx={{ py: { xs: 5, sm: 6, md: 9 } }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ color: theme.palette.error.main, mb: 2 }}
+            >
+              <ContactSupportOutlinedIcon aria-hidden="true" />
+              <Typography
+                variant="overline"
+                sx={{ fontWeight: 800, letterSpacing: 1.5 }}
+              >
+                Buyer support
+              </Typography>
+            </Stack>
+            <Typography
+              variant="h2"
+              sx={{
+                fontSize: { xs: 40, md: 62 },
+                lineHeight: 1,
+                fontWeight: 800,
+                letterSpacing: "-0.05em",
+                maxWidth: 800,
+              }}
+            >
+              Help &amp; Support
+            </Typography>
+            <Typography
+              color="text.secondary"
+              sx={{ mt: 2, maxWidth: 680, lineHeight: 1.75, fontSize: { md: "1.1rem" } }}
+            >
+              Get answers about artwork delivery, secure checkout, account
+              access, and the studio experience.
+            </Typography>
+          </Container>
+        </Box>
+        <Box
+          sx={{
+            minHeight: "40vh",
+            backgroundColor:
+              theme.palette.mode === "light"
+                ? "#f5f5f5"
+                : theme.palette.background.default,
+          }}
+        >
+          <Container maxWidth="lg" sx={{ py: { xs: 5, sm: 6, md: 8 } }}>
+            <ConnectionErrorPanel
+              title="Help & Support Unavailable"
+              onRetry={retryLoadFaqs}
+            />
+          </Container>
+        </Box>
       </Box>
     );
   }
 
   return (
-    <Container
-      maxWidth="lg"
-      sx={{ py: { xs: 3, md: 8 }, px: { xs: 2, sm: 3 } }}
-    >
+    <Box sx={{ minWidth: 0 }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Help &amp; Support</title>
       </Helmet>
-      <Box sx={{ mb: { xs: 3, md: 5 } }}>
-        <Typography
-          variant="overline"
-          sx={{
-            color: theme.palette.error.main,
-            fontWeight: 800,
-            letterSpacing: 1.5,
-          }}
-        >
-          Help & Support
+      <Box
+        sx={{
+          backgroundColor:
+            theme.palette.mode === "light"
+              ? "#fff9ef"
+              : theme.palette.background.default,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <Container maxWidth="lg" sx={{ py: { xs: 5, sm: 6, md: 9 } }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ color: theme.palette.error.main, mb: 2 }}
+          >
+            <ContactSupportOutlinedIcon aria-hidden="true" />
+            <Typography
+              variant="overline"
+              sx={{ fontWeight: 800, letterSpacing: 1.5 }}
+            >
+              Buyer support
+            </Typography>
+          </Stack>
+          <Typography
+            variant="h2"
+            sx={{
+              fontSize: { xs: 40, md: 62 },
+              lineHeight: 1,
+              fontWeight: 800,
+              letterSpacing: "-0.05em",
+              maxWidth: 800,
+            }}
+          >
+            Help &amp; Support
+          </Typography>
+          <Typography
+            color="text.secondary"
+            sx={{
+              mt: 2,
+              maxWidth: 680,
+              lineHeight: 1.75,
+              fontSize: { md: "1.1rem" },
+            }}
+          >
+            Get answers about artwork delivery, secure checkout, account access,
+            and the studio experience before or after purchase.
+          </Typography>
+        </Container>
+      </Box>
+
+      <Box
+        sx={{
+          minHeight: "40vh",
+          backgroundColor:
+            theme.palette.mode === "light"
+              ? "#f5f5f5"
+              : theme.palette.background.default,
+        }}
+      >
+      <Container maxWidth="lg" sx={{ py: { xs: 5, sm: 6, md: 8 } }}>
+      <Box sx={{ mb: { xs: 3, md: 4 } }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
+          Support resources
         </Typography>
-        <Typography
-          variant="h3"
-          sx={{
-            mt: 1,
-            fontWeight: 800,
-            letterSpacing: "-0.04em",
-            fontSize: { xs: "1.75rem", sm: "2.25rem", md: "3rem" },
-          }}
-        >
-          We’re here to help you collect confidently.
-        </Typography>
-        <Typography
-          color="text.secondary"
-          sx={{
-            mt: 1.5,
-            maxWidth: 720,
-            fontSize: { xs: "0.9rem", sm: "1rem" },
-          }}
-        >
-          Get answers about artwork delivery, secure checkout, account access,
-          and the studio experience before or after purchase.
+        <Typography color="text.secondary">
+          Find quick answers or contact our support team for help.
         </Typography>
       </Box>
 
@@ -339,6 +474,11 @@ export default function HelpSupport() {
                   "&:hover": {
                     borderColor: theme.palette.error.main,
                     boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)",
+                  },
+                  "&:focus-visible": {
+                    outline: "3px solid",
+                    outlineColor: theme.palette.error.main,
+                    outlineOffset: 2,
                   },
                 }),
               }}
@@ -560,6 +700,8 @@ export default function HelpSupport() {
         </Box>
         </Box>
       )}
-    </Container>
+      </Container>
+      </Box>
+    </Box>
   );
 }

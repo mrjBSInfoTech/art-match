@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Box, Link, Stack, Typography } from "@mui/material";
-import { fetchCertificateIdentity } from "../../../api/buyer/certificateAPI.js";
+import {
+  fetchCertificateIdentity,
+  fetchPublicCertificate,
+} from "../../../api/buyer/certificateAPI.js";
 import { fetchSellerCertificateIdentity } from "../../../api/seller/certificateAPI.js";
 import { createCertificateQr } from "../../../utils/certificateQr.js";
 
@@ -22,6 +25,19 @@ const extractOrderItemId = (value) => {
 
   const legacyMatch = /^\/buyer\/certificate\/(\d+)$/.exec(String(value));
   return legacyMatch ? legacyMatch[1] : null;
+};
+
+const extractVerificationToken = (value) => {
+  if (!value) return null;
+
+  try {
+    const pathname = new URL(value, window.location.origin).pathname;
+    const match = /\/buyer\/certificate\/verify\/([a-f0-9]{64})$/.exec(pathname);
+    return match ? match[1] : null;
+  } catch {
+    const match = /\/buyer\/certificate\/verify\/([a-f0-9]{64})$/.exec(String(value));
+    return match ? match[1] : null;
+  }
 };
 
 const getPreferredOrigin = () => {
@@ -64,16 +80,32 @@ export default function CertificateMessage({ message, buyer = true }) {
     setUrl("");
     setCertificateId("");
 
+    const fallbackCertificateId =
+      /Certificate ID: ([A-Za-z0-9-]+)/.exec(message.text || "")?.[1] || "";
+
     const load = async () => {
       const orderItemId = extractOrderItemId(message.image);
-      const identity = orderItemId
-        ? await (buyer
+      const verifyToken = !orderItemId ? extractVerificationToken(message.image) : null;
+      let identity;
+
+      if (orderItemId) {
+        identity = await (buyer
           ? fetchCertificateIdentity(orderItemId)
-          : fetchSellerCertificateIdentity(orderItemId))
-        : {
+          : fetchSellerCertificateIdentity(orderItemId));
+      } else {
+        if (verifyToken) {
+          const publicCert = await fetchPublicCertificate(verifyToken);
+          identity = {
             verificationUrl: coerceVerificationUrl(message.image),
-            certificateId: /Certificate ID: ([A-Za-z0-9-]+)/.exec(message.text || "")?.[1] || "",
+            certificateId: publicCert?.certificateId || fallbackCertificateId,
           };
+        } else {
+          identity = {
+            verificationUrl: coerceVerificationUrl(message.image),
+            certificateId: fallbackCertificateId,
+          };
+        }
+      }
 
       const verificationUrl = coerceVerificationUrl(identity?.verificationUrl);
       if (!verificationUrl) {
@@ -92,8 +124,12 @@ export default function CertificateMessage({ message, buyer = true }) {
       console.error("Certificate QR unavailable:", error?.name || error?.message || error);
       if (active) {
         setFailed(true);
+        if (fallbackCertificateId) {
+          setCertificateId(fallbackCertificateId);
+        }
         const msg = error?.response?.data?.message || error?.message || "";
-        if (error?.response?.status === 410 || /revoked/i.test(msg) || /returned/i.test(msg)) {
+        const status = error?.status ?? error?.response?.status;
+        if (status === 410 || /revoked/i.test(msg) || /returned/i.test(msg)) {
           setRevokedMessage(
             typeof msg === "string" && msg.includes("revoked")
               ? msg

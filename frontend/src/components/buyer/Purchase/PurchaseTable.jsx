@@ -456,15 +456,24 @@ export default function PurchaseTable({
               <TableCell sx={{ whiteSpace: "nowrap" }}>
                 {item.hasCertificate ? (
                   item.certificateRevoked ? (
-                    <Tooltip title="Access has been revoked because this product was returned.">
-                      <Chip
-                        label="Revoked"
-                        size="small"
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.25 }}>
+                      <Tooltip title="Access has been revoked because this product was returned.">
+                        <Chip
+                          label="Revoked"
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          sx={{ height: 22, fontSize: 10.5, fontWeight: 700, borderRadius: 1 }}
+                        />
+                      </Tooltip>
+                      <Typography
+                        variant="caption"
                         color="error"
-                        variant="outlined"
-                        sx={{ height: 22, fontSize: 10.5, fontWeight: 700, borderRadius: 1 }}
-                      />
-                    </Tooltip>
+                        sx={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "normal", maxWidth: 165 }}
+                      >
+                        Unavailable — product returned
+                      </Typography>
+                    </Box>
                   ) : item.isDelivered && item.isPaid ? (
                     <Button
                       component={RouterLink}

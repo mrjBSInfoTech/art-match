@@ -30,8 +30,7 @@ const programKeys = [
   "architecture",
   "interior-design",
   "fine-arts",
-  "advertising-arts",
-  "industrial-design",
+  "visual-communication",
 ];
 const textFields = ["title", "eyebrow", "subtitle", "description", "image", "stat", "statLabel"];
 

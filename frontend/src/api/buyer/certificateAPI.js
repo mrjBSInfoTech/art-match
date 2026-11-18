@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
-const apiRoot = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
+const apiRoot = `${API_BASE_URL}/api`;
 
 const api = axios.create({
   withCredentials: true,
@@ -9,6 +10,21 @@ const api = axios.create({
 });
 
 // HttpOnly cookies handle authentication automatically
+
+const createCertificateApiError = (error, fallbackMessage) => {
+  let message = error.response?.data?.message;
+  if (typeof message !== "string" && typeof error.response?.data === "string") {
+    try {
+      message = JSON.parse(error.response.data).message;
+    } catch {
+      /* Keep the transport error below. */
+    }
+  }
+  const err = new Error(message || error.message || fallbackMessage);
+  err.status = error.response?.status ?? null;
+  err.isConnectionError = !error.response;
+  return err;
+};
 
 export async function fetchBuyerCertificate(orderItemId, { signal } = {}) {
   try {
@@ -19,19 +35,22 @@ export async function fetchBuyerCertificate(orderItemId, { signal } = {}) {
     });
     return response.data;
   } catch (error) {
-    let message = error.response?.data?.message;
-    if (typeof message !== "string" && typeof error.response?.data === "string") {
-      try { message = JSON.parse(error.response.data).message; } catch { /* Keep the transport error below. */ }
-    }
-    throw new Error(message || error.message || "Unable to load certificate");
+    throw createCertificateApiError(error, "Unable to load certificate");
   }
 }
 
 export async function fetchPublicCertificate(token, { signal } = {}) {
-  try { return (await axios.get(`${apiRoot}/buyer/certificates/verify/${encodeURIComponent(token)}`, { signal })).data; }
-  catch (error) { throw new Error(error.response?.data?.message || "Unable to verify certificate."); }
+  try {
+    return (await axios.get(`${apiRoot}/buyer/certificates/verify/${encodeURIComponent(token)}`, { signal })).data;
+  } catch (error) {
+    throw createCertificateApiError(error, "Unable to verify certificate.");
+  }
 }
 
 export async function fetchCertificateIdentity(orderItemId) {
-  return (await api.get(`/order-items/${encodeURIComponent(orderItemId)}/verification`)).data;
+  try {
+    return (await api.get(`/order-items/${encodeURIComponent(orderItemId)}/verification`)).data;
+  } catch (error) {
+    throw createCertificateApiError(error, "Unable to verify certificate.");
+  }
 }

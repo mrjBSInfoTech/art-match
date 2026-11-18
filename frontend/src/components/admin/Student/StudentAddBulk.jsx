@@ -216,14 +216,14 @@ const normalizeCourse = (value) => {
     "bachelor of science in architecture":
       "Bachelor of Science in Architecture",
 
-    "bfa advertising arts": "Bachelor of Fine Arts in Advertising Arts",
+    "bfa visual communication": "Bachelor of Fine Arts in Visual Communication",
 
-    bfaaa: "Bachelor of Fine Arts in Advertising Arts",
+    bfavc: "Bachelor of Fine Arts in Visual Communication",
 
-    bfaa: "Bachelor of Fine Arts in Advertising Arts",
+    bfav: "Bachelor of Fine Arts in Visual Communication",
 
-    "bachelor of fine arts in advertising arts":
-      "Bachelor of Fine Arts in Advertising Arts",
+    "bachelor of fine arts in visual communication":
+      "Bachelor of Fine Arts in Visual Communication",
 
     "bs interior design": "Bachelor of Science in Interior Design",
 
@@ -234,14 +234,6 @@ const normalizeCourse = (value) => {
     "bachelor of science in interior design":
       "Bachelor of Science in Interior Design",
 
-    "bfa industrial design": "Bachelor of Fine Arts in Industrial Design",
-
-    bfaid: "Bachelor of Fine Arts in Industrial Design",
-
-    "bfa id": "Bachelor of Fine Arts in Industrial Design",
-
-    "bachelor of fine arts in industrial design":
-      "Bachelor of Fine Arts in Industrial Design",
   };
 
   return courseAliases[text] || String(value || "").trim();

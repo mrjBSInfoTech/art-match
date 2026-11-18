@@ -17,24 +17,20 @@ export const defaultFooterContent = {
       title: "Programs",
       links: [
         {
-          label: "Bachelor of Science in Architecture",
+          label: "BS Architecture",
           url: "/buyer/programs/architecture",
         },
         {
-          label: "Bachelor of Fine Arts in Painting",
+          label: "BFA Painting",
           url: "/buyer/programs/fine-arts",
         },
         {
-          label: "Bachelor of Fine Arts in Advertising Arts",
-          url: "/buyer/programs/advertising-arts",
+          label: "BFA Visual Communication",
+          url: "/buyer/programs/visual-communication",
         },
         {
-          label: "Bachelor of Science in Interior Design",
+          label: "BS Interior Design",
           url: "/buyer/programs/interior-design",
-        },
-        {
-          label: "Bachelor of Fine Arts in Industrial Design",
-          url: "/buyer/programs/industrial-design",
         },
       ],
     },

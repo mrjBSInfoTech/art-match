@@ -401,6 +401,18 @@ export default function PurchaseInfo({
                   <Typography sx={{ color: "#dc2626", fontWeight: 800, fontSize: 12.5 }}>
                     {formatCurrency(item.lineTotal || (item.price * item.qty))}
                   </Typography>
+                  {item.hasCertificate && item.certificateRevoked && (
+                    <Typography
+                      sx={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        color: "error.main",
+                        mt: 0.25,
+                      }}
+                    >
+                      Certificate unavailable (product returned)
+                    </Typography>
+                  )}
                   {item.hasCertificate && !item.certificateRevoked && rawOrder.status === "Delivered" && (
                     <Button
                       component={RouterLink}

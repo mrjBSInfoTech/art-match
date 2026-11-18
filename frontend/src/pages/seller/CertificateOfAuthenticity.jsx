@@ -8,6 +8,8 @@ import {
   CardContent,
   CircularProgress,
   MenuItem,
+  Snackbar,
+  Slide,
   Stack,
   TextField,
   Typography,
@@ -28,6 +30,10 @@ import {
 import { createCertificateQr } from "../../utils/certificateQr.js";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
+
+function SlideTransition(props) {
+  return <Slide {...props} direction="up" />;
+}
 
 const today = () => {
   const date = new Date();
@@ -129,7 +135,9 @@ export default function CertificateOfAuthenticity() {
   const [publishedCertificate, setPublishedCertificate] = useState(null);
   const [publicationLoading, setPublicationLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [publishMessage, setPublishMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
   const approvedArtworks = useMemo(
     () =>
@@ -295,7 +303,6 @@ export default function CertificateOfAuthenticity() {
       return;
     setPublishing(true);
     setError("");
-    setPublishMessage("");
     try {
       const svg =
         publishedCertificate?.svg ||
@@ -317,13 +324,38 @@ export default function CertificateOfAuthenticity() {
         ...published,
         publishedAt: new Date().toISOString(),
       });
-      setPublishMessage(
+      showSnackbar(
         "Published. The certificate QR code will be sent in the buyer's messages immediately upon delivery.",
+        "success",
       );
     } catch (publishError) {
       setError(publishError.message || "Unable to publish this certificate.");
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case "error":
+        return theme.palette.error.main;
+      case "warning":
+        return theme.palette.warning.main;
+      case "info":
+        return theme.palette.info.main;
+      default:
+        return theme.palette.success.main;
     }
   };
 
@@ -597,9 +629,6 @@ export default function CertificateOfAuthenticity() {
                       becomes unavailable when the order return is completed.
                     </Alert>
                   )}
-                  {publishMessage && (
-                    <Alert severity="success">{publishMessage}</Alert>
-                  )}
                 </Stack>
               </CardContent>
             </Card>
@@ -650,6 +679,50 @@ export default function CertificateOfAuthenticity() {
           </Box>
         )}
       </Stack>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        TransitionComponent={SlideTransition}
+        sx={{
+          "& .MuiSnackbar-root": {
+            width: "auto",
+          },
+        }}
+      >
+        <Alert
+          onClose={closeSnackbar}
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{
+            width: { xs: 280, sm: 360 },
+            minHeight: 48,
+            borderRadius: 2,
+            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
+            backgroundColor: getSeverityColor(snackbarSeverity),
+            color: "#fff",
+            alignItems: "center",
+            "& .MuiAlert-icon": {
+              color: "#fff",
+              mr: 1,
+            },
+            "& .MuiAlert-message": {
+              fontWeight: 600,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+            },
+            "& .MuiAlert-action": {
+              alignItems: "center",
+              paddingLeft: 1,
+              color: "#fff",
+            },
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

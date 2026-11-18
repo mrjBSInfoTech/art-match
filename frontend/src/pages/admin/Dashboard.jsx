@@ -55,6 +55,13 @@ import SellRoundedIcon from "@mui/icons-material/SellRounded";
 import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
+const DASHBOARD_PROGRAM_NAMES = new Set([
+  "BS Architecture",
+  "BFA Painting",
+  "BFA Visual Communication",
+  "BS Interior Design",
+]);
+
 // Slide Transition for Snackbar
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -274,7 +281,9 @@ export default function Dashboard() {
   }
 
   const salesData = statistics?.monthlySales || [];
-  const programData = buildProgramDistribution(students, artworks);
+  const programData = buildProgramDistribution(students, artworks).filter(
+    (program) => DASHBOARD_PROGRAM_NAMES.has(program.name),
+  );
   const artworkDistributionCount = programData.reduce(
     (total, program) => total + program.artworks,
     0,

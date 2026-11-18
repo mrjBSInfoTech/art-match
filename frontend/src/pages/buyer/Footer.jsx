@@ -21,7 +21,7 @@ import logo from "../../assets/Nexus.png";
 const defaultFooterContent = {
   brandName: "RED NEXUS",
   description:
-    "An e-commerce marketplace powered by the Central Academy of Fine Arts student community. Curating true creative expressions straight from the studio.",
+    "An e-commerce marketplace powered by the College of Architecture and Fine Arts community. Curating true creative expressions straight from the studio.",
   columns: [
     {
       title: "Acquire Art",
@@ -35,25 +35,21 @@ const defaultFooterContent = {
       title: "Programs",
       links: [
         {
-          label: "Bachelor of Science in Architecture",
+          label: "BS Architecture",
           url: "/buyer/programs/architecture",
         },
         {
-          label: "Bachelor of Fine Arts in Painting",
+          label: "BFA Painting",
           url: "/buyer/programs/fine-arts",
         },
         {
-          label: "Bachelor of Fine Arts in Advertising Arts",
-          url: "/buyer/programs/advertising-arts",
+          label: "BFA Visual Communication",
+          url: "/buyer/programs/visual-communication",
         },
         {
-          label: "Bachelor of Science in Interior Design",
+          label: "BS Interior Design",
           url: "/buyer/programs/interior-design",
         },
-        {
-          label: "Bachelor of Fine Arts in Industrial Design",
-          url: "/buyer/programs/industrial-design",
-        },           
       ],
     },
     {
@@ -66,7 +62,7 @@ const defaultFooterContent = {
     },
   ],
   copyright:
-    "© {year} CAFArtMart. Powered safely by Central Academy of Fine Arts.",
+    "© {year} RED NEXUS. Powered safely by College of Architecture and Fine Arts.",
   socials: [
     { platform: "Twitter", url: "" },
     { platform: "Facebook", url: "" },
@@ -123,15 +119,7 @@ const Footer = () => {
           column.title === "Programs"
             ? {
                 ...column,
-                links: [
-                  ...programLinks,
-                  ...column.links.filter(
-                    (link) =>
-                      !programLinks.some(
-                        (programLink) => programLink.url === link.url,
-                      ),
-                  ),
-                ],
+                links: programLinks,
               }
             : column,
         ),
@@ -208,20 +196,24 @@ const Footer = () => {
     >
       <Container
         maxWidth="xl"
-        sx={{ px: { xs: 2, sm: 4, lg: 6 }, py: { xs: 4, md: 6 } }}
+        sx={{
+          px: { xs: 2, sm: 4, lg: 6 },
+          py: { xs: 3.5, sm: 4.5, md: 6 },
+          overflowX: "clip",
+        }}
       >
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
               xs: "minmax(0, 1fr)",
-              sm: "minmax(0, 1fr) minmax(0, 1.5fr)",
+              md: "minmax(240px, 0.9fr) minmax(0, 2fr)",
               lg: "minmax(260px, 0.9fr) minmax(0, 2fr)",
             },
-            gap: { xs: 4, sm: 4, lg: 8 },
+            gap: { xs: 3, sm: 3.5, md: 5, lg: 8 },
           }}
         >
-          <Box sx={{ maxWidth: 390, minWidth: 0 }}>
+          <Box sx={{ maxWidth: { xs: "100%", md: 390 }, minWidth: 0 }}>
             <Stack
               direction="row"
               alignItems="center"
@@ -232,7 +224,7 @@ const Footer = () => {
                 component="img"
                 src={logo}
                 alt={content.brandName}
-                sx={{ width: 32, height: 38, objectFit: "contain" }}
+                sx={{ width: 32, height: 38, objectFit: "contain", flexShrink: 0 }}
               />
               <Typography
                 sx={{
@@ -250,8 +242,8 @@ const Footer = () => {
               sx={{
                 color: footerText,
                 lineHeight: 1.7,
-                maxWidth: 360,
-                fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                maxWidth: { xs: "100%", md: 360 },
+                fontSize: { xs: "0.875rem", sm: "0.95rem" },
                 opacity: 0.9,
               }}
             >
@@ -262,23 +254,23 @@ const Footer = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "repeat(2, minmax(0, 1fr))",
-                md: "repeat(3, minmax(0, 1fr))",
-              },
-              gap: { xs: 2.5, sm: 2, lg: 4 },
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: { xs: 1.5, sm: 3, lg: 4 },
               minWidth: 0,
+              alignItems: "start",
             }}
           >
             {content.columns.map((column, index) => (
-              <Stack spacing={0.5} sx={{ minWidth: 0 }} key={`${column.title}-${index}`}>
+              <Stack spacing={{ xs: 0.25, md: 0.5 }} sx={{ minWidth: 0 }} key={`${column.title}-${index}`}>
                 <Typography
                   variant="subtitle1"
                   sx={{
                     color: footerText,
                     fontWeight: 800,
                     mb: 0.5,
-                    fontSize: { xs: 14, sm: 15 },
+                    fontSize: { xs: 12, sm: 14.5, md: 15 },
+                    lineHeight: 1.3,
+                    overflowWrap: "break-word",
                   }}
                 >
                   {column.title}
@@ -298,7 +290,7 @@ const Footer = () => {
         </Box>
 
         <Divider
-          sx={{ my: { xs: 3, md: 4 }, borderColor: "rgba(255,247,242,0.3)" }}
+          sx={{ my: { xs: 2.5, sm: 3, md: 4 }, borderColor: "rgba(255,247,242,0.3)" }}
         />
 
         <Stack
@@ -306,6 +298,7 @@ const Footer = () => {
           justifyContent="space-between"
           alignItems={{ xs: "flex-start", sm: "center" }}
           spacing={{ xs: 1.5, sm: 2 }}
+          sx={{ minWidth: 0 }}
         >
           <Typography
             variant="body2"
@@ -314,11 +307,12 @@ const Footer = () => {
               fontSize: { xs: 12, sm: 13 },
               lineHeight: 1.6,
               opacity: 0.9,
+              overflowWrap: "break-word",
             }}
           >
             {content.copyright.replaceAll("{year}", String(new Date().getFullYear()))}
           </Typography>
-          <Stack direction="row" spacing={0.75}>
+          <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
             {content.socials.map((social, index) => {
               const SocialIcon = socialIcons[social.platform];
               if (!SocialIcon) return null;
@@ -367,10 +361,13 @@ const FooterLink = ({ to, children, color }) => {
         textDecoration: "none",
         display: "flex",
         alignItems: "center",
-        minHeight: 44,
+        minHeight: { xs: 34, sm: 38, md: 44 },
+        py: { xs: 0.25, md: 0 },
         opacity: 0.86,
-        fontSize: { xs: "0.85rem", sm: "0.9rem" },
-        lineHeight: 1.4,
+        fontSize: { xs: "0.75rem", sm: "0.85rem", md: "0.9rem" },
+        lineHeight: 1.35,
+        overflowWrap: "break-word",
+        wordBreak: "normal",
         "&:hover": { opacity: 1, textDecoration: "underline" },
         "&:focus-visible": {
           outline: "2px solid currentColor",

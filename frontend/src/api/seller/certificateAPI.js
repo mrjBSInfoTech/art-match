@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
-  baseURL: `${(import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "")}/seller/certificates`,
+  baseURL: `${API_BASE_URL}/api/seller/certificates`,
   timeout: 30000,
 });
 

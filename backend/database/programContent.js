@@ -2,7 +2,7 @@ import db from "./db.js";
 
 export const defaultProgramContent = {
   architecture: {
-    title: "Bachelor of Science in Architecture",
+    title: "BS Architecture",
     eyebrow: "CAFA Program",
     subtitle: "Spaces that give ideas a place to live.",
     description:
@@ -14,7 +14,7 @@ export const defaultProgramContent = {
     statLabel: "studio projects",
   },
   "interior-design": {
-    title: "Bachelor of Science in Interior Design",
+    title: "BS Interior Design",
     eyebrow: "CAFA Program",
     subtitle: "Objects, rooms, and moods in conversation.",
     description:
@@ -26,7 +26,7 @@ export const defaultProgramContent = {
     statLabel: "design studies",
   },
   "fine-arts": {
-    title: "Bachelor of Fine Arts in Painting",
+    title: "BFA Painting",
     eyebrow: "CAFA Program",
     subtitle: "A direct line from studio practice to collection.",
     description:
@@ -37,8 +37,8 @@ export const defaultProgramContent = {
     stat: "86+",
     statLabel: "original works",
   },
-  "advertising-arts": {
-    title: "Bachelor of Fine Arts in Advertising Arts",
+  "visual-communication": {
+    title: "BFA Visual Communication",
     eyebrow: "CAFA Program",
     subtitle: "Ideas made visible, compelling, and clear.",
     description:
@@ -49,18 +49,38 @@ export const defaultProgramContent = {
     stat: "18+",
     statLabel: "creative projects",
   },
-  "industrial-design": {
-    title: "Bachelor of Fine Arts in Industrial Design",
-    eyebrow: "CAFA Program",
-    subtitle: "Useful objects, considered from every angle.",
-    description:
-      "Discover product and object studies that bring thoughtful form, materials, and everyday use together.",
-    image:
-      "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1200&q=85",
-    focus: ["Product development", "Materials and form", "Human-centered design"],
-    stat: "20+",
-    statLabel: "design studies",
-  },
+};
+
+const legacyTitleBySlug = {
+  architecture: new Set(["Bachelor of Science in Architecture"]),
+  "interior-design": new Set(["Bachelor of Science in Interior Design"]),
+  "fine-arts": new Set([
+    "Bachelor of Fine Arts in Painting",
+    "Bachelor of Fine Arts, Major in Painting",
+  ]),
+  "visual-communication": new Set([
+    "Bachelor of Fine Arts in Visual Communication",
+    "Bachelor of Fine Arts, Major in Visual Communication",
+  ]),
+};
+
+const normalizeProgramContent = (content) => {
+  if (!content || typeof content !== "object" || Array.isArray(content)) {
+    return defaultProgramContent;
+  }
+  return Object.fromEntries(
+    Object.entries(defaultProgramContent).map(([slug, fallback]) => {
+      const entry = content[slug];
+      if (!entry || typeof entry !== "object") {
+        return [slug, fallback];
+      }
+      const legacyTitles = legacyTitleBySlug[slug];
+      if (legacyTitles?.has(String(entry.title || "").trim())) {
+        return [slug, { ...fallback, ...entry, title: fallback.title }];
+      }
+      return [slug, { ...fallback, ...entry }];
+    }),
+  );
 };
 
 export function ensureProgramContentTable() {
@@ -93,7 +113,7 @@ export function getProgramContent() {
           return reject(new Error("Program page content has not been initialized."));
         }
         try {
-          resolve(JSON.parse(rows[0].content_json));
+          resolve(normalizeProgramContent(JSON.parse(rows[0].content_json)));
         } catch (parseError) {
           reject(new Error(`Unable to parse saved Program page content: ${parseError.message}`));
         }

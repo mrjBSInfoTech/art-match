@@ -35,7 +35,7 @@ function SnackbarTransition(props) {
 const programSlides = [
   {
     slug: "architecture",
-    title: "Bachelor of Science in Architecture",
+    title: "BS Architecture",
     description:
       "Explore architectural studies, models, and visual experiments shaped by students who think carefully about people, place, and possibility.",
     image:
@@ -48,7 +48,7 @@ const programSlides = [
   },
   {
     slug: "fine-arts",
-    title: "Bachelor of Fine Arts in Painting",
+    title: "BFA Painting",
     description:
       "Discover paintings, sculpture, printmaking, and mixed media works from artists developing their own visual language inside the academy.",
     image:
@@ -60,8 +60,8 @@ const programSlides = [
     statLabel: "original works",
   },
   {
-    slug: "advertising-arts",
-    title: "Bachelor of Fine Arts in Advertising Arts",
+    slug: "visual-communication",
+    title: "BFA Visual Communication",
     description:
       "Explore visual communication, campaign concepts, and creative work shaped by students turning ideas into memorable messages.",
     image:
@@ -74,7 +74,7 @@ const programSlides = [
   },
   {
     slug: "interior-design",
-    title: "Bachelor of Science in Interior Design",
+    title: "BS Interior Design",
     description:
       "Meet the makers exploring how light, texture, furniture, and human movement can transform an interior into an experience.",
     image:
@@ -87,19 +87,6 @@ const programSlides = [
       "Human-centered spaces",
     ],
     stat: "24+",
-    statLabel: "design studies",
-  },
-  {
-    slug: "industrial-design",
-    title: "Bachelor of Fine Arts in Industrial Design",
-    description:
-      "Discover product and object studies that bring thoughtful form, materials, and everyday use together.",
-    image:
-      "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1200&q=85",
-    eyebrow: "CAFA Program",
-    subtitle: "Useful objects, considered from every angle.",
-    focus: ["Product development", "Materials and form", "Human-centered design"],
-    stat: "20+",
     statLabel: "design studies",
   },
 ];

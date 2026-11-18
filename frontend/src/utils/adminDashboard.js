@@ -1,9 +1,8 @@
 const definitions = [
   { name: "BS Architecture", color: "#ef2028" },
   { name: "BFA Painting", color: "#f6a400" },
-  { name: "BFA Advertising Arts", color: "#6366e8" },
+  { name: "BFA Visual Communication", color: "#6366e8" },
   { name: "BS Interior Design", color: "#10b981" },
-  { name: "BFA Industrial Design", color: "#12a9c5" },
 ];
 const normalize = value => String(value || "").toLowerCase()
   .replace(/bachelor of science(?: in)?\b/g, "bs")
