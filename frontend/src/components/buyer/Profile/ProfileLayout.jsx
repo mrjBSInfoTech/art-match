@@ -151,7 +151,11 @@ const ProfileLayout = ({ showBack = false, children }) => {
   useEffect(() => {
     const refresh = () => refreshProfile((value) => value + 1);
     window.addEventListener("buyer-profile-updated", refresh);
-    return () => window.removeEventListener("buyer-profile-updated", refresh);
+    window.addEventListener("buyer-profile-synced", refresh);
+    return () => {
+      window.removeEventListener("buyer-profile-updated", refresh);
+      window.removeEventListener("buyer-profile-synced", refresh);
+    };
   }, []);
   const username = localStorage.getItem("buyer_username") || "";
   const buyerName =

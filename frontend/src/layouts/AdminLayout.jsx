@@ -362,12 +362,12 @@ function AdminLayoutContent() {
         sx={{
           color: "text.primary",
           fontWeight: "bold",
-          fontSize: { xs: 16, sm: 20, lg: 22 },
+          fontSize: { xs: 14, sm: 18, lg: 20 },
           lineHeight: 1.2,
           whiteSpace: "nowrap",
         }}
       >
-        Red <span style={{ color: "#ff0000" }}>Nexus</span>
+        RED <span style={{ color: "#ff0000" }}>NEXUS</span>
       </Typography>
     ),
     homeUrl: "/admin/dashboard",

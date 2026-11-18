@@ -62,6 +62,7 @@ import {
   fetchBuyerNotifications,
 } from "../api/buyer/messageAPI";
 import {
+  cacheBuyerProfile,
   getBuyerProfile,
   recordLogout,
 } from "../api/buyer/buyerAuthenticationAPI";
@@ -234,6 +235,7 @@ function BuyerLayoutContent({ children }) {
         setEmail(profile.email || "");
         setPhoneNumber(profile.phone_number || "");
         setProfileImage(profile.profile_image || "");
+        cacheBuyerProfile(profile, { notify: false });
       } catch {
         setUsername("");
         setFirstName("");

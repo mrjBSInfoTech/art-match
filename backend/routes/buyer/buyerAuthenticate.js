@@ -350,6 +350,12 @@ router.put(
             });
             uploadedKey = key;
           } catch (error) {
+            if (process.env.NODE_ENV === "production") {
+              throw Object.assign(
+                new Error("Unable to upload profile image to cloud storage. Please try again."),
+                { status: 502 },
+              );
+            }
             console.warn(
               "Buyer profile B2 upload failed, continuing with local storage:",
               error.message,

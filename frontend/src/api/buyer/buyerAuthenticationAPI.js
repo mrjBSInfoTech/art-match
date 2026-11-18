@@ -48,13 +48,15 @@ export const loginUser = async ({ username, password }) => {
   }
 };
 
-export const cacheBuyerProfile = (profile) => {
+export const cacheBuyerProfile = (profile, { notify = true } = {}) => {
   for (const field of ["username", "first_name", "last_name", "profile_image"]) {
     if (Object.hasOwn(profile, field)) {
       localStorage.setItem(`buyer_${field}`, profile[field] || "");
     }
   }
-  window.dispatchEvent(new Event("buyer-profile-updated"));
+  window.dispatchEvent(
+    new Event(notify ? "buyer-profile-updated" : "buyer-profile-synced"),
+  );
 };
 
 export const updateBuyerProfile = async (profile) => {

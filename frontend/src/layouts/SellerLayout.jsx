@@ -61,10 +61,7 @@ import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import CloseIcon from "@mui/icons-material/Close";
-import {
-  ThemeModeProvider,
-  useThemeMode,
-} from "../theme/ThemeModeProvider";
+import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ProfileAvatar from "../components/common/ProfileAvatar";
 
 const SELLER_SIDEBAR_PREFERENCES = {
@@ -109,7 +106,8 @@ function SellerLayoutContent() {
     () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.orders) === "true",
   );
   const [authenticityExpanded, setAuthenticityExpanded] = useState(
-    () => localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.authenticity) === "true",
+    () =>
+      localStorage.getItem(SELLER_SIDEBAR_PREFERENCES.authenticity) === "true",
   );
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -168,7 +166,8 @@ function SellerLayoutContent() {
       if (conversations) {
         setUnreadMessageCount(
           conversations.reduce(
-            (total, conversation) => total + Number(conversation.unread_count || 0),
+            (total, conversation) =>
+              total + Number(conversation.unread_count || 0),
             0,
           ),
         );
@@ -218,11 +217,17 @@ function SellerLayoutContent() {
 
     checkPayoutWarning();
     window.addEventListener("storage", checkPayoutWarning);
-    window.addEventListener("seller-payout-account-changed", checkPayoutWarning);
+    window.addEventListener(
+      "seller-payout-account-changed",
+      checkPayoutWarning,
+    );
 
     return () => {
       window.removeEventListener("storage", checkPayoutWarning);
-      window.removeEventListener("seller-payout-account-changed", checkPayoutWarning);
+      window.removeEventListener(
+        "seller-payout-account-changed",
+        checkPayoutWarning,
+      );
     };
   }, [location.pathname]);
 
@@ -366,25 +371,39 @@ function SellerLayoutContent() {
   ];
 
   const branding = {
-    logo: (
-      <Box
-        component="img"
-        src={Nexus}
-        alt=""
-        sx={{
-          width: { xs: 24, sm: 30 },
-          height: { xs: 32, sm: 40 },
-          objectFit: "contain",
-        }}
-      />
-    ),
-    title: (
-      <Typography component="span" noWrap sx={{ color: "text.primary", fontWeight: 700, fontSize: { xs: 16, sm: 20, lg: 22 } }}>
-        Red <Box component="span" sx={{ color: "#ff0000" }}>Nexus</Box>
-      </Typography>
-    ),
-    homeUrl: "/seller/dashboard",
-  };
+      logo: (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexShrink: 0,
+            "& img": {
+              width: { xs: 24, sm: 30 },
+              height: { xs: 32, sm: 40 },
+              objectFit: "contain",
+              display: "block",
+            },
+          }}
+        >
+          <img src={Nexus} alt="Red Nexus logo" />
+        </Box>
+      ),
+      title: (
+        <Typography
+          sx={{
+            color: "text.primary",
+            fontWeight: "bold",
+            fontSize: { xs: 14, sm: 18, lg: 20 },
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          RED <span style={{ color: "#ff0000" }}>NEXUS</span>
+        </Typography>
+      ),
+      homeUrl: "/admin/dashboard",
+    };
 
   // Custom header matching the admin layout
   const CustomHeader = () => (
@@ -400,9 +419,15 @@ function SellerLayoutContent() {
         sx={{ color: "text.secondary", width: 40, height: 40, flexShrink: 0 }}
       >
         <Badge
-          badgeContent={notifications.filter((notification) => !Number(notification.is_read)).length}
+          badgeContent={
+            notifications.filter(
+              (notification) => !Number(notification.is_read),
+            ).length
+          }
           color="error"
-          invisible={!notifications.some((notification) => !Number(notification.is_read))}
+          invisible={
+            !notifications.some((notification) => !Number(notification.is_read))
+          }
           max={99}
         >
           <NotificationsNoneIcon sx={{ fontSize: 22 }} />
@@ -421,13 +446,27 @@ function SellerLayoutContent() {
         aria-haspopup="dialog"
         aria-expanded={profileDrawerOpen}
         sx={{
-          minWidth: 40, height: 40, flexShrink: 0, gap: 1,
-          borderRadius: 6, px: { xs: 0.5, sm: 1.5 }, py: 0.5,
-          color: "text.primary", bgcolor: "action.hover",
+          minWidth: 40,
+          height: 40,
+          flexShrink: 0,
+          gap: 1,
+          borderRadius: 6,
+          px: { xs: 0.5, sm: 1.5 },
+          py: 0.5,
+          color: "text.primary",
+          bgcolor: "action.hover",
           "&:hover": { bgcolor: "action.selected" },
         }}
       >
-        <Typography variant="body2" noWrap sx={{ display: { xs: "none", sm: "block" }, fontWeight: 600, maxWidth: { sm: 96, lg: 140 } }}>
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{
+            display: { xs: "none", sm: "block" },
+            fontWeight: 600,
+            maxWidth: { sm: 96, lg: 140 },
+          }}
+        >
           {firstName || "Seller"}
         </Typography>
         <ProfileAvatar
@@ -514,9 +553,21 @@ function SellerLayoutContent() {
         }}
       >
         <Stack sx={{ height: "100%", minHeight: 0 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>Seller profile</Typography>
-            <IconButton onClick={() => setProfileDrawerOpen(false)} aria-label="Close seller profile"><CloseIcon /></IconButton>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ p: 2 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Seller profile
+            </Typography>
+            <IconButton
+              onClick={() => setProfileDrawerOpen(false)}
+              aria-label="Close seller profile"
+            >
+              <CloseIcon />
+            </IconButton>
           </Stack>
           <Divider />
           <Stack
@@ -598,13 +649,33 @@ function SellerLayoutContent() {
         }}
       >
         <Stack sx={{ height: "100%", minHeight: 0 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>Notifications</Typography>
-            <IconButton onClick={() => setNotificationDrawerOpen(false)} aria-label="Close notifications"><CloseIcon /></IconButton>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ p: 2 }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Notifications
+            </Typography>
+            <IconButton
+              onClick={() => setNotificationDrawerOpen(false)}
+              aria-label="Close notifications"
+            >
+              <CloseIcon />
+            </IconButton>
           </Stack>
           <Divider />
           {notifications.length ? (
-            <List sx={{ overflowY: "auto", p: 0, minHeight: 0, flex: 1, overflowWrap: "anywhere" }}>
+            <List
+              sx={{
+                overflowY: "auto",
+                p: 0,
+                minHeight: 0,
+                flex: 1,
+                overflowWrap: "anywhere",
+              }}
+            >
               {notifications.map((notification) => (
                 <ListItemButton key={notification.notification_id}>
                   <ListItemText
@@ -635,13 +706,20 @@ function SellerLayoutContent() {
               <NotificationsNoneIcon
                 sx={{ fontSize: 48, color: "text.secondary", mb: 1 }}
               />
-              <Typography color="text.secondary">No new notifications</Typography>
+              <Typography color="text.secondary">
+                No new notifications
+              </Typography>
             </Stack>
           )}
-          <Button sx={{ m: 2, flexShrink: 0 }} onClick={() => {
-            setNotificationDrawerOpen(false);
-            navigate("/seller/notifications");
-          }}>View all notifications</Button>
+          <Button
+            sx={{ m: 2, flexShrink: 0 }}
+            onClick={() => {
+              setNotificationDrawerOpen(false);
+              navigate("/seller/notifications");
+            }}
+          >
+            View all notifications
+          </Button>
         </Stack>
       </Drawer>
       <MuiDashboardLayout
@@ -685,7 +763,10 @@ function SellerLayoutContent() {
         }}
         sx={{
           backgroundColor: theme.palette.background.default,
-          width: "100%", maxWidth: "100%", height: "100dvh", minWidth: 0,
+          width: "100%",
+          maxWidth: "100%",
+          height: "100dvh",
+          minWidth: 0,
           "& main": { minWidth: 0, minHeight: 0 },
           "& .MuiDrawer-paper": {
             backgroundColor: "#a3181f",
@@ -784,8 +865,14 @@ function SellerLayoutContent() {
         <Box
           sx={{
             p: { xs: 1, sm: 2, md: 2.5, lg: 3 },
-            width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", flex: 1,
-            display: "flex", flexDirection: "column", gap: { xs: 1.5, sm: 2, lg: 3 },
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: { xs: 1.5, sm: 2, lg: 3 },
             "& > *": { minWidth: 0, maxWidth: "100%" },
           }}
         >

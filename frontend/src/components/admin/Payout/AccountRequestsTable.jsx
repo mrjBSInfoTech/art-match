@@ -29,7 +29,10 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import AccountRequestsInfo from "./AccountRequestsInfo";
 import { formatPayoutDate } from "../../seller/Payout/payoutDisplay";
 import { adminTableButtonSx } from "../adminTableStyles";
-import { API_BASE_URL } from "../../../api/apiBase.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 const safeAlpha = (color, opacity) =>
   typeof alpha === "function" ? alpha(color, opacity) : color;
@@ -82,11 +85,7 @@ function SingleAccountRequestCard({ req, busy, onReview, getStatusChip }) {
           {/* Avatar thumbnail container */}
           {(() => {
             const rawImg = req.studentAvatar || req.studentImage;
-            const fullImg = rawImg
-              ? (rawImg.startsWith("http") || rawImg.startsWith("data:")
-                  ? rawImg
-                  : `${API_BASE_URL}${rawImg.startsWith("/") ? "" : "/"}${rawImg}`)
-              : null;
+            const fullImg = resolveProfileImageUrl(rawImg, "seller");
             return (
               <Box
                 sx={{
@@ -103,20 +102,22 @@ function SingleAccountRequestCard({ req, busy, onReview, getStatusChip }) {
                   overflow: "hidden",
                 }}
               >
-                {fullImg ? (
-                  <Box
-                    component="img"
-                    src={fullImg}
-                    alt={req.studentName}
-                    sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                      if (e.target.nextElementSibling) {
-                        e.target.nextElementSibling.style.display = "flex";
+                <Box
+                  component="img"
+                  src={fullImg}
+                  alt={req.studentName}
+                  sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => {
+                    if (e.currentTarget.src !== DEFAULT_PROFILE_IMAGE_URL) {
+                      e.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
+                    } else {
+                      e.currentTarget.style.display = "none";
+                      if (e.currentTarget.nextElementSibling) {
+                        e.currentTarget.nextElementSibling.style.display = "flex";
                       }
-                    }}
-                  />
-                ) : null}
+                    }
+                  }}
+                />
                 <Avatar
                   sx={{
                     width: "100%",
@@ -126,7 +127,7 @@ function SingleAccountRequestCard({ req, busy, onReview, getStatusChip }) {
                     color: "error.main",
                     fontWeight: 800,
                     fontSize: 20,
-                    display: fullImg ? "none" : "flex",
+                    display: "none",
                   }}
                 >
                   {req.studentName ? req.studentName.charAt(0).toUpperCase() : "S"}

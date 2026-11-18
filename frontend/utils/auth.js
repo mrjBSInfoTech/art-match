@@ -38,6 +38,7 @@ const SELLER_AUTH_KEYS = [
   "seller_first_name",
   "seller_middle_name",
   "seller_last_name",
+  "seller_profile_image",
 ];
 
 // For buyer part

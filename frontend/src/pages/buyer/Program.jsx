@@ -13,6 +13,7 @@ import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 const defaultPrograms = {
   architecture: {
     title: "BS Architecture",
+    course: "BS Architecture",
     eyebrow: "CAFA Program",
     subtitle: "Spaces that give ideas a place to live.",
     description:
@@ -27,6 +28,7 @@ const defaultPrograms = {
   },
   "interior-design": {
     title: "BS Interior Design",
+    course: "BS Interior Design",
     eyebrow: "CAFA Program",
     subtitle: "Objects, rooms, and moods in conversation.",
     description:
@@ -45,6 +47,7 @@ const defaultPrograms = {
   },
   "fine-arts": {
     title: "BFA Painting",
+    course: "BFA Painting",
     eyebrow: "CAFA Program",
     subtitle: "A direct line from studio practice to collection.",
     description:
@@ -59,6 +62,7 @@ const defaultPrograms = {
   },
   "visual-communication": {
     title: "BFA Visual Communication",
+    course: "BFA Visual Communication",
     eyebrow: "CAFA Program",
     subtitle: "Ideas made visible, compelling, and clear.",
     description:
@@ -107,7 +111,11 @@ export default function Program() {
             Object.fromEntries(
               Object.entries(current).map(([key, fallback]) => [
                 key,
-                { ...fallback, ...savedPrograms[key] },
+                {
+                  ...fallback,
+                  ...savedPrograms[key],
+                  course: fallback.course,
+                },
               ]),
             ),
           );
@@ -210,6 +218,7 @@ export default function Program() {
             theme.palette.mode === "light"
               ? "#fff9ef"
               : theme.palette.background.default,
+          overflowX: "clip",
         }}
       >
         <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
@@ -217,7 +226,7 @@ export default function Program() {
             <title>{details.title}</title>
           </Helmet>
           <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={6} sx={{ minWidth: 0 }}>
               <Stack
                 direction="row"
                 spacing={1}
@@ -235,17 +244,29 @@ export default function Program() {
               <Typography
                 variant="h2"
                 sx={{
-                  fontSize: { xs: 40, md: 62 },
-                  lineHeight: 1,
+                  fontSize: {
+                    xs: "clamp(1.75rem, 7.5vw, 2.35rem)",
+                    sm: 42,
+                    md: 52,
+                    lg: 62,
+                  },
+                  lineHeight: { xs: 1.08, md: 1 },
                   fontWeight: 800,
-                  letterSpacing: "-0.05em",
+                  letterSpacing: "-0.04em",
+                  overflowWrap: "break-word",
+                  maxWidth: "100%",
                 }}
               >
                 {details.title}
               </Typography>
               <Typography
                 variant="h5"
-                sx={{ mt: 2, fontWeight: 700, lineHeight: 1.25 }}
+                sx={{
+                  mt: 2,
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  fontSize: { xs: "1.2rem", sm: "1.35rem", md: "1.5rem" },
+                }}
               >
                 {details.subtitle}
               </Typography>
@@ -264,14 +285,16 @@ export default function Program() {
                   variant="contained"
                   endIcon={<ArrowForwardIcon />}
                   onClick={() =>
-                    navigate(`/buyer/shop/${encodeURIComponent(details.title)}`)
+                    navigate(
+                      `/buyer/shop?course=${encodeURIComponent(details.course)}`,
+                    )
                   }
                   sx={{
                     borderRadius: 999,
                     px: 2.5,
-                    backgroundColor: details.accent,
+                    backgroundColor: "#b53a3a",
                     color: "#fff",
-                    "&:hover": { backgroundColor: details.accent },
+                    "&:hover": { backgroundColor: "#982e2e" },
                   }}
                 >
                   Explore {details.title}

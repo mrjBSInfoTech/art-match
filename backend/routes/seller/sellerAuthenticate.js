@@ -633,6 +633,12 @@ router.put(
 
             console.log("Seller profile uploaded to B2:", newB2Key);
           } catch (b2Error) {
+            if (process.env.NODE_ENV === "production") {
+              throw Object.assign(
+                new Error("Unable to upload profile image to cloud storage. Please try again."),
+                { status: 502 },
+              );
+            }
             console.warn(
               "Seller profile B2 upload failed, continuing with local storage:",
               b2Error.message,

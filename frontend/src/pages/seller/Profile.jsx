@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Chip,
@@ -23,7 +22,7 @@ import { useNavigate } from "react-router-dom";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
 import SellerLoadingPanel from "../../components/seller/SellerLoadingPanel";
 import { getSellerProfile } from "../../api/seller/sellerAPI";
-import { resolveProfileImageUrl } from "../../utils/profileImage.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 
 const profileFields = [
   "first_name",
@@ -37,8 +36,6 @@ const profileFields = [
   "course",
   "year_level",
 ];
-
-const getProfileImage = (image) => resolveProfileImageUrl(image, "seller");
 
 const formatDate = (value) => {
   if (!value) return "N/A";
@@ -104,6 +101,8 @@ export default function Profile() {
         setProfileImage(data.profile_image || "");
         if (data.profile_image) {
           localStorage.setItem("seller_profile_image", data.profile_image);
+        } else {
+          localStorage.removeItem("seller_profile_image");
         }
         setError("");
       })
@@ -178,8 +177,9 @@ export default function Profile() {
           alignItems="center"
           textAlign={{ xs: "center", sm: "left" }}
         >
-          <Avatar
-            src={getProfileImage(profileImage)}
+          <ProfileAvatar
+            image={profileImage}
+            role="seller"
             alt={fullName || "Seller"}
             sx={{
               width: 90,

@@ -105,9 +105,11 @@ export default function Settings() {
           last_name: profile.last_name || "",
           email: profile.email || "",
         });
+        setAdminImage(profile.image || "");
         if (profile.image) {
-          setAdminImage(profile.image);
           localStorage.setItem("admin_image", profile.image);
+        } else {
+          localStorage.removeItem("admin_image");
         }
       })
       .catch(() =>
@@ -138,9 +140,14 @@ export default function Settings() {
     if (!adminId) throw new Error("Admin account not found.");
 
     const response = await updateAdmin(adminId, { file });
-    const image = response.image || file.name;
+    const latestProfile = response?.image ? null : await getAdminProfile().catch(() => null);
+    const image = response?.image || latestProfile?.image || "";
     setAdminImage(image);
-    localStorage.setItem("admin_image", image);
+    if (image) {
+      localStorage.setItem("admin_image", image);
+    } else {
+      localStorage.removeItem("admin_image");
+    }
     window.dispatchEvent(new Event("admin-profile-updated"));
     showSnackbar("Profile image updated successfully.");
   };

@@ -30,6 +30,7 @@ import { getSearchColor } from "../../utils/artworkColors";
 import { PRICE_LIMIT, readPriceRange, matchesPriceRange, formatPriceRange } from "../../utils/artworkPrice";
 import { scoreArtworkSearch } from "../../utils/artworkSearch";
 import { matchesArtworkCategoryFilters } from "../../utils/artworkCategoryFilters";
+import { getCourseLabel, matchesCourse } from "../../utils/courseFilter.js";
 import { isAuthenticated } from "../../../utils/auth";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
@@ -70,6 +71,8 @@ export default function Shop() {
   const { genre } = useParams();
   const [searchParams] = useSearchParams();
   const recommendationsOnly = searchParams.get("recommendations") === "1";
+  const selectedCourse = (searchParams.get("course") || "").trim();
+  const selectedCourseLabel = getCourseLabel(selectedCourse);
   const [minimumPrice, maximumPrice] = readPriceRange(searchParams);
   const hasPriceFilter = minimumPrice > 0 || maximumPrice < PRICE_LIMIT;
   const searchQuery = (searchParams.get("q") || "").trim().toLowerCase();
@@ -214,6 +217,7 @@ export default function Shop() {
       artworks
         .filter((artwork) =>
           (!selectedGenre || String(artwork.genre || "").toLowerCase() === selectedGenre) &&
+          matchesCourse(artwork.course, selectedCourse) &&
           matchesPriceRange(artwork.price, minimumPrice, maximumPrice) &&
           matchesArtworkCategoryFilters(artwork, categoryFilters),
         )
@@ -221,7 +225,7 @@ export default function Shop() {
         .filter(({ score }) => score >= 0)
         .sort((a, b) => b.score - a.score)
         .map(({ artwork }) => artwork),
-    [artworks, searchQuery, selectedGenre, minimumPrice, maximumPrice, categoryFilters],
+    [artworks, searchQuery, selectedGenre, selectedCourse, minimumPrice, maximumPrice, categoryFilters],
   );
   const pageCount = Math.max(1, Math.ceil(visibleArtworks.length / PAGE_SIZE));
   const pageArtworks = visibleArtworks.slice(
@@ -230,24 +234,28 @@ export default function Shop() {
   );
   const pageTitle = recommendationsOnly
     ? "Recommended for you"
-    : selectedGenre
-      ? `${genre} artwork`
-      : searchQuery
-        ? "Search results"
-        : "Shop artwork";
+    : selectedCourse
+      ? `${selectedCourseLabel} artwork`
+      : selectedGenre
+        ? `${genre} artwork`
+        : searchQuery
+          ? "Search results"
+          : "Shop artwork";
   const collectionLabel = recommendationsOnly
     ? "Recommended artworks"
-    : selectedGenre
-      ? `Shop / ${genre}`
-      : searchQuery
-        ? `Results for \u201c${searchLabel}\u201d`
-        : hasCategoryFilters
-          ? "Filtered artworks"
-          : "All artworks";
+    : selectedCourse
+      ? `Course / ${selectedCourseLabel}`
+      : selectedGenre
+        ? `Shop / ${genre}`
+        : searchQuery
+          ? `Results for \u201c${searchLabel}\u201d`
+          : hasCategoryFilters
+            ? "Filtered artworks"
+            : "All artworks";
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedGenre, minimumPrice, maximumPrice, recommendationsOnly, searchParams]);
+  }, [searchQuery, selectedGenre, selectedCourse, minimumPrice, maximumPrice, recommendationsOnly, searchParams]);
 
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);

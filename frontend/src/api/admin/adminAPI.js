@@ -76,6 +76,7 @@ export const addAdmin = async (adminData) => {
 
     const res = await api.post("/admin/admin", formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 30000,
     });
     return res.data;
   } catch (error) {
@@ -120,6 +121,7 @@ export const updateAdmin = async (id, adminData) => {
 
     const res = await api.put(`/admin/admin/${id}`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 30000,
     });
     return res.data;
   } catch (error) {

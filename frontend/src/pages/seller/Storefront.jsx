@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Chip,
@@ -27,7 +26,7 @@ import {
   fetchStorefront,
   saveStorefront,
 } from "../../api/seller/storefrontAPI";
-import { resolveProfileImageUrl } from "../../utils/profileImage.js";
+import ProfileAvatar from "../../components/common/ProfileAvatar";
 import StorefrontCard from "../../components/seller/Storefront/StorefrontCard";
 import { ART_2D_MATERIALS, ART_STYLES } from "../../constants/artworkOptions";
 import ConnectionErrorPanel from "../../components/seller/ConnectionErrorPanel";
@@ -77,9 +76,6 @@ const getSavedSpecialties = (response) => {
   }
   return parseArray(response.specialties);
 };
-
-const getProfileImage = (profileImage) =>
-  resolveProfileImageUrl(profileImage, "seller");
 
 export default function Storefront() {
   const theme = useTheme();
@@ -517,8 +513,9 @@ export default function Storefront() {
                   minWidth: 0,
                 }}
               >
-                <Avatar
-                  src={getProfileImage(sellerProfile.profile_image)}
+                <ProfileAvatar
+                  image={sellerProfile.profile_image}
+                  role="seller"
                   alt={artistName}
                   sx={{
                     width: { xs: 96, sm: 120 },

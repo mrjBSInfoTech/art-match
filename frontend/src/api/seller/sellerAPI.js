@@ -27,7 +27,7 @@ export const updateSeller = async (sellerId, data) => {
   try {
     const config =
       data instanceof FormData
-        ? { headers: { "Content-Type": "multipart/form-data" } }
+        ? { headers: { "Content-Type": "multipart/form-data" }, timeout: 30000 }
         : {};
     const res = await api.put("/me", data, config);
     return res.data;

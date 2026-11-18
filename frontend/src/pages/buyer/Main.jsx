@@ -613,7 +613,7 @@ export default function Main() {
           <title>Main</title>
         </Helmet>
         <ConnectionErrorPanel
-          title="Gallery Temporarily Unavailable"
+          title="Home Page Unavailable"
           onRetry={handleRetry}
         />
       </Box>

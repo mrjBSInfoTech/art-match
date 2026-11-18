@@ -36,6 +36,7 @@ import {
 } from "@mui/icons-material";
 import Nexus from "../../assets/Nexus.png";
 import { registerUser } from "../../api/seller/sellerAuthenticationAPI";
+import { courseOptions } from "../../components/admin/Student/studentOptions";
 import { isAuthenticated } from "../../../utils/auth";
 
 function SlideTransition(props) {
@@ -712,12 +713,11 @@ export default function Register() {
                 }}
               >
                 <MenuItem value="">Select a course</MenuItem>
-                <MenuItem value="Bachelor of Science in Architecture">
-                  Bachelor of Science in Architecture
-                </MenuItem>
-                <MenuItem value="Bachelor of Science in Fine Arts">
-                  Bachelor of Science in Fine Arts
-                </MenuItem>
+                {courseOptions.map((course) => (
+                  <MenuItem key={course} value={course}>
+                    {course}
+                  </MenuItem>
+                ))}
               </Select>
             </Box>
             <Box>

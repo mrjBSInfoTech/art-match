@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPayoutService } from "../utils/payouts.js";
+import { ensurePayoutWalletTables } from "../database/payoutWallet.js";
+import { getCustomWalletId, setCustomWalletId } from "../utils/paymongoPayouts.js";
 
 function mockExecutor() {
   const store = {
@@ -168,8 +170,9 @@ function mockExecutor() {
 
       if (normalized.includes("UPDATE admin_payout_wallet_change_request SET status = 'Cancelled'")) {
         const reqId = Number(params[0]);
-        const r = store.requests.find(x => x.request_id === reqId);
-        if (r) r.status = "Cancelled";
+        const r = store.requests.find(x => x.request_id === reqId && ["Pending", "Approved"].includes(x.status));
+        if (!r) return [{ affectedRows: 0 }];
+        r.status = "Cancelled";
         return [{ affectedRows: 1 }];
       }
 
@@ -302,4 +305,47 @@ test("Super Admin can cancel a pending wallet change request", async () => {
   const cancelRes = await service.cancelWalletChange(1, req.requestId);
   assert.equal(cancelRes.success, true);
   assert.equal(cancelRes.status, "Cancelled");
+
+  await assert.rejects(
+    () => service.cancelWalletChange(1, req.requestId),
+    (err) => err.status === 404,
+  );
+});
+
+test("Super Admin cannot self-reject their own wallet change request", async () => {
+  const { executor, audit } = mockExecutor();
+  const service = createPayoutService({ pool: executor, audit });
+  const req = await service.requestWalletChange(1, { newWalletId: "wallet_self_reject", reason: "Migration" });
+
+  await assert.rejects(
+    () => service.rejectWalletChange(1, req.requestId, { comment: "Self reject" }),
+    (err) => err.status === 403 && /cancel/i.test(err.message),
+  );
+});
+
+test("ensurePayoutWalletTables hydrates saved DB PayMongo wallet ID on startup", async () => {
+  const prevEnvWallet = process.env.PAYMONGO_PAYOUT_WALLET_ID;
+  const prevCustom = getCustomWalletId();
+  setCustomWalletId(null);
+  process.env.PAYMONGO_PAYOUT_WALLET_ID = "wallet_env_default";
+
+  try {
+    const { executor } = mockExecutor();
+    await executor.query(
+      "INSERT INTO system_settings (setting_key, setting_value) VALUES ('paymongo_payout_wallet_id', ?)",
+      ["wallet_saved_prod_777"],
+    );
+
+    await ensurePayoutWalletTables(executor);
+
+    assert.equal(getCustomWalletId(), "wallet_saved_prod_777");
+    assert.equal(process.env.PAYMONGO_PAYOUT_WALLET_ID, "wallet_saved_prod_777");
+  } finally {
+    setCustomWalletId(prevCustom);
+    if (prevEnvWallet === undefined) {
+      delete process.env.PAYMONGO_PAYOUT_WALLET_ID;
+    } else {
+      process.env.PAYMONGO_PAYOUT_WALLET_ID = prevEnvWallet;
+    }
+  }
 });

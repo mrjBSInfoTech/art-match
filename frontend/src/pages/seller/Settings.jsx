@@ -59,6 +59,7 @@ import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlin
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ThemeModeSetting from "../../components/seller/Settings/ThemeModeSetting";
 import ProfileAvatar from "../../components/common/ProfileAvatar";
+import { courseOptions } from "../../components/admin/Student/studentOptions";
 
 // Slide Transition for Snackbar
 function SlideTransition(props) {
@@ -73,14 +74,6 @@ const normalizeDateInput = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? "" : date.toISOString().slice(0, 10);
 };
-
-const courseOptions = [
-  "Bachelor of Science in Architecture",
-  "Bachelor of Science in Fine Arts",
-  "Bachelor of Science in Interior Design",
-  "Bachelor of Fine Arts in Visual Communication",
-  "Bachelor of Fine Arts in Painting",
-];
 
 export default function Settings() {
   const theme = useTheme();

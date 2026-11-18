@@ -361,7 +361,18 @@ export default function PayMongoWalletPanel({
                 fullWidth
                 label="Approval / Rejection Comment (optional for approve, required for reject)"
                 value={voteComment}
-                onChange={(e) => setVoteComment(e.target.value)}
+                onChange={(e) => {
+                  setVoteComment(e.target.value);
+                  if (showRejectInput && e.target.value.trim()) {
+                    setShowRejectInput(false);
+                  }
+                }}
+                error={showRejectInput && !voteComment.trim()}
+                helperText={
+                  showRejectInput && !voteComment.trim()
+                    ? "Enter a rejection reason before submitting."
+                    : ""
+                }
                 disabled={busy}
                 sx={{ mb: 1.5 }}
               />

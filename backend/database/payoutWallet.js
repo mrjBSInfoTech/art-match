@@ -1,4 +1,5 @@
 import db from "./db.js";
+import { setCustomWalletId } from "../utils/paymongoPayouts.js";
 
 export const adminPayoutWalletChangeRequestTableSql = `CREATE TABLE IF NOT EXISTS admin_payout_wallet_change_request (
   request_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -33,8 +34,26 @@ export const adminPayoutWalletChangeApprovalTableSql = `CREATE TABLE IF NOT EXIS
     REFERENCES admin(admin_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB`;
 
+export async function hydrateSavedPayoutWallet(executor = db.promise()) {
+  try {
+    const [rows] = await executor.query(
+      "SELECT setting_value FROM system_settings WHERE setting_key = 'paymongo_payout_wallet_id' LIMIT 1",
+    );
+    const savedWalletId = String(rows?.[0]?.setting_value || "").trim();
+    if (/^wallet_[A-Za-z0-9_-]+$/.test(savedWalletId)) {
+      setCustomWalletId(savedWalletId);
+      process.env.PAYMONGO_PAYOUT_WALLET_ID = savedWalletId;
+      return savedWalletId;
+    }
+  } catch (error) {
+    console.warn("Unable to load saved PayMongo payout wallet ID:", error.message);
+  }
+  return null;
+}
+
 export async function ensurePayoutWalletTables(executor = db.promise()) {
   await executor.query(adminPayoutWalletChangeRequestTableSql);
   await executor.query(adminPayoutWalletChangeApprovalTableSql);
+  await hydrateSavedPayoutWallet(executor);
 }
 

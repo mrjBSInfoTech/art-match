@@ -1321,6 +1321,9 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
       if (!list.length) fail(404, "Wallet change request not found.");
       const req = list[0];
       if (req.status !== "Pending") fail(409, `This wallet change request is already ${req.status.toLowerCase()}.`);
+      if (Number(adminId) === Number(req.super_admin_id)) {
+        fail(403, "Use cancel to withdraw your own wallet change request.");
+      }
 
       await rows(connection, `
         INSERT INTO admin_payout_wallet_change_approval (request_id, admin_id, decision, comment)
@@ -1410,11 +1413,23 @@ export function createPayoutService({ pool = db.promise(), provider = providerAp
     if (!actor || actor.role !== "super admin") {
       fail(403, "Only a Super Admin can cancel a wallet change request.");
     }
-    await rows(pool, `
+    const result = await rows(pool, `
       UPDATE admin_payout_wallet_change_request
       SET status = 'Cancelled'
       WHERE request_id = ? AND status IN ('Pending', 'Approved')
     `, [reqId]);
+    if (!result?.affectedRows) {
+      fail(404, "Pending or approved wallet change request not found.");
+    }
+
+    await audit({
+      action: "PAYOUT_WALLET_CHANGE_CANCELLED",
+      actor: String(adminId),
+      role: "Super Admin",
+      status: "SUCCESS",
+      information: `Super Admin ${adminId} cancelled wallet change request ${reqId}.`,
+    }).catch(err => console.error("Wallet cancel audit failed:", err));
+
     return { success: true, status: "Cancelled" };
   };
 

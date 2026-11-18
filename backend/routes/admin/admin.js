@@ -567,6 +567,12 @@ router.post(
 
             console.log("Admin image uploaded to B2:", uploadedB2Key);
           } catch (b2Error) {
+            if (process.env.NODE_ENV === "production") {
+              throw Object.assign(
+                new Error("Unable to upload admin image to cloud storage. Please try again."),
+                { status: 502 },
+              );
+            }
             console.warn(
               "Admin B2 upload failed, continuing with local storage:",
               b2Error.message,
@@ -759,6 +765,12 @@ router.put(
 
             console.log("Updated admin image uploaded to B2:", uploadedB2Key);
           } catch (b2Error) {
+            if (process.env.NODE_ENV === "production") {
+              throw Object.assign(
+                new Error("Unable to upload admin image to cloud storage. Please try again."),
+                { status: 502 },
+              );
+            }
             console.warn(
               "Admin B2 image upload failed, continuing with local storage:",
               b2Error.message,
