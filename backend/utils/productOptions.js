@@ -43,7 +43,7 @@ export const validateProductOptionSelections = (rawSelections, options, priceMod
     }
     const option = optionMap.get(id);
     if (!option) throw new ProductOptionsError("A selected product option is no longer available.");
-    const availableQuantity = Number(option.remaining_stock ?? option.quantity);
+    const availableQuantity = Number(option.remaining_stock ?? option.stock_quantity ?? option.quantity);
     if (!Number.isSafeInteger(availableQuantity) || availableQuantity < 0 || quantity > availableQuantity) {
       throw new ProductOptionsError(`${option.name} has only ${Math.max(0, availableQuantity || 0)} available.`);
     }

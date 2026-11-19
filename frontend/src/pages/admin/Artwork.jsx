@@ -302,13 +302,15 @@ export default function Artwork() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
+            xs: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
           },
-          gap: 2,
+          gap: { xs: 1.25, sm: 2 },
           mb: 2.5,
           minWidth: 0,
+          "& > *:nth-of-type(3):last-child": {
+            gridColumn: { xs: "1 / -1", md: "auto" },
+          },
         }}
       >
         {[
@@ -336,20 +338,20 @@ export default function Artwork() {
             sx={{
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2.5,
+              borderRadius: { xs: 2, sm: 2.5 },
               boxShadow: "none",
               minWidth: 0,
               overflow: "hidden",
               height: "100%",
             }}
           >
-            <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
+            <CardContent sx={{ p: { xs: 1.5, sm: 2.25 }, "&:last-child": { pb: { xs: 1.5, sm: 2.25 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: { xs: 1.25, sm: 2 },
+                  gap: { xs: 1, sm: 2 },
                   minWidth: 0,
                   height: "100%",
                 }}
@@ -358,9 +360,9 @@ export default function Artwork() {
                   <Typography
                     sx={{
                       color: theme.palette.text.secondary,
-                      fontSize: 11,
+                      fontSize: { xs: 10, sm: 11 },
                       fontWeight: 800,
-                      letterSpacing: 1,
+                      letterSpacing: { xs: 0.5, sm: 1 },
                       overflowWrap: "break-word",
                     }}
                   >
@@ -370,9 +372,10 @@ export default function Artwork() {
                     sx={{
                       mt: 0.5,
                       color: theme.palette.text.primary,
-                      fontSize: { xs: 24, sm: 26, xl: 30 },
+                      fontSize: { xs: 18, sm: 24, xl: 30 },
                       fontWeight: 800,
                       lineHeight: 1.1,
+                      fontVariantNumeric: "tabular-nums",
                       overflowWrap: "anywhere",
                     }}
                   >
@@ -380,9 +383,9 @@ export default function Artwork() {
                   </Typography>
                   <Typography
                     sx={{
-                      mt: 1,
+                      mt: { xs: 0.75, sm: 1 },
                       color: theme.palette.text.secondary,
-                      fontSize: 12,
+                      fontSize: { xs: 11, sm: 12 },
                       overflowWrap: "break-word",
                     }}
                   >
@@ -391,17 +394,18 @@ export default function Artwork() {
                 </Box>
                 <Box
                   sx={{
-                    width: { xs: 44, sm: 50 },
-                    height: { xs: 44, sm: 50 },
+                    width: { xs: 36, sm: 48 },
+                    height: { xs: 36, sm: 48 },
                     flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
-                    borderRadius: 2,
+                    borderRadius: { xs: 1.5, sm: 2 },
                     backgroundColor:
                       theme.palette.mode === "dark"
                         ? "rgba(239, 68, 68, 0.14)"
                         : "#fff5f5",
                     color: theme.palette.error.main,
+                    "& svg": { fontSize: { xs: 19, sm: 24 } },
                   }}
                 >
                   {createElement(MetricIcon)}

@@ -45,6 +45,7 @@ import Logout from "@mui/icons-material/Logout";
 import { ThemeModeProvider, useThemeMode } from "../theme/ThemeModeProvider";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
@@ -704,7 +705,7 @@ function BuyerLayoutContent({ children }) {
               sx={{
                 fontWeight: "bold",
                 color: theme.palette.text.primary,
-                display: { xs: "block", lg: "block" },
+                display: { xs: "none", sm: "block" },
                 fontSize: { xs: 13, sm: 15, lg: 18 },
                 letterSpacing: "-0.02em",
                 whiteSpace: "nowrap",
@@ -815,7 +816,7 @@ function BuyerLayoutContent({ children }) {
                 color="error"
                 invisible={cartCount === 0}
               >
-                <ShoppingBagIcon />
+                <ShoppingCartOutlinedIcon />
               </Badge>
             </IconButton>
             <IconButton
@@ -879,13 +880,6 @@ function BuyerLayoutContent({ children }) {
                     <Typography sx={{ fontSize: 18, fontWeight: 700 }} noWrap>
                       {[firstName, lastName].filter(Boolean).join(" ") ||
                         username}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 0.25 }}
-                    >
-                      ArtMatch buyer
                     </Typography>
                   </Box>
                 </Stack>

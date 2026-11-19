@@ -2,11 +2,11 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   IconButton,
   InputAdornment,
   List,
   Paper,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -54,7 +54,7 @@ export default function ChatWorkspace({
   return (
     <Box
       sx={{
-        p: embedded ? 0 : { xs: 1.5, sm: 2.5 },
+        p: embedded ? { xs: 2, md: 3 } : { xs: 1.5, sm: 2.5 },
         height: embedded
           ? { xs: "min(68dvh, 620px)", md: "min(70dvh, 640px)" }
           : {
@@ -76,7 +76,7 @@ export default function ChatWorkspace({
           justifyContent: "space-between",
           alignItems: { xs: "flex-start", sm: "center" },
           gap: 2,
-          mb: { xs: 1.5, sm: 2 },
+          mb: embedded ? 3 : { xs: 1.5, sm: 2 },
           flexWrap: "wrap",
           flexShrink: 0,
         }}
@@ -84,11 +84,11 @@ export default function ChatWorkspace({
         <Box sx={{ minWidth: 0 }}>
           <Typography
             variant="h4"
-            fontWeight={800}
             sx={{
-              fontSize: { xs: 28, sm: 34, md: 38 },
-              lineHeight: 1.1,
-              color: theme.palette.text.primary,
+              fontWeight: 800,
+              color: embedded ? "text.primary" : theme.palette.text.primary,
+              fontSize: embedded ? { xs: 26, sm: 32 } : { xs: 28, sm: 34, md: 38 },
+              ...(embedded ? { letterSpacing: -0.5 } : { lineHeight: 1.1 }),
             }}
           >
             {title}
@@ -96,7 +96,7 @@ export default function ChatWorkspace({
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ mt: 0.5, fontSize: 13 }}
+            sx={{ mt: 0.5, fontSize: embedded ? 13.5 : 13 }}
           >
             {subtitle}
           </Typography>
@@ -234,16 +234,36 @@ export default function ChatWorkspace({
             </Box>
 
             {listLoading ? (
-              <Box
-                sx={{
-                  flex: 1,
-                  display: "grid",
-                  placeItems: "center",
-                  p: 3,
-                }}
+              <Stack
+                spacing={0.5}
+                sx={{ flex: 1, overflowY: "auto", p: 1.5 }}
+                role="status"
+                aria-label="Loading conversations"
               >
-                <CircularProgress size={26} color="error" />
-              </Box>
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <Stack
+                    key={`chat-list-skeleton-${index}`}
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="center"
+                    sx={{ px: 1, py: 1.15, borderRadius: 2 }}
+                  >
+                    <Skeleton
+                      variant="circular"
+                      width={42}
+                      height={42}
+                      sx={{ flexShrink: 0 }}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" justifyContent="space-between" spacing={1}>
+                        <Skeleton width="58%" height={18} />
+                        <Skeleton width={38} height={14} />
+                      </Stack>
+                      <Skeleton width="82%" height={16} sx={{ mt: 0.5 }} />
+                    </Box>
+                  </Stack>
+                ))}
+              </Stack>
             ) : listEmpty ? (
               <Box
                 sx={{

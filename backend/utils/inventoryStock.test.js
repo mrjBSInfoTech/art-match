@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  attachArtworkOptionStock,
   calculateStockAdjustment,
+  enrichArtworksWithOptionStock,
   getSelectedOptionSoldQuantities,
   isLegacyStockableProduct,
   MAX_STOCK_QUANTITY,
@@ -94,4 +96,46 @@ test("selected product order quantities are tracked by artwork and option", () =
     ),
     [{ id: "print", quantity: 9, sold_quantity: 5, stock_quantity: 4 }],
   );
+});
+
+test("attachArtworkOptionStock and enrichArtworksWithOptionStock set remaining_stock and stock_quantity", async () => {
+  const sold = new Map([["22:opt-a", 50]]);
+  const enriched = attachArtworkOptionStock(
+    {
+      artwork_id: 22,
+      art_type: "product",
+      product_type: "Premade",
+      is_sold_out: 0,
+      artwork_details: JSON.stringify({
+        product_price_mode: "shared",
+        stock_available: 100,
+        product_options: [{ id: "opt-a", name: "Edition", quantity: 100 }],
+      }),
+    },
+    sold,
+  );
+  assert.equal(enriched.product_options[0].remaining_stock, 50);
+  assert.equal(enriched.product_options[0].stock_quantity, 50);
+  assert.equal(enriched.product_options[0].sold_quantity, 50);
+  assert.equal(JSON.parse(enriched.artwork_details).product_options[0].remaining_stock, 50);
+  assert.equal(enriched.is_sold_out, 0);
+
+  const mockDb = {
+    async query() {
+      return [[{
+        artwork_id: 22,
+        selected_products: JSON.stringify([{ id: "opt-a", quantity: 50 }]),
+      }]];
+    },
+  };
+  const [row] = await enrichArtworksWithOptionStock(mockDb, [{
+    artwork_id: 22,
+    is_sold_out: 0,
+    artwork_details: {
+      stock_available: 100,
+      product_options: [{ id: "opt-a", name: "Edition", quantity: 100 }],
+    },
+  }]);
+  assert.equal(row.product_options[0].remaining_stock, 50);
+  assert.equal(row.is_sold_out, 0);
 });

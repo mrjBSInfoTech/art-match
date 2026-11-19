@@ -6,6 +6,7 @@ import {
   getArtworkSoldQuantitySql,
   getCompletedOrderCondition,
 } from "../../utils/artworkAvailability.js";
+import { enrichArtworksWithOptionStock } from "../../utils/inventoryStock.js";
 
 const router = express.Router();
 const artworkRatingSql = getArtworkRatingSql();
@@ -147,12 +148,21 @@ router.get("/", (req, res) => {
     ORDER BY ranking_rating DESC, a.date_created DESC, a.artwork_id DESC
   `;
 
-  db.query(sql, (err, results) => {
+  db.query(sql, async (err, results) => {
     if (err) {
       console.error("Buyer artwork query error:", err);
       return res.status(500).json({ error: err.message });
     }
-    res.json(results.map(withArtworkRating));
+    try {
+      const enriched = await enrichArtworksWithOptionStock(
+        db,
+        results.map(withArtworkRating),
+      );
+      res.json(enriched);
+    } catch (enrichError) {
+      console.error("Buyer artwork option stock error:", enrichError);
+      res.status(500).json({ error: enrichError.message });
+    }
   });
 });
 
@@ -211,12 +221,21 @@ router.get("/:id", (req, res) => {
   // Debugging: log the incoming id
   // console.log('GET /api/buyer/artworks/:id', req.params.id);
 
-  db.query(sql, [req.params.id], (err, results) => {
+  db.query(sql, [req.params.id], async (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (results.length === 0) {
       return res.status(404).json({ error: "Artwork not found" });
     }
-    res.json(withArtworkRating(results[0]));
+    try {
+      const [enriched] = await enrichArtworksWithOptionStock(
+        db,
+        [withArtworkRating(results[0])],
+      );
+      res.json(enriched);
+    } catch (enrichError) {
+      console.error("Buyer artwork detail option stock error:", enrichError);
+      res.status(500).json({ error: enrichError.message });
+    }
   });
 });
 

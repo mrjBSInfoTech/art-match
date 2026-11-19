@@ -108,11 +108,10 @@ export default function Sales() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
+            xs: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(4, minmax(0, 1fr))",
           },
-          gap: 2,
+          gap: { xs: 1.25, sm: 2 },
           mb: 2.5,
           minWidth: 0,
         }}
@@ -148,20 +147,20 @@ export default function Sales() {
             sx={{
               backgroundColor: (theme) => theme.palette.background.paper,
               border: (theme) => `1px solid ${theme.palette.divider}`,
-              borderRadius: 2.5,
+              borderRadius: { xs: 2, sm: 2.5 },
               boxShadow: "none",
               minWidth: 0,
               overflow: "hidden",
               height: "100%",
             }}
           >
-            <CardContent sx={{ p: { xs: 2, sm: 2.25 }, "&:last-child": { pb: { xs: 2, sm: 2.25 } }, height: "100%" }}>
+            <CardContent sx={{ p: { xs: 1.5, sm: 2.25, md: 1.75, lg: 2.25 }, "&:last-child": { pb: { xs: 1.5, sm: 2.25, md: 1.75, lg: 2.25 } }, height: "100%" }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: { xs: 1.5, sm: 2 },
+                  gap: { xs: 1, lg: 1.5 },
                   minWidth: 0,
                   height: "100%",
                 }}
@@ -170,9 +169,9 @@ export default function Sales() {
                   <Typography
                     sx={{
                       color: (theme) => theme.palette.text.secondary,
-                      fontSize: 11,
+                      fontSize: { xs: 10, sm: 11, md: 10, lg: 11 },
                       fontWeight: 800,
-                      letterSpacing: 1,
+                      letterSpacing: { xs: 0.5, lg: 1 },
                       overflowWrap: "break-word",
                     }}
                   >
@@ -182,7 +181,7 @@ export default function Sales() {
                     sx={{
                       mt: 0.5,
                       color: (theme) => theme.palette.text.primary,
-                      fontSize: { xs: 22, sm: 24, xl: 26 },
+                      fontSize: { xs: 17, sm: 22, md: 18, lg: 22, xl: 26 },
                       fontWeight: 800,
                       lineHeight: 1.1,
                       fontVariantNumeric: "tabular-nums",
@@ -193,9 +192,9 @@ export default function Sales() {
                   </Typography>
                   <Typography
                     sx={{
-                      mt: 1,
+                      mt: { xs: 0.75, sm: 1 },
                       color: (theme) => theme.palette.text.secondary,
-                      fontSize: 12,
+                      fontSize: { xs: 11, sm: 12 },
                       overflowWrap: "break-word",
                     }}
                   >
@@ -204,17 +203,18 @@ export default function Sales() {
                 </Box>
                 <Box
                   sx={{
-                    width: { xs: 44, sm: 50 },
-                    height: { xs: 44, sm: 50 },
+                    width: { xs: 36, sm: 48, md: 38, lg: 48 },
+                    height: { xs: 36, sm: 48, md: 38, lg: 48 },
                     flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
-                    borderRadius: 2,
+                    borderRadius: { xs: 1.5, sm: 2 },
                     backgroundColor: (theme) =>
                       theme.palette.mode === "dark"
                         ? "rgba(239, 68, 68, 0.14)"
                         : "#fff5f5",
                     color: (theme) => theme.palette.error.main,
+                    "& svg": { fontSize: { xs: 19, sm: 24, md: 20, lg: 24 } },
                   }}
                 >
                   {createElement(MetricIcon)}

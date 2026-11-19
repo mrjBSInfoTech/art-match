@@ -22,6 +22,7 @@ import {
   normalizeArtworkProductSettings,
   resolveArtworkDetails,
 } from "../../utils/artworkDetails.js";
+import { colorNamesToHexString } from "../../utils/artworkColorHex.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const SEED_ASSETS_ROOT = path.resolve(__dirname, "images");
@@ -570,7 +571,7 @@ export async function runCatalogSeeder(profiles, cliOptions) {
             item.description,
             storedImageName,
             item.genre,
-            item.color_used,
+            colorNamesToHexString(item.color_used) || item.color_used,
             item.art_size,
             artType,
             item.exact_art_type || null,

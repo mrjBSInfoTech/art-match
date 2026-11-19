@@ -6,11 +6,11 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   IconButton,
   Link as MuiLink,
   Menu,
   MenuItem,
+  Skeleton,
   Stack,
   Typography,
   useTheme,
@@ -1395,9 +1395,35 @@ export default function Messages({ embedded = false }) {
                 onViewMedia={setSelectedMedia}
               />
             ) : activeSupportChat && supportLoading && !supportMessages.length ? (
-              <Box sx={{ flex: 1, display: "grid", placeItems: "center", py: 6 }}>
-                <CircularProgress size={26} color="error" />
-              </Box>
+              <Stack
+                spacing={2}
+                sx={{ flex: 1, py: 2, px: { xs: 0.5, sm: 1 } }}
+                role="status"
+                aria-label="Loading messages"
+              >
+                {[
+                  { self: false, width: "62%", height: 54 },
+                  { self: true, width: "52%", height: 48 },
+                  { self: false, width: "70%", height: 68 },
+                  { self: true, width: "44%", height: 46 },
+                ].map((bubble, index) => (
+                  <Stack
+                    key={`support-msg-skeleton-${index}`}
+                    alignItems={bubble.self ? "flex-end" : "flex-start"}
+                  >
+                    <Skeleton
+                      variant="rounded"
+                      height={bubble.height}
+                      sx={{
+                        width: { xs: "82%", sm: bubble.width },
+                        maxWidth: 420,
+                        borderRadius: 3,
+                      }}
+                    />
+                    <Skeleton width={56} height={14} sx={{ mt: 0.5 }} />
+                  </Stack>
+                ))}
+              </Stack>
             ) : displayedMessages.length === 0 ? (
               <Typography color="text.secondary" sx={{ mt: 2, textAlign: "center" }}>
                 {activeSupportChat

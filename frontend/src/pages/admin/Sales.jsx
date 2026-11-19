@@ -243,13 +243,15 @@ export default function Sales() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
+            xs: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
           },
-          gap: 2,
+          gap: { xs: 1.25, sm: 2 },
           mb: 2.5,
           minWidth: 0,
+          "& > *:nth-of-type(3):last-child": {
+            gridColumn: { xs: "1 / -1", md: "auto" },
+          },
         }}
       >
         {metrics.map((metric) => {
@@ -260,28 +262,28 @@ export default function Sales() {
               sx={{
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 2,
+                borderRadius: { xs: 2, sm: 2.5 },
                 boxShadow: "none",
                 minWidth: 0,
                 overflow: "hidden",
                 height: "100%",
               }}
             >
-              <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } }, height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.5, sm: 2.25 }, "&:last-child": { pb: { xs: 1.5, sm: 2.25 } }, height: "100%" }}>
                 <Stack
                   direction="row"
                   justifyContent="space-between"
                   alignItems="center"
-                  gap={{ xs: 1.25, sm: 2 }}
+                  gap={{ xs: 1, sm: 2 }}
                   sx={{ minWidth: 0, height: "100%" }}
                 >
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Typography
                       sx={{
                         color: "text.secondary",
-                        fontSize: 11,
+                        fontSize: { xs: 10, sm: 11 },
                         fontWeight: 800,
-                        letterSpacing: 0.8,
+                        letterSpacing: { xs: 0.5, sm: 0.8 },
                         overflowWrap: "break-word",
                       }}
                     >
@@ -290,7 +292,7 @@ export default function Sales() {
                     <Typography
                       sx={{
                         mt: 0.5,
-                        fontSize: { xs: 20, sm: 22, xl: 24 },
+                        fontSize: { xs: 17, sm: 22, lg: 24 },
                         fontWeight: 800,
                         lineHeight: 1.1,
                         overflowWrap: "anywhere",
@@ -301,9 +303,9 @@ export default function Sales() {
                     </Typography>
                     <Typography
                       sx={{
-                        mt: 1,
+                        mt: { xs: 0.75, sm: 1 },
                         color: "text.secondary",
-                        fontSize: 12,
+                        fontSize: { xs: 11, sm: 12 },
                         overflowWrap: "break-word",
                       }}
                     >
@@ -312,14 +314,15 @@ export default function Sales() {
                   </Box>
                   <Box
                     sx={{
-                      width: { xs: 44, sm: 48 },
-                      height: { xs: 44, sm: 48 },
+                      width: { xs: 36, sm: 48 },
+                      height: { xs: 36, sm: 48 },
                       flexShrink: 0,
                       display: "grid",
                       placeItems: "center",
                       borderRadius: 1.5,
                       color: metric.color,
                       backgroundColor: metric.background,
+                      "& svg": { fontSize: { xs: 19, sm: 24 } },
                     }}
                   >
                     <MetricIcon />

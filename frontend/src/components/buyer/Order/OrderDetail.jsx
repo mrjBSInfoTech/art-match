@@ -378,7 +378,10 @@ export default function BuyerOrderDetail() {
           border: "1px solid",
           borderColor: "divider",
           bgcolor: "background.paper",
-          boxShadow: "0 4px 24px rgba(15, 23, 42, 0.04)",
+          boxShadow:
+            theme.palette.mode === "dark"
+              ? "0 4px 24px rgba(0, 0, 0, 0.35)"
+              : "0 4px 24px rgba(15, 23, 42, 0.04)",
         }}
       >
         <Stack spacing={3.5}>
@@ -709,48 +712,49 @@ export default function BuyerOrderDetail() {
             </Stack>
           </Box>
 
-          {/* D. Delivery and Fulfillment Section (Light Blue Box from Reference Image 1) */}
+          {/* D. Delivery and Fulfillment Section */}
           <Box
             sx={{
               p: 2.5,
               borderRadius: 3,
-              bgcolor: "#f0f7ff",
-              border: "1px solid #c7dffd",
+              bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.08),
+              border: "1px solid",
+              borderColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.32 : 0.24),
             }}
           >
             <Stack spacing={1.5}>
               <Stack direction="row" spacing={1.25} alignItems="center">
                 {isMeetup ? (
-                  <StorefrontOutlinedIcon sx={{ color: "#2563eb", fontSize: 22 }} />
+                  <StorefrontOutlinedIcon sx={{ color: "primary.main", fontSize: 22 }} />
                 ) : (
-                  <LocalShippingOutlinedIcon sx={{ color: "#2563eb", fontSize: 22 }} />
+                  <LocalShippingOutlinedIcon sx={{ color: "primary.main", fontSize: 22 }} />
                 )}
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#1e3a8a" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "primary.main" }}>
                   Delivery & fulfillment
                 </Typography>
               </Stack>
 
-              <Typography variant="body2" sx={{ color: "#2563eb", fontWeight: 700, fontSize: 13 }}>
+              <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 700, fontSize: 13 }}>
                 Status: {buyerDeliveryHint(order)}
               </Typography>
 
-              <Divider sx={{ borderColor: "#bfdbfe" }} />
+              <Divider sx={{ borderColor: alpha(theme.palette.primary.main, 0.25) }} />
 
               <Stack spacing={1}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                  <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                  <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                     Delivery Method:
                   </Typography>
-                  <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 700 }}>
+                  <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 700 }}>
                     {isMeetup ? "Meet-up Delivery" : "Door-to-Door Delivery"}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                  <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                  <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                     {isMeetup ? "Meet-up Location / Coordination:" : "Delivery Address:"}
                   </Typography>
-                  <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600, textAlign: { sm: "right" } }}>
+                  <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600, textAlign: { sm: "right" } }}>
                     {order.address || (isMeetup ? "Coordinated directly with student artist in Messages" : "Address not provided")}
                   </Typography>
                 </Box>
@@ -758,19 +762,19 @@ export default function BuyerOrderDetail() {
                 {!isMeetup && (
                   <>
                     <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                      <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                         Courier:
                       </Typography>
-                      <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600 }}>
                         {courierInfo?.label || order.courier || "Awaiting courier assignment"}
                       </Typography>
                     </Box>
 
                     <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                      <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                         Tracking Number:
                       </Typography>
-                      <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600 }}>
                         {order.trackingNumber || "Awaiting tracking details"}
                       </Typography>
                     </Box>
@@ -784,7 +788,7 @@ export default function BuyerOrderDetail() {
                           rel="noopener noreferrer"
                           size="small"
                           endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-                          sx={{ textTransform: "none", fontWeight: 700, p: 0, color: "#2563eb" }}
+                          sx={{ textTransform: "none", fontWeight: 700, p: 0, color: "primary.main" }}
                         >
                           Open courier tracking
                         </Button>
@@ -795,27 +799,27 @@ export default function BuyerOrderDetail() {
 
                 {order.deliveredAt && (
                   <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                    <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                    <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                       Delivered Date:
                     </Typography>
-                    <Typography sx={{ color: "#16a34a", fontSize: 13, fontWeight: 700 }}>
+                    <Typography sx={{ color: "success.main", fontSize: 13, fontWeight: 700 }}>
                       {formatOrderDateTime(order.deliveredAt)}
                     </Typography>
                   </Box>
                 )}
 
                 {order.deliveryProof && (
-                  <Box sx={{ pt: 1, borderTop: "1px dashed #bfdbfe" }}>
-                    <Typography sx={{ color: "#475569", fontSize: 12, fontWeight: 600 }}>
+                  <Box sx={{ pt: 1, borderTop: "1px dashed", borderColor: alpha(theme.palette.primary.main, 0.3) }}>
+                    <Typography sx={{ color: "text.secondary", fontSize: 12, fontWeight: 600 }}>
                       Seller Delivery Proof / Notes:
                     </Typography>
                     {order.deliveryProof.notes && (
-                      <Typography sx={{ color: "#0f172a", fontSize: 13, fontStyle: "italic", mt: 0.25 }}>
+                      <Typography sx={{ color: "text.primary", fontSize: 13, fontStyle: "italic", mt: 0.25 }}>
                         &ldquo;{order.deliveryProof.notes}&rdquo;
                       </Typography>
                     )}
                     {order.deliveryProof.submittedAt && (
-                      <Typography sx={{ color: "#64748b", fontSize: 12, mt: 0.25 }}>
+                      <Typography sx={{ color: "text.secondary", fontSize: 12, mt: 0.25 }}>
                         Confirmed on {formatOrderDateTime(order.deliveryProof.submittedAt)}
                       </Typography>
                     )}
@@ -824,10 +828,10 @@ export default function BuyerOrderDetail() {
 
                 {order.note && (
                   <Box sx={{ pt: 0.5 }}>
-                    <Typography sx={{ color: "#475569", fontSize: 12, fontWeight: 600 }}>
+                    <Typography sx={{ color: "text.secondary", fontSize: 12, fontWeight: 600 }}>
                       Your Note to Artist:
                     </Typography>
-                    <Typography sx={{ color: "#0f172a", fontSize: 13, mt: 0.25 }}>
+                    <Typography sx={{ color: "text.primary", fontSize: 13, mt: 0.25 }}>
                       {order.note}
                     </Typography>
                   </Box>
@@ -841,11 +845,12 @@ export default function BuyerOrderDetail() {
             sx={{
               p: 2.5,
               borderRadius: 3,
-              border: "1px solid #e2e8f0",
-              bgcolor: "#ffffff",
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
             }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0f172a", mb: 0.5 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary", mb: 0.5 }}>
               Order Actions & Status Management
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
@@ -869,9 +874,12 @@ export default function BuyerOrderDetail() {
                     textTransform: "none",
                     fontWeight: 700,
                     fontSize: 13,
-                    borderColor: "#2563eb",
-                    color: "#2563eb",
-                    "&:hover": { bgcolor: "#eff6ff", borderColor: "#1d4ed8" },
+                    borderColor: alpha(theme.palette.primary.main, 0.5),
+                    color: "primary.main",
+                    "&:hover": {
+                      bgcolor: alpha(theme.palette.primary.main, 0.08),
+                      borderColor: "primary.main",
+                    },
                   }}
                 >
                   {isMeetup ? "Meet-up Progress" : "Track Delivery Progress"}
@@ -939,30 +947,42 @@ export default function BuyerOrderDetail() {
             </Stack>
           </Box>
 
-          {/* F. Buyer Protection & Authenticity Guarantee Banner (Light Green Banner from Reference Image 1) */}
+          {/* F. Buyer Protection & Authenticity Guarantee Banner */}
           <Box
             sx={{
               p: 1.75,
               borderRadius: 2.5,
-              bgcolor: "#f0fdf4",
-              border: "1px solid #bbf7d0",
+              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.14 : 0.08),
+              border: "1px solid",
+              borderColor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.35 : 0.25),
               display: "flex",
               alignItems: "center",
               gap: 1.5,
             }}
           >
-            <ShieldOutlinedIcon sx={{ color: "#16a34a", fontSize: 24, flexShrink: 0 }} />
+            <ShieldOutlinedIcon sx={{ color: "success.main", fontSize: 24, flexShrink: 0 }} />
             <Box>
-              <Typography sx={{ color: "#166534", fontSize: 13, fontWeight: 700 }}>
+              <Typography
+                sx={{
+                  color: theme.palette.mode === "dark" ? "success.light" : "#166534",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
                 100% Buyer Protection & Authenticity Guaranteed.
               </Typography>
-              <Typography sx={{ color: "#15803d", fontSize: 12 }}>
+              <Typography
+                sx={{
+                  color: theme.palette.mode === "dark" ? alpha(theme.palette.success.light, 0.9) : "#15803d",
+                  fontSize: 12,
+                }}
+              >
                 Every purchase supports verified student artists and is backed by ArtMatch return & dispute protection.
               </Typography>
             </Box>
           </Box>
 
-          {/* G. Bottom Action Buttons (Reference Image 1) */}
+          {/* G. Bottom Action Buttons */}
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1.5}
@@ -976,15 +996,17 @@ export default function BuyerOrderDetail() {
               onClick={() => window.print()}
               sx={{
                 width: { xs: "100%", sm: "auto" },
-                bgcolor: "#18181b",
-                color: "#ffffff",
+                bgcolor: theme.palette.mode === "dark" ? "#f1f5f9" : "#18181b",
+                color: theme.palette.mode === "dark" ? "#0f172a" : "#ffffff",
                 borderRadius: 2,
                 px: 3,
                 py: 1.25,
                 fontWeight: 700,
                 fontSize: 14,
                 textTransform: "none",
-                "&:hover": { bgcolor: "#27272a" },
+                "&:hover": {
+                  bgcolor: theme.palette.mode === "dark" ? "#e2e8f0" : "#27272a",
+                },
               }}
             >
               Download PDF Receipt
@@ -1005,9 +1027,9 @@ export default function BuyerOrderDetail() {
                     fontWeight: 700,
                     fontSize: 13,
                     textTransform: "none",
-                    borderColor: "#cbd5e1",
-                    color: "#334155",
-                    "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
+                    borderColor: "divider",
+                    color: "text.primary",
+                    "&:hover": { borderColor: "text.secondary", bgcolor: "action.hover" },
                   }}
                 >
                   Chat with Artist
@@ -1025,9 +1047,9 @@ export default function BuyerOrderDetail() {
                   fontWeight: 700,
                   fontSize: 13,
                   textTransform: "none",
-                  borderColor: "#cbd5e1",
-                  color: "#334155",
-                  "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
+                  borderColor: "divider",
+                  color: "text.primary",
+                  "&:hover": { borderColor: "text.secondary", bgcolor: "action.hover" },
                 }}
               >
                 Back to orders

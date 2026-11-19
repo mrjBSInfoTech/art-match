@@ -395,19 +395,6 @@ export default function Login() {
                           <LockRounded sx={{ color: "#b7b5b1", fontSize: "1.15rem" }} />
                         </InputAdornment>
                       ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            aria-label="toggle password visibility"
-                            onClick={() => setShowPassword((prev) => !prev)}
-                            edge="end"
-                            size="small"
-                            sx={{ color: "#6d6d6d" }}
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
                     }}
                     sx={{
                       "& .MuiOutlinedInput-root": {

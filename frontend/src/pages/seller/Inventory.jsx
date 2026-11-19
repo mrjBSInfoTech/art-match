@@ -50,8 +50,8 @@ import {
   fetchSellerInventory,
 } from "../../api/seller/inventoryAPI";
 import {
-  getStockStatus,
   isStockableInventoryProduct,
+  productHasStockStatus,
   toStockQuantity,
 } from "../../utils/inventory";
 
@@ -110,7 +110,7 @@ export default function Inventory() {
         );
       const matchesStatus =
         stockFilter === "all" ||
-        getStockStatus(product.stock_quantity) === stockFilter;
+        productHasStockStatus(product, stockFilter);
       return matchesSearch && matchesStatus;
     });
 
@@ -140,13 +140,13 @@ export default function Inventory() {
   // the displayed totals are derived from that current list.
   const productCount = stockableProducts.length;
   const inStockCount = stockableProducts.filter(
-    (product) => getStockStatus(product.stock_quantity) === "in-stock",
+    (product) => productHasStockStatus(product, "in-stock"),
   ).length;
   const lowStockCount = stockableProducts.filter(
-    (product) => getStockStatus(product.stock_quantity) === "low-stock",
+    (product) => productHasStockStatus(product, "low-stock"),
   ).length;
   const outOfStockCount = stockableProducts.filter(
-    (product) => getStockStatus(product.stock_quantity) === "out-of-stock",
+    (product) => productHasStockStatus(product, "out-of-stock"),
   ).length;
 
   const showSnackbar = (message, severity = "success") => {
@@ -331,11 +331,10 @@ export default function Inventory() {
           mt: 3,
           display: "grid",
           gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(4, minmax(0, 1fr))",
+            xs: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(4, minmax(0, 1fr))",
           },
-          gap: 2,
+          gap: { xs: 1.25, sm: 2 },
           mb: 2.5,
           minWidth: 0,
         }}

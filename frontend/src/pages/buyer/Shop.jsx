@@ -9,7 +9,6 @@ import {
   Container,
   IconButton,
   Skeleton,
-  Snackbar,
   Stack,
   Typography,
   useTheme,
@@ -34,6 +33,7 @@ import { getCourseLabel, matchesCourse } from "../../utils/courseFilter.js";
 import { isAuthenticated } from "../../../utils/auth";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
+import AppSnackbar from "../../components/common/AppSnackbar";
 
 const PAGE_SIZE = 8;
 
@@ -98,9 +98,21 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
-  const [cartSnackbarOpen, setCartSnackbarOpen] = useState(false);
-  const [cartSnackbarMessage, setCartSnackbarMessage] = useState("");
-  const [cartSnackbarSeverity, setCartSnackbarSeverity] = useState("success");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+
+  // Snackbar handlers
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const closeSnackbar = (event, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbarOpen(false);
+  };
 
   const loadArtworks = useCallback(async () => {
     try {
@@ -297,13 +309,9 @@ export default function Shop() {
           severity = "warning";
         }
       }
-      setCartSnackbarMessage(message);
-      setCartSnackbarSeverity(severity);
-      setCartSnackbarOpen(true);
+      showSnackbar(message, severity);
     } catch (err) {
-      setCartSnackbarMessage(err.message || "Unable to add to cart.");
-      setCartSnackbarSeverity("error");
-      setCartSnackbarOpen(true);
+      showSnackbar(err.message || "Unable to add to cart.", "error");
     }
   };
 
@@ -315,13 +323,9 @@ export default function Shop() {
         next.delete(String(artworkId));
         return next;
       });
-      setCartSnackbarMessage(result?.message || "Artwork removed from cart.");
-      setCartSnackbarSeverity("success");
-      setCartSnackbarOpen(true);
+      showSnackbar(result?.message || "Artwork removed from cart.", "success");
     } catch (err) {
-      setCartSnackbarMessage(err.message || "Unable to remove from cart.");
-      setCartSnackbarSeverity("error");
-      setCartSnackbarOpen(true);
+      showSnackbar(err.message || "Unable to remove from cart.", "error");
     }
   };
 
@@ -731,27 +735,14 @@ export default function Shop() {
           </>
         )}
       </Container>
-      <Snackbar
-        open={cartSnackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setCartSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      {/* Snackbar Notification */}
+      <AppSnackbar
+        open={snackbarOpen}
+        message={snackbarMessage}
+        severity={snackbarSeverity}
+        onClose={closeSnackbar}
         sx={{ bottom: { xs: 80, md: 24 } }}
-      >
-        <Alert
-          onClose={() => setCartSnackbarOpen(false)}
-          severity={cartSnackbarSeverity}
-          variant="filled"
-          sx={{
-            borderRadius: 2,
-            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
-            color: "#fff",
-            fontWeight: 600,
-          }}
-        >
-          {cartSnackbarMessage}
-        </Alert>
-      </Snackbar>
+      />
     </Box>
   );
 }

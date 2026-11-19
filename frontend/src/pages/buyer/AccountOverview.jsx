@@ -152,7 +152,7 @@ export default function AccountOverview() {
             xs: "repeat(2, minmax(0, 1fr))",
             md: "repeat(4, minmax(0, 1fr))",
           },
-          gap: 1.5,
+          gap: { xs: 1.25, sm: 1.75 },
           mb: 2,
         }}
       >
@@ -161,20 +161,37 @@ export default function AccountOverview() {
             key={stat.label}
             variant="outlined"
             sx={{
-              p: 2,
+              p: { xs: 1.5, sm: 2.25 },
               minWidth: 0,
               borderColor: "divider",
-              borderRadius: 2,
+              borderRadius: { xs: 2, sm: 2.5 },
               boxShadow: "none",
             }}
           >
-            <Box sx={{ color: "error.main", display: "flex", mb: 0.5 }}>
+            <Box sx={{ color: "error.main", display: "flex", mb: 0.5, "& svg": { fontSize: { xs: 19, sm: 22 } } }}>
               {stat.icon}
             </Box>
-            <Typography sx={{ fontSize: 22, lineHeight: 1.1, fontWeight: 800 }}>
+            <Typography
+              sx={{
+                fontSize: { xs: 18, sm: 22 },
+                lineHeight: 1.1,
+                fontWeight: 800,
+                fontVariantNumeric: "tabular-nums",
+                overflowWrap: "anywhere",
+              }}
+            >
               {stat.value}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: "block",
+                mt: 0.25,
+                fontSize: { xs: 11, sm: 12 },
+                overflowWrap: "break-word",
+              }}
+            >
               {stat.label}
             </Typography>
             <Button
@@ -210,19 +227,19 @@ export default function AccountOverview() {
         }}
       >
         <Stack
-          direction={{ xs: "column", sm: "row" }}
-          alignItems={{ sm: "center" }}
+          direction="row"
+          alignItems="center"
           justifyContent="space-between"
           gap={1}
-          sx={{ borderBottom: "1px solid", borderColor: "divider", mb: 1.5 }}
+          sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 1, mb: 1.5 }}
         >
-          <Typography variant="h6" sx={{ fontSize: 18, fontWeight: 800 }}>
+          <Typography variant="h6" sx={{ fontSize: { xs: 16, sm: 18 }, fontWeight: 800 }}>
             Recent orders
           </Typography>
           <Button
             size="small"
             onClick={() => navigate("/buyer/profile/orders")}
-            sx={{ textTransform: "none", fontWeight: 700 }}
+            sx={{ textTransform: "none", fontWeight: 700, flexShrink: 0, minWidth: "auto" }}
           >
             View all
           </Button>

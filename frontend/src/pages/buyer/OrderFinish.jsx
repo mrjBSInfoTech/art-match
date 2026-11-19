@@ -13,6 +13,7 @@ import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalance
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
+import RecommendedSection from "../../components/buyer/Order/RecommendedSection";
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("en-PH", {
@@ -31,11 +32,12 @@ export default function OrderFinish() {
   const firstSellerId = orders[0]?.sellerId || orders[0]?.items?.[0]?.sellerId || null;
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
+    <Box sx={{ minHeight: "100vh" }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Order confirmed</title>
       </Helmet>
-      <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3 }}>
+      <Container maxWidth="sm" sx={{ pt: { xs: 4, md: 8 }, pb: { xs: 2, md: 4 } }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 4 }, borderRadius: 3 }}>
         <Stack spacing={2.5} alignItems="center" textAlign="center">
           <Box sx={{ color: "success.main", display: "flex" }}>
             <CheckCircleRoundedIcon sx={{ fontSize: 56 }} />
@@ -171,6 +173,8 @@ export default function OrderFinish() {
           </Stack>
         </Stack>
       </Paper>
-    </Container>
+      </Container>
+      <RecommendedSection />
+    </Box>
   );
 }

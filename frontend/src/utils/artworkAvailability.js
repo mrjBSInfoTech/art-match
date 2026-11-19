@@ -89,6 +89,22 @@ export function getArtworkRemainingStock(artwork) {
       : null;
 
   if (options && options.length > 0) {
+    const selections = Array.isArray(artwork.selected_products)
+      ? artwork.selected_products
+      : null;
+    if (selections?.length === 1) {
+      const selected = options.find(
+        (opt) => String(opt.id) === String(selections[0].id),
+      );
+      if (selected) {
+        const selectedStock = Number(
+          selected.remaining_stock ?? selected.stock_quantity ?? selected.quantity,
+        );
+        return Number.isSafeInteger(selectedStock) && selectedStock > 0
+          ? selectedStock
+          : 0;
+      }
+    }
     return options.reduce((sum, opt) => {
       const optStock = Number(opt.remaining_stock ?? opt.stock_quantity ?? opt.quantity);
       return Number.isSafeInteger(optStock) && optStock > 0 ? sum + optStock : sum;

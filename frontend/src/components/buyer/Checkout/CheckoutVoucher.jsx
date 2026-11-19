@@ -20,14 +20,6 @@ export default function CheckoutVoucher({ code, onCodeChange, onApply, onRemove,
             fullWidth
             size="small"
             autoComplete="off"
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                "& fieldset": { borderColor: "#f44336" },
-                "&:hover fieldset": { borderColor: "#f44336" },
-                "&.Mui-focused fieldset": { borderColor: "#f44336" },
-              },
-              "& .MuiInputLabel-root": { color: "#f44336" },
-            }}
             slotProps={{
               htmlInput: { maxLength: 20, autoCapitalize: "characters", spellCheck: false },
             }}

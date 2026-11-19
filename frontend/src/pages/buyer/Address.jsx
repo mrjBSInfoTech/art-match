@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   FormControl,
   InputLabel,
   InputAdornment,
@@ -12,6 +11,8 @@ import {
   MenuItem,
   Paper,
   Select,
+  Skeleton,
+  Stack,
   TextField,
   Typography,
   Snackbar,
@@ -173,11 +174,19 @@ export default function Address() {
           }}
         >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 800,
+              color: "text.primary",
+              fontSize: { xs: 26, sm: 32 },
+              letterSpacing: -0.5,
+            }}
+          >
             My Addresses
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Follow each seller's progress from confirmation to delivery.
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: 13.5 }}>
+            Manage your saved shipping and delivery addresses.
           </Typography>
         </Box>
         <Button
@@ -196,9 +205,7 @@ export default function Address() {
         </Button>
       </Box>
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-          <CircularProgress />
-        </Box>
+        <AddressLoadingSkeleton />
       ) : addressErrorMessage ? (
         <Typography align="center" color="error" sx={{ py: 3 }}>
           {addressErrorMessage}
@@ -268,5 +275,64 @@ export default function Address() {
         </Alert>
       </Snackbar>
     </Box>
+  );
+}
+
+function AddressLoadingSkeleton() {
+  return (
+    <Stack spacing={2.5} role="status" aria-label="Loading addresses">
+      {[0, 1, 2].map((index) => (
+        <Paper
+          key={`address-skeleton-${index}`}
+          variant="outlined"
+          sx={{
+            p: 2.5,
+            borderRadius: 3,
+            borderWidth: 1.5,
+            borderColor: "divider",
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="flex-start"
+            justifyContent="space-between"
+            spacing={1}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
+              <Skeleton
+                variant="rounded"
+                width={44}
+                height={44}
+                sx={{ borderRadius: 2, flexShrink: 0 }}
+              />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Skeleton width={130} height={24} />
+                  {index === 0 && (
+                    <Skeleton
+                      variant="rounded"
+                      width={68}
+                      height={22}
+                      sx={{ borderRadius: 999 }}
+                    />
+                  )}
+                </Stack>
+                <Skeleton width="45%" height={18} sx={{ mt: 0.5 }} />
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0 }}>
+              <Skeleton variant="circular" width={32} height={32} />
+              <Skeleton variant="circular" width={32} height={32} />
+            </Stack>
+          </Stack>
+
+          <Box sx={{ mt: 2, pl: { xs: 0, sm: 7.5 } }}>
+            <Skeleton width="78%" height={18} />
+            <Skeleton width="52%" height={18} sx={{ mt: 0.75 }} />
+          </Box>
+        </Paper>
+      ))}
+    </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -21,16 +21,21 @@ import {
   Stack,
   TextField,
   Typography,
-  Snackbar,
-  Slide,
   useTheme,
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import AppSnackbar from "../../components/common/AppSnackbar";
 import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
-import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
-import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
-import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
+import { fetchCart } from "../../api/buyer/cartAPI";
+import {
+  addArtworkToBuyerCart,
+  removeArtworkFromBuyerCart,
+} from "../../utils/buyerCartActions";
+import RecommendedSection, {
+  ArtworkCardSkeleton,
+  SectionHeader,
+} from "../../components/buyer/Main/RecommendedSection";
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
@@ -112,96 +117,6 @@ const buildArtistSummaries = (artworks = [], artistRatingMap = new Map()) => {
     .sort((a, b) => b.works - a.works || a.name.localeCompare(b.name));
 };
 
-// Slide Transition for Snackbar
-function SlideTransition(props) {
-  return <Slide {...props} direction="up" />;
-}
-
-function ArtworkCardSkeleton() {
-  const theme = useTheme();
-  const darkMode = theme.palette.mode === "dark";
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        minWidth: 0,
-        overflow: "hidden",
-        border: "1px solid",
-        borderColor: darkMode
-          ? "rgba(255, 255, 255, 0.08)"
-          : "rgba(15, 23, 42, 0.08)",
-        borderRadius: 3,
-        backgroundColor: "background.paper",
-        boxShadow: darkMode
-          ? "0 4px 16px rgba(0, 0, 0, 0.28)"
-          : "0 4px 16px rgba(15, 23, 42, 0.04)",
-      }}
-    >
-      <Skeleton
-        variant="rectangular"
-        animation="wave"
-        sx={{
-          width: "100%",
-          aspectRatio: { xs: "1.12 / 1", sm: "1.05 / 1" },
-          transform: "none",
-        }}
-      />
-      <Box
-        sx={{
-          p: { xs: 1, sm: 2 },
-          display: "flex",
-          flex: 1,
-          flexDirection: "column",
-          gap: { xs: 0.4, sm: 0.75 },
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          spacing={1}
-        >
-          <Skeleton
-            variant="text"
-            animation="wave"
-            sx={{ width: "65%", height: 24, borderRadius: 1 }}
-          />
-          <Skeleton
-            variant="rounded"
-            animation="wave"
-            sx={{ width: 36, height: 20, borderRadius: 1 }}
-          />
-        </Stack>
-        <Skeleton
-          variant="text"
-          animation="wave"
-          sx={{ width: "45%", height: 18, borderRadius: 1 }}
-        />
-        <Box sx={{ flex: 1, minHeight: 12 }} />
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ pt: 1 }}
-        >
-          <Skeleton
-            variant="text"
-            animation="wave"
-            sx={{ width: "35%", height: 26, borderRadius: 1 }}
-          />
-          <Skeleton
-            variant="rounded"
-            animation="wave"
-            sx={{ width: 40, height: 40, borderRadius: 2.5 }}
-          />
-        </Stack>
-      </Box>
-    </Box>
-  );
-}
-
 export default function Main() {
   const [artworks, setArtworks] = useState([]);
   const [artistRatingMap, setArtistRatingMap] = useState(() => new Map());
@@ -211,80 +126,41 @@ export default function Main() {
   const [cartArtworkIds, setCartArtworkIds] = useState(() => new Set());
   const [followingLoading, setFollowingLoading] = useState(true);
   const [followingError, setFollowingError] = useState("");
-  const [recommendedArtworks, setRecommendedArtworks] = useState([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
-  const [recommendationMode, setRecommendationMode] = useState("");
-  const [recommendationSignals, setRecommendationSignals] = useState({
-    search_filter_events: 0,
-    preferred_artists: 0,
-    sasrec_candidates: 0,
-    available_unseen: 0,
-  });
-  const [recommendationHistoryLength, setRecommendationHistoryLength] =
-    useState(0);
+  const [recommendationRefreshKey, setRecommendationRefreshKey] = useState(0);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const theme = useTheme();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const handleAddToCart = async (
+  const handleAddToCart = (
     artworkId,
     quantity = 1,
     selectedProducts,
     orderNote,
     artwork,
-  ) => {
-    try {
-      const result = await addToCart(artworkId, quantity, selectedProducts, orderNote);
-      setCartArtworkIds((previous) => new Set(previous).add(String(artworkId)));
-      let chatNotice = "";
-      let chatSeverity = "success";
-      if (typeof orderNote === "string" && orderNote.trim()) {
-        try {
-          const { previewFailed } = await sendOrderNoteToSeller({
-            artwork,
-            artworkId,
-            quantity,
-            selectedProducts,
-            orderNote,
-          });
-          if (previewFailed) {
-            chatNotice = " The order note was sent to the seller, but its preview could not be attached.";
-            chatSeverity = "warning";
-          } else {
-            chatNotice = " The order note and product preview were sent to the seller chat.";
-          }
-        } catch (chatError) {
-          console.error("Unable to send order note to seller chat:", chatError);
-          chatNotice = ` The note was saved in your cart but could not be sent to seller chat: ${chatError.message}`;
-          chatSeverity = "warning";
-        }
-      }
-      showSnackbar(`${result?.message || "Artwork added to cart"}${chatNotice}`, chatSeverity);
-      return result;
-    } catch (error) {
-      showSnackbar(
-        error.message || "Unable to add artwork to cart",
-        error.status === 409 ? "warning" : "error",
-      );
-      throw error;
-    }
-  };
+  ) =>
+    addArtworkToBuyerCart({
+      artworkId,
+      quantity,
+      selectedProducts,
+      orderNote,
+      artwork,
+      onSuccessId: (id) => setCartArtworkIds((previous) => new Set(previous).add(id)),
+      onNotify: showSnackbar,
+    });
 
-  const handleRemoveFromCart = async (artworkId) => {
-    try {
-      const result = await removeFromCart(artworkId);
-      setCartArtworkIds((previous) => {
-        const next = new Set(previous);
-        next.delete(String(artworkId));
-        return next;
-      });
-      showSnackbar(result?.message || "Artwork removed from cart");
-    } catch (error) {
-      showSnackbar(error.message || "Unable to remove artwork from cart", "error");
-    }
-  };
+  const handleRemoveFromCart = (artworkId) =>
+    removeArtworkFromBuyerCart({
+      artworkId,
+      onRemovedId: (id) =>
+        setCartArtworkIds((previous) => {
+          const next = new Set(previous);
+          next.delete(id);
+          return next;
+        }),
+      onNotify: showSnackbar,
+    });
 
   const loadArtworks = async () => {
     try {
@@ -310,46 +186,6 @@ export default function Main() {
       setArtworksLoading(false);
     }
   };
-
-  const recommendationRequest = useRef(0);
-  const loadRecommendations = useCallback(async () => {
-    const requestId = ++recommendationRequest.current;
-    try {
-      setRecommendationsLoading(true);
-
-      const response = await fetchRecommendations(4);
-      if (requestId !== recommendationRequest.current) return;
-
-      const list = Array.isArray(response?.recommendations)
-        ? response.recommendations
-        : [];
-
-      setRecommendedArtworks(list);
-
-      setRecommendationMode(response?.mode || "");
-
-      setRecommendationHistoryLength(Number(response?.history_length || 0));
-
-      setRecommendationSignals(
-        response?.signals || {
-          search_filter_events: 0,
-          preferred_artists: 0,
-          sasrec_candidates: 0,
-          available_unseen: 0,
-        },
-      );
-    } catch (error) {
-      if (requestId !== recommendationRequest.current) return;
-      console.warn("Recommendation section error:", error);
-
-      setRecommendedArtworks([]);
-
-      setRecommendationMode("unavailable");
-    } finally {
-      if (requestId === recommendationRequest.current)
-        setRecommendationsLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     loadArtworks();
@@ -437,144 +273,16 @@ export default function Main() {
       .slice(0, 4);
   }, [availableArtworks, followedArtists]);
 
-  useEffect(() => {
-    let refreshTimer;
-    const refresh = () => {
-      clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(loadRecommendations, 350);
-    };
-    loadRecommendations();
-    window.addEventListener("recommendation-updated", refresh);
-    window.addEventListener("artist-follow-updated", refresh);
-    window.addEventListener("cart-updated", refresh);
-    window.addEventListener("storage", refresh);
-    window.addEventListener("focus", refresh);
-    return () => {
-      clearTimeout(refreshTimer);
-      recommendationRequest.current += 1;
-      window.removeEventListener("recommendation-updated", refresh);
-      window.removeEventListener("artist-follow-updated", refresh);
-      window.removeEventListener("cart-updated", refresh);
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("focus", refresh);
-    };
-  }, [loadRecommendations]);
-
   const genres = artGenres;
   const popularArtists = useMemo(
     () => buildArtistSummaries(availableArtworks, artistRatingMap),
     [availableArtworks, artistRatingMap],
   );
 
-  const visibleRecommendedArtworks = useMemo(
-    () => recommendedArtworks.filter((artwork) => Number(artwork.is_sold_out) !== 1),
-    [recommendedArtworks],
-  );
   const featuredArtist = popularArtists[0];
   const galleryArtists = popularArtists.slice(1, 9);
   const warmSurface =
     theme.palette.mode === "light" ? "#fff9ef" : theme.palette.background.paper;
-
-  const isPersonalizedRecommendation = [
-    "sasrec",
-    "sasrec_reranked",
-    "hybrid",
-    "preference_fallback",
-  ].includes(recommendationMode);
-
-  const getRecommendationMessage = () => {
-    const isGuest = !isAuthenticated("buyer");
-
-    const hasHistory = recommendationHistoryLength > 0;
-
-    const hasSearchOrFilters = recommendationSignals.search_filter_events > 0;
-
-    const hasArtistPreference =
-      recommendationSignals.preferred_artists > 0 ||
-      Number(recommendationSignals.followed_artists || 0) > 0;
-    const hasFollowedArtists =
-      Number(recommendationSignals.followed_artists || 0) > 0;
-
-    // -------------------------
-    // GUEST
-    // -------------------------
-
-    if (isGuest) {
-      if (hasHistory && hasSearchOrFilters && hasArtistPreference) {
-        return "Based on your guest browsing, searches, filters, and artist preferences.";
-      }
-
-      if (hasHistory && hasSearchOrFilters) {
-        return "Based on your guest browsing, searches, and filters.";
-      }
-
-      if (hasHistory && hasArtistPreference) {
-        return "Based on your guest browsing and artist preferences.";
-      }
-
-      if (hasHistory) {
-        return "Based on your recent guest browsing.";
-      }
-
-      if (hasSearchOrFilters && hasArtistPreference) {
-        return "Based on your recent guest searches, filters, and artist preferences.";
-      }
-
-      if (hasSearchOrFilters) {
-        return "Based on your recent guest searches and filters.";
-      }
-
-      if (hasArtistPreference) {
-        return "Based on your guest artist preferences.";
-      }
-
-      return "Personalized picks from your activity on this browser.";
-    }
-
-    // -------------------------
-    // LOGGED-IN BUYER
-    // -------------------------
-
-    if (hasHistory && hasSearchOrFilters && (hasArtistPreference || hasFollowedArtists)) {
-      return hasFollowedArtists
-        ? "Based on your browsing, searches, filters, and followed artists."
-        : "Based on your browsing, searches, filters, and artist preferences.";
-    }
-
-    if (hasHistory && hasSearchOrFilters) {
-      return "Based on your browsing, searches, and filters.";
-    }
-
-    if (hasHistory && hasFollowedArtists) {
-      return "Based on your browsing and the artists you follow.";
-    }
-
-    if (hasHistory && hasArtistPreference) {
-      return "Based on your browsing and artist preferences.";
-    }
-
-    if (hasHistory) {
-      return "Based on your recent artwork browsing.";
-    }
-
-    if (hasSearchOrFilters && hasFollowedArtists) {
-      return "Based on your recent searches, filters, and followed artists.";
-    }
-
-    if (hasSearchOrFilters) {
-      return "Based on your recent searches and filters.";
-    }
-
-    if (hasFollowedArtists) {
-      return "Based on the artists you follow.";
-    }
-
-    if (hasArtistPreference) {
-      return "Based on your artist preferences.";
-    }
-
-    return "Personalized picks from your browsing, searches, and followed artists.";
-  };
 
   // Snackbar handlers
   const showSnackbar = (message, severity = "success") => {
@@ -588,22 +296,9 @@ export default function Main() {
     setSnackbarOpen(false);
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light";
-      case "warning":
-        return "warning.light";
-      case "error":
-        return "error.light";
-      default:
-        return "primary.light";
-    }
-  };
-
   const handleRetry = () => {
     loadArtworks();
-    loadRecommendations();
+    setRecommendationRefreshKey((prev) => prev + 1);
   };
 
   if (artworkErrorMessage && !artworksLoading && artworks.length === 0) {
@@ -1333,166 +1028,20 @@ export default function Main() {
       </Box>
 
       {/* Recommended Artworks */}
-      {visibleRecommendedArtworks.length > 0 && (
-        <Box
-          sx={{
-            px: { xs: 2, sm: 4, lg: 6 },
-            py: { xs: 4, md: 6 },
-            width: "100%",
-            overflow: "hidden",
-            mt: { xs: 0, md: -1 },
-            backgroundColor: theme.palette.background.default,
-          }}
-          id="recommended"
-        >
-          <Box sx={{ mb: 3 }}>
-            <Typography
-              variant="overline"
-              sx={{
-                color: theme.palette.error.main,
-                fontWeight: 800,
-                letterSpacing: 1.5,
-              }}
-            >
-              {isPersonalizedRecommendation ? "PERSONALIZED" : "DISCOVER"}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                maxWidth: 650,
-              }}
-            >
-              {getRecommendationMessage()}
-            </Typography>
-
-            <SectionHeader
-              title="Recommended for You"
-              to="/buyer/shop?recommendations=1"
-            />
-          </Box>
-
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "repeat(2, minmax(0, 1fr))",
-                sm: "repeat(2, minmax(0, 1fr))",
-                md: "repeat(4, minmax(0, 1fr))",
-              },
-              gap: { xs: 1.25, sm: 2, md: 2.5 },
-            }}
-          >
-            {recommendationsLoading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <ArtworkCardSkeleton key={`recommended-skeleton-${index}`} />
-              ))
-            ) : (
-              visibleRecommendedArtworks.map((artwork) => (
-                <ArtworkCard
-                  onAddToCart={handleAddToCart}
-                  isInCart={cartArtworkIds.has(String(artwork.artwork_id || artwork.id))}
-                  onRemoveFromCart={handleRemoveFromCart}
-                  key={artwork.artwork_id || artwork.id}
-                  artwork={artwork}
-                />
-              ))
-            )}
-          </Box>
-        </Box>
-      )}
-      <Snackbar
+      <RecommendedSection
+        cartArtworkIds={cartArtworkIds}
+        onAddToCart={handleAddToCart}
+        onRemoveFromCart={handleRemoveFromCart}
+        refreshKey={recommendationRefreshKey}
+      />
+      {/* Snackbar Notification */}
+      <AppSnackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        message={snackbarMessage}
+        severity={snackbarSeverity}
         onClose={closeSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        TransitionComponent={SlideTransition}
         sx={{ bottom: { xs: 80, md: 24 } }}
-      >
-        <Alert
-          onClose={closeSnackbar}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{
-            width: { xs: 280, sm: 360 },
-            minHeight: 48,
-            borderRadius: 2,
-            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
-            backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "#fff",
-            alignItems: "center",
-            "& .MuiAlert-icon": {
-              color: "#fff",
-              mr: 1,
-            },
-            "& .MuiAlert-message": {
-              fontWeight: 600,
-              fontSize: 14,
-              display: "flex",
-              alignItems: "center",
-            },
-            "& .MuiAlert-action": {
-              alignItems: "center",
-              paddingLeft: 1,
-              color: "#fff",
-            },
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      />
     </Box>
-  );
-}
-
-function SectionHeader({ title, to }) {
-  return (
-    <Stack
-      direction={{ xs: "column", sm: "row" }}
-      gap={1}
-      sx={{
-        alignItems: { xs: "flex-start", sm: "flex-end" },
-        justifyContent: "space-between",
-        mb: 3,
-      }}
-    >
-      <Box>
-        <Typography
-          variant="h4"
-          sx={{
-            mt: 0.5,
-            maxWidth: 760,
-            fontSize: {
-              xs: 21,
-              sm: 26,
-              md: 30,
-            },
-            fontWeight: 800,
-            lineHeight: 1.2,
-          }}
-        >
-          {title}
-        </Typography>
-      </Box>
-      {to && (
-        <Button
-          component={RouterLink}
-          to={to}
-          endIcon={<ArrowForwardIcon />}
-          sx={{
-            color: "text.primary",
-            fontSize: { xs: 10, sm: 14, md: 16 },
-            fontWeight: 600,
-            maxWidth: 200,
-            minHeight: 44,
-            px: 1.5,
-            py: 0.5,
-            flexShrink: 0,
-          }}
-        >
-          View all
-        </Button>
-      )}
-    </Stack>
   );
 }

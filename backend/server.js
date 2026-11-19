@@ -67,6 +67,7 @@ import {
   ensureArtworkSchema,
   restoreLegacyProductInventory,
 } from "./database/artwork.js";
+import { ensureHexArtworkColors } from "./utils/artworkColorHex.js";
 import { ensureCartItemSchema } from "./database/cart.js";
 import { ensureArtworkWatermarkTables } from "./database/artworkWatermarks.js";
 import { ensureAboutContentTable } from "./database/aboutContent.js";
@@ -1043,6 +1044,17 @@ ensureAccountAccessTable()
   .then(() => ensureCertificateTables())
   .then(() => ensureChatPublicKeysTable())
   .then(() => ensureChatKeyRecoveryTable())
+  .then(() =>
+    ensureHexArtworkColors(db.promise())
+      .then((summary) => {
+        if (summary.updated > 0) {
+          console.log(`✅ Normalized ${summary.updated} artwork color record(s) to hex codes`);
+        }
+      })
+      .catch((error) =>
+        console.warn("Artwork hex color normalization warning:", error.message),
+      ),
+  )
   .then(
     () =>
       new Promise((resolve) => {

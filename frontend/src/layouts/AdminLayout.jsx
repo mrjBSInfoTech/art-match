@@ -360,6 +360,7 @@ function AdminLayoutContent() {
     title: (
       <Typography
         sx={{
+          display: { xs: "none", sm: "block" },
           color: "text.primary",
           fontWeight: "bold",
           fontSize: { xs: 14, sm: 18, lg: 20 },

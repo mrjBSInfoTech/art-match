@@ -9,13 +9,17 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ArtworkImage from "../../common/ArtworkImage";
 import InventoryStock from "./InventoryStock";
 import {
   MAX_STOCK_QUANTITY,
+  getProductOptionStatusBadges,
+  getStockPillStyle,
   getStockStatus,
   getStockStatusLabel,
   toStockQuantity,
@@ -37,12 +41,14 @@ export default function InventoryCard({
   onAdjustOptionStock,
   saving = false,
 }) {
+  const theme = useTheme();
   const [adjustment, setAdjustment] = useState("add");
   const [stockInput, setStockInput] = useState("");
   const [error, setError] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const stock = toStockQuantity(product.stock_quantity);
-  const hasProductOptions = product.product_options?.length > 0;
+  const optionBadges = getProductOptionStatusBadges(product);
+  const hasProductOptions = Boolean(product.product_options?.length > 0);
   const maxAddition = Math.max(
     0,
     MAX_STOCK_QUANTITY - stock - toStockQuantity(product.sold_quantity),
@@ -126,6 +132,24 @@ export default function InventoryCard({
             {stock.toLocaleString()} {stock === 1 ? "unit" : "units"}
           </Typography>
         </Box>
+
+        {optionBadges.length > 0 && (
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+            {optionBadges.map((badge) => (
+              <Chip
+                key={badge.status}
+                size="small"
+                label={badge.label}
+                sx={{
+                  ...getStockPillStyle(theme, badge.status),
+                  fontWeight: 700,
+                  fontSize: 10.5,
+                  height: 22,
+                }}
+              />
+            ))}
+          </Stack>
+        )}
 
         {hasProductOptions ? (
           <Button

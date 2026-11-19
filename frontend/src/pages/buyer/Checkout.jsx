@@ -34,6 +34,10 @@ import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineR
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import RemoveRoundedIcon from "@mui/icons-material/RemoveRounded";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import HourglassEmptyRoundedIcon from "@mui/icons-material/HourglassEmptyRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 
@@ -42,6 +46,8 @@ import { getBuyerProfile } from "../../api/buyer/buyerAuthenticationAPI";
 import { addAddress, fetchAddresses, updateAddress } from "../../api/buyer/addressAPI";
 import { cancelBuyerPayment, fetchBuyerPayment, fetchPaymentMethods, placeBuyerOrder, retryBuyerPayment, validateCheckoutVoucher } from "../../api/buyer/orderAPI";
 import { canResumePayment, isOrderPaid, calculateProcessingFee } from "../../utils/orderPayments.js";
+import { getArtworkRemainingStock } from "../../utils/artworkAvailability.js";
+import { getSavedProductOptions } from "../../utils/productOptions.js";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import CheckoutVoucher from "../../components/buyer/Checkout/CheckoutVoucher";
 import AddressForm from "../../components/buyer/Address/AddressForm";
@@ -63,6 +69,18 @@ const isCustomizableArtwork = (item) => {
 };
 
 const getRemainingStock = (item) => {
+  const options = getSavedProductOptions(item || {});
+  if (options.length > 0) {
+    const selections = Array.isArray(item?.selected_products) ? item.selected_products : [];
+    if (selections.length === 1) {
+      const matched = options.find((opt) => String(opt.id) === String(selections[0].id));
+      if (matched) {
+        const optStock = Number(matched.remaining_stock ?? matched.stock_quantity ?? matched.quantity);
+        if (Number.isFinite(optStock) && optStock >= 0) return optStock;
+      }
+    }
+    return getArtworkRemainingStock(item);
+  }
   const rawStock = item?.stock_available;
   if (rawStock === null || rawStock === undefined || String(rawStock).trim() === "") {
     return null;
@@ -758,105 +776,333 @@ export default function Checkout() {
           <Paper
             variant="outlined"
             sx={{
-              p: { xs: 3, sm: 5 },
+              p: { xs: 2.5, sm: 4 },
               borderRadius: 3,
-              maxWidth: 550,
+              maxWidth: 600,
               mx: "auto",
               textAlign: "center",
             }}
           >
             <Stack spacing={2.5} alignItems="center">
-              <CircularProgress size={44} color="success" />
+              <CircularProgress size={48} color="success" />
               <Box>
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="overline" color="success.main" fontWeight={800}>
+                  VERIFYING PAYMENT
+                </Typography>
+                <Typography variant="h4" fontWeight={800}>
                   Confirming your payment…
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
                   Your online payment is being verified. Taking you to your order confirmation…
                 </Typography>
               </Box>
             </Stack>
           </Paper>
-        ) : (
-          <Paper
-            variant="outlined"
-            sx={{
-              p: { xs: 2.5, sm: 3.5 },
-              borderRadius: 2.5,
-              maxWidth: 850,
-              mx: "auto",
-            }}
-          >
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="h5" fontWeight={700}>
-                  {paymentPaid ? "Payment received" : paymentNeedsReview ? "Payment needs review" : paymentRefunded ? "Payment refunded" : paymentClosed ? "Checkout closed" : "Complete your payment"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {paymentPaid ? "Opening your order confirmation…" : paymentNeedsReview ? "PayMongo confirmed this payment, but ArtMatch could not confirm the order. Please contact support about your payment." : paymentRefunded ? "Your payment has been refunded. View Orders for your purchase history." : paymentClosed
-                    ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
-                    : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection."}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: 1, overflowWrap: "anywhere" }}
+        ) : (() => {
+          const isFailed = String(payment?.payment_status).toLowerCase() === "failed";
+          const heroIcon = paymentPaid ? (
+            <CheckCircleIcon sx={{ fontSize: 56, color: "success.main" }} />
+          ) : paymentNeedsReview ? (
+            <ErrorOutlineRoundedIcon sx={{ fontSize: 56, color: "warning.main" }} />
+          ) : paymentRefunded ? (
+            <AccountBalanceWalletOutlinedIcon sx={{ fontSize: 56, color: "info.main" }} />
+          ) : paymentClosed ? (
+            <CancelRoundedIcon sx={{ fontSize: 56, color: "error.main" }} />
+          ) : (
+            <HourglassEmptyRoundedIcon sx={{ fontSize: 56, color: isFailed ? "warning.main" : "primary.main" }} />
+          );
+          const overlineLabel = paymentPaid
+            ? "PAYMENT CONFIRMED"
+            : paymentNeedsReview
+              ? "ACTION REQUIRED"
+              : paymentRefunded
+                ? "PAYMENT REFUNDED"
+                : paymentClosed
+                  ? "CHECKOUT CANCELLED"
+                  : isFailed
+                    ? "PAYMENT UNSUCCESSFUL"
+                    : "PAYMENT PENDING";
+          const overlineColor = paymentPaid
+            ? "success.main"
+            : paymentNeedsReview || isFailed
+              ? "warning.main"
+              : paymentRefunded
+                ? "info.main"
+                : paymentClosed
+                  ? "error.main"
+                  : "primary.main";
+          const titleLabel = paymentPaid
+            ? "Payment received"
+            : paymentNeedsReview
+              ? "Payment needs review"
+              : paymentRefunded
+                ? "Payment refunded"
+                : paymentClosed
+                  ? "Checkout closed"
+                  : "Complete your payment";
+          const subtitleLabel = paymentPaid
+            ? "Opening your order confirmation…"
+            : paymentNeedsReview
+              ? "PayMongo confirmed this payment, but ArtMatch could not confirm the order. Please contact support about your payment."
+              : paymentRefunded
+                ? "Your payment has been refunded. View Orders for your purchase history."
+                : paymentClosed
+                  ? "Your unpaid checkout was not added to Orders. Your cart items were kept."
+                  : "These artworks will appear in Orders after payment is confirmed. You can continue this payment or cancel it to change your selection.";
+          const infoHeading = paymentClosed
+            ? (paymentMessage || "Checkout cancelled — your cart items were kept")
+            : paymentPaid
+              ? "Online payment received"
+              : paymentNeedsReview
+                ? "Support review required"
+                : paymentRefunded
+                  ? "Refund recorded"
+                  : isFailed
+                    ? "Payment was unsuccessful"
+                    : "No purchase has been placed yet";
+
+          return (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: { xs: 2.5, sm: 4 },
+                borderRadius: 3,
+                maxWidth: 600,
+                mx: "auto",
+              }}
+            >
+              <Stack spacing={2.5} alignItems="center" textAlign="center">
+                <Box sx={{ display: "flex" }}>{heroIcon}</Box>
+
+                <Box>
+                  <Typography
+                    variant="overline"
+                    color={overlineColor}
+                    fontWeight={800}
+                  >
+                    {overlineLabel}
+                  </Typography>
+                  <Typography variant="h4" fontWeight={800}>
+                    {titleLabel}
+                  </Typography>
+                  <Typography color="text.secondary" sx={{ mt: 1 }}>
+                    {subtitleLabel}
+                  </Typography>
+                </Box>
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    width: "100%",
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: "background.default",
+                  }}
                 >
-                  Checkout: {paymentReference}
-                </Typography>
-              </Box>
-              {paymentChecking && <Stack direction="row" alignItems="center" spacing={1.5}><CircularProgress size={20} /><Typography role="status">Verifying your payment…</Typography></Stack>}
-              {paymentError && <Alert severity="error">{paymentError}</Alert>}
-              {paymentActionError && <Alert severity="error">{paymentActionError}</Alert>}
-              {paymentMessage && <Alert severity="info">{paymentMessage}</Alert>}
-              {!paymentChecking && !paymentError && !paymentPaid && !paymentClosed && <Alert severity={String(payment?.payment_status).toLowerCase() === "failed" ? "warning" : "info"}>
-                {String(payment?.payment_status).toLowerCase() === "failed" ? "Payment was unsuccessful. Continue payment to try again, or cancel this checkout." : "Payment has not been confirmed yet. No purchase has been placed."}
-              </Alert>}
-              {paymentOrders.length > 0 && (
-                <Stack spacing={2} divider={<Divider />}>
-                  {paymentOrders.map((order) => (
-                    <Box key={order.orderId}>
-                      {order.items?.map((item) => (
-                        <Stack key={item.id || item.artworkId} direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
-                          <WatermarkedArtworkImage image={item.image} alt={item.title || "Artwork"} sx={{ width: 64, height: 64, borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{item.title}</Typography>
-                            <Typography variant="body2" color="text.secondary">{item.artist} · Qty {item.qty || 1}</Typography>
-                            {item.selectedProducts?.map((product) => (
-                              <Typography key={product.id} variant="caption" color="text.secondary" display="block">
-                                {product.name} × {product.quantity}
-                              </Typography>
-                            ))}
-                            {item.orderNote && (
-                              <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: "pre-wrap" }}>
-                                Request: {item.orderNote}
-                              </Typography>
-                            )}
-                          </Box>
-                          <Typography fontWeight={700}>
-                            {currency(item.lineTotal ?? Number(item.price) * Number(item.qty || 1))}
-                          </Typography>
-                        </Stack>
-                      ))}
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="center"
+                    textAlign="left"
+                  >
+                    {paymentClosed ? (
+                      <InfoOutlinedIcon color="error" sx={{ flexShrink: 0 }} />
+                    ) : paymentNeedsReview || isFailed ? (
+                      <ErrorOutlineRoundedIcon color="warning" sx={{ flexShrink: 0 }} />
+                    ) : (
+                      <AccountBalanceWalletOutlinedIcon
+                        color={paymentPaid ? "success" : "primary"}
+                        sx={{ flexShrink: 0 }}
+                      />
+                    )}
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle2" fontWeight={800}>
+                        {infoHeading}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ overflowWrap: "anywhere", mt: 0.25 }}
+                      >
+                        Checkout reference: {paymentReference}
+                      </Typography>
                     </Box>
-                  ))}
-                  <SummaryRow label="Total" value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))} bold />
+                  </Stack>
+                </Paper>
+
+                {paymentChecking && (
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <CircularProgress size={20} />
+                    <Typography variant="body2" role="status">
+                      Verifying your payment…
+                    </Typography>
+                  </Stack>
+                )}
+                {paymentError && (
+                  <Alert severity="error" sx={{ width: "100%", textAlign: "left" }}>
+                    {paymentError}
+                  </Alert>
+                )}
+                {paymentActionError && (
+                  <Alert severity="error" sx={{ width: "100%", textAlign: "left" }}>
+                    {paymentActionError}
+                  </Alert>
+                )}
+                {paymentMessage && !paymentClosed && (
+                  <Alert severity="info" sx={{ width: "100%", textAlign: "left" }}>
+                    {paymentMessage}
+                  </Alert>
+                )}
+
+                {paymentOrders.length > 0 && (
+                  <Box sx={{ width: "100%", textAlign: "left" }}>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      sx={{ mb: 1.5 }}
+                    >
+                      <ShoppingBagOutlinedIcon color="action" fontSize="small" />
+                      <Typography variant="subtitle2" fontWeight={800}>
+                        Checkout items
+                      </Typography>
+                    </Stack>
+
+                    <Stack spacing={1.25}>
+                      {paymentOrders.map((order) =>
+                        order.items?.map((item) => (
+                          <Stack
+                            key={`${order.orderId}-${item.id || item.artworkId}`}
+                            direction="row"
+                            spacing={1.5}
+                            alignItems="center"
+                            sx={{
+                              py: 1.25,
+                              borderBottom: "1px solid",
+                              borderColor: "divider",
+                            }}
+                          >
+                            <WatermarkedArtworkImage
+                              image={item.image}
+                              alt={item.title || "Artwork"}
+                              sx={{
+                                width: 52,
+                                height: 52,
+                                borderRadius: 1.5,
+                                objectFit: "cover",
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography variant="body2" fontWeight={700} sx={{ overflowWrap: "anywhere" }}>
+                                {item.title}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                {item.artist} · Qty {item.qty || 1}
+                              </Typography>
+                              {item.selectedProducts?.map((product) => (
+                                <Typography key={product.id} variant="caption" color="text.secondary" display="block">
+                                  {product.name} × {product.quantity}
+                                </Typography>
+                              ))}
+                              {item.orderNote && (
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: "pre-wrap" }}>
+                                  Request: {item.orderNote}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Typography variant="body2" fontWeight={700} sx={{ flexShrink: 0 }}>
+                              {currency(item.lineTotal ?? Number(item.price) * Number(item.qty || 1))}
+                            </Typography>
+                          </Stack>
+                        )),
+                      )}
+
+                      <Box sx={{ pt: 0.5 }}>
+                        <SummaryRow
+                          label="Total"
+                          value={currency(paymentOrders.reduce((sum, order) => sum + Number(order.total || 0), 0))}
+                          bold
+                        />
+                      </Box>
+                    </Stack>
+                  </Box>
+                )}
+
+                <Divider flexItem />
+
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  sx={{ width: "100%" }}
+                >
+                  {paymentCanResume && (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="error"
+                      disabled={loading || paymentChecking}
+                      onClick={() => handlePaymentAction("resume")}
+                      sx={{ borderRadius: 999, textTransform: "none", py: 1.2, color: "#fff" }}
+                    >
+                      Continue payment
+                    </Button>
+                  )}
+                  {paymentCanResume && (
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="error"
+                      disabled={loading || paymentChecking}
+                      onClick={() => handlePaymentAction("cancel")}
+                      sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
+                    >
+                      Cancel checkout
+                    </Button>
+                  )}
+                  {(paymentRefunded || paymentNeedsReview) && (
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      color="error"
+                      onClick={() => navigate("/buyer/profile/orders")}
+                      sx={{ borderRadius: 999, textTransform: "none", py: 1.2, color: "#fff" }}
+                    >
+                      View orders
+                    </Button>
+                  )}
+                  <Button
+                    fullWidth
+                    variant={paymentCanResume || paymentRefunded || paymentNeedsReview ? "outlined" : "contained"}
+                    color="error"
+                    disabled={loading}
+                    onClick={() => navigate("/buyer/cart")}
+                    sx={{
+                      borderRadius: 999,
+                      textTransform: "none",
+                      py: 1.2,
+                      ...(!(paymentCanResume || paymentRefunded || paymentNeedsReview) && { color: "#fff" }),
+                    }}
+                  >
+                    Return to cart
+                  </Button>
+                  {paymentClosed && (
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="error"
+                      disabled={loading}
+                      onClick={() => navigate("/buyer/shop")}
+                      sx={{ borderRadius: 999, textTransform: "none", py: 1.2 }}
+                    >
+                      Continue browsing
+                    </Button>
+                  )}
                 </Stack>
-              )}
-              <Stack
-                direction="row"
-                flexWrap="wrap"
-                justifyContent="flex-end"
-                gap={1}
-              >
-                {paymentCanResume && <Button variant="contained" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("resume")}>Continue payment</Button>}
-                {paymentCanResume && <Button color="error" disabled={loading || paymentChecking} onClick={() => handlePaymentAction("cancel")}>Cancel checkout</Button>}
-                {(paymentRefunded || paymentNeedsReview) && <Button onClick={() => navigate("/buyer/profile/orders")}>View orders</Button>}
-                <Button variant="contained" color="error" fullWidth  disabled={loading} onClick={() => navigate("/buyer/cart")}>Return to cart</Button>
               </Stack>
-            </Stack>
-          </Paper>
-        )
+            </Paper>
+          );
+        })()
       )}
       {!paymentReference && !pageLoading && hasSoldOutItems && (
         <Alert
@@ -1177,6 +1423,11 @@ export default function Checkout() {
                                     {group.shopName}
                                   </Typography>
                                   <Chip
+                                   icon={
+                                    <CheckCircleIcon
+                                      sx={{ fontSize: "12px !important" }}
+                                    />
+                                  }
                                     label="Free Meet-up"
                                     size="small"
                                     color="success"

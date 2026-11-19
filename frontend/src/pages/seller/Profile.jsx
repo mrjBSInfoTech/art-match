@@ -202,9 +202,9 @@ export default function Profile() {
                 fontWeight={700}
                 sx={{ overflowWrap: "anywhere" }}
               >
-                {fullName || "Student / Seller"}
+                {fullName || "Student"}
               </Typography>
-              <Chip label="Student / Seller" size="small" color="primary" />
+              <Chip label="Student" size="small" color="primary" />
             </Stack>
             <Typography
               variant="body2"
@@ -221,13 +221,6 @@ export default function Profile() {
               Email: <strong>{profile.email || "N/A"}</strong>
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            onClick={() => navigate("/seller/settings")}
-            sx={{ textTransform: "none", flexShrink: 0 }}
-          >
-            Personal settings
-          </Button>
         </Stack>
       </Paper>
 

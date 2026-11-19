@@ -1,3 +1,6 @@
+import { getCompletedOrderCondition } from "./artworkAvailability.js";
+import { getProductOptions, parseArtworkDetails } from "./productOptions.js";
+
 export const MAX_STOCK_QUANTITY = 2_147_483_647;
 
 export function isLegacyStockableProduct(row = {}) {
@@ -104,4 +107,99 @@ export function serializeInventoryOptions(options, artworkId, soldQuantities) {
       stock_quantity: Math.max(0, recordedQuantity - soldQuantity),
     };
   });
+}
+
+export async function loadSoldOptionQuantitiesForArtworks(executor, artworkIds = []) {
+  const ids = [
+    ...new Set(
+      (Array.isArray(artworkIds) ? artworkIds : [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  ];
+  if (!ids.length || !executor?.query) return new Map();
+
+  const [rows] = await executor.query(
+    `SELECT oi.artwork_id, oi.selected_products
+     FROM marketplace_order_item oi
+     JOIN marketplace_order o ON o.order_id = oi.order_id
+     WHERE oi.artwork_id IN (?)
+       AND oi.selected_products IS NOT NULL
+       AND ${getCompletedOrderCondition("o")}`,
+    [ids],
+  );
+  return getSelectedOptionSoldQuantities(rows);
+}
+
+export function serializeRemainingProductOptions(options, artworkId, soldQuantities) {
+  return serializeInventoryOptions(options, artworkId, soldQuantities).map((option) => ({
+    ...option,
+    remaining_stock: option.stock_quantity,
+  }));
+}
+
+export function attachArtworkOptionStock(artwork, soldQuantities = new Map()) {
+  if (!artwork || typeof artwork !== "object") return artwork;
+  const details = parseArtworkDetails(artwork.artwork_details);
+  const rawOptions = getProductOptions(details);
+  if (!rawOptions.length) return artwork;
+
+  const productOptions = serializeRemainingProductOptions(
+    rawOptions,
+    artwork.artwork_id,
+    soldQuantities,
+  );
+  const recordedOptionsStock = productOptions.reduce(
+    (sum, option) => sum + (parseStockQuantity(option.quantity) ?? 0),
+    0,
+  );
+  const remainingOptionsStock = productOptions.reduce(
+    (sum, option) => sum + option.remaining_stock,
+    0,
+  );
+  const nextDetails = {
+    ...details,
+    ...(details.stock_available == null ? { stock_available: recordedOptionsStock } : {}),
+    product_options: productOptions,
+  };
+  const nextArtworkDetails =
+    typeof artwork.artwork_details === "string"
+      ? JSON.stringify(nextDetails)
+      : nextDetails;
+
+  const isCustomProduct =
+    String(artwork.product_type || "").trim().toLowerCase() === "customize";
+  const explicitlySold =
+    Number(artwork.is_sold) === 1 ||
+    String(artwork.status || "").trim().toLowerCase() === "sold";
+
+  return {
+    ...artwork,
+    artwork_details: nextArtworkDetails,
+    product_options: productOptions,
+    ...(artwork.stock_available == null ? { stock_available: recordedOptionsStock } : {}),
+    ...(Object.hasOwn(artwork, "is_sold_out") && !isCustomProduct
+      ? { is_sold_out: explicitlySold || remainingOptionsStock <= 0 ? 1 : 0 }
+      : {}),
+  };
+}
+
+export async function enrichArtworksWithOptionStock(dbOrExecutor, rows = []) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) return list;
+
+  const optionArtworkIds = list
+    .filter((row) => getProductOptions(row?.artwork_details).length > 0)
+    .map((row) => row.artwork_id);
+  if (!optionArtworkIds.length) return list;
+
+  const executor =
+    typeof dbOrExecutor?.promise === "function"
+      ? dbOrExecutor.promise()
+      : dbOrExecutor;
+  const soldQuantities = await loadSoldOptionQuantitiesForArtworks(
+    executor,
+    optionArtworkIds,
+  );
+  return list.map((row) => attachArtworkOptionStock(row, soldQuantities));
 }

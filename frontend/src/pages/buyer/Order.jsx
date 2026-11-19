@@ -6,9 +6,9 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   InputAdornment,
   Paper,
+  Skeleton,
   Stack,
   Tab,
   Tabs,
@@ -212,37 +212,34 @@ export default function Orders() {
         <title>Orders</title>
       </Helmet>
 
-      <Stack spacing={3}>
-        {/* Page Header */}
-        <Box
+      {/* Page Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h4"
           sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            justifyContent: "space-between",
-            alignItems: { xs: "flex-start", md: "center" },
-            gap: 2,
+            fontWeight: 800,
+            color: "text.primary",
+            fontSize: { xs: 26, sm: 32 },
+            letterSpacing: -0.5,
           }}
         >
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>
-              My orders
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Follow each seller's progress from confirmation to delivery.
-            </Typography>
-          </Box>
-        </Box>
+          My Orders
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: 13.5 }}>
+          Follow each seller's progress from confirmation to delivery.
+        </Typography>
+      </Box>
 
+      <Stack spacing={3}>
         {/* Top 4 Metric Summary Cards */}
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(4, 1fr)",
+              xs: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(4, minmax(0, 1fr))",
             },
-            gap: 2,
+            gap: { xs: 1.25, sm: 2 },
           }}
         >
           {[
@@ -275,7 +272,8 @@ export default function Orders() {
               key={label}
               elevation={0}
               sx={{
-                p: 2.5,
+                p: { xs: 1.5, sm: 2.25, md: 1.75, lg: 2.5 },
+                minWidth: 0,
                 border: "1px solid",
                 borderColor: "divider",
                 borderRadius: 2,
@@ -291,38 +289,61 @@ export default function Orders() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "flex-start",
+                  gap: { xs: 1, lg: 1.5 },
+                  minWidth: 0,
                 }}
               >
-                <Box>
+                <Box sx={{ minWidth: 0 }}>
                   <Typography
                     variant="caption"
                     color="text.secondary"
                     sx={{
                       fontWeight: 700,
+                      fontSize: { xs: 10.5, sm: 12, md: 10.5, lg: 12 },
                       letterSpacing: 0.5,
                       textTransform: "uppercase",
+                      display: "block",
                     }}
                   >
                     {label}
                   </Typography>
                   <Typography
                     variant="h5"
-                    sx={{ fontWeight: 800, mt: 0.5, fontVariantNumeric: "tabular-nums" }}
+                    sx={{
+                      fontWeight: 800,
+                      fontSize: { xs: "1.15rem", sm: "1.4rem", md: "1.15rem", lg: "1.5rem" },
+                      mt: 0.5,
+                      fontVariantNumeric: "tabular-nums",
+                      overflowWrap: "anywhere",
+                    }}
                   >
-                    {value}
+                    {loading ? (
+                      <Skeleton
+                        width={label === "TOTAL SPENT" ? 84 : 44}
+                        height={30}
+                      />
+                    ) : (
+                      value
+                    )}
                   </Typography>
                   <Typography
                     variant="caption"
                     color="text.secondary"
-                    sx={{ display: "block", mt: 0.5 }}
+                    sx={{
+                      display: "block",
+                      mt: 0.5,
+                      fontSize: { xs: 11, sm: 12 },
+                      lineHeight: 1.35,
+                    }}
                   >
                     {caption}
                   </Typography>
                 </Box>
                 <Box
                   sx={{
-                    p: 1,
+                    p: { xs: 0.75, sm: 1 },
                     borderRadius: 1.5,
+                    flexShrink: 0,
                     backgroundColor:
                       theme.palette.mode === "dark"
                         ? "rgba(239, 68, 68, 0.15)"
@@ -521,9 +542,7 @@ export default function Orders() {
         {/* Order Cards List */}
         <Stack spacing={2}>
           {loading ? (
-            <Box sx={{ display: "grid", placeItems: "center", minHeight: 240, py: 4 }}>
-              <CircularProgress />
-            </Box>
+            <OrderListSkeleton />
           ) : orders.length === 0 && !error ? (
             <Paper variant="outlined" sx={{ p: 5, textAlign: "center", borderRadius: 3 }}>
               <Typography variant="h6" fontWeight={800}>
@@ -579,5 +598,80 @@ export default function Orders() {
         </Stack>
       </Stack>
     </Box>
+  );
+}
+
+function OrderListSkeleton() {
+  return (
+    <Stack spacing={2} role="status" aria-label="Loading orders">
+      {[0, 1, 2].map((index) => (
+        <Paper
+          key={`order-skeleton-${index}`}
+          elevation={0}
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3.5,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+            spacing={2}
+          >
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              sx={{ minWidth: 0, flex: 1, width: "100%" }}
+            >
+              <Skeleton
+                variant="rounded"
+                width={58}
+                height={58}
+                sx={{ borderRadius: 2.5, flexShrink: 0 }}
+              />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  flexWrap="wrap"
+                >
+                  <Skeleton width="42%" height={24} sx={{ minWidth: 140 }} />
+                  <Skeleton
+                    variant="rounded"
+                    width={78}
+                    height={22}
+                    sx={{ borderRadius: 999 }}
+                  />
+                </Stack>
+                <Skeleton width="58%" height={18} sx={{ mt: 0.75, minWidth: 160 }} />
+                <Skeleton width="35%" height={16} sx={{ mt: 0.5, minWidth: 110 }} />
+              </Box>
+            </Stack>
+
+            <Stack
+              direction={{ xs: "row", md: "column" }}
+              alignItems={{ xs: "center", md: "flex-end" }}
+              justifyContent="space-between"
+              spacing={0.75}
+              sx={{ width: { xs: "100%", md: "auto" }, flexShrink: 0 }}
+            >
+              <Skeleton width={88} height={26} />
+              <Skeleton
+                variant="rounded"
+                width={74}
+                height={22}
+                sx={{ borderRadius: 999 }}
+              />
+            </Stack>
+          </Stack>
+        </Paper>
+      ))}
+    </Stack>
   );
 }

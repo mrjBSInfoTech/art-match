@@ -21,7 +21,12 @@ import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import ArtworkImage from "../../common/ArtworkImage";
-import { MAX_STOCK_QUANTITY } from "../../../utils/inventory";
+import {
+  MAX_STOCK_QUANTITY,
+  getStockPillStyle,
+  getStockStatus,
+  getStockStatusLabel,
+} from "../../../utils/inventory";
 
 function isPositiveWholeNumber(value) {
   return /^[1-9]\d*$/.test(String(value).trim());
@@ -171,6 +176,8 @@ export default function InventoryStock({
             options.map((option) => {
               const form = adjustments[option.id] || { direction: "add", quantity: "", error: "" };
               const available = Number(option.stock_quantity) || 0;
+              const optionStatus = getStockStatus(available);
+              const optionPillStyle = getStockPillStyle(theme, optionStatus);
               const maxAddition = Math.max(
                 0,
                 MAX_STOCK_QUANTITY - available - (Number(option.sold_quantity) || 0),
@@ -203,9 +210,28 @@ export default function InventoryStock({
                     )}
 
                     <Stack spacing={1.25}>
-                      <Box>
-                        <Typography sx={detailLabelSx}>Product</Typography>
-                        <Typography sx={detailValueSx}>{option.name || "Not provided"}</Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: 1,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={detailLabelSx}>Product</Typography>
+                          <Typography sx={detailValueSx}>{option.name || "Not provided"}</Typography>
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={getStockStatusLabel(available)}
+                          sx={{
+                            ...optionPillStyle,
+                            fontWeight: 800,
+                            fontSize: 11,
+                            flexShrink: 0,
+                          }}
+                        />
                       </Box>
 
                       <Box>

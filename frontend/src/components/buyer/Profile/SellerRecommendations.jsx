@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
-  Stack,
   Typography,
 } from "@mui/material";
 import {
@@ -14,9 +12,8 @@ import {
 } from "../../../api/buyer/recommendationAPI";
 import ArtworkCard from "../Artwork/ArtworkCard";
 import RelatedArtists from "../Artist/RelatedArtists";
+import { SectionHeader } from "../Main/RecommendedSection";
 import { mergeSellerProfileRecommendations } from "../../../utils/sellerProfileRecommendations";
-//Icons
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 export default function SellerRecommendations({
   sellerId,
@@ -140,6 +137,7 @@ export default function SellerRecommendations({
           <SectionHeader
             title="Recommended for You"
             to="/buyer/shop?recommendations=1"
+            titleId="seller-recommendations-title"
           />
         </Box>
         {loading ? (
@@ -195,48 +193,5 @@ export default function SellerRecommendations({
       </Box>
       )}
     </>
-  );
-}
-function SectionHeader({ title, to }) {
-  return (
-    <Stack
-      direction="row"
-      sx={{ alignItems: "flex-end", justifyContent: "space-between", mb: 3 }}
-    >
-      <Box>
-        <Typography
-          id="seller-recommendations-title"
-          component="h2"
-          variant="h4"
-          sx={{
-            mt: 0.5,
-            fontSize: {
-              xs: 22,
-              sm: 26,
-              md: 30,
-            },
-            fontWeight: 800,
-          }}
-        >
-          {title}
-        </Typography>
-      </Box>
-      {to && (
-        <Button
-          component={RouterLink}
-          to={to}
-          endIcon={<ArrowForwardIcon />}
-          sx={{
-            color: "text.primary",
-            fontSize: { xs: 10, sm: 14, md: 16 },
-            fontWeight: 600,
-            maxWidth: 200,
-            p: 0,
-          }}
-        >
-          View all
-        </Button>
-      )}
-    </Stack>
   );
 }

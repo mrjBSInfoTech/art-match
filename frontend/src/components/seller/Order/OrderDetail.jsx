@@ -480,7 +480,10 @@ export default function OrderDetail() {
           border: "1px solid",
           borderColor: "divider",
           bgcolor: "background.paper",
-          boxShadow: "0 4px 24px rgba(15, 23, 42, 0.04)",
+          boxShadow:
+            theme.palette.mode === "dark"
+              ? "0 4px 24px rgba(0, 0, 0, 0.35)"
+              : "0 4px 24px rgba(15, 23, 42, 0.04)",
         }}
       >
         <Stack spacing={3.5}>
@@ -700,10 +703,10 @@ export default function OrderDetail() {
                 </Box>
 
                 <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                  <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                  <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                     {isMeetup ? "Meet-up Location:" : "Delivery Address:"}
                   </Typography>
-                  <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600, textAlign: { sm: "right" } }}>
+                  <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600, textAlign: { sm: "right" } }}>
                     {order.address || "Address not provided"}
                   </Typography>
                 </Box>
@@ -711,19 +714,19 @@ export default function OrderDetail() {
                 {!isMeetup && (
                   <>
                     <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                      <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                         Courier:
                       </Typography>
-                      <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600 }}>
                         {courierInfo?.label || order.courier || "Awaiting courier assignment"}
                       </Typography>
                     </Box>
 
                     <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                      <Typography sx={{ color: "#475569", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 600 }}>
                         Tracking Number:
                       </Typography>
-                      <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 600 }}>
+                      <Typography sx={{ color: "text.primary", fontSize: 13, fontWeight: 600 }}>
                         {order.trackingNumber || "Awaiting tracking details"}
                       </Typography>
                     </Box>
@@ -737,7 +740,7 @@ export default function OrderDetail() {
                           rel="noopener noreferrer"
                           size="small"
                           endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-                          sx={{ textTransform: "none", fontWeight: 700, p: 0, color: "#2563eb" }}
+                          sx={{ textTransform: "none", fontWeight: 700, p: 0, color: "primary.main" }}
                         >
                           Open courier tracking
                         </Button>
@@ -748,7 +751,7 @@ export default function OrderDetail() {
 
                 {order.handlingInstructions?.length > 0 && (
                   <Box sx={{ pt: 0.5 }}>
-                    <Typography sx={{ color: "#475569", fontSize: 12, fontWeight: 600, mb: 0.5 }}>
+                    <Typography sx={{ color: "text.secondary", fontSize: 12, fontWeight: 600, mb: 0.5 }}>
                       Handling Instructions:
                     </Typography>
                     <Stack direction="row" spacing={0.75} flexWrap="wrap">
@@ -760,8 +763,12 @@ export default function OrderDetail() {
                           sx={{
                             fontSize: 11,
                             textTransform: "capitalize",
-                            bgcolor: "#e0f2fe",
-                            color: "#0369a1",
+                            bgcolor: alpha(
+                              theme.palette.info.main,
+                              theme.palette.mode === "dark" ? 0.18 : 0.12,
+                            ),
+                            color:
+                              theme.palette.mode === "dark" ? "info.light" : "#0369a1",
                             fontWeight: 600,
                           }}
                         />
@@ -772,10 +779,10 @@ export default function OrderDetail() {
 
                 {order.note && (
                   <Box sx={{ pt: 0.5 }}>
-                    <Typography sx={{ color: "#475569", fontSize: 12, fontWeight: 600 }}>
+                    <Typography sx={{ color: "text.secondary", fontSize: 12, fontWeight: 600 }}>
                       Customer Note:
                     </Typography>
-                    <Typography sx={{ color: "#0f172a", fontSize: 13, mt: 0.25 }}>
+                    <Typography sx={{ color: "text.primary", fontSize: 13, mt: 0.25 }}>
                       {order.note}
                     </Typography>
                   </Box>
@@ -789,11 +796,12 @@ export default function OrderDetail() {
             sx={{
               p: 2.5,
               borderRadius: 3,
-              border: "1px solid #e2e8f0",
-              bgcolor: "#ffffff",
+              border: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.default",
             }}
           >
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0f172a", mb: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "text.primary", mb: 1 }}>
               Order Status Management
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
@@ -830,25 +838,32 @@ export default function OrderDetail() {
             </Stack>
           </Box>
 
-          {/* F. Payout Guarantee Banner (Light Green Banner from Reference Image 1) */}
+          {/* F. Payout Guarantee Banner */}
           <Box
             sx={{
               p: 1.75,
               borderRadius: 2.5,
-              bgcolor: "#f0fdf4",
-              border: "1px solid #bbf7d0",
+              bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.14 : 0.08),
+              border: "1px solid",
+              borderColor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.35 : 0.25),
               display: "flex",
               alignItems: "center",
               gap: 1.5,
             }}
           >
-            <CheckCircleOutlinedIcon sx={{ color: "#16a34a", fontSize: 22, flexShrink: 0 }} />
-            <Typography sx={{ color: "#166534", fontSize: 13, fontWeight: 600 }}>
+            <CheckCircleOutlinedIcon sx={{ color: "success.main", fontSize: 22, flexShrink: 0 }} />
+            <Typography
+              sx={{
+                color: theme.palette.mode === "dark" ? "success.light" : "#166534",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
               Net payout (after payment processing fee deduction) disbursed directly to registered student bank account via InstaPay.
             </Typography>
           </Box>
 
-          {/* G. Bottom Action Buttons (Reference Image 1) */}
+          {/* G. Bottom Action Buttons */}
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1.5}
@@ -863,15 +878,17 @@ export default function OrderDetail() {
               disabled={!canFulfillOrder(order)}
               sx={{
                 width: { xs: "100%", sm: "auto" },
-                bgcolor: "#18181b",
-                color: "#ffffff",
+                bgcolor: theme.palette.mode === "dark" ? "#f1f5f9" : "#18181b",
+                color: theme.palette.mode === "dark" ? "#0f172a" : "#ffffff",
                 borderRadius: 2,
                 px: 3,
                 py: 1.25,
                 fontWeight: 700,
                 fontSize: 14,
                 textTransform: "none",
-                "&:hover": { bgcolor: "#27272a" },
+                "&:hover": {
+                  bgcolor: theme.palette.mode === "dark" ? "#e2e8f0" : "#27272a",
+                },
               }}
             >
               Download PDF Receipt
@@ -892,9 +909,9 @@ export default function OrderDetail() {
                     fontWeight: 700,
                     fontSize: 13,
                     textTransform: "none",
-                    borderColor: "#cbd5e1",
-                    color: "#334155",
-                    "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
+                    borderColor: "divider",
+                    color: "text.primary",
+                    "&:hover": { borderColor: "text.secondary", bgcolor: "action.hover" },
                   }}
                 >
                   Chat with Buyer
@@ -912,9 +929,9 @@ export default function OrderDetail() {
                   fontWeight: 700,
                   fontSize: 13,
                   textTransform: "none",
-                  borderColor: "#cbd5e1",
-                  color: "#334155",
-                  "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
+                  borderColor: "divider",
+                  color: "text.primary",
+                  "&:hover": { borderColor: "text.secondary", bgcolor: "action.hover" },
                 }}
               >
                 Back to orders

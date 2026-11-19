@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -30,7 +30,11 @@ import WarningIcon from "@mui/icons-material/Warning";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import { verifyPassword } from "../../../api/admin/adminAuthenticationAPI";
 import PayoutChangeConfirm from "./PayoutChangeConfirm";
+import PayoutView from "./PayoutView";
 
 export default function PayMongoWalletPanel({
   walletData,
@@ -53,9 +57,24 @@ export default function PayMongoWalletPanel({
   const [voteComment, setVoteComment] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [walletRevealed, setWalletRevealed] = useState(false);
+  const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
 
   const currentWalletId = walletData?.currentWalletId || "";
   const walletSource = walletData?.walletSource || "environment";
+
+  useEffect(() => {
+    setWalletRevealed(false);
+  }, [currentWalletId]);
+
+  const maskedWalletId = currentWalletId
+    ? "*".repeat(Math.min(Math.max(currentWalletId.length, 12), 24))
+    : "";
+  const displayedWalletId = !currentWalletId
+    ? "(None configured in system)"
+    : walletRevealed
+      ? currentWalletId
+      : maskedWalletId;
   const isAllSettled = walletData?.isAllSettled ?? true;
   const unsettledCount = walletData?.unsettledCount ?? 0;
   const unsettledTotal = walletData?.unsettledTotal ?? 0;
@@ -68,11 +87,27 @@ export default function PayMongoWalletPanel({
   const canSubmitRequest = isSuperAdmin && isValidWalletFormat && isDifferentFromCurrent && !activeRequest;
 
   const handleCopyWallet = () => {
-    if (currentWalletId && navigator?.clipboard?.writeText) {
+    if (walletRevealed && currentWalletId && navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(currentWalletId);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleToggleWalletVisibility = () => {
+    if (!currentWalletId) return;
+    if (walletRevealed) {
+      setWalletRevealed(false);
+      setCopied(false);
+      return;
+    }
+    setUnlockDialogOpen(true);
+  };
+
+  const handleUnlockWallet = async (password) => {
+    await verifyPassword(password);
+    setWalletRevealed(true);
+    setUnlockDialogOpen(false);
   };
 
   const handleOpenRequestConfirm = () => {
@@ -175,15 +210,42 @@ export default function PayMongoWalletPanel({
           </Stack>
 
           <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: theme.palette.background.default, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, minWidth: 0 }}>
-            <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: 13, overflowWrap: "anywhere", minWidth: 0 }}>
-              {currentWalletId || "(None configured in system)"}
+            <Typography
+              variant="body2"
+              sx={{
+                fontFamily: "monospace",
+                fontWeight: 700,
+                fontSize: 13,
+                letterSpacing: !walletRevealed && currentWalletId ? "0.08em" : undefined,
+                overflowWrap: "anywhere",
+                minWidth: 0,
+              }}
+            >
+              {displayedWalletId}
             </Typography>
             {currentWalletId && (
-              <Tooltip title={copied ? "Copied!" : "Copy Wallet ID"}>
-                <IconButton size="small" onClick={handleCopyWallet} sx={{ flexShrink: 0 }}>
-                  <ContentCopyIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
+              <Stack direction="row" alignItems="center" spacing={0.25} sx={{ flexShrink: 0 }}>
+                <Tooltip title={walletRevealed ? "Hide Wallet ID" : "Enter password to view Wallet ID"}>
+                  <IconButton
+                    size="small"
+                    aria-label={walletRevealed ? "Hide PayMongo Wallet ID" : "Reveal PayMongo Wallet ID"}
+                    onClick={handleToggleWalletVisibility}
+                  >
+                    {walletRevealed ? (
+                      <VisibilityOffOutlinedIcon sx={{ fontSize: 17 }} />
+                    ) : (
+                      <VisibilityOutlinedIcon sx={{ fontSize: 17 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+                {walletRevealed && (
+                  <Tooltip title={copied ? "Copied!" : "Copy Wallet ID"}>
+                    <IconButton size="small" aria-label="Copy PayMongo Wallet ID" onClick={handleCopyWallet}>
+                      <ContentCopyIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
             )}
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
@@ -560,6 +622,13 @@ export default function PayMongoWalletPanel({
         unsettledOrders={unsettledOrders}
         mode={confirmMode}
         busy={busy}
+      />
+
+      {/* 6. UNLOCK WALLET ID PASSWORD DIALOG (PayoutView.jsx) */}
+      <PayoutView
+        open={unlockDialogOpen}
+        onClose={() => setUnlockDialogOpen(false)}
+        onConfirm={handleUnlockWallet}
       />
     </Stack>
   );

@@ -71,13 +71,15 @@ export default function AdminLoadingPanel({
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "minmax(0, 1fr)",
-              sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(3, minmax(0, 1fr))",
+              xs: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(3, minmax(0, 1fr))",
             },
-            gap: 2,
+            gap: { xs: 1.25, sm: 2 },
             mb: 2.5,
             minWidth: 0,
+            "& > *:nth-of-type(3):last-child": {
+              gridColumn: { xs: "1 / -1", md: "auto" },
+            },
           }}
         >
           {[0, 1, 2].map((index) => (
@@ -86,28 +88,36 @@ export default function AdminLoadingPanel({
               sx={{
                 backgroundColor: theme.palette?.background?.paper,
                 border: `1px solid ${theme.palette?.divider || "rgba(148, 163, 184, 0.2)"}`,
-                borderRadius: 2.5,
+                borderRadius: { xs: 2, sm: 2.5 },
                 boxShadow: "none",
                 minWidth: 0,
                 overflow: "hidden",
               }}
             >
-              <CardContent sx={{ p: { xs: 1.75, sm: 2 }, "&:last-child": { pb: { xs: 1.75, sm: 2 } } }}>
+              <CardContent sx={{ p: { xs: 1.5, sm: 2.25 }, "&:last-child": { pb: { xs: 1.5, sm: 2.25 } } }}>
                 <Box
                   sx={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: { xs: 1.25, sm: 2 },
+                    gap: { xs: 1, sm: 2 },
                     minWidth: 0,
                   }}
                 >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Skeleton variant="text" width="55%" height={16} />
-                    <Skeleton variant="text" width="35%" height={38} sx={{ mt: 0.5 }} />
+                    <Skeleton variant="text" width="35%" height={34} sx={{ mt: 0.5 }} />
                     <Skeleton variant="text" width="70%" height={16} sx={{ mt: 0.5 }} />
                   </Box>
-                  <Skeleton variant="rounded" width={50} height={50} sx={{ borderRadius: 2, flexShrink: 0 }} />
+                  <Skeleton
+                    variant="rounded"
+                    sx={{
+                      width: { xs: 36, sm: 48 },
+                      height: { xs: 36, sm: 48 },
+                      borderRadius: { xs: 1.5, sm: 2 },
+                      flexShrink: 0,
+                    }}
+                  />
                 </Box>
               </CardContent>
             </Card>

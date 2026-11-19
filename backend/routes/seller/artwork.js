@@ -31,6 +31,8 @@ import {
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { getProductOptions } from "../../utils/productOptions.js";
 import { getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
+import { enrichArtworksWithOptionStock } from "../../utils/inventoryStock.js";
+import { colorNamesToHexString } from "../../utils/artworkColorHex.js";
 
 const router = express.Router();
 
@@ -307,12 +309,17 @@ router.get("/", authenticateSeller, (req, res) => {
       ORDER BY a.artwork_id DESC
     `;
 
-    db.query(sql, [studentId], (err, results) => {
+    db.query(sql, [studentId], async (err, results) => {
       if (err) {
         console.error("Seller artwork list DB error:", err);
         return res.status(500).json({ message: err.message });
       }
-      res.json(results);
+      try {
+        res.json(await enrichArtworksWithOptionStock(db, results));
+      } catch (enrichError) {
+        console.error("Seller artwork option stock error:", enrichError);
+        res.status(500).json({ message: enrichError.message });
+      }
     });
   } catch (err) {
     console.error("Unhandled error in GET /api/seller/artwork:", err);
@@ -369,14 +376,20 @@ router.get("/:id", authenticateSeller, (req, res) => {
       LEFT JOIN feature f ON a.artwork_id = f.artwork_id
       WHERE a.artwork_id = ? AND a.student_id = ?
     `;
-    db.query(sql, [id, studentId], (err, results) => {
+    db.query(sql, [id, studentId], async (err, results) => {
       if (err) {
         console.error("Seller artwork detail DB error:", err);
         return res.status(500).json({ message: err.message });
       }
       if (results.length === 0)
         return res.status(404).json({ message: "Artwork not found" });
-      res.json(results[0]);
+      try {
+        const [enriched] = await enrichArtworksWithOptionStock(db, [results[0]]);
+        res.json(enriched);
+      } catch (enrichError) {
+        console.error("Seller artwork detail option stock error:", enrichError);
+        res.status(500).json({ message: enrichError.message });
+      }
     });
   } catch (err) {
     console.error("Unhandled error in GET /api/seller/artwork/:id:", err);
@@ -532,7 +545,7 @@ router.post(
           productSampleImageName,
           artworkDetails === null ? null : JSON.stringify(artworkDetails),
           genre.trim(),
-          detectedColors,
+          colorNamesToHexString(detectedColors) || detectedColors,
           price,
           description.trim(),
           (care_instructions || "").trim(),
@@ -826,7 +839,9 @@ router.put(
             upfrontPercentage,
             artworkDetails === null ? null : JSON.stringify(artworkDetails),
             genre.trim(),
-            typeof color_used === "string" ? color_used.trim() : currentArtwork.color_used ?? "",
+            typeof color_used === "string"
+              ? (colorNamesToHexString(color_used) || color_used.trim())
+              : (colorNamesToHexString(currentArtwork.color_used) || currentArtwork.color_used || ""),
             price,
             description.trim(),
             (care_instructions || "").trim(),

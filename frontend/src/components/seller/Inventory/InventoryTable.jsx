@@ -20,12 +20,14 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { alpha, useTheme } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import ArtworkImage from "../../common/ArtworkImage";
 import InventoryStock from "./InventoryStock";
 import { sellerTableButtonSx } from "../sellerTableStyles";
 import {
   MAX_STOCK_QUANTITY,
+  getProductOptionStatusBadges,
+  getStockPillStyle,
   getStockStatus,
   getStockStatusLabel,
   toStockQuantity,
@@ -42,25 +44,6 @@ function formatPrice(value) {
         currency: "PHP",
       }).format(Number(value))
     : "—";
-}
-
-function getStockPillStyle(theme, status) {
-  const isDark = theme.palette.mode === "dark";
-  const shade = isDark ? "light" : "dark";
-  const paletteKey =
-    status === "in-stock"
-      ? "success"
-      : status === "low-stock"
-        ? "warning"
-        : "error";
-  const baseColor = theme.palette[paletteKey]?.main || theme.palette.text.secondary;
-
-  return {
-    bgcolor: alpha(baseColor, isDark ? 0.18 : 0.12),
-    color: theme.palette[paletteKey]?.[shade] || baseColor,
-    border: "1px solid",
-    borderColor: alpha(baseColor, 0.35),
-  };
 }
 
 function StockControls({
@@ -319,6 +302,7 @@ export default function InventoryTable({
             {products.map((product) => {
               const stock = toStockQuantity(product.stock_quantity);
               const sold = toStockQuantity(product.sold_quantity);
+              const optionBadges = getProductOptionStatusBadges(product);
               const status = getStockStatus(stock);
               const pillStyle = getStockPillStyle(theme, status);
               const isSaving = savingProductId === product.artwork_id;
@@ -373,6 +357,24 @@ export default function InventoryTable({
                         }}
                       />
                     </Box>
+
+                    {optionBadges.length > 0 && (
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                        {optionBadges.map((badge) => (
+                          <Chip
+                            key={badge.status}
+                            size="small"
+                            label={badge.label}
+                            sx={{
+                              ...getStockPillStyle(theme, badge.status),
+                              fontWeight: 700,
+                              fontSize: 10.5,
+                              height: 22,
+                            }}
+                          />
+                        ))}
+                      </Stack>
+                    )}
 
                     <Box
                       sx={{
@@ -476,6 +478,7 @@ export default function InventoryTable({
                 {products.map((product) => {
                   const stock = toStockQuantity(product.stock_quantity);
                   const sold = toStockQuantity(product.sold_quantity);
+                  const optionBadges = getProductOptionStatusBadges(product);
                   const hasProductOptions = Boolean(product.product_options?.length > 0);
                   const status = getStockStatus(stock);
                   const pillStyle = getStockPillStyle(theme, status);
@@ -555,15 +558,34 @@ export default function InventoryTable({
                       </TableCell>
 
                       <TableCell sx={{ whiteSpace: "nowrap" }}>
-                        <Chip
-                          size="small"
-                          label={getStockStatusLabel(stock)}
-                          sx={{
-                            ...pillStyle,
-                            fontWeight: 800,
-                            fontSize: 11,
-                          }}
-                        />
+                        <Stack spacing={0.5} alignItems="flex-start">
+                          <Chip
+                            size="small"
+                            label={getStockStatusLabel(stock)}
+                            sx={{
+                              ...pillStyle,
+                              fontWeight: 800,
+                              fontSize: 11,
+                            }}
+                          />
+                          {optionBadges.length > 0 && (
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                              {optionBadges.map((badge) => (
+                                <Chip
+                                  key={badge.status}
+                                  size="small"
+                                  label={badge.label}
+                                  sx={{
+                                    ...getStockPillStyle(theme, badge.status),
+                                    fontWeight: 700,
+                                    fontSize: 10,
+                                    height: 20,
+                                  }}
+                                />
+                              ))}
+                            </Stack>
+                          )}
+                        </Stack>
                       </TableCell>
 
                       <TableCell align="center" sx={{ width: 340, minWidth: 320 }}>

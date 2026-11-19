@@ -173,7 +173,9 @@ export default function ProductSelectionDialog({
             </Typography>
             {options.map((option) => {
               const quantity = Number(quantities[option.id] || 0);
-              const available = Number(option.remaining_stock ?? option.quantity);
+              const available = Number(
+                option.remaining_stock ?? option.stock_quantity ?? option.quantity,
+              );
               const maxOrderQty = getArtworkMaxOrderQuantity(artwork);
               const maxBuyable = maxOrderQty !== null && maxOrderQty > 0 ? Math.min(available, maxOrderQty) : available;
               const isSelected = quantity > 0;

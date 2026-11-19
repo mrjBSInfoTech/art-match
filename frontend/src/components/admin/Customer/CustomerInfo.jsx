@@ -116,7 +116,11 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
               sx={{
                 position: "relative",
                 width: "100%",
-                aspectRatio: "16 / 7",
+                minHeight: 160,
+                maxHeight: { xs: 280, sm: 340 },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 overflow: "hidden",
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.divider}`,
@@ -133,9 +137,10 @@ function CustomerInfo({ open, handleClose, selectedCustomer }) {
                 }}
                 sx={{
                   width: "100%",
-                  height: "100%",
+                  height: "auto",
+                  maxHeight: { xs: 280, sm: 340 },
                   display: "block",
-                  objectFit: "cover",
+                  objectFit: "contain",
                 }}
               />
             </Box>

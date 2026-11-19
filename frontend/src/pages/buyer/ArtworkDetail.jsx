@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link as RouterLink, useParams, useNavigate } from "react-router-dom";
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -17,7 +16,6 @@ import {
   Paper,
   Skeleton,
   Slide,
-  Snackbar,
   Stack,
   TextField,
   Tooltip,
@@ -49,6 +47,7 @@ import { getSimilarArtworks } from "../../utils/artworkSimilarity";
 import { getArtworkRelatedArtists } from "../../utils/artworkRelatedArtists";
 import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
 import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
+import AppSnackbar from "../../components/common/AppSnackbar";
 import { isAuthenticated } from "../../../utils/auth";
 
 const unavailableImageSrc =
@@ -247,9 +246,10 @@ export default function ArtworkDetail() {
         return trimmed
           .replace(/_/g, " ")
           .split(/\s+/)
-          .map(
-            (word) =>
-              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+          .map((word) =>
+            /^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(word)
+              ? word.toUpperCase()
+              : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
           )
           .join(" ");
       })
@@ -353,7 +353,8 @@ export default function ArtworkDetail() {
     (isProduct &&
       productOptions.length > 0 &&
       productOptions.every(
-        (option) => Number(option.remaining_stock ?? option.quantity ?? 0) <= 0,
+        (option) =>
+          Number(option.remaining_stock ?? option.stock_quantity ?? option.quantity ?? 0) <= 0,
       ));
   const remainingStock = getArtworkRemainingStock(artwork);
   const orderLimit = getArtworkOrderLimit(artwork);
@@ -459,19 +460,6 @@ export default function ArtworkDetail() {
   const closeSnackbar = (event, reason) => {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "success":
-        return "success.light";
-      case "warning":
-        return "warning.light";
-      case "error":
-        return "error.light";
-      default:
-        return "primary.light";
-    }
   };
 
   return (
@@ -1229,45 +1217,12 @@ export default function ArtworkDetail() {
         description="Discover artists whose artworks share this artwork’s style or medium. Artists matching both appear first."
       />
       {/* Snackbar Notification */}
-      <Snackbar
+      <AppSnackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        message={snackbarMessage}
+        severity={snackbarSeverity}
         onClose={closeSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        TransitionComponent={Transition}
-      >
-        <Alert
-          onClose={closeSnackbar}
-          severity={snackbarSeverity}
-          variant="filled"
-          sx={{
-            width: { xs: 280, sm: 360 },
-            minHeight: 48,
-            borderRadius: 2,
-            boxShadow: "0 10px 28px rgba(15, 23, 42, 0.18)",
-            backgroundColor: getSeverityColor(snackbarSeverity),
-            color: "#fff",
-            alignItems: "center",
-            "& .MuiAlert-icon": {
-              color: "#fff",
-              mr: 1,
-            },
-            "& .MuiAlert-message": {
-              fontWeight: 600,
-              fontSize: 14,
-              display: "flex",
-              alignItems: "center",
-            },
-            "& .MuiAlert-action": {
-              alignItems: "center",
-              paddingLeft: 1,
-              color: "#fff",
-            },
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      />
     </Container>
   );
 }

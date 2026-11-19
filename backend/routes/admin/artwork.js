@@ -3,6 +3,7 @@ import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
 import { getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
+import { enrichArtworksWithOptionStock } from "../../utils/inventoryStock.js";
 
 const router = express.Router();
 
@@ -89,9 +90,13 @@ router.get("/", authenticateAdmin, (req, res) => {
       : "a.artwork_id DESC";
   sql += ` ORDER BY ${orderBy}`;
 
-  db.query(sql, params, (err, results) => {
+  db.query(sql, params, async (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(results || []);
+    try {
+      res.json(await enrichArtworksWithOptionStock(db, results || []));
+    } catch (enrichError) {
+      res.status(500).json({ error: enrichError.message });
+    }
   });
 });
 
@@ -142,11 +147,16 @@ router.get("/:id", authenticateAdmin, (req, res) => {
     WHERE a.artwork_id = ?
   `;
 
-  db.query(sql, [id], (err, results) => {
+  db.query(sql, [id], async (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     if (results.length === 0)
       return res.status(404).json({ error: "Artwork not found" });
-    res.json(results[0]);
+    try {
+      const [enriched] = await enrichArtworksWithOptionStock(db, [results[0]]);
+      res.json(enriched);
+    } catch (enrichError) {
+      res.status(500).json({ error: enrichError.message });
+    }
   });
 });
 

@@ -6,6 +6,7 @@ import {
   getArtworkSoldOutSql, getArtworkSoldQuantitySql, getCompletedOrderCondition,
 } from "../../utils/artworkAvailability.js";
 import { getArtworkRatingSql, getArtworkRatingSummary } from "../../utils/artworkRatings.js";
+import { enrichArtworksWithOptionStock } from "../../utils/inventoryStock.js";
 
 const stripImports = (name) => fs.readFileSync(new URL(name, import.meta.url), "utf8")
   .replace(/^import[\s\S]*?;\s*/gm, "")
@@ -22,7 +23,7 @@ for (const path of ["/", "/:id", "/seller/:id"]) {
     vm.runInNewContext(stripImports("./artwork.js"), {
       express: { Router: () => ({ get: (route, handler) => routes.set(route, handler) }) },
       db, getArtworkSoldOutSql, getArtworkSoldQuantitySql, getCompletedOrderCondition,
-      getArtworkRatingSql, getArtworkRatingSummary, console,
+      getArtworkRatingSql, getArtworkRatingSummary, enrichArtworksWithOptionStock, console,
     });
     const res = { status() { return this; }, json() {}, set() {} };
     routes.get(path)({ params: { id: "2" } }, res);

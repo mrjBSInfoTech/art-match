@@ -150,13 +150,17 @@ export default function PurchaseInfo({
       </DialogTitle>
 
       <DialogContent dividers sx={{ p: { xs: 2, sm: 2.5 } }}>
-        {/* Aspect-ratio Artwork Preview Card matching ArtworkInfo.jsx */}
+        {/* Full-view Artwork Preview Card matching ArtworkInfo.jsx */}
         {imageUrl ? (
           <Box
             sx={{
               position: "relative",
               width: "100%",
-              aspectRatio: "16 / 7",
+              minHeight: 160,
+              maxHeight: { xs: 280, sm: 340 },
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               overflow: "hidden",
               borderRadius: 2,
               border: `1px solid ${theme.palette.divider}`,
@@ -170,9 +174,10 @@ export default function PurchaseInfo({
               alt={primaryItem?.title || "Purchased artwork"}
               sx={{
                 width: "100%",
-                height: "100%",
+                height: "auto",
+                maxHeight: { xs: 280, sm: 340 },
                 display: "block",
-                objectFit: "cover",
+                objectFit: "contain",
               }}
             />
             <Chip
@@ -381,10 +386,12 @@ export default function PurchaseInfo({
                     image={item.image}
                     alt={item.title}
                     sx={{
-                      width: 40,
-                      height: 40,
+                      width: 44,
+                      height: 44,
                       borderRadius: 1.5,
-                      objectFit: "cover",
+                      border: `1px solid ${theme.palette.divider}`,
+                      backgroundColor: theme.palette.background.paper,
+                      objectFit: "contain",
                       flexShrink: 0,
                     }}
                   />

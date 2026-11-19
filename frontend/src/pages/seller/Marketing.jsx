@@ -425,13 +425,15 @@ export default function Marketing() {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
+            xs: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(3, minmax(0, 1fr))",
           },
-          gap: 2,
+          gap: { xs: 1.25, sm: 2 },
           mb: 2.5,
           minWidth: 0,
+          "& > *:nth-of-type(3):last-child": {
+            gridColumn: { xs: "1 / -1", md: "auto" },
+          },
         }}
       >
         {metrics.map((metric) => (

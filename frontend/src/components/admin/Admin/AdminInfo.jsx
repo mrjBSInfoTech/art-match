@@ -13,7 +13,10 @@ import {
 import { useTheme } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import { resolveProfileImageUrl } from "../../../utils/profileImage.js";
+import {
+  DEFAULT_PROFILE_IMAGE_URL,
+  resolveProfileImageUrl,
+} from "../../../utils/profileImage.js";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -76,10 +79,10 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
       sx={{
         height: 21,
         color: value
-          ? theme.palette.success.light
+          ? "#fff"
           : theme.palette.text.secondary,
         backgroundColor: value
-          ? theme.palette.success.dark
+          ? theme.palette.success.main
           : theme.palette.action.hover,
         fontSize: 10,
         fontWeight: 700,
@@ -143,7 +146,11 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
               sx={{
                 position: "relative",
                 width: "100%",
-                aspectRatio: "16 / 7",
+                minHeight: 160,
+                maxHeight: { xs: 280, sm: 340 },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 overflow: "hidden",
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.divider}`,
@@ -156,14 +163,15 @@ function AdminInfo({ open, handleClose, selectedAdmin }) {
                 src={imageUrl}
                 alt={`${admin.first_name || "Admin"} profile`}
                 onError={(event) => {
-                  event.currentTarget.src =
-                    `${API_BASE_URL}/uploads/profile.jpg`;
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = DEFAULT_PROFILE_IMAGE_URL;
                 }}
                 sx={{
                   width: "100%",
-                  height: "100%",
+                  height: "auto",
+                  maxHeight: { xs: 280, sm: 340 },
                   display: "block",
-                  objectFit: "cover",
+                  objectFit: "contain",
                 }}
               />
               <Chip

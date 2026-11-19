@@ -5,6 +5,7 @@ import {
   Avatar,
   Box,
   Button,
+  Skeleton,
   TextField,
   Stack,
   Typography,
@@ -157,12 +158,7 @@ export default function Profile() {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: "100%",
-        p: { xs: 2, sm: 3, md: 4 },
-      }}
-    >
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Profile</title>
       </Helmet>
@@ -178,6 +174,9 @@ export default function Profile() {
           My profile
         </Typography>
 
+        {loading ? (
+          <ProfileLoadingSkeleton />
+        ) : (
         <Box
           sx={{
             display: "grid",
@@ -371,6 +370,7 @@ export default function Profile() {
             </Button>
           </Box>
         </Box>
+        )}
       </Box>
       <Snackbar
         open={Boolean(error || success)}
@@ -430,6 +430,131 @@ export default function Profile() {
         handleClose={() => setProfileImageDialogOpen(false)}
         onSubmit={handleUpload}
       />
+    </Box>
+  );
+}
+
+function ProfileLoadingSkeleton() {
+  return (
+    <Box
+      role="status"
+      aria-label="Loading profile"
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", md: "280px minmax(0, 1fr)" },
+        gap: 2.5,
+        alignItems: "stretch",
+      }}
+    >
+      <Box
+        sx={{
+          p: { xs: 3, sm: 4 },
+          borderRadius: 3,
+          background: (theme) =>
+            `linear-gradient(145deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+          boxShadow: 3,
+        }}
+      >
+        <Stack spacing={2.5} sx={{ height: "100%" }}>
+          <Skeleton
+            variant="circular"
+            width={86}
+            height={86}
+            sx={{ bgcolor: "rgba(255, 255, 255, 0.25)" }}
+          />
+          <Skeleton
+            variant="rounded"
+            height={36}
+            sx={{ borderRadius: 1, bgcolor: "rgba(255, 255, 255, 0.22)" }}
+          />
+          <Skeleton
+            width={110}
+            height={16}
+            sx={{ bgcolor: "rgba(255, 255, 255, 0.2)" }}
+          />
+          <Box>
+            <Skeleton
+              width="75%"
+              height={30}
+              sx={{ bgcolor: "rgba(255, 255, 255, 0.25)" }}
+            />
+            <Skeleton
+              width="48%"
+              height={20}
+              sx={{ mt: 0.75, bgcolor: "rgba(255, 255, 255, 0.2)" }}
+            />
+          </Box>
+          <Box
+            sx={{
+              mt: "auto",
+              pt: 3,
+              borderTop: 1,
+              borderColor: "error.light",
+            }}
+          >
+            <Skeleton
+              width="68%"
+              height={18}
+              sx={{ bgcolor: "rgba(255, 255, 255, 0.2)" }}
+            />
+          </Box>
+        </Stack>
+      </Box>
+
+      <Box
+        sx={{
+          p: { xs: 2.5, sm: 3.5 },
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 3,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ mb: 3 }}
+        >
+          <Box sx={{ flex: 1 }}>
+            <Skeleton width={190} height={28} />
+            <Skeleton width="58%" height={18} sx={{ mt: 0.5, minWidth: 180 }} />
+          </Box>
+          <Skeleton variant="circular" width={24} height={24} />
+        </Stack>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+            },
+            gap: 2,
+          }}
+        >
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton
+              key={`profile-field-skeleton-${index}`}
+              variant="rounded"
+              height={56}
+              sx={{ borderRadius: 1 }}
+            />
+          ))}
+          <Skeleton
+            variant="rounded"
+            height={56}
+            sx={{ borderRadius: 1, gridColumn: { sm: "1 / -1" } }}
+          />
+        </Box>
+
+        <Skeleton
+          variant="rounded"
+          width={170}
+          height={38}
+          sx={{ mt: 3, borderRadius: 1 }}
+        />
+      </Box>
     </Box>
   );
 }

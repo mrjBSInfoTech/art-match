@@ -15,6 +15,11 @@ import {
   validateProductOptionSelections,
 } from "../../utils/productOptions.js";
 import {
+  enrichArtworksWithOptionStock,
+  loadSoldOptionQuantitiesForArtworks,
+  serializeRemainingProductOptions,
+} from "../../utils/inventoryStock.js";
+import {
   recordRecommendationInteraction,
   getRecommendationSessionIdFromRequest,
 } from "../../utils/recommendationInteractions.js";
@@ -115,7 +120,7 @@ router.get("/", authenticateBuyer, (req, res) => {
     ORDER BY ci.date_created DESC, ci.cart_item_id DESC
   `;
 
-  db.query(sql, [req.user.customer_id], (err, items) => {
+  db.query(sql, [req.user.customer_id], async (err, items) => {
     if (err) {
       console.error("Buyer cart query error:", err);
       return res.status(500).json({ message: "Database error" });
@@ -126,7 +131,12 @@ router.get("/", authenticateBuyer, (req, res) => {
       selected_products: parseJsonArray(item.selected_products),
     }));
 
-    res.json(formatted);
+    try {
+      res.json(await enrichArtworksWithOptionStock(db, formatted));
+    } catch (enrichError) {
+      console.error("Buyer cart option stock error:", enrichError);
+      res.status(500).json({ message: "Database error" });
+    }
   });
 });
 
@@ -172,7 +182,7 @@ router.post("/", authenticateBuyer, (req, res) => {
      FROM artwork a
      WHERE a.artwork_id = ?`,
     [artworkId],
-    (artworkError, artworks) => {
+    async (artworkError, artworks) => {
       if (artworkError) {
         return res.status(500).json({
           message: "Database error",
@@ -200,11 +210,20 @@ router.post("/", authenticateBuyer, (req, res) => {
 
       const artwork = artworks[0];
       const productDetails = parseArtworkDetails(artwork.artwork_details);
-      const productOptions = getProductOptions(productDetails);
+      let productOptions = getProductOptions(productDetails);
       const hasProductOptions = requiresProductOptionSelection(artwork);
       let incomingSelections = null;
       if (hasProductOptions) {
         try {
+          const soldOptionQuantities = await loadSoldOptionQuantitiesForArtworks(
+            db.promise(),
+            [artworkId],
+          );
+          productOptions = serializeRemainingProductOptions(
+            productOptions,
+            artworkId,
+            soldOptionQuantities,
+          );
           if (!Array.isArray(req.body.selected_products)) {
             throw new ProductOptionsError("Choose at least one product option.");
           }
@@ -216,7 +235,10 @@ router.post("/", authenticateBuyer, (req, res) => {
           );
           requestedQuantity = sumSelectedQuantity(incomingSelections);
         } catch (error) {
-          if (!(error instanceof ProductOptionsError)) throw error;
+          if (!(error instanceof ProductOptionsError)) {
+            console.error("Buyer cart option stock validation error:", error);
+            return res.status(500).json({ message: "Database error" });
+          }
           return res.status(400).json({ message: error.message });
         }
       }
@@ -403,7 +425,7 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
      FROM artwork a
      WHERE a.artwork_id = ?`,
     [artworkId],
-    (artworkError, artworks) => {
+    async (artworkError, artworks) => {
       if (artworkError) {
         return res.status(500).json({ message: "Database error" });
       }
@@ -430,6 +452,23 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
       }
 
       const patchProductDetails = parseArtworkDetails(artworks[0].artwork_details);
+      let enrichedPatchOptions = getProductOptions(patchProductDetails);
+      if (enrichedPatchOptions.length > 0) {
+        try {
+          const soldOptionQuantities = await loadSoldOptionQuantitiesForArtworks(
+            db.promise(),
+            [artworkId],
+          );
+          enrichedPatchOptions = serializeRemainingProductOptions(
+            enrichedPatchOptions,
+            artworkId,
+            soldOptionQuantities,
+          );
+        } catch (stockError) {
+          console.error("Buyer cart quantity option stock error:", stockError);
+          return res.status(500).json({ message: "Database error" });
+        }
+      }
       const patchMaxOrderLimit = getArtworkOrderLimit(availability, patchProductDetails?.max_order_quantity ?? artworks[0].max_order_quantity);
       if (patchMaxOrderLimit !== null && requestedQuantity > patchMaxOrderLimit) {
         return res.status(409).json({
@@ -458,14 +497,12 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
           let finalQuantity = requestedQuantity;
 
           if (existingSelections?.length) {
-            const productDetails = parseArtworkDetails(artworks[0].artwork_details);
-            const productOptions = getProductOptions(productDetails);
             if (Array.isArray(req.body.selected_products) && req.body.selected_products.length) {
               try {
                 updatedSelections = validateProductOptionSelections(
                   req.body.selected_products,
-                  productOptions,
-                  productDetails.product_price_mode,
+                  enrichedPatchOptions,
+                  patchProductDetails.product_price_mode,
                   artworks[0].price,
                 );
                 finalQuantity = sumSelectedQuantity(updatedSelections);
@@ -479,8 +516,8 @@ router.patch("/:artworkId/quantity", authenticateBuyer, (req, res) => {
               try {
                 updatedSelections = validateProductOptionSelections(
                   [{ id: existingSelections[0].id, quantity: requestedQuantity }],
-                  productOptions,
-                  productDetails.product_price_mode,
+                  enrichedPatchOptions,
+                  patchProductDetails.product_price_mode,
                   artworks[0].price,
                 );
                 finalQuantity = requestedQuantity;

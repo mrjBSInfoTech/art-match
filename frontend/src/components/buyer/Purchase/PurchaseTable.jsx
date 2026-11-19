@@ -4,8 +4,8 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   IconButton,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -55,10 +55,52 @@ export default function PurchaseTable({
   onCopyText,
 }) {
   if (loading) {
+    const isItemsTab = activeTab === 1;
+    const columnCount = isItemsTab ? 10 : 8;
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 8 }}>
-        <CircularProgress size={36} />
-      </Box>
+      <TableContainer sx={{ overflowX: "auto" }} role="status" aria-label="Loading purchases">
+        <Table size="small" sx={{ minWidth: isItemsTab ? 920 : 840 }}>
+          <TableHead sx={{ bgcolor: (t) => (t.palette.mode === "dark" ? "background.default" : "#f8fafc") }}>
+            <TableRow>
+              {Array.from({ length: columnCount }).map((_, colIdx) => (
+                <TableCell key={`purchase-skeleton-head-${colIdx}`} sx={{ py: 1.5 }}>
+                  <Skeleton width={colIdx === 0 ? 110 : 72} height={16} />
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {[0, 1, 2, 3, 4].map((rowIdx) => (
+              <TableRow key={`purchase-skeleton-row-${rowIdx}`} sx={{ "&:last-child td": { borderBottom: 0 } }}>
+                {Array.from({ length: columnCount }).map((_, colIdx) => (
+                  <TableCell key={`purchase-skeleton-cell-${rowIdx}-${colIdx}`} sx={{ py: 1.75 }}>
+                    {isItemsTab && colIdx === 0 ? (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                        <Skeleton
+                          variant="rounded"
+                          width={44}
+                          height={44}
+                          sx={{ borderRadius: 1.5, flexShrink: 0 }}
+                        />
+                        <Box sx={{ minWidth: 110 }}>
+                          <Skeleton width={120} height={18} />
+                          <Skeleton width={74} height={14} sx={{ mt: 0.5 }} />
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Skeleton
+                        width={colIdx === columnCount - 1 ? 82 : colIdx === 1 ? 120 : 68}
+                        height={colIdx === columnCount - 1 ? 28 : 18}
+                        variant={colIdx === columnCount - 1 ? "rounded" : "text"}
+                      />
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     );
   }
 

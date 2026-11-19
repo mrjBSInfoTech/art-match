@@ -6,6 +6,7 @@ import { recordRecommendationInteraction } from "../../utils/recommendationInter
 import { buildSellerRelatedArtists, rankSellerRelatedArtworks } from "../../utils/sellerArtworkRecommendations.js";
 import { getArtworkRatingSql, getArtworkRatingSummary, getArtworkRatingSignal } from "../../utils/artworkRatings.js";
 import { getArtworkSoldOutSql, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
+import { enrichArtworksWithOptionStock } from "../../utils/inventoryStock.js";
 import {
   buildColdStartRecommendationResponse,
   getActivityRecencyWeight,
@@ -257,6 +258,9 @@ const attachArtworkDetails = async (recommendations) => {
           a.art_size,
           a.art_type,
           a.product,
+          a.product_type,
+          a.artwork_details,
+          JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
           a.status,
           a.is_sold,
           ${getArtworkSoldQuantitySql()} AS sold_quantity,
@@ -318,8 +322,9 @@ const attachArtworkDetails = async (recommendations) => {
     artworkIds,
   );
 
+  const hydratedRows = await enrichArtworksWithOptionStock(db, rows);
   const artworkById = new Map(
-    rows.map((artwork) => [Number(artwork.artwork_id), artwork]),
+    hydratedRows.map((artwork) => [Number(artwork.artwork_id), artwork]),
   );
 
   return recommendations
@@ -1214,6 +1219,9 @@ router.get("/recently-viewed", async (req, res) => {
          a.art_size,
          a.art_type,
          a.product,
+         a.product_type,
+         a.artwork_details,
+         JSON_UNQUOTE(JSON_EXTRACT(a.artwork_details, '$.stock_available')) AS stock_available,
          a.status,
          a.is_sold,
          ${getArtworkSoldQuantitySql()} AS sold_quantity,
@@ -1260,7 +1268,7 @@ router.get("/recently-viewed", async (req, res) => {
       params,
     );
 
-    return res.json({ artworks });
+    return res.json({ artworks: await enrichArtworksWithOptionStock(db, artworks) });
   } catch (error) {
     console.error("Recently viewed artwork retrieval error:", error);
     return res.status(500).json({

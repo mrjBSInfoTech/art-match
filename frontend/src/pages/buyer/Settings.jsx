@@ -5,11 +5,11 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   FormControlLabel,
   IconButton,
   InputAdornment,
   Paper,
+  Skeleton,
   Stack,
   Switch,
   TextField,
@@ -293,10 +293,28 @@ export default function Settings() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Security &amp; Privacy</title>
       </Helmet>
+
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 800,
+            color: "text.primary",
+            fontSize: { xs: 26, sm: 32 },
+            letterSpacing: -0.5,
+          }}
+        >
+          Security &amp; Privacy
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: 13.5 }}>
+          Manage your appearance preferences, account privacy, and security settings.
+        </Typography>
+      </Box>
+
       <Stack spacing={2.5}>  
         <Alert severity="info">
           Marketplace artwork images include a visible diagonal tiled
@@ -340,26 +358,44 @@ export default function Settings() {
                   {privacyError}
                 </Alert>
               )}
-              <FormControlLabel
-                sx={{
-                  mt: 1,
-                  ml: 0,
-                  mr: 0,
-                  justifyContent: "space-between",
-                  width: "100%",
-                }}
-                label="Private account"
-                labelPlacement="start"
-                control={
-                  <Switch
-                    checked={isPrivate}
-                    onChange={handlePrivacyChange}
-                    disabled={privacyLoading || privacySaving}
-                    inputProps={{ "aria-label": "Make account private" }}
+              {privacyLoading ? (
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mt: 1.75 }}
+                  role="status"
+                  aria-label="Loading privacy setting"
+                >
+                  <Skeleton width={132} height={22} />
+                  <Skeleton
+                    variant="rounded"
+                    width={42}
+                    height={24}
+                    sx={{ borderRadius: 999 }}
                   />
-                }
-              />
-              {privacyLoading && <CircularProgress size={18} sx={{ ml: 1 }} />}
+                </Stack>
+              ) : (
+                <FormControlLabel
+                  sx={{
+                    mt: 1,
+                    ml: 0,
+                    mr: 0,
+                    justifyContent: "space-between",
+                    width: "100%",
+                  }}
+                  label="Private account"
+                  labelPlacement="start"
+                  control={
+                    <Switch
+                      checked={isPrivate}
+                      onChange={handlePrivacyChange}
+                      disabled={privacySaving}
+                      inputProps={{ "aria-label": "Make account private" }}
+                    />
+                  }
+                />
+              )}
             </Box>
           </Stack>
         </Paper>
@@ -399,28 +435,47 @@ export default function Settings() {
                   {recommendationFeedback.message}
                 </Alert>
               )}
-              <FormControlLabel
-                sx={{
-                  mt: 1,
-                  ml: 0,
-                  mr: 0,
-                  justifyContent: "space-between",
-                  width: "100%",
-                }}
-                label="Enable personalized artwork recommendations"
-                labelPlacement="start"
-                control={
-                  <Switch
-                    checked={allowRecommendations}
-                    onChange={handleRecommendationToggle}
-                    disabled={privacyLoading || recommendationSaving}
-                    inputProps={{
-                      "aria-label":
-                        "Enable personalized artwork recommendations",
-                    }}
+              {privacyLoading ? (
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mt: 1.75 }}
+                  role="status"
+                  aria-label="Loading recommendation setting"
+                >
+                  <Skeleton width={240} height={22} sx={{ maxWidth: "75%" }} />
+                  <Skeleton
+                    variant="rounded"
+                    width={42}
+                    height={24}
+                    sx={{ borderRadius: 999 }}
                   />
-                }
-              />
+                </Stack>
+              ) : (
+                <FormControlLabel
+                  sx={{
+                    mt: 1,
+                    ml: 0,
+                    mr: 0,
+                    justifyContent: "space-between",
+                    width: "100%",
+                  }}
+                  label="Enable personalized artwork recommendations"
+                  labelPlacement="start"
+                  control={
+                    <Switch
+                      checked={allowRecommendations}
+                      onChange={handleRecommendationToggle}
+                      disabled={recommendationSaving}
+                      inputProps={{
+                        "aria-label":
+                          "Enable personalized artwork recommendations",
+                      }}
+                    />
+                  }
+                />
+              )}
             </Box>
           </Stack>
         </Paper>
