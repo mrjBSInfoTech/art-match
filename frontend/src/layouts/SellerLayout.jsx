@@ -403,7 +403,7 @@ function SellerLayoutContent() {
           RED <span style={{ color: "#ff0000" }}>NEXUS</span>
         </Typography>
       ),
-      homeUrl: "/admin/dashboard",
+      homeUrl: "/seller/dashboard",
     };
 
   // Custom header matching the admin layout
