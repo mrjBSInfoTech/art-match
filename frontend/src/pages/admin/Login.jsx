@@ -101,7 +101,7 @@ const Login = () => {
       const data = await loginUser({ username: username, password: password });
 
       clearAuthData("admin");
-      setToken("admin");
+      setToken("admin", data?.token);
 
 
       localStorage.setItem("admin_id", data.admin_id);

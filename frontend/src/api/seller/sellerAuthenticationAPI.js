@@ -8,7 +8,7 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true,
-  timeout: 10000,
+  timeout: 20000,
 });
 
 const handleError = (error) => {

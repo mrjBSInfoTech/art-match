@@ -1,3 +1,5 @@
+import { getToken } from "../../utils/auth.js";
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -256,7 +258,11 @@ export const decryptChatMessage = async ({
       if (accountType) {
         attachmentRequestUrl.searchParams.set("account_type", accountType);
       }
-      const response = await fetch(attachmentRequestUrl, { credentials: "include" });
+      const token = getToken(accountType || null);
+      const response = await fetch(attachmentRequestUrl, {
+        credentials: "include",
+        ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+      });
       if (!response.ok) throw new Error("Unable to load encrypted attachment");
       const encryptedAttachment = await response.arrayBuffer();
       const decryptedAttachment = await crypto.subtle.decrypt(

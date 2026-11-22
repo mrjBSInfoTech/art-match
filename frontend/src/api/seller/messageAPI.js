@@ -10,8 +10,21 @@ const api = axios.create({
 
 // HttpOnly cookies handle authentication automatically
 
+const isSessionFatal403 = (error) => {
+  const message = String(
+    error.response?.data?.message || error.response?.data?.error || "",
+  ).toLowerCase();
+  return (
+    message.includes("expired") ||
+    message.includes("banned") ||
+    message.includes("privileges required") ||
+    message.includes("unable to identify")
+  );
+};
+
 const handleError = (error) => {
-  if ([401, 403].includes(error.response?.status)) {
+  const status = error.response?.status;
+  if (status === 401 || (status === 403 && isSessionFatal403(error))) {
     clearAuthData("seller");
     window.location.assign("/seller/login");
   }

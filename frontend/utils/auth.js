@@ -206,35 +206,96 @@ export function isAuthenticated(section) {
 }
 
 export function setAuthSection(section) {
+  if (typeof localStorage === "undefined") return;
   localStorage.setItem("auth_section", section);
 }
 
 export function getAuthSection() {
+  if (typeof localStorage === "undefined") return null;
   return localStorage.getItem("auth_section");
 }
 
 /**
- * Sets authenticated state for the given section without storing JWT in localStorage.
+ * Sets authenticated state for the given section and persists the session
+ * token so cross-origin browsers that block third-party cookies (e.g. iOS
+ * Safari / in-app WebViews) can fall back to Authorization Bearer headers.
  */
-export function setToken(section) {
-  if (!section) return;
+export function setToken(section, token = null) {
+  if (!section || typeof localStorage === "undefined") return;
   localStorage.setItem(`${section}_logged_in`, "true");
+  if (typeof token === "string" && token.trim() && TOKEN_KEYS[section]) {
+    localStorage.setItem(TOKEN_KEYS[section], token.trim());
+  }
   setAuthSection(section);
 }
 
 /**
- * Returns null as JWT tokens are now strictly kept in HttpOnly cookies.
+ * Returns the stored session token for the given section (or active section)
+ * if present and structurally unexpired, otherwise null.
  */
-export function getToken() {
-  return null;
+export function getToken(section = null) {
+  if (typeof localStorage === "undefined") return null;
+  const targetSection = section || getAuthSection();
+  const key = TOKEN_KEYS[targetSection];
+  if (!key) return null;
+  const token = localStorage.getItem(key);
+  if (!token) return null;
+  if (!hasValidToken(token)) {
+    localStorage.removeItem(key);
+    return null;
+  }
+  return token;
+}
+
+/**
+ * Resolves the auth section ("admin" | "seller" | "buyer" | null) for an API URL.
+ */
+export function resolveAuthSectionFromUrl(url = "", pathname = "") {
+  const normalizedUrl = String(url || "").toLowerCase();
+  if (
+    normalizedUrl.includes("/api/admin/") ||
+    normalizedUrl.includes("/api/admin?") ||
+    normalizedUrl.endsWith("/api/admin") ||
+    normalizedUrl.includes("/api/support-chat/admin")
+  ) {
+    return "admin";
+  }
+  if (
+    normalizedUrl.includes("/api/seller/") ||
+    normalizedUrl.includes("/api/seller?") ||
+    normalizedUrl.endsWith("/api/seller") ||
+    normalizedUrl.includes("/api/chat/seller") ||
+    normalizedUrl.includes("/api/support-chat/seller")
+  ) {
+    return "seller";
+  }
+  if (
+    normalizedUrl.includes("/api/buyer/") ||
+    normalizedUrl.includes("/api/buyer?") ||
+    normalizedUrl.endsWith("/api/buyer") ||
+    normalizedUrl.includes("/api/payments/") ||
+    normalizedUrl.includes("/api/chat/buyer") ||
+    normalizedUrl.includes("/api/support-chat/buyer")
+  ) {
+    return "buyer";
+  }
+
+  const normalizedPath = String(pathname || "").toLowerCase();
+  if (normalizedPath.startsWith("/admin")) return "admin";
+  if (normalizedPath.startsWith("/seller")) return "seller";
+  if (normalizedPath.startsWith("/buyer")) return "buyer";
+  return getAuthSection();
 }
 
 /**
  * Clears out session marker and sections
  */
 export function removeToken(section) {
-  if (!section) return;
+  if (!section || typeof localStorage === "undefined") return;
   localStorage.removeItem(`${section}_logged_in`);
+  if (TOKEN_KEYS[section]) {
+    localStorage.removeItem(TOKEN_KEYS[section]);
+  }
   if (localStorage.getItem("auth_section") === section) {
     localStorage.removeItem("auth_section");
   }

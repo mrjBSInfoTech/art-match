@@ -74,7 +74,7 @@ export default function Login() {
       showSnackbar("Login successful!", "success");
 
       clearAuthData("buyer");
-      setToken("buyer");
+      setToken("buyer", data?.token);
       localStorage.setItem("buyer_customer_id", data.customer_id);
       localStorage.setItem("buyer_username", data.username || "");
       localStorage.setItem("buyer_first_name", data.first_name);

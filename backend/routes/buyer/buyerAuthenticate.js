@@ -220,6 +220,7 @@ router.post("/login", authRateLimiter, (req, res) => {
     });
     res.json({
       success: true,
+      token,
       customer_id: user.customer_id,
       username: user.username,
       first_name: user.first_name,

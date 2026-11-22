@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./apiBase.js";
+import { getToken } from "../../utils/auth.js";
 const chatEventsUrl = `${API_BASE_URL}/api/chat`;
 
 export const subscribeToChatEvents = (role, onEvent) => {
@@ -15,9 +16,13 @@ export const subscribeToChatEvents = (role, onEvent) => {
 
       try {
 
+        const token = getToken(role);
         const response = await fetch(`${chatEventsUrl}/${role}/events`, {
           credentials: "include",
-          headers: { "X-Requested-With": "XMLHttpRequest" },
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           signal: controller.signal,
         });
 

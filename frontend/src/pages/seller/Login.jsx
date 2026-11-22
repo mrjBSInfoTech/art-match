@@ -29,7 +29,7 @@ import {
 } from "@mui/icons-material";
 import { loginUser } from "../../api/seller/sellerAuthenticationAPI";
 import Nexus from "../../assets/Nexus.png";
-import { isAuthenticated, setToken } from "../../../utils/auth";
+import { clearAuthData, isAuthenticated, setToken } from "../../../utils/auth";
 
 function SlideTransition(props) {
   return <Slide {...props} direction="up" />;
@@ -121,7 +121,8 @@ const Login = () => {
     try {
       const data = await loginUser({ student_number: studentNumber, password });
 
-      setToken("seller");
+      clearAuthData("seller");
+      setToken("seller", data?.token);
 
       localStorage.setItem("seller_student_id", data.student_id || "");
       localStorage.setItem("seller_first_name", data.first_name || "");

@@ -11,6 +11,7 @@ import {
   Slide,
 } from "@mui/material";
 import { API_BASE_URL } from "../../../api/apiBase.js";
+import { getToken } from "../../../../utils/auth.js";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -55,7 +56,11 @@ function StudentCOR({ open, handleClose, selectedStudent }) {
     setLoading(true);
     setError("");
 
-    fetch(url, { credentials: "include" })
+    const token = getToken("admin");
+    fetch(url, {
+      credentials: "include",
+      ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+    })
       .then(async (res) => {
         if (!res.ok) {
           throw new Error(
