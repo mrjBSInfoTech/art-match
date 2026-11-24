@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useLayoutEffect } from "react";
+import React, { Suspense, lazy, useRef, useState, useEffect } from "react";
 import {
   AppBar,
   Badge,
@@ -52,7 +52,7 @@ import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
-import logo from "../assets/Nexus.png";
+import logo from "../assets/Nexus-sm.webp";
 import Footer from "../pages/buyer/Footer";
 import { COLOR_PALETTE } from "../utils/artworkColors";
 import { PRICE_LIMIT, readPriceRange, formatPriceRange } from "../utils/artworkPrice";
@@ -73,7 +73,9 @@ import {
 } from "../api/buyer/recommendationAPI";
 import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
-import MobileSearchFilterDrawer from "../components/buyer/Layout/MobileSearchFilterDrawer";
+const MobileSearchFilterDrawer = lazy(
+  () => import("../components/buyer/Layout/MobileSearchFilterDrawer"),
+);
 import MobileBottomNav from "../components/buyer/Layout/MobileBottomNav";
 import { API_BASE_URL } from "../api/apiBase.js";
 import ProfileAvatar from "../components/common/ProfileAvatar";
@@ -106,22 +108,33 @@ function BuyerLayoutContent({ children }) {
   const headerSpacerRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const appBar = appBarRef.current;
     const headerRoot = headerRootRef.current;
     const headerSpacer = headerSpacerRef.current;
     if (!appBar || !headerRoot || !headerSpacer) return undefined;
 
-    const updateHeaderHeight = () => {
-      const height = `${appBar.getBoundingClientRect().height}px`;
+    let rafId = 0;
+    const applyHeight = (rawHeight) => {
+      if (!Number.isFinite(rawHeight) || rawHeight <= 0) return;
+      const height = `${Math.round(rawHeight)}px`;
       headerRoot.style.setProperty("--buyer-header-height", height);
       headerSpacer.style.height = height;
     };
 
-    updateHeaderHeight();
-    const observer = new ResizeObserver(updateHeaderHeight);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const measuredHeight =
+        entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => applyHeight(measuredHeight));
+    });
     observer.observe(appBar);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -152,7 +165,6 @@ function BuyerLayoutContent({ children }) {
   const [promotionHeader, setPromotionHeader] = useState(null);
 
   const [loggedIn, setLoggedIn] = useState(false);
-  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categoriesAnchorPosition, setCategoriesAnchorPosition] =
     useState(null);
@@ -379,16 +391,6 @@ function BuyerLayoutContent({ children }) {
     setMobileOpen(false);
     setSearchOpen(false);
   };
-
-  useEffect(() => {
-    const button = buttonRefs.current[activeIndex];
-    if (button) {
-      setIndicatorStyle({
-        left: button.offsetLeft,
-        width: button.offsetWidth,
-      });
-    }
-  }, [activeIndex]);
 
   const categoryGroups = [
     { title: "Art Type", filterType: "art_type", options: ART_TYPES },
@@ -691,6 +693,9 @@ function BuyerLayoutContent({ children }) {
               <img
                 src={logo}
                 alt=""
+                width={32}
+                height={40}
+                decoding="async"
                 style={{
                   width: "32px",
                   height: "40px",
@@ -1020,38 +1025,39 @@ function BuyerLayoutContent({ children }) {
             </Menu>
           </Box>
 
-          <Dialog
-            open={openDialog}
-            onClose={handleCloseDialog}
-            TransitionComponent={Transition}
-            keepMounted
-            slots={{ backdrop: Backdrop }}
-            slotProps={{
-              backdrop: {
-                timeout: 500,
-              },
-            }}
-          >
-            <DialogTitle>Log out</DialogTitle>
-            <DialogContent>
-              <DialogContentText>
-                Are you sure you want to log out?
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseDialog} color="text.secondary">
-                Cancel
-              </Button>
-              <Button
-                onClick={handleLogout}
-                variant="contained"
-                color="error"
-                sx={{ color: "#fff" }}
-              >
-                Logout
-              </Button>
-            </DialogActions>
-          </Dialog>
+          {openDialog && (
+            <Dialog
+              open={openDialog}
+              onClose={handleCloseDialog}
+              TransitionComponent={Transition}
+              slots={{ backdrop: Backdrop }}
+              slotProps={{
+                backdrop: {
+                  timeout: 500,
+                },
+              }}
+            >
+              <DialogTitle>Log out</DialogTitle>
+              <DialogContent>
+                <DialogContentText>
+                  Are you sure you want to log out?
+                </DialogContentText>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={handleCloseDialog} color="text.secondary">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleLogout}
+                  variant="contained"
+                  color="error"
+                  sx={{ color: "#fff" }}
+                >
+                  Logout
+                </Button>
+              </DialogActions>
+            </Dialog>
+          )}
 
           {/* MOBILE UPPER-RIGHT ACTIONS (Search & Cart below MD) */}
           <Box
@@ -1246,8 +1252,13 @@ function BuyerLayoutContent({ children }) {
           </Box>
         </Box>
       </AppBar>
-      <Box ref={headerSpacerRef} aria-hidden="true" sx={{ height: 0 }} />
+      <Box
+        ref={headerSpacerRef}
+        aria-hidden="true"
+        sx={{ height: { xs: 62, md: 120 } }}
+      />
 
+      {Boolean(categoriesAnchorPosition) && (
       <Popover
         open={Boolean(categoriesAnchorPosition)}
         onClose={() => setCategoriesAnchorPosition(null)}
@@ -1506,8 +1517,10 @@ function BuyerLayoutContent({ children }) {
           </Stack>
         </Box>
       </Popover>
+      )}
 
       {/* MOBILE DRAWER (Menu only) */}
+      {mobileOpen && (
       <Drawer
         anchor="right"
         open={mobileOpen}
@@ -1611,26 +1624,31 @@ function BuyerLayoutContent({ children }) {
           </Box>
         </Box>
       </Drawer>
+      )}
 
-      {/* MOBILE SEARCH & FILTER DRAWER (Below MD) */}
-      <MobileSearchFilterDrawer
-        open={searchOpen && !inlineSearch}
-        onClose={() => setSearchOpen(false)}
-        inputRef={mobileSearchInputRef}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        categoryGroups={categoryGroups}
-        draftCategories={draftCategories}
-        draftPriceRange={draftPriceRange}
-        onDraftPriceChange={setDraftPriceRange}
-        onToggleCategory={handleDraftCategoryToggle}
-        onToggleColor={handleDraftColorToggle}
-        onClearPrice={clearDraftPrice}
-        onResetAll={resetAllDraftFilters}
-        onApply={() => handleApplyFiltersAndSearch({ includeSearchQuery: true })}
-        hasAnyDraftFilters={hasAnyDraftFilters}
-        draftFilterCount={draftFilterCount}
-      />
+      {/* MOBILE SEARCH & FILTER DRAWER (Below MD, mounted lazily when opened) */}
+      {searchOpen && !inlineSearch && (
+        <Suspense fallback={null}>
+          <MobileSearchFilterDrawer
+            open={searchOpen && !inlineSearch}
+            onClose={() => setSearchOpen(false)}
+            inputRef={mobileSearchInputRef}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            categoryGroups={categoryGroups}
+            draftCategories={draftCategories}
+            draftPriceRange={draftPriceRange}
+            onDraftPriceChange={setDraftPriceRange}
+            onToggleCategory={handleDraftCategoryToggle}
+            onToggleColor={handleDraftColorToggle}
+            onClearPrice={clearDraftPrice}
+            onResetAll={resetAllDraftFilters}
+            onApply={() => handleApplyFiltersAndSearch({ includeSearchQuery: true })}
+            hasAnyDraftFilters={hasAnyDraftFilters}
+            draftFilterCount={draftFilterCount}
+          />
+        </Suspense>
+      )}
 
       <Box
         component="main"

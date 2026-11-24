@@ -16,7 +16,7 @@ import YouTubeIcon from "@mui/icons-material/YouTube";
 import { useThemeMode } from "../../theme/ThemeModeProvider";
 import { fetchFooterContent } from "../../api/footerContentAPI";
 import { subscribeConnectionError } from "../../utils/connectionErrorState";
-import logo from "../../assets/Nexus.png";
+import logo from "../../assets/Nexus-sm.webp";
 
 const defaultFooterContent = {
   brandName: "RED NEXUS",
@@ -192,6 +192,8 @@ const Footer = () => {
         color: footerText,
         borderTop: "3px solid",
         borderColor: theme.palette.error.main,
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 320px",
       }}
     >
       <Container
@@ -224,6 +226,10 @@ const Footer = () => {
                 component="img"
                 src={logo}
                 alt={content.brandName}
+                width={32}
+                height={38}
+                loading="lazy"
+                decoding="async"
                 sx={{ width: 32, height: 38, objectFit: "contain", flexShrink: 0 }}
               />
               <Typography

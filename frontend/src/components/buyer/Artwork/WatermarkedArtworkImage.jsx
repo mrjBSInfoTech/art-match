@@ -42,12 +42,13 @@ export default function WatermarkedArtworkImage({
   // "web" (1600 px) for detail views, "thumb" (400 px) for grids.
   variant = "web",
   hideWhenBlurred = false,
+  eager = false,
   ...imageProps
 }) {
   const imageRef = useRef(null);
   const onLoadErrorRef = useRef(onLoadError);
   onLoadErrorRef.current = onLoadError;
-  const [shouldLoad, setShouldLoad] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(Boolean(eager));
   const [src, setSrc] = useState("");
   const { blurSx } = useArtworkBlurOnAway({ enabled: hideWhenBlurred });
 
@@ -55,6 +56,12 @@ export default function WatermarkedArtworkImage({
     if (!image) {
       setShouldLoad(false);
       setSrc(fallbackSrc);
+      return undefined;
+    }
+
+    if (eager) {
+      setShouldLoad(true);
+      setSrc("");
       return undefined;
     }
 
@@ -76,7 +83,7 @@ export default function WatermarkedArtworkImage({
     );
     if (imageRef.current) observer.observe(imageRef.current);
     return () => observer.disconnect();
-  }, [image, fallbackSrc]);
+  }, [image, fallbackSrc, eager]);
 
   useEffect(() => {
     if (!image || !shouldLoad) return undefined;
@@ -125,7 +132,9 @@ export default function WatermarkedArtworkImage({
       {...imageProps}
       src={src || undefined}
       alt={alt}
-      loading="lazy"
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      fetchPriority={eager ? "high" : undefined}
       sx={{
         ...artworkImageProtectionSx,
         ...sx,

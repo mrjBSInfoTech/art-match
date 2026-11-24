@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  CircularProgress,
   Container,
   Grid,
   IconButton,
@@ -32,10 +31,15 @@ const getButtonHref = (value) => {
   }
 };
 
+const DEFAULT_HERO_SLIDE = {
+  slide_id: "default-hero",
+  is_default_hero: true,
+  sort_order: 1,
+};
+
 export default function UpcomingEventsSlider({ heroArtwork }) {
   const theme = useTheme();
-  const [slides, setSlides] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [slides, setSlides] = useState([DEFAULT_HERO_SLIDE]);
   const [loadError, setLoadError] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slideDirection, setSlideDirection] = useState("left");
@@ -45,7 +49,6 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
 
   const loadSlides = () => {
     let active = true;
-    setLoading(true);
     setLoadError("");
     Promise.all([
       fetchPromotionSlides(),
@@ -56,26 +59,19 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
     ])
       .then(([loadedSlides, heroEnabled]) => {
         if (active) {
-          setSlides(
-            heroEnabled
-              ? [
-                  {
-                    slide_id: "default-hero",
-                    is_default_hero: true,
-                    sort_order: 1,
-                  },
-                  ...loadedSlides,
-                ]
-              : loadedSlides,
+          const nextSlides = heroEnabled
+            ? [DEFAULT_HERO_SLIDE, ...loadedSlides]
+            : loadedSlides;
+          setSlides(nextSlides);
+          setCurrentIndex((prev) =>
+            nextSlides.length > 0 ? Math.min(prev, nextSlides.length - 1) : 0,
           );
-          setLoading(false);
         }
       })
       .catch((error) => {
         if (active) {
           console.error("Unable to load promotion slides:", error);
           setLoadError(error.message || "Unable to load promotion slides.");
-          setLoading(false);
         }
       });
     return () => {
@@ -127,32 +123,11 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
     return null;
   }
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          position: "relative",
-          width: "100%",
-          height: { xs: 400, sm: 500, md: 560 },
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 3,
-          color: "#fff",
-          textAlign: "center",
-          background: "linear-gradient(135deg, #1f2937, #111827)",
-        }}
-      >
-        <CircularProgress color="inherit" />
-      </Box>
-    );
-  }
-
   if (!slides.length) {
     return null;
   }
 
-  const currentSlide = slides[currentIndex];
+  const currentSlide = slides[currentIndex] || slides[0];
   const buttonHref = getButtonHref(currentSlide.button_url);
   const isDefaultHero = currentSlide.is_default_hero;
 
@@ -203,6 +178,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
       <Slide
         direction={slideDirection}
         in
+        appear={false}
         timeout={400}
         key={currentSlide.slide_id}
       >
@@ -231,6 +207,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
             >
               <Grid size={{ xs: 12, md: 6 }}>
                 <Typography
+                  component="h1"
                   variant="h2"
                   sx={{
                     fontSize: { xs: 34, sm: 44, md: 52 },
@@ -348,6 +325,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
                     image={heroArtwork?.image}
                     alt={heroArtwork?.title || "Featured artwork"}
                     variant="web"
+                    eager
                     hideWhenBlurred
                     sx={{
                       position: "absolute",

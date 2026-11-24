@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, memo, useState } from "react";
 import {
   Box,
   CircularProgress,
@@ -21,12 +21,13 @@ import { toggleFavorite } from "../../../api/buyer/favoriteAPI";
 import { sendOrderNoteToSeller } from "../../../utils/orderNoteMessaging";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 import { isArtworkSoldOut } from "../../../utils/artworkAvailability";
-import ProductSelectionDialog from "./ProductSelectionDialog";
-import CustomizeOrderDialog from "./CustomizeOrderDialog";
 import { getSavedProductOptions } from "../../../utils/productOptions";
 import { isAuthenticated } from "../../../../utils/auth";
 
-export default function ArtworkCard({
+const ProductSelectionDialog = lazy(() => import("./ProductSelectionDialog"));
+const CustomizeOrderDialog = lazy(() => import("./CustomizeOrderDialog"));
+
+function ArtworkCard({
   artwork,
   showAddToCart = true,
   onAddToCart,
@@ -462,22 +463,32 @@ export default function ArtworkCard({
         </Box>
       </Box>
 
-      {/* Product Selection & Customization Dialogs */}
-      <ProductSelectionDialog
-        open={productDialogOpen}
-        artwork={artwork}
-        onClose={() => setProductDialogOpen(false)}
-        onConfirm={handleAddSelectedProducts}
-        isSubmitting={isAdding}
-      />
-      <CustomizeOrderDialog
-        open={customizeDialogOpen}
-        artwork={artwork}
-        isCustomizable={isCustomize}
-        onClose={() => setCustomizeDialogOpen(false)}
-        onConfirm={handleAddPremadeSelection}
-        isSubmitting={isAdding}
-      />
+      {/* Product Selection & Customization Dialogs (mounted lazily only when opened) */}
+      {(productDialogOpen || customizeDialogOpen) && (
+        <Suspense fallback={null}>
+          {productDialogOpen && (
+            <ProductSelectionDialog
+              open={productDialogOpen}
+              artwork={artwork}
+              onClose={() => setProductDialogOpen(false)}
+              onConfirm={handleAddSelectedProducts}
+              isSubmitting={isAdding}
+            />
+          )}
+          {customizeDialogOpen && (
+            <CustomizeOrderDialog
+              open={customizeDialogOpen}
+              artwork={artwork}
+              isCustomizable={isCustomize}
+              onClose={() => setCustomizeDialogOpen(false)}
+              onConfirm={handleAddPremadeSelection}
+              isSubmitting={isAdding}
+            />
+          )}
+        </Suspense>
+      )}
     </>
   );
 }
+
+export default memo(ArtworkCard);

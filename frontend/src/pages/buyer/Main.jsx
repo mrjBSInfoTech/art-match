@@ -3,23 +3,10 @@ import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
-  CircularProgress,
-  Container,
-  FormControl,
-  InputBase,
-  InputLabel,
-  InputAdornment,
-  LinearProgress,
-  Grid,
-  MenuItem,
-  Paper,
-  Select,
   Skeleton,
   Stack,
-  TextField,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -39,14 +26,9 @@ import RecommendedSection, {
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
-import Footer from "./Footer";
 import { isAuthenticated } from "../../../utils/auth";
 // Icons
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import HomeIcon from "@mui/icons-material/Home";
-import PersonIcon from "@mui/icons-material/Person";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import SearchIcon from "@mui/icons-material/Search";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -561,6 +543,8 @@ export default function Main() {
           px: { xs: 2, sm: 4, lg: 6 },
           py: { xs: 4, md: 6 },
           backgroundColor: theme.palette.background.public,
+          contentVisibility: "auto",
+          containIntrinsicSize: "auto 640px",
         }}
       >
         <Box sx={{ mb: 3 }}>
@@ -813,7 +797,7 @@ export default function Main() {
                     availableArtworks[0]?.title ||
                     "Featured artwork"
                   }
-                  variant="web"
+                  variant="thumb"
                   hideWhenBlurred
                   sx={{
                     position: "absolute",
@@ -989,6 +973,8 @@ export default function Main() {
           backgroundColor: warmSurface,
           px: { xs: 2, sm: 4, lg: 6 },
           py: { xs: 4, md: 6 },
+          contentVisibility: "auto",
+          containIntrinsicSize: "auto 780px",
         }}
         id="featured"
       >
@@ -1028,12 +1014,14 @@ export default function Main() {
       </Box>
 
       {/* Recommended Artworks */}
-      <RecommendedSection
-        cartArtworkIds={cartArtworkIds}
-        onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        refreshKey={recommendationRefreshKey}
-      />
+      <Box sx={{ contentVisibility: "auto", containIntrinsicSize: "auto 520px" }}>
+        <RecommendedSection
+          cartArtworkIds={cartArtworkIds}
+          onAddToCart={handleAddToCart}
+          onRemoveFromCart={handleRemoveFromCart}
+          refreshKey={recommendationRefreshKey}
+        />
+      </Box>
       {/* Snackbar Notification */}
       <AppSnackbar
         open={snackbarOpen}
