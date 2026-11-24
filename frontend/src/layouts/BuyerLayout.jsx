@@ -834,6 +834,7 @@ function BuyerLayoutContent({ children }) {
             >
               <AccountCircleIcon />
             </IconButton>
+            {open && (
             <Menu
               anchorEl={anchorEl}
               id="account-menu"
@@ -1023,6 +1024,7 @@ function BuyerLayoutContent({ children }) {
                 Sign out
               </MenuItem>
             </Menu>
+            )}
           </Box>
 
           {openDialog && (

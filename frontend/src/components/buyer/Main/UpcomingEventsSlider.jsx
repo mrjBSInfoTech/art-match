@@ -324,7 +324,7 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
                   <WatermarkedArtworkImage
                     image={heroArtwork?.image}
                     alt={heroArtwork?.title || "Featured artwork"}
-                    variant="web"
+                    variant="thumb"
                     eager
                     hideWhenBlurred
                     sx={{

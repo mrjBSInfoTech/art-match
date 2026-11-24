@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { startTransition, useState, useEffect, useMemo } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
@@ -152,19 +152,21 @@ export default function Main() {
         fetchArtworks(),
         fetchArtistSummaries().catch(() => []),
       ]);
-      setArtistRatingMap(buildArtistRatingMap(summaries));
-      if (response && Array.isArray(response)) {
-        setArtworks(response);
-      } else if (response && response.data && Array.isArray(response.data)) {
-        setArtworks(response.data);
-      } else {
-        setArtworks([]);
-        setArtworkErrorMessage("No data received from server.");
-      }
+      startTransition(() => {
+        setArtistRatingMap(buildArtistRatingMap(summaries));
+        if (response && Array.isArray(response)) {
+          setArtworks(response);
+        } else if (response && response.data && Array.isArray(response.data)) {
+          setArtworks(response.data);
+        } else {
+          setArtworks([]);
+          setArtworkErrorMessage("No data received from server.");
+        }
+        setArtworksLoading(false);
+      });
     } catch (err) {
       setArtworks([]);
       setArtworkErrorMessage("Failed to load artworks: " + err.message);
-    } finally {
       setArtworksLoading(false);
     }
   };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
@@ -204,36 +204,43 @@ export default function RecommendedSection({
       if (requestId !== recommendationRequest.current) return;
 
       const list = Array.isArray(response?.recommendations) ? response.recommendations : [];
-      setRecommendedArtworks(list);
-      setRecommendationMode(response?.mode || "");
-      setRecommendationHistoryLength(Number(response?.history_length || 0));
-      setRecommendationSignals(
-        response?.signals || {
-          search_filter_events: 0,
-          preferred_artists: 0,
-          sasrec_candidates: 0,
-          available_unseen: 0,
-        },
-      );
+      startTransition(() => {
+        setRecommendedArtworks(list);
+        setRecommendationMode(response?.mode || "");
+        setRecommendationHistoryLength(Number(response?.history_length || 0));
+        setRecommendationSignals(
+          response?.signals || {
+            search_filter_events: 0,
+            preferred_artists: 0,
+            sasrec_candidates: 0,
+            available_unseen: 0,
+          },
+        );
+        setRecommendationsLoading(false);
+      });
     } catch (error) {
       if (requestId !== recommendationRequest.current) return;
       console.warn("Recommendation section error:", error);
-      setRecommendedArtworks([]);
-      setRecommendationMode("unavailable");
-    } finally {
-      if (requestId === recommendationRequest.current) {
+      startTransition(() => {
+        setRecommendedArtworks([]);
+        setRecommendationMode("unavailable");
         setRecommendationsLoading(false);
-      }
+      });
     }
   }, []);
 
   useEffect(() => {
     let refreshTimer;
+    let idleId;
     const refresh = () => {
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(loadRecommendations, 350);
     };
-    loadRecommendations();
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(() => loadRecommendations(), { timeout: 250 });
+    } else {
+      refreshTimer = setTimeout(loadRecommendations, 120);
+    }
     window.addEventListener("recommendation-updated", refresh);
     window.addEventListener("artist-follow-updated", refresh);
     window.addEventListener("cart-updated", refresh);
@@ -241,6 +248,9 @@ export default function RecommendedSection({
     window.addEventListener("focus", refresh);
     return () => {
       clearTimeout(refreshTimer);
+      if (idleId && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
       recommendationRequest.current += 1;
       window.removeEventListener("recommendation-updated", refresh);
       window.removeEventListener("artist-follow-updated", refresh);
