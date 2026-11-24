@@ -144,7 +144,7 @@ export default function SellerOrder() {
     return (
       <SellerLoadingPanel
         title="Orders"
-        subtitle="Manage paid online orders and cash on delivery orders."
+        subtitle="Manage online orders from buyers."
       />
     );
   }
@@ -205,7 +205,7 @@ export default function SellerOrder() {
               fontSize: 13,
             }}
           >
-            Manage paid online orders and cash on delivery orders.
+            Manage paid online orders from buyers.
           </Typography>
         </Box>
         <Button
@@ -244,13 +244,13 @@ export default function SellerOrder() {
           {
             label: "TOTAL ORDERS",
             value: summary.totalOrders,
-            caption: "Paid online and COD orders",
+            caption: "Paid online orders",
             icon: ShoppingCartOutlinedIcon,
           },
           {
             label: "GROSS REVENUE",
             value: formatCurrency(summary.revenue),
-            caption: "COD and paid online orders",
+            caption: "Paid online orders",
             icon: PaymentsOutlinedIcon,
           },
           {
@@ -552,7 +552,7 @@ export default function SellerOrder() {
             <Typography variant="body2" color="text.secondary">
               {orders.length
                 ? "Try a different search or reset the filters."
-                : "Paid online purchases and COD orders appear here, ready for fulfillment."}
+                : "Paid online purchases appear here, ready for fulfillment."}
             </Typography>
           </Paper>
         )}

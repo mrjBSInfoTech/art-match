@@ -263,9 +263,7 @@ const Login = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <PersonIcon
-                      sx={{ color: "#af4f4f", fontSize: "1.25rem" }}
-                    />
+                    <PersonIcon sx={{ color: "#af4f4f", fontSize: "1.25rem" }} />
                   </InputAdornment>
                 ),
                 sx: {
@@ -283,10 +281,10 @@ const Login = () => {
                     borderColor: "#e0e0e0",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#466ABE",
+                    borderColor: "#af4f4f",
                   },
                   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#466ABE",
+                    borderColor: "#af4f4f",
                     borderWidth: "2px",
                   },
                   fontSize: "0.95rem",
@@ -320,31 +318,6 @@ const Login = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     <LockIcon sx={{ color: "#af4f4f", fontSize: "1.25rem" }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      onClick={() => setShowPassword((visible) => !visible)}
-                      edge="end"
-                      sx={{
-                        color: "#7f1d1d",
-                        backgroundColor: "#fee2e2",
-                        borderRadius: "8px",
-                        p: 0.75,
-                        mr: -0.5,
-                        "&:hover": {
-                          backgroundColor: "#fecaca",
-                        },
-                      }}
-                    >
-                      {showPassword ? (
-                        <VisibilityOff sx={{ fontSize: 22 }} />
-                      ) : (
-                        <Visibility sx={{ fontSize: 22 }} />
-                      )}
-                    </IconButton>
                   </InputAdornment>
                 ),
                 sx: {
@@ -398,32 +371,6 @@ const Login = () => {
           >
             Login
           </Button>
-
-          <Typography
-            variant="caption"
-            align="center"
-            sx={{ color: "#666", mt: 1, display: "block" }}
-          >
-            By signing in, you agree to our{" "}
-            <Link
-              component={RouterLink}
-              to="/buyer/terms"
-              underline="hover"
-              sx={{ color: "#af4f4f", fontWeight: "600" }}
-            >
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link
-              component={RouterLink}
-              to="/buyer/privacy-policy"
-              underline="hover"
-              sx={{ color: "#af4f4f", fontWeight: "600" }}
-            >
-              Privacy Policy
-            </Link>
-            .
-          </Typography>
         </Stack>
       </Paper>
       <Snackbar

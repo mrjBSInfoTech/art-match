@@ -243,7 +243,7 @@ export default function PurchaseInfo({
           <Box>
             <Typography sx={detailLabelSx}>Payment Method</Typography>
             <Typography sx={detailValueSx}>
-              {transaction?.paymentMethod || rawOrder.paymentMethod || (rawOrder.payment === "paymongo" ? "Online Payment" : "Cash on Delivery")}
+              {transaction?.paymentMethod || rawOrder.paymentMethod || "Online Payment"}
             </Typography>
           </Box>
 

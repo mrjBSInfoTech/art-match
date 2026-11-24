@@ -11,7 +11,6 @@ import {
 } from "@mui/material";
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import LocalAtmOutlinedIcon from "@mui/icons-material/LocalAtmOutlined";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import RecommendedSection from "../../components/buyer/Order/RecommendedSection";
 
@@ -26,7 +25,6 @@ export default function OrderFinish() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const orders = Array.isArray(state?.orders) ? state.orders : [];
-  const onlinePayment = state?.paymentMethod === "paymongo";
   const deliveryMethod = state?.deliveryMethod || orders[0]?.deliveryMethod || "door_to_door";
   const isPickup = deliveryMethod === "pickup";
   const firstSellerId = orders[0]?.sellerId || orders[0]?.items?.[0]?.sellerId || null;
@@ -48,19 +46,15 @@ export default function OrderFinish() {
               color="success.main"
               fontWeight={800}
             >
-              {onlinePayment ? "PAYMENT CONFIRMED" : "CASH ON DELIVERY"}
+              PAYMENT CONFIRMED
             </Typography>
             <Typography variant="h4" fontWeight={800}>
-              {onlinePayment ? "Payment successful" : "Order placed"}
+              Payment successful
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              {onlinePayment
-                ? isPickup
-                  ? "Your payment is confirmed and your pickup order is now with the seller."
-                  : "Your payment is confirmed and your order is now with the seller."
-                : isPickup
-                  ? "Your pickup order is now with the seller. Coordinate your pickup schedule and pay in cash upon collection."
-                  : "Your order is now with the seller. Pay the courier in cash when your artwork arrives."}
+              {isPickup
+                ? "Your payment is confirmed and your pickup order is now with the seller."
+                : "Your payment is confirmed and your order is now with the seller."}
             </Typography>
           </Box>
 
@@ -79,17 +73,13 @@ export default function OrderFinish() {
               alignItems="center"
               textAlign="left"
             >
-              {onlinePayment
-                ? <AccountBalanceWalletOutlinedIcon color="success" />
-                : <LocalAtmOutlinedIcon color="primary" />}
+              <AccountBalanceWalletOutlinedIcon color="success" />
               <Box>
                 <Typography variant="subtitle2" fontWeight={800}>
-                  {onlinePayment ? "Online payment received" : "Payment due on delivery"}
+                  Online payment received
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {onlinePayment
-                    ? "Your payment has been securely confirmed. No further payment is due."
-                    : "Have the order total ready in cash. No online payment is due now."}
+                  Your payment has been securely confirmed. No further payment is due.
                 </Typography>
               </Box>
             </Stack>

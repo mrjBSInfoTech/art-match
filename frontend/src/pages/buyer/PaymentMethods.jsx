@@ -2,16 +2,11 @@ import { Helmet } from "react-helmet-async";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 // Icons
 import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 
 const PAYMENT_OPTIONS = [
   {
     label: "Secure Online Payment via PayMongo",
     icon: <CreditCardOutlinedIcon />,
-  },
-  {
-    label: "Cash on Delivery",
-    icon: <PaymentsOutlinedIcon />,
   },
 ];
 

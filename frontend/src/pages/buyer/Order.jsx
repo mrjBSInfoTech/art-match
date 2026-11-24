@@ -264,7 +264,7 @@ export default function Orders() {
             {
               label: "IN TRANSIT",
               value: summary.shipped,
-              caption: "Out for delivery / meet-up",
+              caption: "Out for delivery / Meet-up",
               icon: LocalShippingOutlinedIcon,
             },
           ].map(({ label, value, caption, icon: MetricIcon }) => (

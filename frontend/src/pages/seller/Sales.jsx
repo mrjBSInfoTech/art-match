@@ -132,7 +132,7 @@ export default function Sales() {
           {
             label: "ORDERS",
             value: loading ? "..." : error ? "—" : sales.orderCount,
-            caption: "COD and paid online orders",
+            caption: "Orders from buyers",
             icon: ShoppingBagOutlinedIcon,
           },
           {

@@ -207,19 +207,10 @@ export default function OrderReceipt({
         )}
 
         {/* Payment badge box */}
-        <Box sx={{ border: "2px solid #000", py: 1, px: 1, textAlign: "center" }}>
-          <Typography component="p" sx={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.5 }}>
-            {String(selectedOrder.payment).toLowerCase() === "cod" ? "CASH ON DELIVERY (COD)" : "ONLINE PAYMENT (PAID)"}
+        <Box sx={{ py: 1, px: 1, textAlign: "right" }}>
+          <Typography component="p" sx={{ mt: 0.2, fontSize: 11, fontWeight: 700, color: "#333" }}>
+            TOTAL AMOUNT: {formatCurrency(selectedOrder.total)}
           </Typography>
-          {String(selectedOrder.payment).toLowerCase() === "cod" ? (
-            <Typography component="p" sx={{ mt: 0.3, fontSize: 15, fontWeight: 900 }}>
-              AMOUNT TO COLLECT: {formatCurrency(selectedOrder.total)}
-            </Typography>
-          ) : (
-            <Typography component="p" sx={{ mt: 0.2, fontSize: 11, fontWeight: 700, color: "#333" }}>
-              TOTAL AMOUNT: {formatCurrency(selectedOrder.total)}
-            </Typography>
-          )}
         </Box>
       </Box>
     </>

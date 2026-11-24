@@ -905,7 +905,7 @@ export default function BuyerOrderDetail() {
                 </Button>
               )}
 
-              {/* Cancel Order Action if Pending & COD */}
+              {/* Cancel Order Action if Pending */}
               {currentStatus === "Pending" && !isPayMongoOrder(order) && (
                 <Button
                   variant="outlined"

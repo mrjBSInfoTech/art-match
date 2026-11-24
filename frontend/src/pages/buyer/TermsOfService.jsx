@@ -44,7 +44,7 @@ const TERMS_SECTIONS = [
     icon: LocalShippingOutlinedIcon,
     title: "3. Orders, Payments & Settlements",
     body: [
-      "• Orders may be paid via supported online payment channels (e.g. PayMongo) or Cash on Delivery (COD) where available.",
+      "• Orders are paid via supported online payment channels (e.g. PayMongo).",
       "• Seller earnings are held during the return window and released to verified payout destinations (such as GCash or local bank accounts) upon completed settlement validation.",
       "• Platform and payment processor fees are clearly itemized before order confirmation.",
     ],

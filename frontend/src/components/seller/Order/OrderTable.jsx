@@ -222,7 +222,7 @@ export default function OrderTable({ orders = [], onOrderClick }) {
                       {buyerName}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                      {order.payment === "cod" ? "Cash on Delivery" : "Online Payment"}
+                      Online Payment
                     </Typography>
                   </TableCell>
 

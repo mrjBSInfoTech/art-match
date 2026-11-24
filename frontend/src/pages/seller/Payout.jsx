@@ -234,14 +234,6 @@ export default function SellerPayout() {
                 <PayoutCard orders={data.orders} />
               </Paper>
             )}
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mt: 1.5 }}
-            >
-              Cash on Delivery orders are handled separately and are not paid
-              from the ArtMatch PayMongo Wallet.
-            </Typography>
           </Box>
         )}
       </Stack>
