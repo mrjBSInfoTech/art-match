@@ -1,5 +1,10 @@
 import express from "express";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 import db from "../../database/db.js";
 import { authenticateAdmin } from "../../middleware/adminAuthMiddleware.js";
 import { requireAdminPermission } from "../../middleware/adminPermissionMiddleware.js";
@@ -8,6 +13,57 @@ import { logAudit } from "../../utils/auditLogger.js";
 
 const router = express.Router();
 const MAX_BULK_IMPORT_STUDENTS = 10000;
+const MAX_COR_BYTES = 2 * 1024 * 1024;
+const SUPPORTED_COR_FORMATS = new Set(["jpeg", "png", "webp"]);
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^[0-9+\-() ]{7,20}$/;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const corUploadDir = path.join(__dirname, "..", "..", "uploads", "seller", "uploadCOR");
+
+const persistCorValue = async (rawCor) => {
+  if (rawCor === undefined || rawCor === null) return null;
+  const trimmed = String(rawCor).trim();
+  if (!trimmed) return null;
+
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)) {
+    const commaIdx = trimmed.indexOf(",");
+    const base64Data = trimmed.slice(commaIdx + 1);
+    const buffer = Buffer.from(base64Data, "base64");
+    if (!buffer.length || buffer.length > MAX_COR_BYTES) {
+      throw Object.assign(new Error("COR image must be 2MB or smaller."), { status: 400 });
+    }
+    let metadata;
+    try {
+      metadata = await sharp(buffer).metadata();
+    } catch {
+      throw Object.assign(new Error("Please upload a valid JPEG, PNG, or WebP COR image."), { status: 400 });
+    }
+    if (!SUPPORTED_COR_FORMATS.has(metadata.format)) {
+      throw Object.assign(new Error("Please upload a valid JPEG, PNG, or WebP COR image."), { status: 400 });
+    }
+    const webpBuffer = await sharp(buffer).rotate().webp().toBuffer();
+    await fs.mkdir(corUploadDir, { recursive: true });
+    const filename = `${Date.now()}-cor-${crypto.randomBytes(4).toString("hex")}.webp`;
+    await fs.writeFile(path.join(corUploadDir, filename), webpBuffer);
+    return filename;
+  }
+
+  if (trimmed.length > 255) {
+    throw Object.assign(new Error("Invalid COR image reference."), { status: 400 });
+  }
+  return trimmed;
+};
+
+const validateStudentContactFields = (payload) => {
+  if (payload.email && !EMAIL_PATTERN.test(String(payload.email).trim())) {
+    return "Please enter a valid email address.";
+  }
+  if (payload.phone_number && !PHONE_PATTERN.test(String(payload.phone_number).trim())) {
+    return "Please enter a valid phone number (7 to 20 digits/characters).";
+  }
+  return null;
+};
 
 const sanitizeStudentField = (value) => {
   if (value === undefined || value === null) return null;
@@ -346,9 +402,25 @@ router.put(
   "/:id",
   authenticateAdmin,
   requireAdminPermission("can_edit"),
-  (req, res) => {
+  async (req, res) => {
     const { id } = req.params;
     const sanitizedBody = sanitizeStudentPayload(req.body || {});
+    const validationError = validateStudentContactFields(sanitizedBody);
+    if (validationError) {
+      return res.status(400).json({ error: validationError, message: validationError });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "cor")) {
+      try {
+        sanitizedBody.cor = await persistCorValue(req.body.cor);
+      } catch (corError) {
+        return res.status(corError.status || 400).json({
+          error: corError.message,
+          message: corError.message,
+        });
+      }
+    }
+
     const profileFields = [
       "first_name",
       "middle_name",
@@ -360,6 +432,7 @@ router.put(
       "year_level",
       "course",
       "student_number",
+      "cor",
     ];
     const profileUpdates = profileFields.filter((field) =>
       Object.prototype.hasOwnProperty.call(sanitizedBody, field),
@@ -443,9 +516,22 @@ router.put(
     const profileSql = `UPDATE student SET ${profileUpdates.map((field) => `${field} = ?`).join(", ")} WHERE student_id = ?`;
     db.query(
       profileSql,
-      [...profileUpdates.map((field) => sanitizedBody[field] || null), id],
+      [
+        ...profileUpdates.map((field) =>
+          field === "middle_name" ? sanitizedBody[field] || "" : sanitizedBody[field] || null,
+        ),
+        id,
+      ],
       (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+          if (err.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+              error: "Email or student number already exists",
+              message: "Email or student number already exists",
+            });
+          }
+          return res.status(500).json({ error: err.message });
+        }
         updateStatus();
       },
     );
@@ -510,7 +596,7 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
     studentSql,
     [
       studentData.first_name,
-      studentData.middle_name || null,
+      studentData.middle_name || "",
       studentData.last_name,
       studentData.birthdate || null,
       studentData.email || null,
@@ -586,8 +672,20 @@ router.post(
   "/",
   authenticateAdmin,
   requireAdminPermission("can_add"),
-  (req, res) => {
+  async (req, res) => {
     const studentData = sanitizeStudentPayload(req.body || {});
+    const validationError = validateStudentContactFields(studentData);
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "cor")) {
+      try {
+        studentData.cor = await persistCorValue(req.body.cor);
+      } catch (corError) {
+        return res.status(corError.status || 400).json({ message: corError.message });
+      }
+    }
 
     getAccountExpirationDate((settingsError, expirationDate) => {
       if (settingsError) {

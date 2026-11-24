@@ -17,13 +17,11 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import {
-  EmailRounded,
-  LockRounded,
-  PersonRounded,
-  Visibility,
-  VisibilityOff,
-} from "@mui/icons-material";
+import EmailRounded from "@mui/icons-material/EmailRounded";
+import LockRounded from "@mui/icons-material/LockRounded";
+import PersonRounded from "@mui/icons-material/PersonRounded";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { FaFacebookF, FaGoogle } from "react-icons/fa6";
 import Nexus from "../../assets/Nexus.png";
 import { loginUser } from "../../api/buyer/buyerAuthenticationAPI";

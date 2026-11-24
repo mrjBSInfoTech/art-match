@@ -21,14 +21,12 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import {
-  Lock as LockIcon,
-  Person as PersonIcon,
-  Visibility,
-  VisibilityOff,
-  Email as EmailIcon,
-  Phone as LocalPhoneIcon,
-} from "@mui/icons-material";
+import LockIcon from "@mui/icons-material/Lock";
+import PersonIcon from "@mui/icons-material/Person";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import EmailIcon from "@mui/icons-material/Email";
+import LocalPhoneIcon from "@mui/icons-material/Phone";
 import { registerUser } from "../../api/buyer/buyerAuthenticationAPI";
 import Nexus from "../../assets/Nexus.png";
 import { hasValidToken } from "../../../utils/auth";

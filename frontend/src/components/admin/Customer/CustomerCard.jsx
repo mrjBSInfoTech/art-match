@@ -41,7 +41,6 @@ const fields = [
   ["last_name", "Last name"],
   ["email", "Email"],
   ["phone_number", "Phone number"],
-  ["address", "Address"],
 ];
 
 export default function CustomerCard({

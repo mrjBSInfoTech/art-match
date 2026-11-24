@@ -17,6 +17,8 @@ import {
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import { courseOptions, yearLevelOptions } from "./studentOptions";
+import { API_BASE_URL } from "../../../api/apiBase.js";
+import { getToken } from "../../../../utils/auth.js";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
@@ -76,36 +78,91 @@ export default function StudentForm({
   const [formData, setFormData] = useState(initialFormData);
   const [error, setError] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [loadingCorPreview, setLoadingCorPreview] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      if (selectedStudent) {
-        setFormData({
-          first_name: selectedStudent.first_name || "",
-          middle_name: selectedStudent.middle_name || "",
-          last_name: selectedStudent.last_name || "",
-          birthdate: selectedStudent.birthdate || "",
-          email: selectedStudent.email || "",
-          address: selectedStudent.address || "",
-          phone_number: selectedStudent.phone_number || "",
-          year_level: selectedStudent.year_level || "",
-          course: selectedStudent.course || "",
-          student_number: selectedStudent.student_number || "",
-          cor: selectedStudent.cor || "",
-          profile_image: selectedStudent.profile_image || "",
-        });
-        setImagePreview(selectedStudent.cor || null);
-      } else {
-        setFormData(initialFormData);
+    if (!open) return;
+
+    let active = true;
+    let objectUrl = null;
+
+    if (selectedStudent) {
+      const normalizedBirthdate = selectedStudent.birthdate
+        ? String(selectedStudent.birthdate).slice(0, 10)
+        : "";
+      setFormData({
+        first_name: selectedStudent.first_name || "",
+        middle_name: selectedStudent.middle_name || "",
+        last_name: selectedStudent.last_name || "",
+        birthdate: normalizedBirthdate,
+        email: selectedStudent.email || "",
+        address: selectedStudent.address || "",
+        phone_number: selectedStudent.phone_number || "",
+        year_level: selectedStudent.year_level || "",
+        course: selectedStudent.course || "",
+        student_number: selectedStudent.student_number || "",
+        cor: selectedStudent.cor || "",
+        profile_image: selectedStudent.profile_image || "",
+      });
+
+      const rawCor = String(selectedStudent.cor || "").trim();
+      if (!rawCor) {
         setImagePreview(null);
+        setLoadingCorPreview(false);
+      } else if (/^(data:|blob:)/i.test(rawCor)) {
+        setImagePreview(rawCor);
+        setLoadingCorPreview(false);
+      } else {
+        const corUrl = /^https?:\/\//i.test(rawCor)
+          ? rawCor
+          : `${API_BASE_URL}/uploads/seller/uploadCOR/${encodeURIComponent(rawCor)}`;
+        const token = getToken("admin");
+        setImagePreview(null);
+        setLoadingCorPreview(true);
+        fetch(corUrl, {
+          credentials: "include",
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        })
+          .then(async (res) => {
+            if (!res.ok) {
+              throw new Error(
+                res.status === 404
+                  ? "Existing COR image file was not found."
+                  : "Unable to load existing COR preview.",
+              );
+            }
+            return res.blob();
+          })
+          .then((blob) => {
+            if (!active) return;
+            objectUrl = URL.createObjectURL(blob);
+            setImagePreview(objectUrl);
+          })
+          .catch((previewErr) => {
+            if (!active) return;
+            setUploadError(previewErr.message || "Unable to load existing COR preview.");
+          })
+          .finally(() => {
+            if (active) setLoadingCorPreview(false);
+          });
       }
-      setError("");
-      setUploadError("");
-      setIsSubmitting(false);
+    } else {
+      setFormData(initialFormData);
+      setImagePreview(null);
+      setLoadingCorPreview(false);
     }
+
+    setError("");
+    setUploadError("");
+    setIsSubmitting(false);
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [open, selectedStudent]);
 
   const handleChange = (event) => {
@@ -118,12 +175,15 @@ export default function StudentForm({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setUploadError("COR image must be a PNG, JPG, or WEBP file.");
+      return;
+    }
+
     if (file.size > 2 * 1024 * 1024) {
       setUploadError(
         `File size exceeds 2MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
       );
-      setImagePreview(null);
-      setFormData((prev) => ({ ...prev, cor: "" }));
       return;
     }
 
@@ -157,6 +217,16 @@ export default function StudentForm({
 
     if (missingField) {
       setError(`Missing required field: ${missingField.replace(/_/g, " ")}`);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!/^[0-9+\-() ]{7,20}$/.test(formData.phone_number.trim())) {
+      setError("Please enter a valid phone number.");
       return;
     }
 
@@ -397,7 +467,9 @@ export default function StudentForm({
                 }}
                 onDragOver={(event) => event.preventDefault()}
               >
-                {imagePreview ? (
+                {loadingCorPreview ? (
+                  <CircularProgress size={32} />
+                ) : imagePreview ? (
                   <Box
                     component="img"
                     src={imagePreview}

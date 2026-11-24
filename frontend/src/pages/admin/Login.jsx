@@ -21,12 +21,10 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import {
-  Lock as LockIcon,
-  Person as PersonIcon,
-  Visibility,
-  VisibilityOff,
-} from "@mui/icons-material";
+import LockIcon from "@mui/icons-material/Lock";
+import PersonIcon from "@mui/icons-material/Person";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { loginUser } from "../../api/admin/adminAuthenticationAPI";
 import Nexus from "../../assets/Nexus.png";
 import { clearAuthData, isAuthenticated, setToken } from "../../../utils/auth";

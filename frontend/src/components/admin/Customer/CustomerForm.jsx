@@ -40,12 +40,17 @@ function CustomerForm({
 }) {
   const theme = useTheme();
 
-  // Handle Enter key for delete
+  // Handle Enter key to save changes and Escape key to close
   useEffect(() => {
+    if (!open) return;
+
     const handleKeyDown = (event) => {
-      if (event.key === "Enter" && open) {
+      if (event.key === "Enter" && event.target?.tagName !== "TEXTAREA") {
         event.preventDefault();
-        handleDelete();
+        if (!saving) onSubmit?.();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        if (!saving) handleClose?.();
       }
     };
 
@@ -54,23 +59,7 @@ function CustomerForm({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
-
-  // Handle Escape key
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        handleClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  }, [open, saving, onSubmit, handleClose]);
 
   return (
     <Dialog

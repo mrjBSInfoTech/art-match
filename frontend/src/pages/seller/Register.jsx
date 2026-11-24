@@ -23,17 +23,15 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import {
-  Person as PersonIcon,
-  Lock as LockIcon,
-  Email as EmailIcon,
-  Home as HomeIcon,
-  Phone as PhoneIcon,
-  School as SchoolIcon,
-  CloudUpload as CloudUploadIcon,
-  Visibility,
-  VisibilityOff,
-} from "@mui/icons-material";
+import PersonIcon from "@mui/icons-material/Person";
+import LockIcon from "@mui/icons-material/Lock";
+import EmailIcon from "@mui/icons-material/Email";
+import HomeIcon from "@mui/icons-material/Home";
+import PhoneIcon from "@mui/icons-material/Phone";
+import SchoolIcon from "@mui/icons-material/School";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Nexus from "../../assets/Nexus.png";
 import { registerUser } from "../../api/seller/sellerAuthenticationAPI";
 import { courseOptions } from "../../components/admin/Student/studentOptions";

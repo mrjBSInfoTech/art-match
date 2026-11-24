@@ -286,7 +286,7 @@ DROP TABLE IF EXISTS `student`;
 CREATE TABLE `student` (
   `student_id` int(11) NOT NULL AUTO_INCREMENT,
   `first_name` varchar(100) NOT NULL,
-  `middle_name` varchar(255) NOT NULL,
+  `middle_name` varchar(255) DEFAULT NULL,
   `last_name` varchar(100) NOT NULL,
   `birthdate` date DEFAULT NULL,
   `email` varchar(100) NOT NULL,

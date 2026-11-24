@@ -184,6 +184,7 @@ app.use(cookieMiddleware);
 app.use(csrfProtection);
 app.use(
   express.json({
+    limit: "4mb",
     verify: (req, res, buffer) => {
       /*
        * PayMongo signature verification

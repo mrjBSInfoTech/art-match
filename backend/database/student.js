@@ -47,7 +47,8 @@ export const ensureStudentAccountSchema = async () => {
       existingColumns.add("must_change_password");
     }
 
-    // Ensure contact/PII fields are nullable for RA 10173 12-month post-expiration disposal
+    // Ensure optional/PII fields are nullable (including middle_name for legacy migrate_art_match.sql DBs)
+    await query("ALTER TABLE student MODIFY COLUMN middle_name VARCHAR(255) NULL").catch(() => {});
     await query("ALTER TABLE student MODIFY COLUMN birthdate DATE NULL").catch(() => {});
     await query("ALTER TABLE student MODIFY COLUMN address TEXT NULL").catch(() => {});
     await query("ALTER TABLE student MODIFY COLUMN phone_number VARCHAR(30) NULL").catch(() => {});
