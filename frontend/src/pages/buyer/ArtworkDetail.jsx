@@ -8,14 +8,10 @@ import {
   CircularProgress,
   Container,
   Divider,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   Grid,
   IconButton,
   Paper,
   Skeleton,
-  Slide,
   Stack,
   TextField,
   Tooltip,
@@ -23,7 +19,6 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import CloseIcon from "@mui/icons-material/Close";
 import RemoveShoppingCart from "@mui/icons-material/RemoveShoppingCart";
 import ShoppingBag from "@mui/icons-material/ShoppingBag";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
@@ -40,6 +35,7 @@ import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
 import ArtworkAdditionalDetails from "../../components/buyer/Artwork/ArtworkAdditionalDetails";
 import ProductSelectionDialog from "../../components/buyer/Artwork/ProductSelectionDialog";
 import CustomizeOrderDialog from "../../components/buyer/Artwork/CustomizeOrderDialog";
+import ArtworkImageDetail from "../../components/buyer/Artwork/ArtworkImageDetail";
 import { getSavedProductOptions } from "../../utils/productOptions";
 import { getArtworkDetailCategory } from "../../utils/artworkDetails";
 import { isArtworkSoldOut, getArtworkRemainingStock, getArtworkOrderLimit } from "../../utils/artworkAvailability";
@@ -55,11 +51,6 @@ const unavailableImageSrc =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="100%" height="100%" fill="#e2e8f0"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="#64748b" font-family="sans-serif" font-size="24">Image unavailable</text></svg>',
   );
-
-// Animation transition
-const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
 
 function getColorChipStyles(value) {
   const hex = String(value).match(/#(?:[a-f\d]{6}|[a-f\d]{3})\b/i)?.[0];
@@ -1128,61 +1119,12 @@ export default function ArtworkDetail() {
 
       <ArtworkReviews artworkId={artwork.artwork_id || artwork.id} />
 
-      <Dialog
-        TransitionComponent={Transition}
+      <ArtworkImageDetail
         open={imageViewerOpen}
-        onClose={() => setImageViewerOpen(false)}
-        maxWidth="lg"
-        fullWidth
-        aria-labelledby="artwork-image-dialog-title"
-      >
-        <DialogTitle
-          id="artwork-image-dialog-title"
-          sx={{
-            position: "relative",
-            px: { xs: 2, sm: 3 },
-            py: 2.5,
-            color: "text.primary",
-            fontSize: { xs: 15, sm: 16 },
-            fontWeight: 700,
-          }}
-        >
-          <IconButton
-            onClick={() => setImageViewerOpen(false)}
-            aria-label="Close artwork image"
-            sx={{
-              position: "absolute",
-              top: "50%",
-              right: 8,
-              transform: "translateY(-50%)",
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            p: { xs: 1, sm: 2 },
-            overflow: "hidden",
-          }}
-        >
-          <WatermarkedArtworkImage
-            image={artwork.image || imageUrl}
-            alt={artwork.title}
-            variant="web"
-            hideWhenBlurred
-            sx={{
-              display: "block",
-              maxWidth: "100%",
-              maxHeight: "calc(100vh - 140px)",
-              objectFit: "contain",
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+        handleClose={() => setImageViewerOpen(false)}
+        image={artwork.image || imageUrl}
+        title={artwork.title}
+      />
 
       {similarArtworks.length > 0 && (
         <Box

@@ -57,8 +57,10 @@ import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import ContactMailOutlinedIcon from "@mui/icons-material/ContactMailOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import ThemeModeSetting from "../../components/seller/Settings/ThemeModeSetting";
 import ProfileAvatar from "../../components/common/ProfileAvatar";
+import StudentCorDialog from "../../components/admin/Student/StudentCorDialog";
 import { courseOptions } from "../../components/admin/Student/studentOptions";
 
 // Slide Transition for Snackbar
@@ -101,6 +103,7 @@ export default function Settings() {
     cor: "",
   });
   const [corFile, setCorFile] = useState(null);
+  const [corDialogOpen, setCorDialogOpen] = useState(false);
   const [loadingAccountInformation, setLoadingAccountInformation] =
     useState(true);
   const [accountInformationError, setAccountInformationError] = useState("");
@@ -813,6 +816,156 @@ export default function Settings() {
                 />
               </Box>
             </Box>
+
+            <Divider
+              sx={{
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(0,0,0,0.06)",
+              }}
+            />
+
+            {/* Certificate of Registration (COR) Subgroup */}
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  display: "block",
+                  mb: 1.5,
+                }}
+              >
+                Certificate of Registration (COR)
+              </Typography>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: "1px dashed",
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.16)"
+                    : "rgba(15,23,42,0.16)",
+                  bgcolor: isDark
+                    ? "rgba(15,23,42,0.35)"
+                    : "rgba(248,250,252,0.8)",
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Typography variant="body2" fontWeight={700}>
+                      {corFile
+                        ? corFile.name
+                        : accountInformation.cor
+                          ? "COR document on file"
+                          : "No COR uploaded yet"}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={
+                        corFile
+                          ? "Ready to Save"
+                          : accountInformation.cor
+                            ? "Uploaded"
+                            : "Not Uploaded"
+                      }
+                      color={
+                        corFile
+                          ? "warning"
+                          : accountInformation.cor
+                            ? "success"
+                            : "default"
+                      }
+                      sx={{ height: 22, fontSize: 11, fontWeight: 700, color: "#fff" }}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {corFile
+                      ? "Click Save Information below to submit your selected COR image."
+                      : "Upload a clear image (PNG, JPG, or WEBP, max 2 MB) of your current Certificate of Registration."}
+                  </Typography>
+                </Box>
+
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  sx={{ flexShrink: 0 }}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<VisibilityOutlinedIcon />}
+                    disabled={
+                      (!corFile && !String(accountInformation.cor || "").trim()) ||
+                      loadingAccountInformation ||
+                      savingAccountInformation
+                    }
+                    onClick={() => setCorDialogOpen(true)}
+                    sx={{
+                      borderRadius: 2,
+                      px: 2.25,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderColor: isDark
+                        ? "rgba(255,255,255,0.2)"
+                        : "rgba(15,23,42,0.2)",
+                      color: "text.primary",
+                      "&:hover": {
+                        borderColor: "#ef3340",
+                        color: "#ef3340",
+                      },
+                    }}
+                  >
+                    View COR
+                  </Button>
+
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<CloudUploadIcon />}
+                    disabled={
+                      loadingAccountInformation || savingAccountInformation
+                    }
+                    sx={{
+                      borderRadius: 2,
+                      px: 2.5,
+                      py: 1,
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderColor: isDark
+                        ? "rgba(255,255,255,0.2)"
+                        : "rgba(15,23,42,0.2)",
+                      color: "text.primary",
+                      "&:hover": {
+                        borderColor: "#ef3340",
+                        color: "#ef3340",
+                      },
+                    }}
+                  >
+                    Upload COR
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleCORChange}
+                    />
+                  </Button>
+                </Stack>
+              </Stack>
+            </Box>
           </Stack>
 
           <Box
@@ -1037,6 +1190,14 @@ export default function Settings() {
         error={passwordVerificationError}
         loading={savingAccountInformation}
         onConfirm={handleConfirmAccountInformation}
+      />
+
+      <StudentCorDialog
+        open={corDialogOpen}
+        handleClose={() => setCorDialogOpen(false)}
+        student={accountInformation}
+        tokenKey="seller_token"
+        localFile={corFile}
       />
 
       <Snackbar

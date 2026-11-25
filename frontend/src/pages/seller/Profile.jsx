@@ -306,7 +306,7 @@ export default function Profile() {
             <InfoRow
               icon={<BadgeOutlinedIcon color="action" />}
               label="Account Type"
-              value="Student / Seller"
+              value="Student"
             />
             <InfoRow
               icon={<CalendarTodayOutlinedIcon color="action" />}

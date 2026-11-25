@@ -11,6 +11,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Stack,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -18,10 +19,12 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
 import BlockIcon from "@mui/icons-material/Block";
 import GavelIcon from "@mui/icons-material/Gavel";
 import StudentInfo from "./StudentInfo";
+import StudentCorDialog from "./StudentCorDialog";
 import AccessReason from "../Access/AccessReason";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import { startSupportConversation } from "../../../api/admin/supportChatAPI";
@@ -46,6 +49,7 @@ export default function StudentCard({
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
+  const [openCorDialog, setOpenCorDialog] = useState(false);
   const [accessAction, setAccessAction] = useState("");
   const [operationError, setOperationError] = useState("");
   const [startingChat, setStartingChat] = useState(false);
@@ -135,6 +139,7 @@ export default function StudentCard({
         {students.map((student) => {
           const id = getId(student);
           const image = student.profile_image || student.image;
+          const hasCor = Boolean(String(student?.cor || "").trim());
 
           return (
             <Card
@@ -255,40 +260,61 @@ export default function StudentCard({
                   </IconButton>
                 </Box>
 
-                <Button
-                  variant="contained"
-                  size="small"
-                  fullWidth
-                  startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
-                  onClick={() => {
-                    setSelectedStudent(student);
-                    setOpenInfoDialog(true);
-                  }}
-                  sx={{
-                    mt: "auto",
-                    py: 0.55,
-                    backgroundColor:
-                      theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
-                    color: theme.palette.text.primary,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    boxShadow: "none",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textTransform: "none",
-                    borderRadius: 1.5,
-                    "& .MuiButton-startIcon": {
-                      color: theme.palette.error.main,
-                    },
-                    "&:hover": {
-                      backgroundColor: theme.palette.action.hover,
-                      borderColor: theme.palette.text.secondary,
+                <Stack spacing={0.75} sx={{ mt: "auto" }}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    fullWidth
+                    startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
+                    onClick={() => {
+                      setSelectedStudent(student);
+                      setOpenInfoDialog(true);
+                    }}
+                    sx={{
+                      py: 0.55,
+                      backgroundColor:
+                        theme.palette.mode === "dark" ? "#1e293b" : "#f1f5f9",
+                      color: theme.palette.text.primary,
+                      border: "1px solid",
+                      borderColor: "divider",
                       boxShadow: "none",
-                    },
-                  }}
-                >
-                  View Details
-                </Button>
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: "none",
+                      borderRadius: 1.5,
+                      "& .MuiButton-startIcon": {
+                        color: theme.palette.error.main,
+                      },
+                      "&:hover": {
+                        backgroundColor: theme.palette.action.hover,
+                        borderColor: theme.palette.text.secondary,
+                        boxShadow: "none",
+                      },
+                    }}
+                  >
+                    View Details
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    disabled={!hasCor}
+                    startIcon={<DescriptionOutlinedIcon sx={{ fontSize: 15 }} />}
+                    onClick={() => {
+                      setSelectedStudent(student);
+                      setOpenCorDialog(true);
+                    }}
+                    sx={{
+                      py: 0.5,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: "none",
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    View COR
+                  </Button>
+                </Stack>
 
                 <Menu
                   anchorEl={anchorEl}
@@ -376,6 +402,11 @@ export default function StudentCard({
         open={openInfoDialog}
         handleClose={() => setOpenInfoDialog(false)}
         selectedStudent={selectedStudent}
+      />
+      <StudentCorDialog
+        open={openCorDialog}
+        handleClose={() => setOpenCorDialog(false)}
+        student={selectedStudent}
       />
       <AccessReason
         open={Boolean(accessAction)}

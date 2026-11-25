@@ -3,7 +3,11 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
+  Menu,
+  MenuItem,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -13,9 +17,17 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import CheckIcon from "@mui/icons-material/Check";
+import CancelSharpIcon from "@mui/icons-material/CancelSharp";
 import ArtworkImage from "../../common/ArtworkImage";
 import ArtworkInfo from "./ArtworkInfo";
 import { adminTableButtonSx } from "../adminTableStyles";
+
+const formatLabel = (value, fallback) => {
+  const normalized = String(value || "").replace(/_/g, " ").trim();
+  return normalized || fallback;
+};
 
 const getStatus = (artwork) => {
   const status = String(artwork.request_status || artwork.status || "").trim();
@@ -34,6 +46,9 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
   const theme = useTheme();
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [menuArtwork, setMenuArtwork] = useState(null);
+  const menuOpen = Boolean(anchorEl);
   const role = (localStorage.getItem("admin_role") || "").toLowerCase().trim();
   const canEdit = role === "super admin"
     || ["admin", "moderator"].includes(role)
@@ -44,6 +59,15 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
   const openArtworkInfo = (artwork) => {
     setSelectedArtwork(artwork);
     setInfoOpen(true);
+  };
+
+  const handleMenuOpen = (event, artwork) => {
+    setAnchorEl(event.currentTarget);
+    setMenuArtwork(artwork);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
   };
 
   return (
@@ -98,6 +122,8 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
             <TableBody>
               {artworks.map((artwork) => {
                 const status = getStatus(artwork);
+                const isVerified = ["verified", "approved"].includes(status.toLowerCase());
+                const showMenu = canEdit && !isVerified && Boolean(onVerify || onReject);
                 return (
                   <TableRow
                     key={artwork.artwork_id}
@@ -123,14 +149,14 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
                         variant="body2"
                         sx={{ textTransform: "capitalize" }}
                       >
-                        {artwork.exact_art_type || artwork.art_type || "Not provided"}
+                        {formatLabel(artwork.exact_art_type || artwork.art_type, "Not provided")}
                       </Typography>
                       <Typography
                         variant="caption"
                         color="text.secondary"
                         sx={{ display: "block", textTransform: "capitalize" }}
                       >
-                        {artwork.genre || "Style not provided"}
+                        {formatLabel(artwork.genre, "Style not provided")}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 120 }}>
@@ -138,7 +164,7 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
                         variant="body2"
                         sx={{ textTransform: "capitalize" }}
                       >
-                        {artwork.product_type || "Premade"}
+                        {formatLabel(artwork.product_type, "Premade")}
                       </Typography>
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
@@ -162,14 +188,25 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
                         }}
                       />
                     </TableCell>
-                    <TableCell align="center">
-                      <Button
-                        variant="outlined"
-                        onClick={() => openArtworkInfo(artwork)}
-                        sx={adminTableButtonSx}
-                      >
-                        View details
-                      </Button>
+                    <TableCell align="center" sx={{ whiteSpace: "nowrap" }}>
+                      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                        <Button
+                          variant="outlined"
+                          onClick={() => openArtworkInfo(artwork)}
+                          sx={adminTableButtonSx}
+                        >
+                          View details
+                        </Button>
+                        {showMenu && (
+                          <IconButton
+                            size="small"
+                            aria-label={`Manage ${artwork.title || "artwork"}`}
+                            onClick={(event) => handleMenuOpen(event, artwork)}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 );
@@ -178,6 +215,40 @@ export default function ArtworkTable({ artworks = [], onVerify, onReject }) {
           </Table>
         </TableContainer>
       </Paper>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={menuOpen}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {onVerify && (
+          <MenuItem
+            onClick={() => {
+              onVerify(menuArtwork);
+              handleMenuClose();
+            }}
+            sx={{ color: "success.main" }}
+          >
+            <CheckIcon sx={{ mr: 1, fontSize: 20 }} />
+            Verify
+          </MenuItem>
+        )}
+        {onReject && (
+          <MenuItem
+            onClick={() => {
+              onReject(menuArtwork);
+              handleMenuClose();
+            }}
+            sx={{ color: "error.main" }}
+          >
+            <CancelSharpIcon sx={{ mr: 1, fontSize: 20 }} />
+            Reject
+          </MenuItem>
+        )}
+      </Menu>
+
       <ArtworkInfo
         open={infoOpen}
         handleClose={() => setInfoOpen(false)}

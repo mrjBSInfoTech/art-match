@@ -588,7 +588,7 @@ function SellerLayoutContent() {
                 {firstName} {lastName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Seller
+                Student
               </Typography>
             </Stack>
           </Stack>

@@ -3,6 +3,9 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -14,9 +17,18 @@ import {
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import ArtworkImage from "../../common/ArtworkImage";
 import ArtworkInfo from "./ArtworkInfo";
 import { sellerTableButtonSx } from "../sellerTableStyles";
+
+const formatLabel = (value, fallback) => {
+  const normalized = String(value || "").replace(/_/g, " ").trim();
+  return normalized || fallback;
+};
 
 const getRequestStatus = (artwork) => {
   const raw = String(artwork.request_status || "").trim();
@@ -36,11 +48,28 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
   const theme = useTheme();
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [menuArtwork, setMenuArtwork] = useState(null);
+  const menuOpen = Boolean(anchorEl);
 
   const openArtworkInfo = (artwork) => {
     setSelectedArtwork(artwork);
     setInfoOpen(true);
   };
+
+  const handleMenuOpen = (event, artwork) => {
+    setAnchorEl(event.currentTarget);
+    setMenuArtwork(artwork);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const canRequestMenuVerification = menuArtwork
+    ? ["unverified", "rejected"].includes(getRequestStatus(menuArtwork).toLowerCase())
+    : false;
+  const showMenu = Boolean(onEdit || onVerify || onDelete);
 
   return (
     <>
@@ -64,7 +93,7 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
           </Typography>
         </Box>
         <TableContainer sx={{ maxHeight: { xs: 580, md: 720 }, overflowX: "auto" }}>
-          <Table stickyHeader size="small" aria-label="Seller artwork table" sx={{ minWidth: 920 }}>
+          <Table stickyHeader size="small" aria-label="Seller artwork table" sx={{ minWidth: 760 }}>
             <TableHead>
               <TableRow
                 sx={{
@@ -87,13 +116,12 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                 <TableCell>Product type</TableCell>
                 <TableCell align="right">Price</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell align="center">Actions</TableCell>
+                <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {artworks.map((artwork) => {
                 const status = getRequestStatus(artwork);
-                const canRequestVerification = ["unverified", "rejected"].includes(status.toLowerCase());
                 return (
                   <TableRow
                     key={artwork.artwork_id}
@@ -122,17 +150,21 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                       </Box>
                     </TableCell>
                     <TableCell sx={{ minWidth: 140 }}>
-                      <Typography variant="body2">{artwork.exact_art_type || artwork.art_type || "Not provided"}</Typography>
+                      <Typography variant="body2" sx={{ textTransform: "capitalize" }}>
+                        {formatLabel(artwork.exact_art_type || artwork.art_type, "Not provided")}
+                      </Typography>
                       <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ textTransform: "capitalize" }}
+                        sx={{ display: "block", textTransform: "capitalize" }}
                       >
-                        {artwork.genre || "Style not provided"}
+                        {formatLabel(artwork.genre, "Style not provided")}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 120 }}>
-                      <Typography variant="body2">{artwork.product_type || "Premade"}</Typography>
+                      <Typography variant="body2" sx={{ textTransform: "capitalize" }}>
+                        {formatLabel(artwork.product_type, "Premade")}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                       <Typography variant="body2" fontWeight={700} fontVariantNumeric="tabular-nums">
@@ -155,38 +187,24 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
                         }}
                       />
                     </TableCell>
-                    <TableCell align="center" sx={{ minWidth: 320 }}>
-                      <Stack direction="row" spacing={0.75} justifyContent="center">
+                    <TableCell align="center" sx={{ whiteSpace: "nowrap" }}>
+                      <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                         <Button
                           variant="outlined"
                           onClick={() => openArtworkInfo(artwork)}
                           sx={sellerTableButtonSx}
                         >
-                          Details
+                          View details
                         </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={() => onEdit(artwork)}
-                          sx={sellerTableButtonSx}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          disabled={!canRequestVerification}
-                          onClick={() => onVerify(artwork)}
-                          sx={sellerTableButtonSx}
-                        >
-                          Verify
-                        </Button>
-                        <Button
-                          color="error"
-                          variant="outlined"
-                          onClick={() => onDelete(artwork.artwork_id)}
-                          sx={sellerTableButtonSx}
-                        >
-                          Delete
-                        </Button>
+                        {showMenu && (
+                          <IconButton
+                            size="small"
+                            aria-label={`Manage ${artwork.title || "artwork"}`}
+                            onClick={(event) => handleMenuOpen(event, artwork)}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </Stack>
                     </TableCell>
                   </TableRow>
@@ -196,6 +214,53 @@ export default function ArtworkTable({ artworks = [], onEdit, onVerify, onDelete
           </Table>
         </TableContainer>
       </Paper>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={menuOpen}
+        onClose={handleMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {onEdit && (
+          <MenuItem
+            onClick={() => {
+              onEdit(menuArtwork);
+              handleMenuClose();
+            }}
+            sx={{ color: "success.main" }}
+          >
+            <EditIcon sx={{ mr: 1, fontSize: 20 }} />
+            Edit
+          </MenuItem>
+        )}
+        {onVerify && (
+          <MenuItem
+            disabled={!canRequestMenuVerification}
+            onClick={() => {
+              onVerify(menuArtwork);
+              handleMenuClose();
+            }}
+            sx={{ color: "primary.main" }}
+          >
+            <VerifiedOutlinedIcon sx={{ mr: 1, fontSize: 20 }} />
+            Verify
+          </MenuItem>
+        )}
+        {onDelete && (
+          <MenuItem
+            onClick={() => {
+              onDelete(menuArtwork?.artwork_id);
+              handleMenuClose();
+            }}
+            sx={{ color: "error.main" }}
+          >
+            <DeleteIcon sx={{ mr: 1, fontSize: 20 }} />
+            Delete
+          </MenuItem>
+        )}
+      </Menu>
+
       <ArtworkInfo
         open={infoOpen}
         handleClose={() => setInfoOpen(false)}

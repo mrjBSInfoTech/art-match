@@ -507,22 +507,18 @@ function ArtworkInfo({
                 detailLabelSx={detailLabelSx}
                 detailValueSx={detailValueSx}
               />
-              <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
+              <Box>
                 <Typography sx={detailLabelSx}>Posted</Typography>
                 <Typography sx={detailValueSx}>
                   {formatDateTime(artwork.date_created)}
                 </Typography>
               </Box>
-              {[
-                ["Requested", artwork.request_date],
-                ["Approved", artwork.approved_date],
-                ["Rejected", artwork.rejection_date],
-              ].map(([label, value]) => (
-                <Box key={label}>
-                  <Typography sx={detailLabelSx}>{label}</Typography>
-                  <Typography sx={detailValueSx}>{formatDateTime(value)}</Typography>
-                </Box>
-              ))}
+              <Box>
+                <Typography sx={detailLabelSx}>Requested</Typography>
+                <Typography sx={detailValueSx}>
+                  {formatDateTime(artwork.request_date)}
+                </Typography>
+              </Box>
               {artwork.rejection_reason && (
                 <Box sx={{ gridColumn: { xs: "auto", sm: "1 / -1" } }}>
                   <Typography sx={detailLabelSx}>Rejection reason</Typography>

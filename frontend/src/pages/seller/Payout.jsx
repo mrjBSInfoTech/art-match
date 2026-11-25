@@ -223,7 +223,25 @@ export default function SellerPayout() {
               </ToggleButtonGroup>
             </Box>
 
-            {viewMode === "table" ? (
+            {data.orders.length === 0 ? (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 4,
+                  borderRadius: 2.5,
+                  textAlign: "center",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  No payouts found
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  No online-payment earnings to display.
+                </Typography>
+              </Paper>
+            ) : viewMode === "table" ? (
               <PayoutTable orders={data.orders} />
             ) : (
               <Paper

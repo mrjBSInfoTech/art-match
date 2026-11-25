@@ -99,19 +99,18 @@ export default function PayoutTable({ orders = [], admin = false, onReview }) {
       <Paper
         variant="outlined"
         sx={{
-          py: 5,
-          px: 3,
-          borderRadius: 3.5,
+          p: 4,
+          borderRadius: 2.5,
           textAlign: "center",
           borderColor: "divider",
           bgcolor: "background.paper",
         }}
       >
-        <Typography variant="body1" fontWeight={700} color="text.secondary">
-          No online-payment earnings to display.
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          No payouts found
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-          Buyer payment and seller payout are tracked separately. Eligibility never sends money automatically.
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          No online-payment earnings to display.
         </Typography>
       </Paper>
     );

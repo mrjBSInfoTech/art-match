@@ -812,7 +812,7 @@ export default function Artwork() {
       </Box>
 
       {/* Artwork Display */}
-      {viewMode === "table" ? (
+      {viewMode === "table" && !loading && filteredArtworks.length > 0 ? (
         <Box>{artworkDisplay}</Box>
       ) : (
         <Paper

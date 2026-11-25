@@ -582,7 +582,7 @@ export default function Artwork() {
         </ToggleButtonGroup>
       </Box>
 
-      {viewMode === "table" ? (
+      {viewMode === "table" && !loading && filteredArtworks.length > 0 ? (
         <Box>{artworkDisplay}</Box>
       ) : (
         <Paper

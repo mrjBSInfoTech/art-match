@@ -27,6 +27,7 @@ import BlockIcon from "@mui/icons-material/Block";
 import GavelIcon from "@mui/icons-material/Gavel";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import StudentInfo from "./StudentInfo";
+import StudentCorDialog from "./StudentCorDialog";
 import AccessReason from "../Access/AccessReason";
 import { startSupportConversation } from "../../../api/admin/supportChatAPI";
 import {
@@ -51,6 +52,7 @@ export default function StudentTable({
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [openInfoDialog, setOpenInfoDialog] = useState(false);
+  const [openCorDialog, setOpenCorDialog] = useState(false);
   const [accessAction, setAccessAction] = useState("");
   const [operationError, setOperationError] = useState("");
   const [startingChat, setStartingChat] = useState(false);
@@ -193,6 +195,7 @@ export default function StudentTable({
                 const isBanned = Boolean(student.is_banned);
                 const isExpired = student.account_status === "expired";
                 const registerStatus = student.register_status || "Pending";
+                const hasCor = Boolean(String(student?.cor || "").trim());
 
                 return (
                   <TableRow
@@ -311,6 +314,17 @@ export default function StudentTable({
                         >
                           View details
                         </Button>
+                        <Button
+                          variant="outlined"
+                          disabled={!hasCor}
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setOpenCorDialog(true);
+                          }}
+                          sx={adminTableButtonSx}
+                        >
+                          View COR
+                        </Button>
                         <IconButton
                           size="small"
                           aria-label={`Manage ${fullName}`}
@@ -409,6 +423,11 @@ export default function StudentTable({
         open={openInfoDialog}
         handleClose={() => setOpenInfoDialog(false)}
         selectedStudent={selectedStudent}
+      />
+      <StudentCorDialog
+        open={openCorDialog}
+        handleClose={() => setOpenCorDialog(false)}
+        student={selectedStudent}
       />
       <AccessReason
         open={Boolean(accessAction)}

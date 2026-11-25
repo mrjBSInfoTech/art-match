@@ -858,6 +858,12 @@ app.get("/uploads/support-chat/:filename", authenticateUploadCaller, async (req,
 // =====================================================
 // Seller registration documents (COR) - Authenticated Only
 // =====================================================
+const serveSellerCorDocument = serveB2Cached({
+  keyPrefix: "app-uploads/seller/uploadCOR",
+  localFolder: path.join(__dirname, "uploads", "seller", "uploadCOR"),
+  label: "Seller COR",
+});
+
 app.get(
   "/uploads/seller/uploadCOR/:filename",
   (req, res, next) => {
@@ -867,7 +873,7 @@ app.get(
     next();
   },
   authenticateUploadCaller,
-  async (req, res) => {
+  async (req, res, next) => {
     const filename = req.params.filename;
     if (!hasSafeUploadFilename(filename)) {
       return res.status(400).json({ error: "Invalid filename." });
@@ -887,16 +893,7 @@ app.get(
       if (!isAdmin && String(ownerId) !== String(req.user?.student_id)) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      const filePath = path.join(__dirname, "uploads", "seller", "uploadCOR", filename);
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: "Document not found" });
-      }
-
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      const ext = path.extname(filename).toLowerCase();
-      const contentType = safeUploadContentTypes[ext] || "application/octet-stream";
-      res.setHeader("Content-Type", contentType);
-      return res.sendFile(filePath);
+      return serveSellerCorDocument(req, res, next);
     } catch (error) {
       console.error("Unable to verify seller COR access:", error);
       return res.status(500).json({ error: "Unable to load registration document." });

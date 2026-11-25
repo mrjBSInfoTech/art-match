@@ -566,7 +566,9 @@ router.put(
       : null;
 
     let newB2Key = null;
+    let newCorB2Key = null;
     let profileImageBuffer = null;
+    let corImageBuffer = null;
 
     try {
       if (profileImageFile) {
@@ -577,7 +579,7 @@ router.put(
         profileImageFile.safeFilename = profileImageFile.filename;
       }
       if (corFile) {
-        await replaceUploadWithSafeWebp(corFile, uploadDir);
+        corImageBuffer = await replaceUploadWithSafeWebp(corFile, uploadDir);
         temporaryCorPath = corFile.path;
       }
 
@@ -642,6 +644,32 @@ router.put(
             }
             console.warn(
               "Seller profile B2 upload failed, continuing with local storage:",
+              b2Error.message,
+            );
+          }
+        }
+      }
+
+      if (corFile) {
+        newCorB2Key = `app-uploads/seller/uploadCOR/${corFile.filename}`;
+
+        if (isB2Configured()) {
+          try {
+            await uploadToB2({
+              key: newCorB2Key,
+              body: corImageBuffer,
+              contentType: "image/webp",
+            });
+            console.log("Seller COR uploaded to B2:", newCorB2Key);
+          } catch (b2Error) {
+            if (process.env.NODE_ENV === "production") {
+              throw Object.assign(
+                new Error("Unable to upload COR image to cloud storage. Please try again."),
+                { status: 502 },
+              );
+            }
+            console.warn(
+              "Seller COR B2 upload failed, continuing with local storage:",
               b2Error.message,
             );
           }
@@ -763,10 +791,18 @@ router.put(
         currentStudent.cor &&
         currentStudent.cor !== corFile.filename
       ) {
-        const oldCorPath = path.join(
-          uploadDir,
-          path.basename(currentStudent.cor),
-        );
+        const oldCorName = path.basename(currentStudent.cor);
+        if (isB2Configured()) {
+          try {
+            await deleteFromB2(`app-uploads/seller/uploadCOR/${oldCorName}`);
+          } catch (deleteError) {
+            console.warn(
+              "Could not delete old seller COR from B2:",
+              deleteError.message,
+            );
+          }
+        }
+        const oldCorPath = path.join(uploadDir, oldCorName);
         if (fs.existsSync(oldCorPath)) fs.unlinkSync(oldCorPath);
       }
 
@@ -800,6 +836,16 @@ router.put(
         } catch (cleanupError) {
           console.warn(
             "Unable to clean failed B2 profile upload:",
+            cleanupError.message,
+          );
+        }
+      }
+      if (newCorB2Key && isB2Configured()) {
+        try {
+          await deleteFromB2(newCorB2Key);
+        } catch (cleanupError) {
+          console.warn(
+            "Unable to clean failed B2 COR upload:",
             cleanupError.message,
           );
         }
