@@ -1,5 +1,5 @@
 -- Add versioning to chat recovery backups without changing existing rows.
--- Existing rows remain version 1 so they can still be restored with their PIN.
+-- Existing rows remain version 1 and require replacement with a version 2 backup.
 
 CREATE DATABASE IF NOT EXISTS art_match;
 USE art_match;

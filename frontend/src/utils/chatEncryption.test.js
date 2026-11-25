@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import test from "node:test";
 import {
   createChatKeyPair,
   encryptChatKeyBackup,
-  encryptLegacyChatKeyBackup,
   generateRecoveryKey,
   restoreChatKeyPair,
 } from "./chatEncryption.js";
@@ -26,7 +26,6 @@ const createPair = async () => {
     true,
     ["deriveKey", "deriveBits"],
   );
-  const privateKey = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
   const publicKey = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
   return {
     privateKey: keyPair.privateKey,
@@ -52,12 +51,19 @@ test("wrong version 2 recovery key fails", async () => {
   );
 });
 
-test("legacy version 1 PIN backup still decrypts", async () => {
+test("short numeric secrets are rejected as recovery keys", async () => {
   const pair = await createPair();
-  const backup = await encryptLegacyChatKeyBackup(pair, "123456");
-  const restored = await restoreChatKeyPair("test-v1", backup, "123456");
-  assert.equal(restored.publicKey.x, JSON.parse(pair.publicKeyJwk).x);
-  assert.equal(backup.backupVersion, 1);
+  await assert.rejects(
+    encryptChatKeyBackup(pair, "123456"),
+    /invalid recovery key/i,
+  );
+});
+
+test("legacy version 1 recovery backups are rejected", async () => {
+  await assert.rejects(
+    restoreChatKeyPair("test-v1", { backupVersion: 1 }, "123456"),
+    /format is no longer supported/i,
+  );
 });
 
 test("generated recovery keys contain 120 unbiased bits", () => {

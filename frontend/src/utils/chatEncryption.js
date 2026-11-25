@@ -84,7 +84,7 @@ const deriveRecoveryKey = async (secret, salt) => {
   );
 };
 
-const encryptRecoveryBackup = async (keyPair, secret, backupVersion) => {
+const encryptRecoveryBackup = async (keyPair, secret) => {
   const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -99,7 +99,7 @@ const encryptRecoveryBackup = async (keyPair, secret, backupVersion) => {
     salt: bytesToBase64(salt),
     iv: bytesToBase64(iv),
     publicKey: keyPair.publicKeyJwk,
-    backupVersion,
+    backupVersion: 2,
   };
 };
 
@@ -108,23 +108,15 @@ export const encryptChatKeyBackup = async (keyPair, recoveryKey) => {
   if (!recoveryKeyPattern.test(normalizedKey)) {
     throw new Error("Invalid recovery key");
   }
-  return encryptRecoveryBackup(keyPair, normalizedKey, 2);
-};
-
-export const encryptLegacyChatKeyBackup = async (keyPair, pin) => {
-  if (!/^\d{6}$/.test(pin)) throw new Error("Enter a six-digit recovery PIN");
-  return encryptRecoveryBackup(keyPair, pin, 1);
+  return encryptRecoveryBackup(keyPair, normalizedKey);
 };
 
 export const restoreChatKeyPair = async (storageKey, backup, secret) => {
-  const isLegacyBackup = Number(backup.backupVersion || 1) === 1;
-  const normalizedSecret = isLegacyBackup
-    ? secret
-    : secret.replace(/\s/g, "").toUpperCase();
-  if (isLegacyBackup && !/^\d{6}$/.test(normalizedSecret)) {
-    throw new Error("Enter your six-digit recovery PIN");
+  if (Number(backup.backupVersion || 1) !== 2) {
+    throw new Error("This chat recovery backup format is no longer supported");
   }
-  if (!isLegacyBackup && !recoveryKeyPattern.test(normalizedSecret)) {
+  const normalizedSecret = secret.replace(/\s/g, "").toUpperCase();
+  if (!recoveryKeyPattern.test(normalizedSecret)) {
     throw new Error("Invalid recovery key");
   }
   let privateJwk;
@@ -144,11 +136,7 @@ export const restoreChatKeyPair = async (storageKey, backup, secret) => {
     }
     await importPrivateKey(privateJwk);
   } catch {
-    throw new Error(
-      isLegacyBackup
-        ? "That PIN could not unlock this chat backup"
-        : "That recovery key could not unlock this chat backup",
-    );
+    throw new Error("That recovery key could not unlock this chat backup");
   }
   return storeChatKeyPair(storageKey, privateJwk, publicJwk);
 };

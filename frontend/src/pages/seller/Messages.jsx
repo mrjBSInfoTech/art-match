@@ -22,7 +22,6 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import PermMediaOutlinedIcon from "@mui/icons-material/PermMediaOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
-import ChatPinDialog from "../../components/chat/ChatPinDialog";
 import ChatRecoveryDialog from "../../components/chat/ChatRecoveryDialog";
 import ChatWorkspace from "../../components/chat/ChatWorkspace";
 import ChatComposer, {
@@ -134,9 +133,6 @@ export default function Messages() {
   const [error, setError] = useState("");
   const [encryptionReady, setEncryptionReady] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState("");
-  // "" = closed, "enter" = unlock a legacy PIN backup
-  const [pinDialogMode, setPinDialogMode] = useState("");
-  const pinDialogOpen = pinDialogMode !== "";
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryError, setRecoveryError] = useState("");
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -186,21 +182,13 @@ export default function Messages() {
         recoveryBackupRef.current = backup;
 
         if (!localKeyPair && backup) {
-          if (Number(backup.backupVersion || 1) === 1) {
-            setPinDialogMode("enter");
-          } else {
-            setRecoveryMode("restore-key");
-          }
+          setRecoveryMode(Number(backup.backupVersion || 1) === 2 ? "restore-key" : "legacy");
           return;
         }
 
         if (backup && localKeyPair && (localKeyPair.publicKey.x !== JSON.parse(backup.publicKey).x
           || localKeyPair.publicKey.y !== JSON.parse(backup.publicKey).y)) {
-          if (Number(backup.backupVersion || 1) === 1) {
-            setPinDialogMode("enter");
-          } else {
-            setRecoveryMode("restore-key");
-          }
+          setRecoveryMode(Number(backup.backupVersion || 1) === 2 ? "restore-key" : "legacy");
           return;
         }
 
@@ -225,7 +213,7 @@ export default function Messages() {
           return;
         }
         setEncryptionReady(true);
-        if (Number(backup.backupVersion || 1) === 1) {
+        if (Number(backup.backupVersion || 1) !== 2) {
           setRecoveryMode("upgrade");
         }
       } catch (err) {
@@ -236,7 +224,7 @@ export default function Messages() {
     initializeEncryption();
   }, []);
 
-  const handleRecoverySubmit = async (pin) => {
+  const handleRecoverySubmit = async (recoveryKey) => {
     setRecoveryBusy(true);
     setRecoveryError("");
     try {
@@ -253,7 +241,7 @@ export default function Messages() {
             privateKey: privateKeyRef.current,
             publicKeyJwk: publicKeyJwkRef.current,
           },
-          pin,
+          recoveryKey,
         );
         await saveSellerChatRecoveryBackup(backup);
         recoveryBackupRef.current = backup;
@@ -262,15 +250,14 @@ export default function Messages() {
         const keyPair = await restoreChatKeyPair(
           recoveryStorageKeyRef.current,
           recoveryBackupRef.current,
-          pin,
+          recoveryKey,
         );
         privateKeyRef.current = keyPair.privateKey;
         publicKeyJwkRef.current = keyPair.publicKeyJwk;
         await registerSellerChatKey(keyPair.publicKeyJwk);
       }
-      const restoredExistingKey = pinDialogMode !== "" || recoveryMode === "restore-key";
+      const restoredExistingKey = recoveryMode === "restore-key";
       setRecoveryMode("");
-      setPinDialogMode("");
       setEncryptionReady(true);
       if (restoredExistingKey) {
         decryptedPreviewCacheRef.current.clear();
@@ -298,16 +285,11 @@ export default function Messages() {
     setRecoveryError("");
     setRecoveryStatus("");
     setChatUnlockRequested(true);
-    if (Number(recoveryBackupRef.current.backupVersion || 1) === 1) {
-      setPinDialogMode("restore");
-    } else {
-      setRecoveryMode("restore-key");
-    }
+    setRecoveryMode(
+      Number(recoveryBackupRef.current.backupVersion || 1) === 2 ? "restore-key" : "legacy",
+    );
   };
-  const recoveryLabel =
-    Number(recoveryBackupRef.current?.backupVersion || 1) === 1
-      ? "Recover with six-digit passkey"
-      : "Recover with recovery key";
+  const recoveryLabel = "Recover with recovery key";
 
   const handleRecoveryReset = async () => {
     setRecoveryBusy(true);
@@ -705,7 +687,7 @@ export default function Messages() {
           ).length;
           setRecoveryStatus(
             undecryptedCount
-              ? `The passkey was accepted, but ${undecryptedCount} encrypted message${undecryptedCount === 1 ? "" : "s"} still could not be decrypted. This backup may not match the key used for this conversation.`
+              ? `The recovery key was accepted, but ${undecryptedCount} encrypted message${undecryptedCount === 1 ? "" : "s"} still could not be decrypted. This backup may not match the key used for this conversation.`
               : "The chat key was restored and the messages in this conversation are readable.",
           );
           pendingRecoveryRef.current = false;
@@ -1010,7 +992,6 @@ export default function Messages() {
     !conversations.length &&
     !selectedConversationId &&
     !supportChatEntry &&
-    !pinDialogOpen &&
     !recoveryMode
   ) {
     return (
@@ -1042,7 +1023,9 @@ export default function Messages() {
   const showLockedBanner =
     !isSupportChat &&
     !encryptionReady &&
-    (!showChatUnlockDialogs || (!pinDialogOpen && recoveryMode !== "setup" && recoveryMode !== "fresh"));
+    (!showChatUnlockDialogs || (
+      recoveryMode !== "setup" && recoveryMode !== "fresh" && recoveryMode !== "legacy"
+    ));
 
   const activeThreadTitle = activeNotification
     ? "Account notice"
@@ -1093,7 +1076,7 @@ export default function Messages() {
               {recoveryStatus && (
                 <Alert
                   severity={
-                    recoveryStatus.startsWith("The passkey was accepted")
+                    recoveryStatus.startsWith("The recovery key was accepted")
                       ? "warning"
                       : "success"
                   }
@@ -1113,8 +1096,13 @@ export default function Messages() {
                       onClick={() => {
                         setRecoveryError("");
                         setChatUnlockRequested(true);
-                        if (!pinDialogMode && recoveryMode !== "setup" && recoveryMode !== "fresh") {
-                          setPinDialogMode("enter");
+                        if (recoveryMode !== "setup" && recoveryMode !== "fresh" && recoveryMode !== "legacy") {
+                          setRecoveryMode(
+                            !recoveryBackupRef.current
+                              || Number(recoveryBackupRef.current.backupVersion || 1) === 2
+                              ? "restore-key"
+                              : "legacy",
+                          );
                         }
                       }}
                     >
@@ -1122,7 +1110,10 @@ export default function Messages() {
                     </Button>
                   }
                 >
-                  Secure messaging is locked. Enter your six-digit recovery PIN to read and send messages.
+                  {recoveryBackupRef.current
+                    && Number(recoveryBackupRef.current.backupVersion || 1) !== 2
+                    ? "This older recovery backup is unsupported. Create a new chat key to continue messaging."
+                    : "Secure messaging is locked. Enter your 24-character recovery key to read and send messages."}
                 </Alert>
               )}
             </Stack>
@@ -1458,15 +1449,6 @@ export default function Messages() {
         onSubmit={handleRecoverySubmit}
         onReset={handleRecoveryReset}
         onSkip={() => setRecoveryMode("")}
-      />
-
-      <ChatPinDialog
-        open={showChatUnlockDialogs && pinDialogOpen}
-        mode={pinDialogMode}
-        busy={recoveryBusy}
-        error={recoveryError}
-        onSubmit={handleRecoverySubmit}
-        onReset={handleRecoveryReset}
       />
 
       <MessageDelete

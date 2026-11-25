@@ -5,10 +5,11 @@ import {
   decryptChatMessage,
   encryptChatMessage,
   encryptChatKeyBackup,
+  generateRecoveryKey,
   restoreChatKeyPair,
 } from "./chatEncryption.js";
 
-test("chat recovery backup restores an E2EE key only with its six-digit PIN", async () => {
+test("chat recovery backup restores an E2EE key only with its recovery key", async () => {
   const previousStorage = globalThis.localStorage;
   const values = new Map();
   globalThis.localStorage = {
@@ -20,16 +21,17 @@ test("chat recovery backup restores an E2EE key only with its six-digit PIN", as
   try {
     const storageKey = "test_chat_key_pair";
     const original = await createChatKeyPair(storageKey);
-    const backup = await encryptChatKeyBackup(original, "391704");
+    const recoveryKey = generateRecoveryKey();
+    const backup = await encryptChatKeyBackup(original, recoveryKey);
     values.delete(storageKey);
 
     await assert.rejects(
-      restoreChatKeyPair(storageKey, backup, "000000"),
+      restoreChatKeyPair(storageKey, backup, generateRecoveryKey()),
       /could not unlock/i,
     );
     assert.equal(values.has(storageKey), false);
 
-    const restored = await restoreChatKeyPair(storageKey, backup, "391704");
+    const restored = await restoreChatKeyPair(storageKey, backup, recoveryKey);
     assert.equal(restored.publicKeyJwk, original.publicKeyJwk);
     const restoredPrivate = await crypto.subtle.exportKey("jwk", restored.privateKey);
     const originalPrivate = await crypto.subtle.exportKey("jwk", original.privateKey);
@@ -53,7 +55,8 @@ test("a restored chat key decrypts messages encrypted before recovery", async ()
   try {
     const sender = await createChatKeyPair("test_sender_key_pair");
     const recipient = await createChatKeyPair("test_recipient_key_pair");
-    const backup = await encryptChatKeyBackup(recipient, "391704");
+    const recoveryKey = generateRecoveryKey();
+    const backup = await encryptChatKeyBackup(recipient, recoveryKey);
     const encrypted = await encryptChatMessage({
       privateKey: sender.privateKey,
       recipientPublicKeyJwk: recipient.publicKeyJwk,
@@ -64,7 +67,7 @@ test("a restored chat key decrypts messages encrypted before recovery", async ()
     const restored = await restoreChatKeyPair(
       "test_recipient_key_pair",
       backup,
-      "391704",
+      recoveryKey,
     );
     const decrypted = await decryptChatMessage({
       privateKey: restored.privateKey,

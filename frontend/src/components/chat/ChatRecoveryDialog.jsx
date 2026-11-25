@@ -53,9 +53,12 @@ export default function ChatRecoveryDialog({
   const [resetConfirmation, setResetConfirmation] = useState(false);
   const isSetup = mode === "setup" || mode === "upgrade";
   const isRestore = mode === "restore-key";
-  const isFresh = mode === "fresh";
+  const isLegacy = mode === "legacy";
+  const isFresh = mode === "fresh" || isLegacy;
 
-  const dialogTitle = isFresh
+  const dialogTitle = isLegacy
+    ? "Legacy recovery backup found"
+    : isFresh
     ? "No chat recovery backup found"
     : isRestore
     ? "Restore your chats"
@@ -63,12 +66,14 @@ export default function ChatRecoveryDialog({
     ? "Upgrade your chat recovery"
     : "Create your chat recovery key";
 
-  const dialogDescription = isFresh
+  const dialogDescription = isLegacy
+    ? "This older recovery backup format is no longer supported. Starting with a new chat key will make previous encrypted messages unavailable."
+    : isFresh
     ? "This account has an existing secure chat key, but this device has no copy and no recovery backup. Existing encrypted messages cannot be recovered. You can create a new key to continue messaging."
     : isRestore
     ? "Enter the 24-character recovery key saved when this backup was created."
     : mode === "upgrade"
-    ? "Replace your legacy PIN backup with a stronger recovery key. The old PIN-encrypted backup will be replaced on the server."
+    ? "Replace your older recovery backup with a new 24-character recovery key."
     : "This key protects an encrypted backup of your secure chat key. It is shown only once. Losing it means old encrypted messages cannot be recovered.";
 
   useEffect(() => {
