@@ -285,20 +285,6 @@ export default function Main() {
     setRecommendationRefreshKey((prev) => prev + 1);
   };
 
-  if (artworkErrorMessage && !artworksLoading && artworks.length === 0) {
-    return (
-      <Box sx={{ minWidth: 0 }}>
-        <Helmet titleTemplate="%s - ArtMatch">
-          <title>Main</title>
-        </Helmet>
-        <ConnectionErrorPanel
-          title="Home Page Unavailable"
-          onRetry={handleRetry}
-        />
-      </Box>
-    );
-  }
-
   return (
     <Box
       sx={{
@@ -306,8 +292,12 @@ export default function Main() {
         overflowX: "hidden",
       }}
     >
-      <Helmet titleTemplate="%s - ArtMatch">
-        <title>Main</title>
+      <Helmet>
+        <title>ArtMatch - Art Platform for Emerging CAFA Artists</title>
+        <meta
+          name="description"
+          content="Discover, browse, and purchase original paintings, sculptures, digital artworks, and handcrafted art pieces directly from emerging CAFA student artists on ArtMatch."
+        />
       </Helmet>
       <UpcomingEventsSlider heroArtwork={availableArtworks[0]} />
       {/* Styles */}
@@ -399,6 +389,14 @@ export default function Main() {
                 artwork={artwork}
               />
             ))
+          ) : artworkErrorMessage ? (
+            <Box sx={{ gridColumn: "1 / -1" }}>
+              <ConnectionErrorPanel
+                title="Artworks Temporarily Unavailable"
+                message={artworkErrorMessage}
+                onRetry={handleRetry}
+              />
+            </Box>
           ) : (
             <Typography color="text.secondary" sx={{ gridColumn: "1 / -1", py: 2 }}>
               No artworks available right now.

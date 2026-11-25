@@ -39,7 +39,7 @@ const getActiveBottomTab = (pathname) => {
   ) {
     return "profile";
   }
-  if (pathname.startsWith("/buyer/main")) {
+  if (pathname === "/" || pathname.startsWith("/buyer/main")) {
     return "home";
   }
   return false;

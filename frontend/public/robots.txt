@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://art-match-indol.vercel.app/sitemap.xml

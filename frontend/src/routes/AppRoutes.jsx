@@ -114,7 +114,9 @@ export default function AppRoutes() {
       <ThemeModeProvider>
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
-            <Route path="/" element={<Navigate to="/buyer/main" replace />} />
+            <Route element={<BuyerLayout />}>
+              <Route path="/" element={<BuyerMain />} />
+            </Route>
 
             <Route path="/buyer">
               <Route path="login" element={<BuyerLogin />} />

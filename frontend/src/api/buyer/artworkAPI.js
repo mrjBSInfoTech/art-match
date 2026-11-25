@@ -4,7 +4,7 @@ import { API_BASE_URL } from "../apiBase.js";
 const api = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 5000,
+  timeout: 20000,
 });
 
 // HttpOnly cookies handle authentication automatically
