@@ -110,6 +110,12 @@ async function scanArtwork(absoluteImagePath, art_type, product, imageBuffer = n
         ).slice(0, 1000);
         console.log("Detected mediums:", detectedMediums);
       }
+    } else {
+      const errorBody = await mlResponse.text().catch(() => "");
+      console.error(
+        `Python ML Service returned HTTP ${mlResponse.status} from ${ML_ANALYZE_URL}:`,
+        errorBody.slice(0, 300),
+      );
     }
   } catch (mlError) {
     console.error(

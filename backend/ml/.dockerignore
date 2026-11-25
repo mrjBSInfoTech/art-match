@@ -1,4 +1,5 @@
 datasets/
+.venv/
 __pycache__/
 *.pyc
 .env
@@ -11,4 +12,8 @@ calibrate_*.py
 create_feature_annotations.py
 dataset_sync.py
 feature_annotation_helper.py
+evaluate_recommendations.py
+models/genre_scanner.pth
+models/medium_scanner.pth
+recommendation/models/backup/
 

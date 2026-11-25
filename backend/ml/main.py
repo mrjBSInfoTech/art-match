@@ -1,7 +1,16 @@
+from collections import OrderedDict
+import ctypes
+import gc
+import os
+import threading
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import os
 import torch
+
+try:
+    torch.set_num_threads(max(1, int(os.environ.get("TORCH_NUM_THREADS", "1"))))
+except Exception:
+    pass
 import torchvision.transforms as transforms
 from torchvision.models import resnet18, resnet50
 from PIL import Image, ImageFile
@@ -346,8 +355,13 @@ def load_model(path, fallback_classes=None):
     else:
         model.fc = torch.nn.Linear(num_ftrs, len(classes))
 
-    model.load_state_dict(state_dict)
+    try:
+        model.load_state_dict(state_dict, assign=True)
+    except TypeError:
+        model.load_state_dict(state_dict)
     model.eval()
+    del state_dict, checkpoint
+    _release_memory()
     return model, classes
 
 # ============================================================
@@ -408,8 +422,13 @@ def load_separate_medium_model(path, class_names):
                 len(class_names)
             )
 
-        model.load_state_dict(state_dict)
+        try:
+            model.load_state_dict(state_dict, assign=True)
+        except TypeError:
+            model.load_state_dict(state_dict)
         model.eval()
+        del state_dict, checkpoint
+        _release_memory()
 
         print(f"Loaded medium model: {path}")
         print(f"Medium classes: {class_names}")
@@ -420,18 +439,22 @@ def load_separate_medium_model(path, class_names):
         print(f"Error loading medium model {path}: {e}")
         return None, []
 
+def _release_memory():
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
 FEATURE_MODEL_PATH = os.path.join(
     BASE_DIR,
     "models",
     "feature_scanner.pth"
 )
 
-feature_model, feature_classes = load_model(
-    FEATURE_MODEL_PATH
-)
-
 # ============================================================
-# Separate 2D / 3D Medium Models
+# Separate 2D / 3D Medium Models (Lazy-Loaded to fit 512MB RAM)
 # ============================================================
 
 MEDIUM_2D_MODEL_PATH = os.path.join(
@@ -466,32 +489,74 @@ MEDIUM_3D_CLASSES = [
     "yarn_textile"
 ]
 
-medium_2d_model, medium_2d_classes = load_separate_medium_model(
-    MEDIUM_2D_MODEL_PATH,
-    MEDIUM_2D_CLASSES
+_MAX_CACHED_VISION_MODELS = max(
+    1,
+    int(os.environ.get("ML_MAX_CACHED_VISION_MODELS", "1")),
 )
+_VISION_MODEL_LOCK = threading.Lock()
+_VISION_MODEL_CACHE: OrderedDict[str, tuple] = OrderedDict()
 
-medium_3d_model, medium_3d_classes = load_separate_medium_model(
-    MEDIUM_3D_MODEL_PATH,
-    MEDIUM_3D_CLASSES
-)
+# Module-level placeholders (models are loaded lazily on demand)
+feature_model, feature_classes = None, []
+medium_2d_model, medium_2d_classes = None, MEDIUM_2D_CLASSES
+medium_3d_model, medium_3d_classes = None, MEDIUM_3D_CLASSES
+
+
+def _get_vision_model(model_key: str):
+    """Load a vision ResNet model on demand while bounding RAM to _MAX_CACHED_VISION_MODELS."""
+    if model_key in _VISION_MODEL_CACHE:
+        _VISION_MODEL_CACHE.move_to_end(model_key)
+        return _VISION_MODEL_CACHE[model_key]
+
+    while len(_VISION_MODEL_CACHE) >= _MAX_CACHED_VISION_MODELS:
+        _, evicted = _VISION_MODEL_CACHE.popitem(last=False)
+        del evicted
+        _release_memory()
+
+    if model_key == "feature":
+        loaded = load_model(FEATURE_MODEL_PATH)
+    elif model_key == "medium_2d":
+        loaded = load_separate_medium_model(
+            MEDIUM_2D_MODEL_PATH,
+            MEDIUM_2D_CLASSES,
+        )
+    elif model_key == "medium_3d":
+        loaded = load_separate_medium_model(
+            MEDIUM_3D_MODEL_PATH,
+            MEDIUM_3D_CLASSES,
+        )
+    else:
+        raise ValueError(f"Unknown vision model key: {model_key}")
+
+    if loaded[0] is not None:
+        _VISION_MODEL_CACHE[model_key] = loaded
+    return loaded
 
 # --- 3. FastAPI Analyze Endpoint ---
 def extract_features(img):
     """Detect all feature labels whose calibrated thresholds are met."""
     detected_features = []
 
-    if feature_model and feature_classes:
-        with torch.no_grad():
-            main_tensor = transform(img).unsqueeze(0)
-            outputs = feature_model(main_tensor)
-            probabilities = torch.sigmoid(outputs)[0]
+    with _VISION_MODEL_LOCK:
+        active_model, active_classes = (
+            (feature_model, feature_classes)
+            if feature_model and feature_classes
+            else _get_vision_model("feature")
+        )
+        probabilities = None
+        if active_model and active_classes:
+            with torch.inference_mode():
+                main_tensor = transform(img).unsqueeze(0)
+                outputs = active_model(main_tensor)
+                probabilities = torch.sigmoid(outputs)[0].cpu()
+
+    if probabilities is not None and active_classes:
 
         scored_features = []
 
         for idx, probability in enumerate(probabilities):
             confidence = probability.item()
-            feature_name = feature_classes[idx]
+            feature_name = active_classes[idx]
             threshold = float(FEATURE_THRESHOLDS.get(feature_name, 0.50))
             scored_features.append((confidence, feature_name, threshold))
 
@@ -532,8 +597,9 @@ def extract_mediums(img, *args, **kwargs):
     # ========================================================
 
     if is_3d:
-        medium_model = medium_3d_model
-        medium_classes = medium_3d_classes
+        model_key = "medium_3d"
+        override_model = medium_3d_model
+        override_classes = medium_3d_classes
 
         threshold_path = os.path.join(
             BASE_DIR,
@@ -547,8 +613,9 @@ def extract_mediums(img, *args, **kwargs):
         print("Medium mode: 3D / Physical Art")
 
     else:
-        medium_model = medium_2d_model
-        medium_classes = medium_2d_classes
+        model_key = "medium_2d"
+        override_model = medium_2d_model
+        override_classes = medium_2d_classes
 
         threshold_path = os.path.join(
             BASE_DIR,
@@ -597,32 +664,36 @@ def extract_mediums(img, *args, **kwargs):
     # Check model
     # ========================================================
 
-    if medium_model is None or not medium_classes:
-
-        print(
-            "Selected medium model unavailable."
+    with _VISION_MODEL_LOCK:
+        medium_model, medium_classes = (
+            (override_model, override_classes)
+            if override_model is not None and override_classes
+            else _get_vision_model(model_key)
         )
 
-        return ["No medium detected"]
+        if medium_model is None or not medium_classes:
+            print(
+                "Selected medium model unavailable."
+            )
+            return ["No medium detected"]
 
-    # ========================================================
-    # Run model
-    # ========================================================
+        # ========================================================
+        # Run model
+        # ========================================================
 
-    with torch.no_grad():
+        with torch.inference_mode():
+            medium_tensor = transform(
+                img
+            ).unsqueeze(0)
 
-        medium_tensor = transform(
-            img
-        ).unsqueeze(0)
+            outputs = medium_model(
+                medium_tensor
+            )
 
-        outputs = medium_model(
-            medium_tensor
-        )
-
-        probabilities = torch.softmax(
-            outputs,
-            dim=1
-        )[0]
+            probabilities = torch.softmax(
+                outputs,
+                dim=1
+            )[0].cpu()
 
     # ========================================================
     # Score all mediums
@@ -823,6 +894,15 @@ def analyze_artwork(req: ImageRequest):
 
         with Image.open(req.image_path) as uploaded_image:
             original_rgba = uploaded_image.convert("RGBA")
+
+    rgba_size = getattr(original_rgba, "size", None)
+    if (
+        isinstance(rgba_size, tuple)
+        and len(rgba_size) == 2
+        and all(isinstance(dim, int) for dim in rgba_size)
+        and max(rgba_size) > 1024
+    ):
+        original_rgba.thumbnail((1024, 1024))
 
     original_rgb = original_rgba.convert("RGB")
 
