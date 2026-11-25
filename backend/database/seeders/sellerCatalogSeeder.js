@@ -26,6 +26,7 @@ import { colorNamesToHexString } from "../../utils/artworkColorHex.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const SEED_ASSETS_ROOT = path.resolve(__dirname, "images");
+const COR_IMAGES_DIR = path.resolve(__dirname, "images", "cor");
 const PROFILE_UPLOAD_DIR = path.resolve(
   __dirname,
   "..",
@@ -33,6 +34,14 @@ const PROFILE_UPLOAD_DIR = path.resolve(
   "uploads",
   "seller",
   "uploadProfile",
+);
+const COR_UPLOAD_DIR = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "uploads",
+  "seller",
+  "uploadCOR",
 );
 const ALLOWED_IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const DEFAULT_SEED_SELLER_PASSWORD = process.env.SEED_SELLER_PASSWORD || "ArtMatch@2026";
@@ -188,6 +197,36 @@ async function processAndStoreProfileImage(studentId, profileImagePath) {
     await fs.promises.mkdir(PROFILE_UPLOAD_DIR, { recursive: true });
     await fs.promises.writeFile(path.join(PROFILE_UPLOAD_DIR, fileName), compressed);
   }
+
+  return fileName;
+}
+
+function loadSeedCorImagePaths() {
+  if (!fs.existsSync(COR_IMAGES_DIR)) return [];
+  return fs
+    .readdirSync(COR_IMAGES_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && ALLOWED_IMAGE_EXTS.has(path.extname(entry.name).toLowerCase()))
+    .map((entry) => path.join(COR_IMAGES_DIR, entry.name))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+}
+
+async function processAndStoreCorImage(studentId, corImagePath) {
+  const fileName = `seed-cor-${studentId}-${Date.now()}.webp`;
+  const compressed = await sharp(corImagePath, { failOn: "error" })
+    .rotate()
+    .webp({ quality: 90 })
+    .toBuffer();
+
+  if (isB2Configured()) {
+    await uploadToB2({
+      key: `app-uploads/seller/uploadCOR/${fileName}`,
+      body: compressed,
+      contentType: "image/webp",
+    });
+  }
+
+  await fs.promises.mkdir(COR_UPLOAD_DIR, { recursive: true });
+  await fs.promises.writeFile(path.join(COR_UPLOAD_DIR, fileName), compressed);
 
   return fileName;
 }
@@ -505,6 +544,18 @@ export async function runCatalogSeeder(profiles, cliOptions) {
         await connection.query(
           "UPDATE student SET profile_image = COALESCE(NULLIF(TRIM(profile_image), ''), 'profile.jpg') WHERE student_id = ?",
           [student.student_id],
+        );
+      }
+
+      const seedCorImages = loadSeedCorImagePaths();
+      if (seedCorImages.length > 0 && !String(student.cor || "").trim()) {
+        const storedCorName = await processAndStoreCorImage(
+          student.student_id,
+          seedCorImages[sIdx % seedCorImages.length],
+        );
+        await connection.query(
+          "UPDATE student SET cor = ? WHERE student_id = ?",
+          [storedCorName, student.student_id],
         );
       }
 
