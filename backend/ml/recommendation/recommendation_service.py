@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 from typing import Iterable
 
@@ -53,82 +54,75 @@ def _load_checkpoint(path: Path) -> dict:
 
 
 # --------------------------------------------------
-# Load mappings once when the ML service starts.
+# Load mappings & model with hot-reload support.
 # --------------------------------------------------
 
-ITEM_MAPPING = _read_json(
-    ITEM_MAP_FILE
-)
-
-RAW_TO_SASREC = {
-    int(raw_id): int(sasrec_id)
-    for raw_id, sasrec_id
-    in ITEM_MAPPING[
-        "raw_to_sasrec"
-    ].items()
-}
-
-SASREC_TO_RAW = {
-    int(sasrec_id): int(raw_id)
-    for sasrec_id, raw_id
-    in ITEM_MAPPING[
-        "sasrec_to_raw"
-    ].items()
-}
+_RELOAD_LOCK = threading.Lock()
+ITEM_MAPPING: dict = {}
+RAW_TO_SASREC: dict[int, int] = {}
+SASREC_TO_RAW: dict[int, int] = {}
+CHECKPOINT: dict = {}
+CONFIG: dict = {}
+MODEL: SASRec | None = None
+_LOADED_CHECKPOINT_MTIME_NS: int | None = None
 
 
-# --------------------------------------------------
-# Load the trained model once.
-# --------------------------------------------------
+def reload_sasrec_model() -> dict:
+    """Reload item mappings and trained SASRec weights from disk."""
+    global ITEM_MAPPING, RAW_TO_SASREC, SASREC_TO_RAW, CHECKPOINT, CONFIG, MODEL, _LOADED_CHECKPOINT_MTIME_NS
 
-CHECKPOINT = _load_checkpoint(
-    CHECKPOINT_FILE
-)
+    with _RELOAD_LOCK:
+        item_mapping = _read_json(ITEM_MAP_FILE)
+        raw_to_sasrec = {
+            int(raw_id): int(sasrec_id)
+            for raw_id, sasrec_id in item_mapping["raw_to_sasrec"].items()
+        }
+        sasrec_to_raw = {
+            int(sasrec_id): int(raw_id)
+            for sasrec_id, raw_id in item_mapping["sasrec_to_raw"].items()
+        }
 
-CONFIG = CHECKPOINT.get(
-    "config",
-    {},
-)
+        checkpoint = _load_checkpoint(CHECKPOINT_FILE)
+        config = checkpoint.get("config", {})
 
-MODEL = SASRec(
-    item_num=int(
-        CONFIG["item_num"]
-    ),
+        model = SASRec(
+            item_num=int(config["item_num"]),
+            maxlen=int(config["maxlen"]),
+            hidden_units=int(config["hidden_units"]),
+            num_blocks=int(config["num_blocks"]),
+            num_heads=int(config["num_heads"]),
+            dropout_rate=float(config["dropout_rate"]),
+            norm_first=bool(config["norm_first"]),
+        ).to(DEVICE)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
 
-    maxlen=int(
-        CONFIG["maxlen"]
-    ),
+        ITEM_MAPPING = item_mapping
+        RAW_TO_SASREC = raw_to_sasrec
+        SASREC_TO_RAW = sasrec_to_raw
+        CHECKPOINT = checkpoint
+        CONFIG = config
+        MODEL = model
+        _LOADED_CHECKPOINT_MTIME_NS = CHECKPOINT_FILE.stat().st_mtime_ns
 
-    hidden_units=int(
-        CONFIG["hidden_units"]
-    ),
+        return {
+            "item_num": int(config["item_num"]),
+            "maxlen": int(config["maxlen"]),
+            "mapped_items": len(raw_to_sasrec),
+        }
 
-    num_blocks=int(
-        CONFIG["num_blocks"]
-    ),
 
-    num_heads=int(
-        CONFIG["num_heads"]
-    ),
+def _reload_if_checkpoint_updated() -> None:
+    try:
+        current_mtime_ns = CHECKPOINT_FILE.stat().st_mtime_ns
+    except OSError:
+        return
 
-    dropout_rate=float(
-        CONFIG["dropout_rate"]
-    ),
+    if _LOADED_CHECKPOINT_MTIME_NS != current_mtime_ns:
+        reload_sasrec_model()
 
-    norm_first=bool(
-        CONFIG["norm_first"]
-    ),
-).to(
-    DEVICE
-)
 
-MODEL.load_state_dict(
-    CHECKPOINT[
-        "model_state_dict"
-    ]
-)
-
-MODEL.eval()
+reload_sasrec_model()
 
 
 def _clean_artwork_ids(
@@ -203,6 +197,8 @@ def recommend_from_artwork_ids(
 
     if not artwork_ids:
         return []
+
+    _reload_if_checkpoint_updated()
 
     raw_history = (
         _clean_artwork_ids(

@@ -15,10 +15,12 @@ import csv
 try:
     from recommendation.recommendation_service import (
         recommend_from_artwork_ids,
+        reload_sasrec_model,
     )
 except ModuleNotFoundError:
     from ml.recommendation.recommendation_service import (
         recommend_from_artwork_ids,
+        reload_sasrec_model,
     )
 
 # Allow loading of truncated/incomplete image files without crashing
@@ -957,4 +959,20 @@ def recommend_artworks(
                 "Unable to generate "
                 "recommendations"
             ),
+        )
+
+
+@app.post("/recommend/reload")
+def reload_recommendations_model():
+    try:
+        info = reload_sasrec_model()
+        return {
+            "status": "reloaded",
+            **info,
+        }
+    except Exception as error:
+        print("Recommendation reload error:", error)
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to reload recommendation model",
         )

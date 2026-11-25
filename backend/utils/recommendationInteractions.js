@@ -1,4 +1,5 @@
 import db from "../database/db.js";
+import { scheduleSasrecAutoRetrainCheck } from "./sasrecAutoTrainer.js";
 
 const cleanText = (value, maxLength) => {
   if (value === undefined || value === null) return null;
@@ -94,6 +95,7 @@ export const recordRecommendationInteraction = async ({
       cleanText(sourcePage, 100),
     ]);
 
+    scheduleSasrecAutoRetrainCheck();
     return result.insertId;
   } catch (error) {
     if (String(error?.code || "").includes("ER_NO_SUCH_TABLE")) {

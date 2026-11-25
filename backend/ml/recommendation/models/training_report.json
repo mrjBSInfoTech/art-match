@@ -1,8 +1,8 @@
 {
   "checkpoint": "C:\\VS Codes\\React JS\\art-match\\backend\\ml\\recommendation\\models\\sasrec.pth",
-  "saved_at": "2026-10-16T16:09:33.598652+00:00",
+  "saved_at": "2026-11-25T00:14:40.665721+00:00",
   "config": {
-    "item_num": 21,
+    "item_num": 55,
     "maxlen": 50,
     "hidden_units": 50,
     "num_blocks": 2,
@@ -19,250 +19,250 @@
     "device": "cpu"
   },
   "dataset": {
-    "user_num": 4,
-    "item_num": 21,
-    "trainable_users": 4,
+    "user_num": 6,
+    "item_num": 55,
+    "trainable_users": 6,
     "source_file": "ArtMatch.txt"
   },
   "final_test": {
-    "users": 3,
-    "hit_rate": 0.3333333333333333,
-    "ndcg": 0.1289509357448472,
+    "users": 5,
+    "hit_rate": 0.4,
+    "ndcg": 0.252371901428583,
     "k": 5
   },
   "history": [
     {
       "epoch": 1,
-      "loss": 1.7706321477890015,
-      "valid_users": 3,
+      "loss": 1.4502315521240234,
+      "valid_users": 5,
       "valid_hit_rate": 0.0,
       "valid_ndcg": 0.0
     },
     {
       "epoch": 2,
-      "loss": 1.5382674932479858
+      "loss": 1.4627280235290527
     },
     {
       "epoch": 3,
-      "loss": 1.4705345630645752
+      "loss": 1.5208470821380615
     },
     {
       "epoch": 4,
-      "loss": 1.5345637798309326
+      "loss": 1.2718493938446045
     },
     {
       "epoch": 5,
-      "loss": 1.4089332818984985,
-      "valid_users": 3,
+      "loss": 1.2627100944519043,
+      "valid_users": 5,
       "valid_hit_rate": 0.0,
       "valid_ndcg": 0.0
     },
     {
       "epoch": 6,
-      "loss": 1.1660255193710327
+      "loss": 1.1870777606964111
     },
     {
       "epoch": 7,
-      "loss": 1.270106315612793
+      "loss": 1.115243911743164
     },
     {
       "epoch": 8,
-      "loss": 1.210242748260498
+      "loss": 1.141998052597046
     },
     {
       "epoch": 9,
-      "loss": 1.0973714590072632
+      "loss": 1.0562162399291992
     },
     {
       "epoch": 10,
-      "loss": 0.8818700313568115,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.8947968482971191,
+      "valid_users": 5,
+      "valid_hit_rate": 0.2,
+      "valid_ndcg": 0.1
     },
     {
       "epoch": 11,
-      "loss": 0.9717311859130859
+      "loss": 1.0025160312652588
     },
     {
       "epoch": 12,
-      "loss": 0.9480708837509155
+      "loss": 0.9701369404792786
     },
     {
       "epoch": 13,
-      "loss": 0.7616049647331238
+      "loss": 0.7921927571296692
     },
     {
       "epoch": 14,
-      "loss": 0.7496287226676941
+      "loss": 0.8435226082801819
     },
     {
       "epoch": 15,
-      "loss": 0.7875542044639587,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.7960677146911621,
+      "valid_users": 5,
+      "valid_hit_rate": 0.2,
+      "valid_ndcg": 0.1261859507142915
     },
     {
       "epoch": 16,
-      "loss": 0.7148709297180176
+      "loss": 0.8502118587493896
     },
     {
       "epoch": 17,
-      "loss": 0.5917781591415405
+      "loss": 0.794951319694519
     },
     {
       "epoch": 18,
-      "loss": 0.6585448384284973
+      "loss": 0.7377548217773438
     },
     {
       "epoch": 19,
-      "loss": 0.6614447236061096
+      "loss": 0.6897792816162109
     },
     {
       "epoch": 20,
-      "loss": 0.5955263376235962,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.7061499357223511,
+      "valid_users": 5,
+      "valid_hit_rate": 0.2,
+      "valid_ndcg": 0.1261859507142915
     },
     {
       "epoch": 21,
-      "loss": 0.5623135566711426
+      "loss": 0.7271314859390259
     },
     {
       "epoch": 22,
-      "loss": 0.5099004507064819
+      "loss": 0.6939841508865356
     },
     {
       "epoch": 23,
-      "loss": 0.5853433012962341
+      "loss": 0.6253891587257385
     },
     {
       "epoch": 24,
-      "loss": 0.48832350969314575
+      "loss": 0.6638576984405518
     },
     {
       "epoch": 25,
-      "loss": 0.5051922798156738,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.6303436160087585,
+      "valid_users": 5,
+      "valid_hit_rate": 0.2,
+      "valid_ndcg": 0.1261859507142915
     },
     {
       "epoch": 26,
-      "loss": 0.42339199781417847
+      "loss": 0.6091791391372681
     },
     {
       "epoch": 27,
-      "loss": 0.43040576577186584
+      "loss": 0.6159982085227966
     },
     {
       "epoch": 28,
-      "loss": 0.5358831882476807
+      "loss": 0.5369948744773865
     },
     {
       "epoch": 29,
-      "loss": 0.3725360035896301
+      "loss": 0.544029176235199
     },
     {
       "epoch": 30,
-      "loss": 0.40741676092147827,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.6861726641654968,
+      "valid_users": 5,
+      "valid_hit_rate": 0.2,
+      "valid_ndcg": 0.1261859507142915
     },
     {
       "epoch": 31,
-      "loss": 0.4786364436149597
+      "loss": 0.5757670402526855
     },
     {
       "epoch": 32,
-      "loss": 0.34797006845474243
+      "loss": 0.6043497323989868
     },
     {
       "epoch": 33,
-      "loss": 0.3580116033554077
+      "loss": 0.4289438724517822
     },
     {
       "epoch": 34,
-      "loss": 0.32477736473083496
+      "loss": 0.5469523072242737
     },
     {
       "epoch": 35,
-      "loss": 0.3495296239852905,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.5580978393554688,
+      "valid_users": 5,
+      "valid_hit_rate": 0.4,
+      "valid_ndcg": 0.20355651216119983
     },
     {
       "epoch": 36,
-      "loss": 0.3438284993171692
+      "loss": 0.5091395974159241
     },
     {
       "epoch": 37,
-      "loss": 0.3378972113132477
+      "loss": 0.5386650562286377
     },
     {
       "epoch": 38,
-      "loss": 0.38638728857040405
+      "loss": 0.5372083783149719
     },
     {
       "epoch": 39,
-      "loss": 0.3626917600631714
+      "loss": 0.49951237440109253
     },
     {
       "epoch": 40,
-      "loss": 0.29400724172592163,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.44826507568359375,
+      "valid_users": 5,
+      "valid_hit_rate": 0.4,
+      "valid_ndcg": 0.2261859507142915
     },
     {
       "epoch": 41,
-      "loss": 0.2612459361553192
+      "loss": 0.4196971654891968
     },
     {
       "epoch": 42,
-      "loss": 0.27424436807632446
+      "loss": 0.4577931761741638
     },
     {
       "epoch": 43,
-      "loss": 0.36913102865219116
+      "loss": 0.5160098075866699
     },
     {
       "epoch": 44,
-      "loss": 0.2116439938545227
+      "loss": 0.4199562966823578
     },
     {
       "epoch": 45,
-      "loss": 0.22784070670604706,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.491624116897583,
+      "valid_users": 5,
+      "valid_hit_rate": 0.6,
+      "valid_ndcg": 0.352371901428583
     },
     {
       "epoch": 46,
-      "loss": 0.23033976554870605
+      "loss": 0.4036514163017273
     },
     {
       "epoch": 47,
-      "loss": 0.23147472739219666
+      "loss": 0.49196988344192505
     },
     {
       "epoch": 48,
-      "loss": 0.2687057554721832
+      "loss": 0.43627750873565674
     },
     {
       "epoch": 49,
-      "loss": 0.24025283753871918
+      "loss": 0.41918203234672546
     },
     {
       "epoch": 50,
-      "loss": 0.20556385815143585,
-      "valid_users": 3,
-      "valid_hit_rate": 0.0,
-      "valid_ndcg": 0.0
+      "loss": 0.42246317863464355,
+      "valid_users": 5,
+      "valid_hit_rate": 0.6,
+      "valid_ndcg": 0.3261859507142915
     }
   ],
   "warning": "Current metrics are diagnostic only. ArtMatch currently has very few users and interactions, so HR/NDCG are not statistically meaningful yet."
