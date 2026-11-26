@@ -29,17 +29,29 @@ const Transition = React.forwardRef(function Transition(props, ref) {
   );
 });
 
+const formatOrderLabel = (order) => {
+  const rawCode = order?.orderNumber || order?.id || order?.orderId;
+  if (rawCode === undefined || rawCode === null || String(rawCode).trim() === "") {
+    return "this order";
+  }
+
+  const normalized = String(rawCode).trim().replace(/^#/, "");
+  const formattedCode = /^\d+$/.test(normalized)
+    ? `AM-${normalized.padStart(6, "0")}`
+    : normalized;
+  return `Order #${formattedCode}`;
+};
+
 const getConfirmationMessage = (status, order) => {
-  const orderNumber =
-    order?.orderNumber || order?.orderId || order?.id || "this order";
+  const orderLabel = formatOrderLabel(order);
   const messages = {
-    Confirmed: `Confirm order ${orderNumber} and start preparing it?`,
-    Packed: `Confirm order ${orderNumber} is packed and ready to move forward?`,
-    Shipped: `Confirm order ${orderNumber} is shipped or ready for buyer pickup?`,
-    Delivered: `Confirm order ${orderNumber} has been delivered to the buyer?`,
-    Cancelled: `Cancel order ${orderNumber}? This action cannot be undone.`,
+    Confirmed: `Confirm ${orderLabel} and start preparing it?`,
+    Packed: `Confirm ${orderLabel} is packed and ready to move forward?`,
+    Shipped: `Confirm ${orderLabel} is shipped or ready for buyer pickup?`,
+    Delivered: `Confirm ${orderLabel} has been delivered to the buyer?`,
+    Cancelled: `Cancel ${orderLabel}? This action cannot be undone.`,
   };
-  return messages[status] || `Update order ${orderNumber} to ${status}?`;
+  return messages[status] || `Update ${orderLabel} to ${status}?`;
 };
 
 export default function OrderConfirm({
