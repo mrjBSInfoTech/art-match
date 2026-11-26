@@ -21,6 +21,7 @@ import {
   sanitizeSpreadsheetCell,
 } from "./studentImportSpreadsheet.js";
 import { bulkAddStudents } from "../../../api/admin/studentAPI";
+import { getCanonicalCourseName } from "../../../utils/courseFilter.js";
 import { useTheme } from "@mui/material/styles";
 // Icons
 import CloseIcon from "@mui/icons-material/Close";
@@ -191,53 +192,7 @@ const normalizeYearLevel = (value) => {
   return String(value || "").trim();
 };
 
-const normalizeCourse = (value) => {
-  const text = normalizeHeader(value);
-
-  const courseAliases = {
-    "bfa painting": "Bachelor of Fine Arts in Painting",
-
-    "bfa ptg": "Bachelor of Fine Arts in Painting",
-
-    bfap: "Bachelor of Fine Arts in Painting",
-
-    "bachelor of fine arts in painting": "Bachelor of Fine Arts in Painting",
-
-    "bs architecture": "Bachelor of Science in Architecture",
-
-    bsarchi: "Bachelor of Science in Architecture",
-
-    "bs archi": "Bachelor of Science in Architecture",
-
-    "bs arch": "Bachelor of Science in Architecture",
-
-    bsa: "Bachelor of Science in Architecture",
-
-    "bachelor of science in architecture":
-      "Bachelor of Science in Architecture",
-
-    "bfa visual communication": "Bachelor of Fine Arts in Visual Communication",
-
-    bfavc: "Bachelor of Fine Arts in Visual Communication",
-
-    bfav: "Bachelor of Fine Arts in Visual Communication",
-
-    "bachelor of fine arts in visual communication":
-      "Bachelor of Fine Arts in Visual Communication",
-
-    "bs interior design": "Bachelor of Science in Interior Design",
-
-    bsid: "Bachelor of Science in Interior Design",
-
-    "bs id": "Bachelor of Science in Interior Design",
-
-    "bachelor of science in interior design":
-      "Bachelor of Science in Interior Design",
-
-  };
-
-  return courseAliases[text] || String(value || "").trim();
-};
+const normalizeCourse = (value) => getCanonicalCourseName(value);
 
 const formatPersonName = (value) => {
   const text = String(value || "").trim();
@@ -404,9 +359,10 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
     }
 
     setIsSubmitting(true);
+    setError("");
     try {
       const result = await bulkAddStudents(parsedData);
-      onSuccess(result);
+      await onSuccess?.(result);
       handleCloseDialog();
     } catch (err) {
       setError(err.message || "Failed to import students.");
@@ -434,7 +390,7 @@ export default function StudentBulkAdd({ open, handleClose, onSuccess }) {
         Address: "123 Sampaguita St",
         "Phone Number": "09123456789",
         "Year Level": "Second Year",
-        Course: "Bachelor of Fine Arts in Painting",
+        Course: "Bachelor of Fine Arts, Major in Painting",
         "Student Number": "2021-12345",
       },
     ];

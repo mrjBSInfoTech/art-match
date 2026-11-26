@@ -39,6 +39,7 @@ import {
   DEFAULT_PROFILE_IMAGE_URL,
   resolveProfileImageUrl,
 } from "../../../utils/profileImage.js";
+import { getCanonicalCourseName } from "../../../utils/courseFilter.js";
 
 export default function StudentTable({
   students = [],
@@ -248,8 +249,12 @@ export default function StudentTable({
                     </TableCell>
 
                     <TableCell sx={{ minWidth: 160, maxWidth: 240 }}>
-                      <Typography variant="body2" noWrap title={student.course || "Not specified"}>
-                        {student.course || "Not specified"}
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        title={getCanonicalCourseName(student.course) || "Not specified"}
+                      >
+                        {getCanonicalCourseName(student.course) || "Not specified"}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
                         {student.year_level || "No year level"}

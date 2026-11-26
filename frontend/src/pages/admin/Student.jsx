@@ -34,6 +34,11 @@ import ConnectionErrorPanel from "../../components/admin/ConnectionErrorPanel";
 import AdminLoadingPanel from "../../components/admin/AdminLoadingPanel";
 import { courseOptions, yearLevelOptions } from "../../components/admin/Student/studentOptions";
 import {
+  getCanonicalCourseName,
+  getCourseLabel,
+  matchesCourse,
+} from "../../utils/courseFilter.js";
+import {
   addStudents,
   deleteStudent,
   fetchStudents,
@@ -92,11 +97,11 @@ export default function Student() {
   const [yearLevelFilter, setYearLevelFilter] = useState("all");
   const [viewMode, setViewMode] = useState("card");
 
-  const loadStudents = useCallback(async ({ silent = false } = {}) => {
+  const loadStudents = useCallback(async ({ silent = false, forceFresh = false } = {}) => {
     try {
       if (!silent) setLoading(true);
       setError("");
-      setStudents(await fetchStudents());
+      setStudents(await fetchStudents("", { forceFresh }));
     } catch (err) {
       if (!silent) setError(err.message || "Failed to load students.");
     } finally {
@@ -199,7 +204,10 @@ export default function Student() {
 
   const handleBulkSuccess = async (result) => {
     setOpenBulkAdd(false);
-    await loadStudents();
+    setSearchQuery("");
+    setCourseFilter("all");
+    setYearLevelFilter("all");
+    await loadStudents({ forceFresh: true });
     showSnackbar(
       result?.message || "Students imported successfully.",
       "success",
@@ -221,9 +229,30 @@ export default function Student() {
     }
   };
 
+  const availableCourseOptions = useMemo(() => {
+    const options = [...courseOptions];
+    const seen = new Set(
+      options.map((course) => getCanonicalCourseName(course).toLowerCase()),
+    );
+
+    for (const student of students) {
+      const canonicalCourse = getCanonicalCourseName(student.course);
+      if (!canonicalCourse) continue;
+      const key = canonicalCourse.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        options.push(canonicalCourse);
+      }
+    }
+
+    return options;
+  }, [students]);
+
   const filteredStudents = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
     return students.filter((student) => {
+      const canonicalCourse = getCanonicalCourseName(student.course);
+      const shortCourse = getCourseLabel(student.course);
       const matchesSearch = [
         student.first_name,
         student.middle_name,
@@ -231,18 +260,19 @@ export default function Student() {
         student.student_number,
         student.email,
         student.course,
+        canonicalCourse,
+        shortCourse,
       ].some((value) =>
         String(value || "")
           .toLowerCase()
           .includes(search),
       );
-      const matchesCourse =
-        courseFilter === "all" ||
-        String(student.course || "").trim() === courseFilter;
+      const matchesCourseFilter =
+        courseFilter === "all" || matchesCourse(student.course, courseFilter);
       const matchesYearLevel =
         yearLevelFilter === "all" ||
         String(student.year_level || "").trim() === yearLevelFilter;
-      return matchesSearch && matchesCourse && matchesYearLevel;
+      return matchesSearch && matchesCourseFilter && matchesYearLevel;
     });
   }, [courseFilter, yearLevelFilter, searchQuery, students]);
 
@@ -494,7 +524,7 @@ export default function Student() {
                 }}
               >
                 <MenuItem value="all">All Courses</MenuItem>
-                {courseOptions.map((course) => (
+                {availableCourseOptions.map((course) => (
                   <MenuItem key={course} value={course}>
                     {course}
                   </MenuItem>

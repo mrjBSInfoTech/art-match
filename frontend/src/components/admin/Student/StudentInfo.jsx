@@ -18,6 +18,7 @@ import {
   DEFAULT_PROFILE_IMAGE_URL,
   resolveProfileImageUrl,
 } from "../../../utils/profileImage.js";
+import { getCanonicalCourseName } from "../../../utils/courseFilter.js";
 
 // Animation transition
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -186,7 +187,7 @@ function StudentInfo({ open, handleClose, selectedStudent }) {
               <Box>
                 <Typography sx={detailLabelSx}>Course</Typography>
                 <Typography sx={detailValueSx}>
-                  {student.course || "N/A"}
+                  {getCanonicalCourseName(student.course) || "N/A"}
                 </Typography>
               </Box>
               <Box>

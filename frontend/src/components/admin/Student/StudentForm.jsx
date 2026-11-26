@@ -17,6 +17,7 @@ import {
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import { courseOptions, yearLevelOptions } from "./studentOptions";
+import { getCanonicalCourseName } from "../../../utils/courseFilter.js";
 import { API_BASE_URL } from "../../../api/apiBase.js";
 import { getToken } from "../../../../utils/auth.js";
 // Icons
@@ -102,7 +103,7 @@ export default function StudentForm({
         address: selectedStudent.address || "",
         phone_number: selectedStudent.phone_number || "",
         year_level: selectedStudent.year_level || "",
-        course: selectedStudent.course || "",
+        course: getCanonicalCourseName(selectedStudent.course),
         student_number: selectedStudent.student_number || "",
         cor: selectedStudent.cor || "",
         profile_image: selectedStudent.profile_image || "",
@@ -431,7 +432,10 @@ export default function StudentForm({
               <MenuItem value="">
                 <em>Select course</em>
               </MenuItem>
-              {courseOptions.map((option) => (
+              {(formData.course && !courseOptions.includes(formData.course)
+                ? [...courseOptions, formData.course]
+                : courseOptions
+              ).map((option) => (
                 <MenuItem key={option} value={option}>
                   {option}
                 </MenuItem>

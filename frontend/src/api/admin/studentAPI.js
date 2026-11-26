@@ -24,12 +24,16 @@ const handleError = (error) => {
 };
 
 // Fetch all students
-export const fetchStudents = async (register_status = "") => {
+export const fetchStudents = async (register_status = "", options = {}) => {
   try {
-    const url = register_status
-      ? `/?status=${encodeURIComponent(register_status)}`
-      : "/";
-    const res = await api.get(url);
+    const params = {};
+    if (register_status) {
+      params.status = register_status;
+    }
+    if (options?.forceFresh) {
+      params._t = Date.now();
+    }
+    const res = await api.get("/", { params });
     return res.data || [];
   } catch (error) {
     handleError(error);

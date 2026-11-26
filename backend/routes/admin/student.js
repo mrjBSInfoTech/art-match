@@ -253,7 +253,7 @@ router.post(
 
       db.query(
         `SELECT student_id, DATE_FORMAT(birthdate, '%Y-%m-%d') AS birthdate,
-                email, address, phone_number,
+                email, address, phone_number, course, year_level,
                 (expire_date <= CURRENT_TIMESTAMP) AS is_expired
          FROM student WHERE student_number = ? LIMIT 1`,
         [studentNumber],
@@ -267,8 +267,15 @@ router.post(
           }
 
           const existingStudent = results[0];
-          const contactFields = ["birthdate", "email", "address", "phone_number"];
-          const changedContactFields = contactFields.flatMap((field) => {
+          const updatableFields = [
+            "birthdate",
+            "email",
+            "address",
+            "phone_number",
+            "course",
+            "year_level",
+          ];
+          const changedFields = updatableFields.flatMap((field) => {
             if (
               !Object.prototype.hasOwnProperty.call(studentData, field)
               || studentData[field] == null
@@ -283,13 +290,13 @@ router.post(
           });
 
           if (!existingStudent.is_expired) {
-            if (!changedContactFields.length) {
+            if (!changedFields.length) {
               skippedCount += 1;
               return processStudent(index + 1, expirationDate);
             }
 
-            const assignments = changedContactFields.map(({ field }) => `${field} = ?`);
-            const values = changedContactFields.map(({ value }) => value);
+            const assignments = changedFields.map(({ field }) => `${field} = ?`);
+            const values = changedFields.map(({ value }) => value);
             db.query(
               `UPDATE student SET ${assignments.join(", ")} WHERE student_id = ?`,
               [...values, existingStudent.student_id],
@@ -308,16 +315,8 @@ router.post(
             return;
           }
 
-          const assignments = changedContactFields.map(({ field }) => `${field} = ?`);
-          const values = changedContactFields.map(({ value }) => value);
-          if (String(studentData.year_level || "").trim()) {
-            assignments.push("year_level = ?");
-            values.push(String(studentData.year_level).trim());
-          }
-          if (String(studentData.course || "").trim()) {
-            assignments.push("course = ?");
-            values.push(String(studentData.course).trim());
-          }
+          const assignments = changedFields.map(({ field }) => `${field} = ?`);
+          const values = changedFields.map(({ value }) => value);
           assignments.push(
             "account_status = 'active'",
             "expire_date = DATE_ADD(?, INTERVAL 1 DAY)",
