@@ -17,7 +17,6 @@ const corUploadFolder = path.join(
 export async function runDataRetentionCycle({ logger = console } = {}) {
   let expiredAccountsCount = 0;
   let disposedAccountsCount = 0;
-  let purgedInteractionsCount = 0;
 
   // 1. Automatically mark student accounts whose expire_date has passed as 'expired'
   //    and archive their unsold artwork listings.
@@ -131,25 +130,9 @@ export async function runDataRetentionCycle({ logger = console } = {}) {
     );
   }
 
-  // 3. Purge stale anonymous recommendation interaction logs (> 6 months old)
-  //    and any residual interactions for opted-out buyers.
-  try {
-    const [guestPurgeResult] = await db.promise().query(
-      `DELETE FROM recommendation_interaction
-       WHERE (customer_id IS NULL AND created_at < (CURRENT_TIMESTAMP - INTERVAL 6 MONTH))
-          OR customer_id IN (
-            SELECT customer_id FROM customer WHERE allow_personalized_recommendations = 0
-          )`,
-    );
-    purgedInteractionsCount = Number(guestPurgeResult?.affectedRows || 0);
-  } catch {
-    // Table may not exist yet in fresh environments
-  }
-
   return {
     expiredAccountsCount,
     disposedAccountsCount,
-    purgedInteractionsCount,
   };
 }
 

@@ -12,7 +12,6 @@ import {
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
-import RecommendedSection from "../../components/buyer/Order/RecommendedSection";
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("en-PH", {
@@ -164,7 +163,6 @@ export default function OrderFinish() {
         </Stack>
       </Paper>
       </Container>
-      <RecommendedSection />
     </Box>
   );
 }

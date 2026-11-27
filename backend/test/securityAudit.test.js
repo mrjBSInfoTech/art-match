@@ -324,7 +324,7 @@ test("CORS Preflight Configuration", async (t) => {
       method: "OPTIONS",
       headers: {
         origin: "http://localhost:5173",
-        "access-control-request-headers": "cache-control, x-requested-with, x-recommendation-session",
+        "access-control-request-headers": "cache-control, x-requested-with",
       },
     };
     const res = {
@@ -338,7 +338,6 @@ test("CORS Preflight Configuration", async (t) => {
     assert.equal(headers["access-control-allow-credentials"], "true");
     assert.match(headers["access-control-allow-headers"], /cache-control/i);
     assert.match(headers["access-control-allow-headers"], /x-requested-with/i);
-    assert.match(headers["access-control-allow-headers"], /x-recommendation-session/i);
   });
 });
 

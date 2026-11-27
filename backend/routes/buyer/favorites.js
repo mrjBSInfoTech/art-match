@@ -2,10 +2,6 @@ import express from "express";
 import db from "../../database/db.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
 import { getArtworkRatingSql, getArtworkRatingSummary } from "../../utils/artworkRatings.js";
-import {
-  recordRecommendationInteraction,
-  getRecommendationSessionIdFromRequest,
-} from "../../utils/recommendationInteractions.js";
 
 const router = express.Router();
 const artworkRatingSql = getArtworkRatingSql();
@@ -100,23 +96,6 @@ router.post("/:artworkId", authenticateBuyer, (req, res) => {
                   });
                 }
 
-                void recordRecommendationInteraction({
-                  customerId: req.user.customer_id,
-
-                  artworkId,
-
-                  sessionId: getRecommendationSessionIdFromRequest(req),
-
-                  eventType: "unfavorite",
-
-                  sourcePage: "favorites",
-                }).catch((error) =>
-                  console.error(
-                    "Unfavorite recommendation tracking failed:",
-                    error,
-                  ),
-                );
-
                 return res.json({
                   message: "Artwork removed from favorites",
                   isFavorite: false,
@@ -128,7 +107,6 @@ router.post("/:artworkId", authenticateBuyer, (req, res) => {
           }
 
           // Not favorite yet:
-          // create it first, then record the event.
           db.query(
             "INSERT INTO customer_favorite (customer_id, artwork_id) VALUES (?, ?)",
             [req.user.customer_id, artworkId],
@@ -138,23 +116,6 @@ router.post("/:artworkId", authenticateBuyer, (req, res) => {
                   message: "Database error",
                 });
               }
-
-              void recordRecommendationInteraction({
-                customerId: req.user.customer_id,
-
-                artworkId,
-
-                sessionId: getRecommendationSessionIdFromRequest(req),
-
-                eventType: "favorite",
-
-                sourcePage: "favorites",
-              }).catch((error) =>
-                console.error(
-                  "Favorite recommendation tracking failed:",
-                  error,
-                ),
-              );
 
               return res.status(201).json({
                 message: "Artwork added to favorites",
@@ -192,23 +153,6 @@ router.delete("/:artworkId", authenticateBuyer, (req, res) => {
           message: "Favorite not found",
         });
       }
-
-      void recordRecommendationInteraction({
-        customerId: req.user.customer_id,
-
-        artworkId,
-
-        sessionId: getRecommendationSessionIdFromRequest(req),
-
-        eventType: "unfavorite",
-
-        sourcePage: "favorites",
-      }).catch((trackingError) =>
-        console.error(
-          "Unfavorite recommendation tracking failed:",
-          trackingError,
-        ),
-      );
 
       return res.json({
         message: "Artwork removed from favorites",

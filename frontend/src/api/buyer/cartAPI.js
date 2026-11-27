@@ -1,21 +1,10 @@
 import axios from "axios";
-import { getRecommendationSessionId } from "./recommendationAPI";
 import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api/buyer/cart`,
   timeout: 5000,
-});
-
-import { isAuthenticated } from "../../../utils/auth";
-
-api.interceptors.request.use((config) => {
-  const sessionId = getRecommendationSessionId();
-  if (sessionId) {
-    config.headers["X-Recommendation-Session"] = sessionId;
-  }
-  return config;
 });
 
 const handleError = (error) => {

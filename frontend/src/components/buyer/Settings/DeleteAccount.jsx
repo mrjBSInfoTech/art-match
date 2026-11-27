@@ -101,9 +101,8 @@ export default function DeleteAccount({
           <Stack spacing={2.5}>
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
               This action is permanent under RA 10173. Your personal profile,
-              saved addresses, favorites, cart, and recommendation history will
-              be erased and anonymized immediately. Active orders must be
-              completed or cancelled first.
+              saved addresses, favorites, and cart will be erased and anonymized
+              immediately. Active orders must be completed or cancelled first.
             </Alert>
 
             {error && (

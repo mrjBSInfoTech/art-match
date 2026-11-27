@@ -17,10 +17,6 @@ import * as checkoutVouchers from "../utils/checkoutVouchers.js";
 import * as productOptions from "../utils/productOptions.js";
 import { attachDeliveryProof, parsePhotoList } from "../utils/deliveryProof.js";
 import { attachOrderReturns } from "../utils/returns.js";
-import {
-  recordRecommendationInteraction,
-  getRecommendationSessionIdFromRequest,
-} from "../utils/recommendationInteractions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
@@ -66,8 +62,6 @@ function loadRealRoute(relativePath, dependencies = {}) {
     attachDeliveryProof,
     parsePhotoList,
     getCommissionRate,
-    recordRecommendationInteraction,
-    getRecommendationSessionIdFromRequest,
     logSellerAudit,
     payoutService: {
       list: async () => ({ currency: "PHP", totals: {}, orders: [] }),
@@ -189,7 +183,6 @@ async function getTableRowCounts() {
     "marketplace_order_item",
     "seller_payment_split",
     "audit_logs",
-    "recommendation_interaction",
     "customer",
     "student",
     "artwork",
@@ -212,8 +205,8 @@ async function setupIsolatedTestEntities() {
   // Create isolated test buyer
   const customerRes = await query(
     `INSERT INTO customer
-       (username, first_name, last_name, email, phone_number, password, allow_personalized_recommendations)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (username, first_name, last_name, email, phone_number, password)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       `test_buyer_${shortTag}`,
       "TestBuyer",
@@ -221,7 +214,6 @@ async function setupIsolatedTestEntities() {
       `${RUN_TAG.toLowerCase()}@test.artmatch.invalid`,
       "09170000001",
       "$2b$10$syntheticTestPasswordHashNotForLogin000000000000000000",
-      1,
     ],
   );
   const customerId = customerRes.insertId;
@@ -392,7 +384,6 @@ async function cleanupTestEntities(entities) {
   }
   await query(`DELETE FROM audit_logs WHERE information LIKE ?`, [`%${RUN_TAG}%`]);
   if (customerId) {
-    await query(`DELETE FROM recommendation_interaction WHERE customer_id = ?`, [customerId]);
     const orderRows = await query(
       `SELECT order_id FROM marketplace_order WHERE customer_id = ?`,
       [customerId],
@@ -442,11 +433,6 @@ async function cleanupTestEntities(entities) {
         `SELECT COUNT(*) AS cnt FROM audit_logs WHERE actor IN (?) OR information LIKE ?`,
         [sellerIds?.length ? sellerIds.map(String) : ["-1"], `%${RUN_TAG}%`],
       )
-    )[0].cnt,
-    recommendation_interaction: (
-      await query(`SELECT COUNT(*) AS cnt FROM recommendation_interaction WHERE customer_id = ?`, [
-        customerId || -1,
-      ])
     )[0].cnt,
     artwork: (
       await query(`SELECT COUNT(*) AS cnt FROM artwork WHERE title LIKE ?`, [`${RUN_TAG}%`])
@@ -535,7 +521,7 @@ function formatMarkdownReport(summary) {
 | **MySQL Target** | \`${summary.dbTarget}\` (live InnoDB tables, real SQL transactions & constraints) |
 | **Processing Fee Config** | \`PAYMONGO_PROCESSING_FEE_ENABLED=${summary.processingFeeEnabled}\` |
 | **Total Execution Time** | \`${summary.simulationDurationMs} ms\` (500 consecutive transactions) + \`${summary.validationDurationMs} ms\` (MySQL cross-reference) |
-| **Database Tables Audited** | \`marketplace_order\`, \`marketplace_order_item\`, \`seller_payment_split\`, \`audit_logs\`, \`recommendation_interaction\` |
+| **Database Tables Audited** | \`marketplace_order\`, \`marketplace_order_item\`, \`seller_payment_split\`, \`audit_logs\` |
 
 > **Codebase Audit Note on Cash on Delivery (COD):** Inspection of the latest \`backend/routes/buyer/orders.js\` (lines 628–632) confirms that while \`marketplace_order.payment_method\` retains \`ENUM('paymongo', 'cod')\` for historical records, new COD checkouts are intentionally disabled and rejected with \`HTTP 400\` (*"Cash on Delivery is no longer available. Please select an online payment method."*). Accordingly, this suite tests **350 successful PayMongo online payments** (single-seller, multi-seller split, and delayed-webhook reconciliation) and **150 failed, cancelled, declined, or rejected payment attempts** (including **20 explicit COD rejection tests** verifying zero orphan database entries).
 
@@ -592,7 +578,7 @@ $$\\text{Transaction Logging Accuracy (\\%)} = \\left( \\frac{\\text{Accurately 
 
 ## 6. Post-Test Database Cleanup Verification
 
-All synthetic \`${summary.runTag}\` buyer, seller, artwork, cart, order, payment split, recommendation interaction, and audit log records were removed after report validation:
+All synthetic \`${summary.runTag}\` buyer, seller, artwork, cart, order, payment split, and audit log records were removed after report validation:
 
 | Table | Count Before Test | Count After Cleanup | Residual \`${summary.runTag}\` Rows |
 | :--- | ---: | ---: | ---: |

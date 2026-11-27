@@ -13,10 +13,6 @@ import {
 import { readParcelPhoto } from "../../utils/parcelPhotoStorage.js";
 import { attachDeliveryProof, parsePhotoList } from "../../utils/deliveryProof.js";
 import { authenticateBuyer } from "../../middleware/buyerAuthMiddleware.js";
-import {
-  recordRecommendationInteraction,
-  getRecommendationSessionIdFromRequest,
-} from "../../utils/recommendationInteractions.js";
 import { getArtworkAvailability, getCompletedOrderCondition, getArtworkSoldQuantitySql } from "../../utils/artworkAvailability.js";
 import { getCommissionRate } from "../../database/paymentSplits.js";
 import { apportion, buildPaymentSplit, calculateProcessingFee, validateSplits } from "../../utils/paymentSplit.js";
@@ -578,7 +574,6 @@ router.post("/vouchers/validate", authenticateBuyer, async (req, res) => {
 
 router.post("/checkout", authenticateBuyer, async (req, res) => {
   req.body ||= {};
-  const recommendationSessionId = getRecommendationSessionIdFromRequest(req);
 
   const hasAddressId = req.body.address_id !== undefined && req.body.address_id !== null && req.body.address_id !== "";
   const addressId = Number(req.body.address_id);
@@ -1151,28 +1146,6 @@ router.post("/checkout", authenticateBuyer, async (req, res) => {
           ],
         );
 
-        /*
-         * COD is already considered an
-         * actual placed order.
-         *
-         * PayMongo is NOT a purchase yet.
-         * We wait for the webhook.
-         */
-        if (!isPayMongo) {
-          await recordRecommendationInteraction({
-            executor: connection,
-
-            customerId: req.user.customer_id,
-
-            artworkId: item.artwork_id,
-
-            sessionId: recommendationSessionId,
-
-            eventType: "purchase",
-
-            sourcePage: "checkout",
-          });
-        }
       }
 
       createdOrders.push({
@@ -1533,10 +1506,7 @@ router.post("/payments/:reference/retry", authenticateBuyer, paymentAction(async
   const session = await providerSession(orders, { allowPaid: true });
   const paidPayment = (session.attributes.payments || []).some(payment => payment.attributes?.status === "paid");
   if (paidPayment) {
-    const result = await reconcilePaidCheckout(connection, session, getPayMongoMode(), {
-      recordInteraction: recordRecommendationInteraction,
-      sourcePage: "paymongo_buyer_reconciliation",
-    });
+    const result = await reconcilePaidCheckout(connection, session, getPayMongoMode());
     const updatedRows = await query(connection, `${ordersSql}
       WHERE o.customer_id = ? AND o.payment_reference = ? AND o.payment_method = 'paymongo'
       ORDER BY o.order_id, i.order_item_id`, [req.user.customer_id, req.params.reference]);

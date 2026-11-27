@@ -687,10 +687,10 @@ router.post(
         actor: req.user?.username || req.user?.admin_id || "Admin",
         role: req.user?.role || "Admin",
         status: "SUCCESS",
-        information: `Executed RA 10173 data retention cycle: ${result.expiredAccountsCount} account(s) expired, ${result.disposedAccountsCount} long-expired student PII record(s) disposed, ${result.purgedInteractionsCount} interaction log(s) purged.`,
+        information: `Executed RA 10173 data retention cycle: ${result.expiredAccountsCount} account(s) expired, ${result.disposedAccountsCount} long-expired student PII record(s) disposed.`,
       }).catch(() => {});
       return res.json({
-        message: `Data retention cycle completed: ${result.expiredAccountsCount} account(s) expired, ${result.disposedAccountsCount} expired record(s) anonymized, ${result.purgedInteractionsCount} stale interaction log(s) purged.`,
+        message: `Data retention cycle completed: ${result.expiredAccountsCount} account(s) expired, ${result.disposedAccountsCount} expired record(s) anonymized.`,
         ...result,
       });
     } catch (error) {

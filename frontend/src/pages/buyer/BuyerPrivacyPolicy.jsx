@@ -34,12 +34,11 @@ const POLICY_SECTIONS = [
   {
     id: "purpose",
     icon: AutoGraphOutlinedIcon,
-    title: "2. Purpose of Processing & AI Recommendations",
+    title: "2. Purpose of Processing",
     body: [
       "Your personal data is processed strictly for legitimate, specified purposes:",
       "• Account authentication, academic artist verification, and role-based access control.",
       "• Order fulfillment, payment settlement, Certificate of Authenticity (COA) issuance, and buyer-seller communication.",
-      "• Personalized Discovery (SASRec): ArtMatch uses sequential interaction signals (searches, views, favorites, and cart activity) to recommend relevant artworks. Buyers may exercise their Right to Object to personalized profiling in their account settings.",
     ],
   },
   {
@@ -50,7 +49,7 @@ const POLICY_SECTIONS = [
       "Under the Philippine Data Privacy Act of 2012, you are entitled to exercise the following rights at any time:",
       "• Right to Be Informed: To know how your personal data is collected, used, stored, and shared.",
       "• Right to Access & Rectification: To view and update your personal profile and contact details directly from your Account Settings.",
-      "• Right to Object: To opt out of automated recommendation profiling or non-essential processing.",
+      "• Right to Object: To opt out of non-essential processing of your personal data.",
       "• Right to Erasure or Blocking: To request the deactivation, blocking, or removal of your account and personal records.",
       "• Right to Data Portability: To request and download an electronic copy of your personal profile, orders, and artwork records.",
     ],
@@ -91,6 +90,11 @@ export default function PrivacyPolicy() {
     >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Privacy Policy (RA 10173)</title>
+        <meta
+          name="description"
+          content="Read ArtMatch's Data Privacy Act of 2012 (RA 10173) privacy policy and data protection practices."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/privacy-policy" />
       </Helmet>
 
       <Container maxWidth="md">

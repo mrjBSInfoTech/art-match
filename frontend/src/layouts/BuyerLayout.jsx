@@ -67,10 +67,6 @@ import {
   getBuyerProfile,
   recordLogout,
 } from "../api/buyer/buyerAuthenticationAPI";
-import {
-  clearRecommendationClientState,
-  recordRecommendationEvent,
-} from "../api/buyer/recommendationAPI";
 import { clearAuthData, isAuthenticated } from "../../utils/auth";
 import { fetchPromotionHeader } from "../api/buyer/promotionSlideAPI";
 const MobileSearchFilterDrawer = lazy(
@@ -340,7 +336,6 @@ function BuyerLayoutContent({ children }) {
   const handleLogout = () => {
     void recordLogout();
     clearAuthData("buyer");
-    clearRecommendationClientState();
     navigate("/buyer/login", { replace: true });
   };
 
@@ -352,11 +347,6 @@ function BuyerLayoutContent({ children }) {
     const params = new URLSearchParams(location.search);
 
     if (query) {
-      void recordRecommendationEvent({
-        event_type: "search",
-        search_query: query,
-        source_page: "buyer_layout",
-      });
       params.set("q", query);
     } else {
       params.delete("q");
@@ -508,11 +498,6 @@ function BuyerLayoutContent({ children }) {
     if (includeSearchQuery) {
       const query = searchQuery.trim();
       if (query) {
-        void recordRecommendationEvent({
-          event_type: "search",
-          search_query: query,
-          source_page: "buyer_layout",
-        });
         params.set("q", query);
       } else {
         params.delete("q");
@@ -535,29 +520,6 @@ function BuyerLayoutContent({ children }) {
     }
     if (draftPriceRange[1] < PRICE_LIMIT) {
       params.set("maxPrice", String(draftPriceRange[1]));
-    }
-
-    // Record each filtered action in recommendation system
-    Object.entries(draftCategories).forEach(([filterType, values]) => {
-      values.forEach((filterValue) => {
-        void recordRecommendationEvent({
-          event_type: "filter",
-          filter_type: filterType,
-          filter_value: filterValue,
-          source_page: "buyer_layout",
-        });
-      });
-    });
-
-    if (draftPriceRange[0] > 0 || draftPriceRange[1] < PRICE_LIMIT) {
-      void recordRecommendationEvent({
-        event_type: "filter",
-        filter_type: "price",
-        min_price: draftPriceRange[0],
-        max_price:
-          draftPriceRange[1] === PRICE_LIMIT ? null : draftPriceRange[1],
-        source_page: "buyer_layout",
-      });
     }
 
     setCategoriesAnchorPosition(null);

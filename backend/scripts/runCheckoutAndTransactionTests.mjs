@@ -807,7 +807,7 @@ async function runCheckoutLoadTimeBenchmark(runs = 50) {
         const reqHeaders =
           params.request.headers?.["Access-Control-Request-Headers"] ||
           params.request.headers?.["access-control-request-headers"] ||
-          "Content-Type,Authorization,X-Requested-With,Cache-Control,X-Recommendation-Session";
+          "Content-Type,Authorization,X-Requested-With,Cache-Control";
         if (params.request.method === "OPTIONS") {
           await cdp.send("Fetch.fulfillRequest", {
             requestId: params.requestId,

@@ -45,9 +45,7 @@ export const fetchArtworks = async () => {
 
 export const fetchArtistSummaries = async () => {
   try {
-    const res = await api.get("/buyer/artists", {
-      headers: { "Cache-Control": "no-cache" },
-    });
+    const res = await api.get("/buyer/artists");
     return res.data;
   } catch (error) {
     handleError(error);
@@ -58,7 +56,6 @@ export const followArtist = async (studentId) => {
   try {
     const res = await api.post(`/buyer/artists/${encodeURIComponent(studentId)}/follow`);
     window.dispatchEvent(new Event("artist-follow-updated"));
-    window.dispatchEvent(new Event("recommendation-updated"));
     return res.data;
   } catch (error) {
     handleError(error);
@@ -69,7 +66,6 @@ export const unfollowArtist = async (studentId) => {
   try {
     const res = await api.delete(`/buyer/artists/${encodeURIComponent(studentId)}/follow`);
     window.dispatchEvent(new Event("artist-follow-updated"));
-    window.dispatchEvent(new Event("recommendation-updated"));
     return res.data;
   } catch (error) {
     handleError(error);
@@ -80,7 +76,6 @@ export const fetchPublicSellerProfile = async (sellerId) => {
   try {
     const res = await api.get(
       `/buyer/artworks/seller/${encodeURIComponent(sellerId)}`,
-      { headers: { "Cache-Control": "no-cache" } },
     );
     return res.data;
   } catch (error) {
@@ -92,7 +87,6 @@ export const fetchPublicSellerReviews = async (sellerId) => {
   try {
     const res = await api.get(
       `/buyer/artworks/seller/${encodeURIComponent(sellerId)}/reviews`,
-      { headers: { "Cache-Control": "no-cache" } },
     );
     return res.data;
   } catch (error) {

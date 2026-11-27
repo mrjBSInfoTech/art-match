@@ -5,9 +5,6 @@ const api = axios.create({
   baseURL: `${API_BASE_URL}/api/program-content`,
   timeout: 10000,
   withCredentials: true,
-  headers: {
-    "X-Requested-With": "XMLHttpRequest",
-  },
 });
 
 const normalizeContent = (content) =>

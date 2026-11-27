@@ -138,6 +138,11 @@ export default function AboutUs() {
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
           <title>About Us</title>
+          <meta
+            name="description"
+            content="Learn about ArtMatch and the College of Architecture and Fine Arts (CAFA) student artist marketplace."
+          />
+          <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/about" />
         </Helmet>
         <ConnectionErrorPanel
           title="About Page Unavailable"
@@ -151,6 +156,11 @@ export default function AboutUs() {
     <Box sx={{ minHeight: "100%", backgroundColor: canvas }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>About Us</title>
+        <meta
+          name="description"
+          content="Learn about ArtMatch and the College of Architecture and Fine Arts (CAFA) student artist marketplace."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/about" />
       </Helmet>
       <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 }, px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box

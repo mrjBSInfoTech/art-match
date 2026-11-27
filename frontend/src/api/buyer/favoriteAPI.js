@@ -1,20 +1,10 @@
 import axios from "axios";
-import { getRecommendationSessionId } from "./recommendationAPI";
-import { isAuthenticated } from "../../../utils/auth";
 import { API_BASE_URL } from "../apiBase.js";
 
 const api = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api/buyer/favorites`,
   timeout: 5000,
-});
-
-api.interceptors.request.use((config) => {
-  const sessionId = getRecommendationSessionId();
-  if (sessionId) {
-    config.headers["X-Recommendation-Session"] = sessionId;
-  }
-  return config;
 });
 
 const handleError = (error) => {
@@ -38,7 +28,6 @@ export const fetchFavorites = async () => {
 export const toggleFavorite = async (artworkId) => {
   try {
     const response = await api.post(`/${artworkId}`);
-    window.dispatchEvent(new Event("recommendation-updated"));
     return response.data;
   } catch (error) {
     handleError(error);
@@ -48,7 +37,6 @@ export const toggleFavorite = async (artworkId) => {
 export const removeFavorite = async (artworkId) => {
   try {
     const response = await api.delete(`/${artworkId}`);
-    window.dispatchEvent(new Event("recommendation-updated"));
     return response.data;
   } catch (error) {
     handleError(error);

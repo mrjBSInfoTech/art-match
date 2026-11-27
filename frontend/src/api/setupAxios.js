@@ -8,8 +8,7 @@ import {
 // Ensure all default Axios requests send credentials (HttpOnly cookies) cross-origin
 axios.defaults.withCredentials = true;
 
-// Custom header for CSRF defense (browsers prevent cross-origin form forgery from sending custom headers)
-axios.defaults.headers.common["X-Requested-With"] = "XMLHttpRequest";
+const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const getFullRequestUrl = (config = {}) => {
   const base = String(config.baseURL || "").replace(/\/+$/, "");
@@ -25,8 +24,12 @@ const attachAuthHeaders = (reqConfig) => {
   if (!reqConfig.headers) {
     reqConfig.headers = {};
   }
-  if (!reqConfig.headers["X-Requested-With"]) {
-    reqConfig.headers["X-Requested-With"] = "XMLHttpRequest";
+  const method = String(reqConfig.method || "get").toUpperCase();
+  if (!SAFE_HTTP_METHODS.has(method)) {
+    // Custom header for CSRF defense on state-changing requests only (avoids unnecessary CORS preflights on public GETs)
+    if (!reqConfig.headers["X-Requested-With"]) {
+      reqConfig.headers["X-Requested-With"] = "XMLHttpRequest";
+    }
   }
 
   const fullUrl = getFullRequestUrl(reqConfig);
@@ -93,14 +96,13 @@ const handleSessionExpiration = (error) => {
   return Promise.reject(error);
 };
 
-// Wrap axios.create to guarantee withCredentials, Bearer fallback, CSRF header, and response handling
+// Wrap axios.create to guarantee withCredentials, Bearer fallback, CSRF header on mutations, and response handling
 const originalCreate = axios.create.bind(axios);
 axios.create = function (config = {}) {
   const instance = originalCreate({
     withCredentials: true,
     ...config,
     headers: {
-      "X-Requested-With": "XMLHttpRequest",
       ...(config.headers || {}),
     },
   });

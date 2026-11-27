@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import DeleteForeverOutlinedIcon from "@mui/icons-material/DeleteForeverOutlined";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
@@ -31,7 +30,6 @@ import {
   exportBuyerData,
   getBuyerSecuritySettings,
   updateBuyerPrivacy,
-  updateBuyerRecommendationPreference,
 } from "../../api/buyer/buyerAuthenticationAPI";
 import ThemeModeSetting from "../../components/buyer/Settings/ThemeModeSetting";
 import ChangePassword from "../../components/buyer/Settings/ChangePassword";
@@ -42,12 +40,9 @@ export default function Settings() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [allowRecommendations, setAllowRecommendations] = useState(true);
   const [privacyLoading, setPrivacyLoading] = useState(true);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [privacyError, setPrivacyError] = useState("");
-  const [recommendationSaving, setRecommendationSaving] = useState(false);
-  const [recommendationFeedback, setRecommendationFeedback] = useState(null);
 
   // Password fields and visibility toggles
   const [currentPassword, setCurrentPassword] = useState("");
@@ -106,9 +101,6 @@ export default function Settings() {
       .then((profile) => {
         setUsername(profile.username || "buyer");
         setIsPrivate(Boolean(Number(profile.is_private)));
-        setAllowRecommendations(
-          Boolean(Number(profile.allow_personalized_recommendations ?? 1)),
-        );
       })
       .catch((error) => {
         setPrivacyError(error.message || "Unable to load privacy setting.");
@@ -133,30 +125,6 @@ export default function Settings() {
       setPrivacyError(error.message || "Unable to update privacy setting.");
     } finally {
       setPrivacySaving(false);
-    }
-  };
-
-  const handleRecommendationToggle = async (event) => {
-    const nextValue = event.target.checked;
-    try {
-      setRecommendationSaving(true);
-      setRecommendationFeedback(null);
-      await updateBuyerRecommendationPreference(nextValue);
-      setAllowRecommendations(nextValue);
-      setRecommendationFeedback({
-        severity: "success",
-        message: nextValue
-          ? "Personalized SASRec artwork recommendations are now enabled."
-          : "You have opted out of personalized recommendation profiling. Your stored interaction history has been cleared.",
-      });
-    } catch (error) {
-      setRecommendationFeedback({
-        severity: "error",
-        message:
-          error.message || "Unable to update recommendation preference.",
-      });
-    } finally {
-      setRecommendationSaving(false);
     }
   };
 
@@ -392,86 +360,6 @@ export default function Settings() {
                       onChange={handlePrivacyChange}
                       disabled={privacySaving}
                       inputProps={{ "aria-label": "Make account private" }}
-                    />
-                  }
-                />
-              )}
-            </Box>
-          </Stack>
-        </Paper>
-
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2 }}>
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 2,
-                display: "grid",
-                placeItems: "center",
-                bgcolor: "rgba(239, 51, 64, 0.1)",
-                color: "#ef3340",
-              }}
-            >
-              <AutoAwesomeOutlinedIcon color="error" />
-            </Box>            
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h6" fontWeight={700}>
-                Personalized recommendations
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5 }}
-              >
-                Allow Red nexus to record your artwork views, searches, filters,
-                and favorites to power personalized recommendations.
-                Turning this off stops behavioral profiling, clears your stored
-                interaction history, and shows non-personalized catalog
-                highlights instead.
-              </Typography>
-              {recommendationFeedback && (
-                <Alert severity={recommendationFeedback.severity} sx={{ mt: 2 }}>
-                  {recommendationFeedback.message}
-                </Alert>
-              )}
-              {privacyLoading ? (
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  sx={{ mt: 1.75 }}
-                  role="status"
-                  aria-label="Loading recommendation setting"
-                >
-                  <Skeleton width={240} height={22} sx={{ maxWidth: "75%" }} />
-                  <Skeleton
-                    variant="rounded"
-                    width={42}
-                    height={24}
-                    sx={{ borderRadius: 999 }}
-                  />
-                </Stack>
-              ) : (
-                <FormControlLabel
-                  sx={{
-                    mt: 1,
-                    ml: 0,
-                    mr: 0,
-                    justifyContent: "space-between",
-                    width: "100%",
-                  }}
-                  label="Enable personalized artwork recommendations"
-                  labelPlacement="start"
-                  control={
-                    <Switch
-                      checked={allowRecommendations}
-                      onChange={handleRecommendationToggle}
-                      disabled={recommendationSaving}
-                      inputProps={{
-                        "aria-label":
-                          "Enable personalized artwork recommendations",
-                      }}
                     />
                   }
                 />

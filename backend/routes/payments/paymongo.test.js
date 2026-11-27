@@ -36,8 +36,6 @@ test("signed paid checkout atomically pays every seller and removes only its buy
   assert.deepEqual(fixture.state.cartItems, [{ add_to_id: 1, artwork_id: 30 }, { add_to_id: 2, artwork_id: 20 }]);
   assert.equal(fixture.state.carts[0].total_price, 500);
   assert.equal(fixture.state.carts[1].total_price, 1000);
-  assert.deepEqual(fixture.state.interactions.map(item => item.artworkId).sort(), [20, 21]);
-  assert.ok(fixture.state.interactions.every(item => item.eventType === "purchase"));
   assert.ok(fixture.calls.some(call => /FOR UPDATE/i.test(call.sql || "")), "payment group must be locked");
   const groupSelect = fixture.calls.find(call => /^SELECT order_id/i.test(call.sql || ""));
   assert.match(groupSelect.sql, /WHERE payment_reference = \?/i);
@@ -66,7 +64,6 @@ test("duplicate paid webhook returns success without repeating purchases or dele
   const result = await post(signedEvent());
   assert.equal(result.status, 200);
   assert.equal(result.body.already_processed, true);
-  assert.equal(fixture.state.interactions.length, 2);
   assert.ok(fixture.state.cartItems.some(item => item.add_to_id === 1 && item.artwork_id === 20));
   assert.equal(fixture.calls.filter(call => /^(UPDATE|DELETE)/i.test(call.sql || "")).length, mutationsBefore);
 });
@@ -81,7 +78,7 @@ test("paid e-wallet and QR channels use the same trusted state transition and re
   }
 });
 
-test("failure while updating cart rolls all sellers and recommendation interactions back", async () => {
+test("failure while updating cart rolls all sellers back", async () => {
   const { fixture, post } = setup();
   const before = structuredClone(fixture.state);
   fixture.setFail(sql => /^UPDATE add_cart/i.test(sql));
@@ -141,12 +138,10 @@ for (const secondCustomerId of [1, 2]) {
     assert.equal(fixture.state.orders[1].paymongo_payment_id, "pay_competing_payment");
     assert.equal(fixture.state.orders.filter(order => order.payment_status === "Paid" && order.status !== "Cancelled").length, 1);
     assert.deepEqual(fixture.state.cartItems, cartBeforeSecond);
-    assert.equal(fixture.state.interactions.length, 1);
     const duplicate = await post(secondEvent);
     assert.equal(duplicate.status, 200);
     assert.equal(duplicate.body.already_processed, true);
     assert.deepEqual(fixture.state.cartItems, cartBeforeSecond);
-    assert.equal(fixture.state.interactions.length, 1);
   });
 }
 
@@ -168,12 +163,10 @@ test("stock-tracked payment accepts exactly remaining quantity and cancels an ov
       assert.equal(result.body.requires_refund_review, true);
       assert.equal(fixture.state.orders[0].status, "Cancelled");
       assert.deepEqual(fixture.state.cartItems, beforeCart);
-      assert.equal(fixture.state.interactions.length, 0);
     } else {
       assert.equal(result.body.requires_refund_review, false);
       assert.equal(fixture.state.orders[0].status, "Pending");
       assert.ok(!fixture.state.cartItems.some(item => item.add_to_id === 1 && item.artwork_id === 20));
-      assert.equal(fixture.state.interactions.length, 1);
     }
   }
 });
@@ -187,7 +180,6 @@ test("an untracked original artwork cannot fulfill a paid quantity greater than 
   assert.equal(result.body.requires_refund_review, true);
   assert.ok(fixture.state.orders.every(order => order.status === "Cancelled" && order.payment_status === "Paid"));
   assert.deepEqual(fixture.state.cartItems, cartBefore);
-  assert.equal(fixture.state.interactions.length, 0);
 });
 
 test("a stock conflict cancels the complete multi-seller checkout and preserves all its cart items", async () => {
@@ -199,7 +191,6 @@ test("a stock conflict cancels the complete multi-seller checkout and preserves 
   assert.equal(result.body.requires_refund_review, true);
   assert.ok(fixture.state.orders.every(order => order.status === "Cancelled" && order.payment_status === "Paid"));
   assert.deepEqual(fixture.state.cartItems, cartBefore);
-  assert.equal(fixture.state.interactions.length, 0);
 });
 
 test("missing purchased artwork is recorded for refund review rather than becoming fulfillable", async () => {
@@ -209,7 +200,6 @@ test("missing purchased artwork is recorded for refund review rather than becomi
   assert.equal(result.status, 200);
   assert.equal(result.body.requires_refund_review, true);
   assert.ok(fixture.state.orders.every(order => order.status === "Cancelled" && order.payment_status === "Paid"));
-  assert.equal(fixture.state.interactions.length, 0);
 });
 
 test("withdrawn availability or upload approval after checkout blocks fulfillment and requests refund review", async () => {
@@ -222,7 +212,6 @@ test("withdrawn availability or upload approval after checkout blocks fulfillmen
     assert.equal(result.body.requires_refund_review, true);
     assert.ok(fixture.state.orders.every(order => order.status === "Cancelled" && order.payment_status === "Paid"));
     assert.deepEqual(fixture.state.cartItems, cartBefore);
-    assert.equal(fixture.state.interactions.length, 0);
   }
 });
 
@@ -291,7 +280,6 @@ test("late valid payment for cancelled attempt records the payment without reviv
   const result = await post(signedEvent());
   assert.equal(result.status, 200);
   assert.ok(fixture.state.orders.every(order => order.payment_status === "Paid" && order.status === "Cancelled"));
-  assert.equal(fixture.state.interactions.length, 0);
   assert.deepEqual(fixture.state.cartItems, cartBefore);
 });
 

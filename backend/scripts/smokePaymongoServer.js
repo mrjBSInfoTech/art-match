@@ -43,7 +43,6 @@ const snapshot = async (connection) => {
     "SELECT order_id, payment_method, payment_status, payment_reference, paymongo_checkout_session_id, paymongo_payment_id, paymongo_payment_method, paid_at, status, total_amount FROM marketplace_order ORDER BY order_id",
     "SELECT cart_item_id, add_to_id, artwork_id FROM cart_item ORDER BY cart_item_id",
     "SELECT add_to_id, customer_id, total_price FROM add_cart ORDER BY add_to_id",
-    "SELECT interaction_id, customer_id, artwork_id, event_type FROM recommendation_interaction WHERE event_type = 'purchase' ORDER BY interaction_id",
   ]) {
     const [rows] = await connection.query(sql);
     hash.update(JSON.stringify(rows));

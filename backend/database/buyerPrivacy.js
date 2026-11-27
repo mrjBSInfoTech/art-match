@@ -16,9 +16,6 @@ export const ensureBuyerPrivacyColumn = async () => {
     "ALTER TABLE customer ADD COLUMN is_private TINYINT(1) NOT NULL DEFAULT 0",
   );
   await alterCustomerColumn(
-    "ALTER TABLE customer ADD COLUMN allow_personalized_recommendations TINYINT(1) NOT NULL DEFAULT 1",
-  );
-  await alterCustomerColumn(
     "ALTER TABLE customer ADD COLUMN consent_given_at DATETIME NULL",
   );
   await alterCustomerColumn(

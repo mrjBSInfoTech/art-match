@@ -155,7 +155,6 @@ router.post("/login", authRateLimiter, (req, res) => {
     phone_number,
     profile_image,
     is_private,
-    allow_personalized_recommendations,
     consent_given_at,
     consent_version,
     password,
@@ -229,9 +228,6 @@ router.post("/login", authRateLimiter, (req, res) => {
       phone_number: user.phone_number,
       profile_image: user.profile_image,
       is_private: Boolean(Number(user.is_private)),
-      allow_personalized_recommendations: Boolean(
-        Number(user.allow_personalized_recommendations ?? 1),
-      ),
       consent_given_at: user.consent_given_at,
       consent_version: user.consent_version,
     });
@@ -240,7 +236,7 @@ router.post("/login", authRateLimiter, (req, res) => {
 
 router.get("/me", authenticateBuyer, (req, res) => {
   db.query(
-    "SELECT customer_id, username, first_name, last_name, email, phone_number, profile_image, is_private, allow_personalized_recommendations, consent_given_at, consent_version FROM customer WHERE customer_id = ?",
+    "SELECT customer_id, username, first_name, last_name, email, phone_number, profile_image, is_private, consent_given_at, consent_version FROM customer WHERE customer_id = ?",
     [req.user.customer_id],
     (err, result) => {
       if (err) return res.status(500).json({ message: "Database error" });
@@ -312,15 +308,6 @@ router.put(
         updates.push("is_private");
         values.push(req.body.is_private ? 1 : 0);
       }
-      if (Object.hasOwn(req.body, "allow_personalized_recommendations")) {
-        if (typeof req.body.allow_personalized_recommendations !== "boolean") {
-          return res.status(400).json({
-            message: "Recommendation preference must be a boolean.",
-          });
-        }
-        updates.push("allow_personalized_recommendations");
-        values.push(req.body.allow_personalized_recommendations ? 1 : 0);
-      }
       if (!updates.length && !req.file) {
         return res
           .status(400)
@@ -375,32 +362,6 @@ router.put(
           [...values, req.user.customer_id],
         );
       committed = true;
-      if (req.body.allow_personalized_recommendations === false) {
-        await db
-          .promise()
-          .query(
-            "DELETE FROM recommendation_interaction WHERE customer_id = ?",
-            [req.user.customer_id],
-          )
-          .catch(() => {});
-        await logAudit({
-          action: "OPT_OUT_RECOMMENDATION_PROFILING",
-          actor: req.user.username || req.user.customer_id,
-          role: "Customer",
-          status: "SUCCESS",
-          information:
-            "Buyer opted out of personalized SASRec recommendation profiling and cleared interaction history (RA 10173 Right to Object).",
-        }).catch(() => {});
-      } else if (req.body.allow_personalized_recommendations === true) {
-        await logAudit({
-          action: "OPT_IN_RECOMMENDATION_PROFILING",
-          actor: req.user.username || req.user.customer_id,
-          role: "Customer",
-          status: "SUCCESS",
-          information:
-            "Buyer opted in to personalized SASRec recommendation profiling.",
-        }).catch(() => {});
-      }
       if (
         req.file &&
         rows[0].profile_image &&
@@ -523,7 +484,7 @@ router.get("/export-data", authenticateBuyer, async (req, res) => {
     const [customerRows] = await db
       .promise()
       .query(
-        "SELECT customer_id, username, first_name, last_name, email, phone_number, profile_image, is_private, allow_personalized_recommendations, consent_given_at, consent_version, created_at FROM customer WHERE customer_id = ? LIMIT 1",
+        "SELECT customer_id, username, first_name, last_name, email, phone_number, profile_image, is_private, consent_given_at, consent_version, created_at FROM customer WHERE customer_id = ? LIMIT 1",
         [customerId],
       );
 
@@ -537,7 +498,6 @@ router.get("/export-data", authenticateBuyer, async (req, res) => {
       [orderItems],
       [reviews],
       [favorites],
-      [interactions],
     ] = await Promise.all([
       db
         .promise()
@@ -574,13 +534,6 @@ router.get("/export-data", authenticateBuyer, async (req, res) => {
           [customerId],
         )
         .catch(() => [[]]),
-      db
-        .promise()
-        .query(
-          "SELECT interaction_id, artwork_id, event_type, search_query, filter_type, filter_value, created_at FROM recommendation_interaction WHERE customer_id = ? ORDER BY created_at DESC LIMIT 500",
-          [customerId],
-        )
-        .catch(() => [[]]),
     ]);
 
     await logAudit({
@@ -602,7 +555,6 @@ router.get("/export-data", authenticateBuyer, async (req, res) => {
       order_items: orderItems,
       reviews,
       favorites,
-      recommendation_interactions: interactions,
     });
   } catch (error) {
     console.error("Buyer data export failed:", error);
@@ -674,12 +626,6 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
     await Promise.all([
       db
         .promise()
-        .query("DELETE FROM recommendation_interaction WHERE customer_id = ?", [
-          customerId,
-        ])
-        .catch(() => {}),
-      db
-        .promise()
         .query("DELETE FROM customer_favorite WHERE customer_id = ?", [
           customerId,
         ])
@@ -703,8 +649,7 @@ router.post("/delete-account", authenticateBuyer, async (req, res) => {
              phone_number = '0000000000',
              profile_image = NULL,
              password = ?,
-             is_private = 1,
-             allow_personalized_recommendations = 0
+             is_private = 1
          WHERE customer_id = ?`,
       [anonymizedUsername, anonymizedEmail, unusablePasswordHash, customerId],
     );

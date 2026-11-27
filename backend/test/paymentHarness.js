@@ -27,7 +27,6 @@ export function loadPaymentRoute(relativePath, dependencies = {}) {
     attachOrderReturns: async (_executor, orders) => orders,
     attachDeliveryProof: async (_executor, orders) => orders,
     getCommissionRate: () => 0,
-    getRecommendationSessionIdFromRequest: () => "test-browser-session",
     logSellerAudit: async () => {},
     payoutService: {
       list: async () => ({ currency: "PHP", totals: {}, orders: [] }),
@@ -327,10 +326,5 @@ export function databaseFixture(overrides = {}) {
   return {
     db: { promise: () => ({ getConnection: async () => { calls.push({ type: "connect" }); return connection; }, query: (...args) => connection.query(...args) }) },
     connection, calls, get state() { return state; }, setFail(predicate) { fail = predicate; },
-    async recordRecommendationInteraction(value) {
-      const { executor, ...interaction } = value;
-      if (executor !== connection) throw new Error("Purchase was not transaction-scoped");
-      state.interactions.push(interaction);
-    },
   };
 }

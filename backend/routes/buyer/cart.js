@@ -19,10 +19,6 @@ import {
   loadSoldOptionQuantitiesForArtworks,
   serializeRemainingProductOptions,
 } from "../../utils/inventoryStock.js";
-import {
-  recordRecommendationInteraction,
-  getRecommendationSessionIdFromRequest,
-} from "../../utils/recommendationInteractions.js";
 
 const router = express.Router();
 
@@ -349,19 +345,6 @@ router.post("/", authenticateBuyer, (req, res) => {
                         });
                       }
 
-                      void recordRecommendationInteraction({
-                        customerId: req.user.customer_id,
-                        artworkId,
-                        sessionId: getRecommendationSessionIdFromRequest(req),
-                        eventType: "cart",
-                        sourcePage: "cart",
-                      }).catch((error) =>
-                        console.error(
-                          "Cart recommendation tracking failed:",
-                          error,
-                        ),
-                      );
-
                       return res.status(existingItems.length ? 200 : 201).json({
                         message: existingItems.length ? "Cart quantity updated" : "Artwork added to cart",
                       });
@@ -612,16 +595,6 @@ router.delete("/:artworkId", authenticateBuyer, (req, res) => {
                 message: "Database error",
               });
             }
-
-            void recordRecommendationInteraction({
-              customerId: req.user.customer_id,
-              artworkId,
-              sessionId: getRecommendationSessionIdFromRequest(req),
-              eventType: "remove_cart",
-              sourcePage: "cart",
-            }).catch((error) =>
-              console.error("Cart removal tracking failed:", error),
-            );
 
             return res.json({
               message: "Artwork removed from cart",

@@ -21,17 +21,6 @@ import json
 
 import csv
 
-try:
-    from recommendation.recommendation_service import (
-        recommend_from_artwork_ids,
-        reload_sasrec_model,
-    )
-except ModuleNotFoundError:
-    from ml.recommendation.recommendation_service import (
-        recommend_from_artwork_ids,
-        reload_sasrec_model,
-    )
-
 # Allow loading of truncated/incomplete image files without crashing
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -50,11 +39,6 @@ class ImageRequest(BaseModel):
     image_url: str | None = None
     artwork_type: str = "auto"  # Art Type from the artwork form; legacy physical values supported
     product: str = ""            # "painting" or "3d_object"
-
-class RecommendationRequest(BaseModel):
-    artwork_ids: list[int]
-    candidate_artwork_ids: list[int] | None = None
-    top_k: int = 5
 
 # Common Transform for Neural Networks
 transform = transforms.Compose([
@@ -994,65 +978,3 @@ def analyze_artwork(req: ImageRequest):
         "mediums": final_mediums,
         "colors": detected_colors
     }
-
-@app.post("/recommend")
-def recommend_artworks(
-    req: RecommendationRequest,
-):
-
-    try:
-
-        if not req.artwork_ids:
-            return {
-                "recommendations": [],
-                "cold_start": True,
-            }
-
-        recommendations = (
-            recommend_from_artwork_ids(
-                artwork_ids=
-                    req.artwork_ids,
-
-                candidate_artwork_ids=
-                    req.candidate_artwork_ids,
-
-                top_k=
-                    req.top_k,
-            )
-        )
-
-        return {
-            "recommendations":
-                recommendations
-        }
-
-    except Exception as error:
-
-        print(
-            "Recommendation error:",
-            error,
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Unable to generate "
-                "recommendations"
-            ),
-        )
-
-
-@app.post("/recommend/reload")
-def reload_recommendations_model():
-    try:
-        info = reload_sasrec_model()
-        return {
-            "status": "reloaded",
-            **info,
-        }
-    except Exception as error:
-        print("Recommendation reload error:", error)
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to reload recommendation model",
-        )

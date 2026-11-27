@@ -529,7 +529,6 @@ CREATE TABLE IF NOT EXISTS `customer` (
   `password` varchar(255) NOT NULL,
   `date_created` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_private` tinyint(1) NOT NULL DEFAULT 0,
-  `allow_personalized_recommendations` tinyint(1) NOT NULL DEFAULT 1,
   `consent_given_at` datetime DEFAULT NULL,
   `consent_version` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -961,28 +960,6 @@ CREATE TABLE IF NOT EXISTS `receipt` (
   `payment_date` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- --------------------------------------------------------
-
---
--- Table structure for table `recommendation_interaction`
---
-
-CREATE TABLE IF NOT EXISTS `recommendation_interaction` (
-  `interaction_id` bigint(20) UNSIGNED NOT NULL,
-  `customer_id` int(11) DEFAULT NULL,
-  `artwork_id` int(11) DEFAULT NULL,
-  `event_type` varchar(32) NOT NULL,
-  `search_query` varchar(255) DEFAULT NULL,
-  `filter_type` varchar(50) DEFAULT NULL,
-  `filter_value` varchar(255) DEFAULT NULL,
-  `min_price` decimal(10,2) DEFAULT NULL,
-  `max_price` decimal(10,2) DEFAULT NULL,
-  `source_page` varchar(100) DEFAULT NULL,
-  `session_id` varchar(100) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
 -- --------------------------------------------------------
 
 --
@@ -1727,18 +1704,6 @@ ALTER TABLE `receipt`
   ADD KEY `transaction_id` (`transaction_id`);
 
 --
--- Indexes for table `recommendation_interaction`
---
-ALTER TABLE `recommendation_interaction`
-  ADD PRIMARY KEY (`interaction_id`),
-  ADD KEY `idx_rec_customer_time` (`customer_id`,`created_at`),
-  ADD KEY `idx_rec_customer_event` (`customer_id`,`event_type`,`created_at`),
-  ADD KEY `idx_rec_artwork_time` (`artwork_id`,`created_at`),
-  ADD KEY `idx_rec_event_type` (`event_type`),
-  ADD KEY `idx_rec_session_time` (`session_id`,`created_at`),
-  ADD KEY `idx_rec_session_event` (`session_id`,`event_type`,`created_at`);
-
---
 -- Indexes for table `seller_order_refund`
 --
 ALTER TABLE `seller_order_refund`
@@ -2100,12 +2065,6 @@ ALTER TABLE `receipt`
   MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `recommendation_interaction`
---
-ALTER TABLE `recommendation_interaction`
-  MODIFY `interaction_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `seller_order_refund`
 --
 ALTER TABLE `seller_order_refund`
@@ -2403,13 +2362,6 @@ ALTER TABLE `purchase_detail`
 --
 ALTER TABLE `receipt`
   ADD CONSTRAINT `receipt_ibfk_1` FOREIGN KEY (`transaction_id`) REFERENCES `transaction_tbl` (`transaction_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `recommendation_interaction`
---
-ALTER TABLE `recommendation_interaction`
-  ADD CONSTRAINT `fk_rec_interaction_artwork` FOREIGN KEY (`artwork_id`) REFERENCES `artwork` (`artwork_id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rec_interaction_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `seller_order_refund`

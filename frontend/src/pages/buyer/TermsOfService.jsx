@@ -86,6 +86,11 @@ export default function TermsOfService() {
     >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Terms of Service</title>
+        <meta
+          name="description"
+          content="Review the Terms of Service for buyers and student artists using the ArtMatch marketplace."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/terms" />
       </Helmet>
 
       <Container maxWidth="md">

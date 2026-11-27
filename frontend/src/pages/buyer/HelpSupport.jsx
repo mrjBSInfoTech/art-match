@@ -221,6 +221,11 @@ export default function HelpSupport() {
       >
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Help &amp; Support</title>
+          <meta
+            name="description"
+            content="Get answers to frequently asked questions about buying artwork, orders, payments, and support on ArtMatch."
+          />
+          <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/help-support" />
         </Helmet>
         <Box
           sx={{
@@ -294,6 +299,11 @@ export default function HelpSupport() {
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Help &amp; Support</title>
+          <meta
+            name="description"
+            content="Get answers to frequently asked questions about buying artwork, orders, payments, and support on ArtMatch."
+          />
+          <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/help-support" />
         </Helmet>
         <Box
           sx={{
@@ -364,6 +374,11 @@ export default function HelpSupport() {
     <Box sx={{ minWidth: 0 }}>
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Help &amp; Support</title>
+        <meta
+          name="description"
+          content="Get answers to frequently asked questions about buying artwork, orders, payments, and support on ArtMatch."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/help-support" />
       </Helmet>
       <Box
         sx={{

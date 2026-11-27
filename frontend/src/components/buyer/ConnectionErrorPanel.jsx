@@ -38,7 +38,7 @@ export default function ConnectionErrorPanel({
         }}
       >
         <InfoOutlinedIcon sx={{ color: "error.main", fontSize: 42, mb: 1 }} />
-        <Typography component="h1" variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
+        <Typography component="h2" variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
           {title}
         </Typography>
         <Typography color="text.secondary" variant="body2" sx={{ lineHeight: 1.6 }}>

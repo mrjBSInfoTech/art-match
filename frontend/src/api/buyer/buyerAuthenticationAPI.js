@@ -91,21 +91,6 @@ export const updateBuyerPrivacy = async (isPrivate) => {
   }
 };
 
-export const updateBuyerRecommendationPreference = async (
-  allowPersonalizedRecommendations,
-) => {
-  try {
-    const res = await api.put("/me", {
-      allow_personalized_recommendations: Boolean(
-        allowPersonalizedRecommendations,
-      ),
-    });
-    return res.data;
-  } catch (error) {
-    handleError(error);
-  }
-};
-
 export const exportBuyerData = async () => {
   try {
     const res = await api.get("/export-data");

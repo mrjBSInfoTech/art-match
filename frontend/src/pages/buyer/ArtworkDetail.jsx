@@ -25,11 +25,6 @@ import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
 import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
 import RelatedArtists from "../../components/buyer/Artist/RelatedArtists";
-import {
-  fetchRecentlyViewedArtworks,
-  getRecommendationSessionId,
-  recordRecommendationEvent,
-} from "../../api/buyer/recommendationAPI";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import ArtworkReviews from "../../components/buyer/Artwork/ArtworkReviews";
 import ArtworkAdditionalDetails from "../../components/buyer/Artwork/ArtworkAdditionalDetails";
@@ -92,7 +87,6 @@ export default function ArtworkDetail() {
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [orderQuantity, setOrderQuantity] = useState(1);
-  const [, setRecentHistory] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -138,46 +132,6 @@ export default function ArtworkDetail() {
   // Fetch artwork detail and also the list for related items
   useEffect(() => {
     let mounted = true;
-    const loadRecentlyViewed = async () => {
-      try {
-        const customerId =
-          isAuthenticated("buyer") && localStorage.getItem("buyer_customer_id");
-        const viewer = customerId
-          ? `buyer-${customerId}`
-          : `guest-${getRecommendationSessionId()}`;
-        const viewKey = `recommendation_view_${viewer}_${id}`;
-        const now = Date.now();
-        const lastView = Number(sessionStorage.getItem(viewKey) || 0);
-        if (now - lastView >= 30000) {
-          const result = await recordRecommendationEvent({
-            event_type: "view",
-            artwork_id: Number(id),
-            source_page: "artwork_detail",
-          });
-          if (
-            result?.duplicate ||
-            (result?.recorded && result.interaction_id != null)
-          ) {
-            sessionStorage.setItem(viewKey, String(now));
-          }
-        }
-      } catch {
-        // Storage restrictions should not prevent loading server-side history.
-      }
-      if (!mounted) return;
-      try {
-        const items = await fetchRecentlyViewedArtworks(id);
-        if (mounted)
-          setRecentHistory({ artworkId: id, artworks: items, error: "" });
-      } catch {
-        if (mounted)
-          setRecentHistory({
-            artworkId: id,
-            artworks: [],
-            error: "Recently viewed artworks could not be loaded.",
-          });
-      }
-    };
     const load = async () => {
       try {
         setLoading(true);
@@ -185,7 +139,7 @@ export default function ArtworkDetail() {
 
         const [detail, listResp] = await Promise.all([
           fetchArtworkById(id),
-          // Related items are optional and must not hide the detail or history.
+          // Related items are optional and must not hide the detail.
           fetchArtworks().catch(() => []),
         ]);
 
@@ -199,7 +153,6 @@ export default function ArtworkDetail() {
         setArtworks(list);
         setArtwork(detail || null);
         setOrderQuantity(1);
-        if (detail) void loadRecentlyViewed();
       } catch (err) {
         if (!mounted) return;
         setArtworks([]);

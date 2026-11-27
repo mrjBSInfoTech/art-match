@@ -342,26 +342,6 @@ const orderItemTableSql = `
   ) ENGINE=InnoDB
 `;
 
-const recommendationTableSql = `
-  CREATE TABLE IF NOT EXISTS recommendation_interaction (
-    interaction_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NULL,
-    artwork_id INT NULL,
-    session_id VARCHAR(100) NULL,
-    event_type VARCHAR(32) NOT NULL,
-    search_query VARCHAR(255) NULL,
-    filter_type VARCHAR(50) NULL,
-    filter_value VARCHAR(255) NULL,
-    min_price DECIMAL(12, 2) NULL,
-    max_price DECIMAL(12, 2) NULL,
-    source_page VARCHAR(100) NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_recommendation_customer (customer_id, created_at),
-    INDEX idx_recommendation_artwork (artwork_id, created_at),
-    INDEX idx_recommendation_session (session_id, created_at)
-  ) ENGINE=InnoDB
-`;
-
 // Seller proof that an order was finished/delivered. The image references stay
 // in marketplace_order.received_photos (served through protected routes); this
 // row records who submitted the proof, their notes and the server timestamp.
@@ -384,7 +364,6 @@ export const ensureOrderTables = async () => {
   await query(orderTableSql);
   await query(orderItemTableSql);
   await ensureArtworkReviewSchema(query);
-  await query(recommendationTableSql);
   await ensureOrderColumns();
   const itemColumns = await query("SHOW COLUMNS FROM marketplace_order_item LIKE 'original_unit_price'");
   if (!itemColumns.length) {

@@ -122,7 +122,6 @@ import buyerOrderRoutes from "./routes/buyer/orders.js";
 import buyerReturnRoutes from "./routes/buyer/returns.js";
 import buyerCertificateRoutes from "./routes/buyer/certificates.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
-import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 
 // Routes (Payments)
 import paymongoPaymentRoutes from "./routes/payments/paymongo.js";
@@ -155,7 +154,12 @@ if (process.env.NODE_ENV === "production") {
 const allowedOrigins = getAllowedOrigins();
 
 app.disable("x-powered-by");
-app.use(helmet({ hsts: process.env.NODE_ENV === "production" }));
+app.use(
+  helmet({
+    hsts: process.env.NODE_ENV === "production",
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 app.use("/uploads", (req, res, next) => {
   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   next();
@@ -177,6 +181,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposedHeaders: ["Content-Disposition"],
+    maxAge: 86400,
   }),
 );
 
@@ -937,6 +942,13 @@ app.get("/", (req, res) => {
   res.send("Art Match API is running ✅");
 });
 
+// Explicitly allow search engine crawlers to fetch public API & upload subresources
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send("User-agent: *\nAllow: /api/\nAllow: /uploads/\n");
+});
+
 // Routes (Admin)
 app.use("/api/admin/authenticate", adminAuthenticateRoutes);
 app.use("/api/admin/artwork", adminArtworkRoutes);
@@ -979,7 +991,6 @@ app.use("/api/buyer/orders", buyerOrderRoutes);
 app.use("/api/buyer/returns", buyerReturnRoutes);
 app.use("/api/buyer/certificates", buyerCertificateRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
-app.use("/api/buyer/recommendation", buyerRecommendationRoutes);
 app.use("/api/buyer/faqs", buyerFaqRoutes);
 
 // Routes (Payments)

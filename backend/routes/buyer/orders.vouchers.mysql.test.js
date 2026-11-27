@@ -46,7 +46,6 @@ test("MySQL: voucher preview and COD/online checkout retain exact discounted sna
     const sessions = [];
     const routes = loadPaymentRoute("../routes/buyer/orders.js", {
       db: { promise: () => ({ query: executor.query, getConnection: async () => executor }) },
-      recordRecommendationInteraction: async () => {},
       getPayMongoPaymentMethodTypes: async () => ["card", "gcash", "paymaya", "qrph"],
       createPayMongoCheckoutSession: async (options) => {
         sessions.push(options);

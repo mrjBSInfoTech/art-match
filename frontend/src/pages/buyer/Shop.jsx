@@ -19,7 +19,6 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
-import { fetchRecommendations } from "../../api/buyer/recommendationAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
@@ -70,7 +69,6 @@ export default function Shop() {
   const navigate = useNavigate();
   const { genre } = useParams();
   const [searchParams] = useSearchParams();
-  const recommendationsOnly = searchParams.get("recommendations") === "1";
   const selectedCourse = (searchParams.get("course") || "").trim();
   const selectedCourseLabel = getCourseLabel(selectedCourse);
   const [minimumPrice, maximumPrice] = readPriceRange(searchParams);
@@ -118,17 +116,10 @@ export default function Shop() {
     try {
       setLoading(true);
       setLoadError("");
-      const response = recommendationsOnly
-        ? await fetchRecommendations("all")
-        : await fetchArtworks();
-      if (recommendationsOnly && response?.mode === "unavailable") {
-        throw new Error("Unable to load recommendations. Please try again.");
-      }
-      const list = recommendationsOnly
-        ? response?.recommendations || []
-        : Array.isArray(response)
-          ? response
-          : response?.data || [];
+      const response = await fetchArtworks();
+      const list = Array.isArray(response)
+        ? response
+        : response?.data || [];
       const availableList = (Array.isArray(list) ? list : []).filter(
         (artwork) => Number(artwork.is_sold_out) !== 1,
       );
@@ -138,7 +129,7 @@ export default function Shop() {
     } finally {
       setLoading(false);
     }
-  }, [recommendationsOnly]);
+  }, []);
 
   const loadFavoriteIds = useCallback(async () => {
     if (!isAuthenticated("buyer")) {
@@ -158,22 +149,6 @@ export default function Shop() {
     loadArtworks();
     loadFavoriteIds();
   }, [loadArtworks, loadFavoriteIds]);
-
-  useEffect(() => {
-    if (!recommendationsOnly) return undefined;
-    let refreshTimer;
-    const refresh = () => {
-      clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(loadArtworks, 250);
-    };
-    window.addEventListener("recommendation-updated", refresh);
-    window.addEventListener("artist-follow-updated", refresh);
-    return () => {
-      clearTimeout(refreshTimer);
-      window.removeEventListener("recommendation-updated", refresh);
-      window.removeEventListener("artist-follow-updated", refresh);
-    };
-  }, [recommendationsOnly, loadArtworks]);
 
   useEffect(() => {
     let active = true;
@@ -244,30 +219,26 @@ export default function Shop() {
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
-  const pageTitle = recommendationsOnly
-    ? "Recommended for you"
-    : selectedCourse
-      ? `${selectedCourseLabel} artwork`
-      : selectedGenre
-        ? `${genre} artwork`
-        : searchQuery
-          ? "Search results"
-          : "Shop artwork";
-  const collectionLabel = recommendationsOnly
-    ? "Recommended artworks"
-    : selectedCourse
-      ? `Course / ${selectedCourseLabel}`
-      : selectedGenre
-        ? `Shop / ${genre}`
-        : searchQuery
-          ? `Results for \u201c${searchLabel}\u201d`
-          : hasCategoryFilters
-            ? "Filtered artworks"
-            : "All artworks";
+  const pageTitle = selectedCourse
+    ? `${selectedCourseLabel} artwork`
+    : selectedGenre
+      ? `${genre} artwork`
+      : searchQuery
+        ? "Search results"
+        : "Shop artwork";
+  const collectionLabel = selectedCourse
+    ? `Course / ${selectedCourseLabel}`
+    : selectedGenre
+      ? `Shop / ${genre}`
+      : searchQuery
+        ? `Results for \u201c${searchLabel}\u201d`
+        : hasCategoryFilters
+          ? "Filtered artworks"
+          : "All artworks";
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedGenre, selectedCourse, minimumPrice, maximumPrice, recommendationsOnly, searchParams]);
+  }, [searchQuery, selectedGenre, selectedCourse, minimumPrice, maximumPrice, searchParams]);
 
   const openArtwork = (artwork) =>
     navigate(`/buyer/artwork/view/${artwork.artwork_id || artwork.id}`);
@@ -333,7 +304,12 @@ export default function Shop() {
     return (
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
-          <title>{recommendationsOnly ? "Recommended for You" : "Shop"}</title>
+          <title>Shop</title>
+          <meta
+            name="description"
+            content="Browse and shop original paintings, sculptures, digital artworks, prints, and creative pieces by emerging CAFA student artists on ArtMatch."
+          />
+          <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/shop" />
         </Helmet>
         <ConnectionErrorPanel title="Shop Unavailable" onRetry={loadArtworks} />
       </Box>
@@ -349,7 +325,12 @@ export default function Shop() {
       }}
     >
       <Helmet titleTemplate="%s - ArtMatch">
-        <title>{recommendationsOnly ? "Recommended for You" : "Shop"}</title>
+        <title>Shop</title>
+        <meta
+          name="description"
+          content="Browse and shop original paintings, sculptures, digital artworks, prints, and creative pieces by emerging CAFA student artists on ArtMatch."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/shop" />
       </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 5 } }}>
         <Box
@@ -398,11 +379,7 @@ export default function Shop() {
               lineHeight: 1.6,
             }}
           >
-            {recommendationsOnly
-              ? artworks.length > 0
-                ? "A personalized selection chosen from your activity and followed artists."
-                : "Browse, search, favorite artworks, or follow artists to unlock your personal recommendations."
-              : "Explore original artwork and creative work from the CAFA artist community."}
+            Explore original artwork and creative work from the CAFA artist community.
           </Typography>
         </Box>
 
@@ -608,14 +585,10 @@ export default function Shop() {
             }}
           >
             <Typography component="h3" sx={{ fontSize: 20, fontWeight: 800 }}>
-              {recommendationsOnly && !searchQuery && !selectedGenre && !hasPriceFilter && !hasCategoryFilters
-                ? "No personalized recommendations yet"
-                : "No artworks found"}
+              No artworks found
             </Typography>
             <Typography sx={{ mt: 0.75, color: "text.secondary" }}>
-              {recommendationsOnly && !searchQuery && !selectedGenre && !hasPriceFilter && !hasCategoryFilters
-                ? "Follow artists or browse, search, and favorite artworks to build your Recommended for You feed."
-                : "Try a different search or browse the full collection."}
+              Try a different search or browse the full collection.
             </Typography>
             <Button
               variant="contained"

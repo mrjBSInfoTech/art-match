@@ -129,9 +129,6 @@ async function getOrders() {
 async function stock() {
   return rows(`SELECT a.artwork_id, ${getArtworkSoldQuantitySql("a")} AS sold_quantity FROM artwork a WHERE a.artwork_id IN (?) ORDER BY a.artwork_id`, [state.artworkIds]);
 }
-async function purchases() {
-  return rows("SELECT artwork_id FROM recommendation_interaction WHERE customer_id = ? AND event_type = 'purchase' ORDER BY artwork_id", [state.customerId]);
-}
 async function cart() {
   return rows("SELECT ci.artwork_id, ac.total_price FROM add_cart ac LEFT JOIN cart_item ci ON ci.add_to_id = ac.add_to_id WHERE ac.add_to_id = ? ORDER BY ci.artwork_id", [state.cartId]);
 }
@@ -152,10 +149,9 @@ async function prepareOnlineCheckout() {
   assert.ok(orders.every(order => order.payment_method === "paymongo" && order.payment_status === "Pending" && order.status === "Pending"));
   assert.ok(orders.every(order => order.payment_reference === state.paymentReference && order.paymongo_checkout_session_id === state.checkoutSessionId));
   assert.ok((await stock()).every(item => Number(item.sold_quantity) === 0));
-  assert.equal((await purchases()).length, 0);
   assert.ok([2, 3].includes((await cart()).filter(item => item.artwork_id).length));
   pass("Real Hosted Checkout creates one PHP 3300 test session across two Pending seller orders");
-  pass("Pending online payment retains cart, stock availability and zero purchase interactions");
+  pass("Pending online payment retains cart and stock availability");
   const buyerOrders = await api("/api/buyer/orders");
   assert.equal(buyerOrders.status, 200);
   assert.equal(buyerOrders.body.length, 0, "Unpaid attempts must not appear as placed buyer orders");
@@ -214,7 +210,6 @@ async function cancelAndCod() {
   assert.equal((await retrievePayMongoCheckoutSession(state.checkoutSessionId)).attributes.status, "expired");
   assert.equal((await cart()).filter(item => item.artwork_id).length, 3);
   assert.ok((await stock()).every(item => Number(item.sold_quantity) === 0));
-  assert.equal((await purchases()).length, 0);
   pass("Actual provider expiry and group cancellation preserve all cart items and available stock");
   assert.equal((await api("/api/buyer/orders")).body.length, 0, "Cancelled unpaid attempts must remain out of Orders");
   const retry = await api(`/api/buyer/orders/payments/${encodeURIComponent(state.paymentReference)}/retry`, { method: "POST" });
@@ -227,7 +222,6 @@ async function cancelAndCod() {
   assert.ok(codOrders.every(order => order.payment_status === "Pending"));
   assert.ok(codOrders.every(order => !order.paymongo_checkout_session_id));
   assert.equal((await cart()).filter(item => item.artwork_id).length, 0);
-  assert.equal((await purchases()).length, 3);
   assert.ok((await stock()).every(item => Number(item.sold_quantity) === 1));
   const order = codOrders[0];
   const confirm = await api(`/api/seller/orders/${order.order_id}/status`, { method: "PUT", token: state.sellerTokens[state.sellerIds.indexOf(order.seller_id)], body: { status: "Confirmed" } });
@@ -275,7 +269,6 @@ async function verifyPaid({ readonly = false } = {}) {
   assert.deepEqual(remaining.map(item => item.artwork_id), [state.artworkIds[2]]);
   assert.equal(Number(remaining[0].total_price), 500);
   assert.deepEqual((await stock()).map(item => Number(item.sold_quantity)), [1, 1, 0]);
-  assert.deepEqual((await purchases()).map(item => item.artwork_id), state.artworkIds.slice(0, 2));
   pass("Actual provider payment and webhook persisted Paid, one payment ID, channel and timestamp on both seller orders");
   pass("Paid cart cleanup removed only the two purchased artworks and retained the unrelated PHP 500 item");
   if (readonly) return;
@@ -325,7 +318,6 @@ async function cleanup() {
   await database.beginTransaction();
   try {
     await rows("DELETE FROM account_notifications WHERE role = 'buyer' AND account_id = ?", [state.customerId]);
-    await rows("DELETE FROM recommendation_interaction WHERE customer_id = ? OR artwork_id IN (?)", [state.customerId, state.artworkIds]);
     await rows("DELETE FROM buyer_artwork_image_view WHERE customer_id = ? OR artwork_id IN (?)", [state.customerId, state.artworkIds]);
     await rows("DELETE FROM buyer_watermark_code WHERE customer_id = ?", [state.customerId]);
     await rows("DELETE FROM customer_favorite WHERE customer_id = ? OR artwork_id IN (?)", [state.customerId, state.artworkIds]);
@@ -386,7 +378,6 @@ try {
       await fs.writeFile(`${cacheDirectory}paymongo-flow-${mode}-results.json`, JSON.stringify({
         phase: mode, marker: state.marker, testMode: true, checks: results,
         orders: await getOrders(), cart: await cart(), stock: await stock(),
-        purchaseInteractions: await purchases(),
       }, null, 2));
     } catch (error) {
       console.error(`Unable to save test evidence: ${error.code || error.name}`);

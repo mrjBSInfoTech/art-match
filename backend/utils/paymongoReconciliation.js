@@ -1,6 +1,5 @@
 import { pesosToCentavos } from "./paymongo.js";
 import { getArtworkAvailability, getCompletedOrderCondition } from "./artworkAvailability.js";
-import { recordRecommendationInteraction } from "./recommendationInteractions.js";
 
 const query = async (executor, sql, params = []) => (await executor.query(sql, params))[0];
 const parseSelectedProducts = (value) => {
@@ -26,7 +25,6 @@ export async function reconcilePaidCheckout(
   connection,
   session,
   expectedLivemode,
-  { recordInteraction = recordRecommendationInteraction, sourcePage = "paymongo_webhook" } = {},
 ) {
   const attributes = session?.attributes;
   const paidPayments = Array.isArray(attributes?.payments)
@@ -140,12 +138,6 @@ export async function reconcilePaidCheckout(
      WHERE o.order_id IN (?) AND o.status <> 'Cancelled'`,
     [unpaidIds],
   );
-  for (const item of purchasedItems) {
-    await recordInteraction({
-      executor: connection, customerId: item.customer_id, artworkId: item.artwork_id,
-      eventType: "purchase", sourcePage,
-    });
-  }
   const purchasedArtworkIds = [...new Set(purchasedItems.map((item) => Number(item.artwork_id))
     .filter((id) => Number.isSafeInteger(id) && id > 0))];
   const customerId = orders[0].customer_id;

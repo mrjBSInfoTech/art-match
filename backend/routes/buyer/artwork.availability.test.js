@@ -37,21 +37,3 @@ for (const path of ["/", "/:id", "/seller/:id"]) {
     }
   });
 }
-
-test("recommendation candidates and final hydration both exclude sold-out paid/COD purchases", async () => {
-  const queries = [];
-  const context = {
-    express: { Router: () => ({ get() {}, post() {} }) },
-    db: { promise: () => ({ async query(sql) { queries.push(sql); return [[]]; } }) },
-    getArtworkSoldOutSql, getArtworkSoldQuantitySql, getArtworkRatingSql,
-    process: { env: {} }, console,
-  };
-  vm.runInNewContext(stripImports("./recommendation.js") +
-    "\nglobalThis.readCandidates = getAvailableCandidateArtworkIds; globalThis.hydrate = attachArtworkDetails;", context);
-  await context.readCandidates();
-  await context.hydrate([{ artwork_id: 7 }]);
-  assert.equal(queries.length, 2);
-  for (const sql of queries) {
-    assert.ok(sql.includes(`AND ${getArtworkSoldOutSql()} = 0`));
-  }
-});

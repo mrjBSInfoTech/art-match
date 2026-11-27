@@ -11,7 +11,6 @@ import {
   useTheme,
 } from "@mui/material";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
-import ConnectionErrorPanel from "../../components/buyer/ConnectionErrorPanel";
 import AppSnackbar from "../../components/common/AppSnackbar";
 import { fetchArtworks, fetchArtistSummaries } from "../../api/buyer/artworkAPI";
 import { fetchCart } from "../../api/buyer/cartAPI";
@@ -19,10 +18,10 @@ import {
   addArtworkToBuyerCart,
   removeArtworkFromBuyerCart,
 } from "../../utils/buyerCartActions";
-import RecommendedSection, {
+import {
   ArtworkCardSkeleton,
   SectionHeader,
-} from "../../components/buyer/Main/RecommendedSection";
+} from "../../components/buyer/Main/MainSectionShared";
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
@@ -108,9 +107,7 @@ export default function Main() {
   const [cartArtworkIds, setCartArtworkIds] = useState(() => new Set());
   const [followingLoading, setFollowingLoading] = useState(true);
   const [followingError, setFollowingError] = useState("");
-  const [recommendationRefreshKey, setRecommendationRefreshKey] = useState(0);
   const navigate = useNavigate();
-  const [q, setQ] = useState("");
   const theme = useTheme();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -282,7 +279,6 @@ export default function Main() {
 
   const handleRetry = () => {
     loadArtworks();
-    setRecommendationRefreshKey((prev) => prev + 1);
   };
 
   return (
@@ -298,6 +294,7 @@ export default function Main() {
           name="description"
           content="Discover, browse, and purchase original paintings, sculptures, digital artworks, and handcrafted art pieces directly from emerging CAFA student artists on ArtMatch."
         />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/" />
       </Helmet>
       <UpcomingEventsSlider heroArtwork={availableArtworks[0]} />
       {/* Styles */}
@@ -391,11 +388,22 @@ export default function Main() {
             ))
           ) : artworkErrorMessage ? (
             <Box sx={{ gridColumn: "1 / -1" }}>
-              <ConnectionErrorPanel
-                title="Artworks Temporarily Unavailable"
-                message={artworkErrorMessage}
-                onRetry={handleRetry}
-              />
+              <Alert
+                severity="info"
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={handleRetry}
+                    sx={{ fontWeight: 700, textTransform: "none" }}
+                  >
+                    Refresh
+                  </Button>
+                }
+                sx={{ borderRadius: 2 }}
+              >
+                Live gallery listings are syncing. Explore CAFA student programs below or refresh to load the latest catalog.
+              </Alert>
             </Box>
           ) : (
             <Typography color="text.secondary" sx={{ gridColumn: "1 / -1", py: 2 }}>
@@ -516,24 +524,27 @@ export default function Main() {
               title: "24/7 Support",
               description: "Your gallery team is here to assist you anytime",
             },
-          ].map(({ icon: Icon, title, description }) => (
-            <Stack
-              key={title}
-              direction="row"
-              spacing={1.25}
-              alignItems="flex-start"
-            >
-              <Icon sx={{ color: theme.palette.error.main, mt: 0.25 }} />
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                  {title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {description}
-                </Typography>
-              </Box>
-            </Stack>
-          ))}
+          ].map((item) => {
+            const FeatureIcon = item.icon;
+            return (
+              <Stack
+                key={item.title}
+                direction="row"
+                spacing={1.25}
+                alignItems="flex-start"
+              >
+                <FeatureIcon sx={{ color: theme.palette.error.main, mt: 0.25 }} />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                    {item.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {item.description}
+                  </Typography>
+                </Box>
+              </Stack>
+            );
+          })}
         </Box>
       </Box>
 
@@ -730,7 +741,7 @@ export default function Main() {
               ))}
             </Box>
           </>
-        ) : (
+        ) : featuredArtist ? (
           <>
             <Box
               sx={{
@@ -961,10 +972,75 @@ export default function Main() {
               ))}
             </Box>
           </>
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: 2,
+            }}
+          >
+            {[
+              {
+                name: "BS Architecture",
+                summary: "Architectural plates, structural concepts, and studio models from CAFA Architecture students.",
+                path: "/buyer/programs/architecture",
+              },
+              {
+                name: "BFA Painting",
+                summary: "Original oil, acrylic, watercolor, charcoal, and mixed-media paintings from student artists.",
+                path: "/buyer/programs/fine-arts",
+              },
+              {
+                name: "BFA Visual Communication",
+                summary: "Digital illustrations, editorial prints, branding visuals, and graphic art collections.",
+                path: "/buyer/programs/visual-communication",
+              },
+              {
+                name: "BS Interior Design",
+                summary: "Spatial design concepts, handcrafted decor, and creative studio pieces.",
+                path: "/buyer/programs/interior-design",
+              },
+            ].map((program) => (
+              <Box
+                key={program.name}
+                sx={{
+                  p: 2.5,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2.5,
+                  backgroundColor: theme.palette.background.paper,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                  {program.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+                  {program.summary}
+                </Typography>
+                <Button
+                  component={RouterLink}
+                  to={program.path}
+                  size="small"
+                  endIcon={<ArrowForwardIcon />}
+                  sx={{ alignSelf: "flex-start", px: 0, textTransform: "none", fontWeight: 700 }}
+                >
+                  Explore program
+                </Button>
+              </Box>
+            ))}
+          </Box>
         )}
       </Box>
 
       {/* Featured Artworks */}
+      {(artworksLoading || availableArtworks.length > 0 || !artworkErrorMessage) && (
       <Box
         sx={{
           width: "100%",
@@ -1007,21 +1083,13 @@ export default function Main() {
             ))
           ) : (
             <Typography color="text.secondary" sx={{ gridColumn: "1 / -1", py: 2 }}>
-              No featured artworks available.
+              Explore the shop to browse the latest verified artworks from CAFA artists.
             </Typography>
           )}
         </Box>
       </Box>
+      )}
 
-      {/* Recommended Artworks */}
-      <Box sx={{ contentVisibility: "auto", containIntrinsicSize: "auto 520px" }}>
-        <RecommendedSection
-          cartArtworkIds={cartArtworkIds}
-          onAddToCart={handleAddToCart}
-          onRemoveFromCart={handleRemoveFromCart}
-          refreshKey={recommendationRefreshKey}
-        />
-      </Box>
       {/* Snackbar Notification */}
       <AppSnackbar
         open={snackbarOpen}

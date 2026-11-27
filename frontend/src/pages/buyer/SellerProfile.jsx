@@ -24,7 +24,6 @@ import {
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
-import SellerRecommendations from "../../components/buyer/Profile/SellerRecommendations";
 import SellerArtworkCard from "../../components/buyer/Seller/SellerArtworkCard";
 import {
   fetchArtworks,
@@ -1146,14 +1145,6 @@ export default function SellerProfile() {
             </Stack>
           )}
         </Box>
-        <SellerRecommendations
-          key={selectedSeller.student_id}
-          sellerId={selectedSeller.student_id}
-          sellerName={selectedSeller.shopName || selectedSeller.name}
-          hasSpecialties={specialties.some(
-            (specialty) => typeof specialty === "string" && specialty.trim(),
-          )}
-        />
       </Container>
     </Box>
   );

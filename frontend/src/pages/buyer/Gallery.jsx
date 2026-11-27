@@ -159,6 +159,11 @@ export default function Gallery() {
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Gallery</title>
+          <meta
+            name="description"
+            content="Explore the online art gallery of student artworks from the College of Architecture and Fine Arts (CAFA) on ArtMatch."
+          />
+          <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/gallery" />
         </Helmet>
         <ConnectionErrorPanel title="Gallery Unavailable" />
       </Box>
@@ -175,6 +180,11 @@ export default function Gallery() {
     >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Gallery</title>
+        <meta
+          name="description"
+          content="Explore the online art gallery of student artworks from the College of Architecture and Fine Arts (CAFA) on ArtMatch."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/gallery" />
       </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 4 } }}>
         <Stack spacing={{ xs: 2.5, md: 3 }}>

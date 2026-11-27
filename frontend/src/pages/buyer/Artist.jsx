@@ -291,6 +291,11 @@ export default function Artist() {
       <Box sx={{ minWidth: 0 }}>
         <Helmet titleTemplate="%s - ArtMatch">
           <title>Artist</title>
+          <meta
+            name="description"
+            content="Meet emerging student artists from the College of Architecture and Fine Arts (CAFA) and browse their original collections on ArtMatch."
+          />
+          <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/artist" />
         </Helmet>
         <ConnectionErrorPanel title="Artists Unavailable" onRetry={loadArtists} />
       </Box>
@@ -307,6 +312,11 @@ export default function Artist() {
     >
       <Helmet titleTemplate="%s - ArtMatch">
         <title>Artist</title>
+        <meta
+          name="description"
+          content="Meet emerging student artists from the College of Architecture and Fine Arts (CAFA) and browse their original collections on ArtMatch."
+        />
+        <link rel="canonical" href="https://art-match-indol.vercel.app/buyer/artist" />
       </Helmet>
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 4 } }}>
         <Stack spacing={{ xs: 2.5, md: 3 }}>

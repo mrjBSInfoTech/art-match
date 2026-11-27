@@ -25,7 +25,6 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { FaFacebookF, FaGoogle } from "react-icons/fa6";
 import Nexus from "../../assets/Nexus.png";
 import { loginUser } from "../../api/buyer/buyerAuthenticationAPI";
-import { clearRecommendationClientState } from "../../api/buyer/recommendationAPI";
 import { clearAuthData, isAuthenticated, setToken } from "../../../utils/auth";
 
 function SlideTransition(props) {
@@ -78,7 +77,6 @@ export default function Login() {
       localStorage.setItem("buyer_first_name", data.first_name);
       localStorage.setItem("buyer_last_name", data.last_name);
       localStorage.setItem("buyer_profile_image", data.profile_image || "");
-      clearRecommendationClientState();
 
       setTimeout(() => {
         navigate("/buyer/main", { replace: true });

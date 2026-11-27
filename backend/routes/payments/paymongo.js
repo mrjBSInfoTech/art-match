@@ -2,7 +2,6 @@ import express from "express";
 import db from "../../database/db.js";
 import { getPayMongoMode, verifyPayMongoSignature } from "../../utils/paymongo.js";
 import { reconcilePaidCheckout, PayMongoReconciliationError } from "../../utils/paymongoReconciliation.js";
-import { recordRecommendationInteraction } from "../../utils/recommendationInteractions.js";
 import { logSellerAudit } from "../../utils/auditLogger.js";
 import { payoutService } from "../../utils/payouts.js";
 
@@ -41,9 +40,7 @@ router.post("/webhook", async (req, res) => {
   try {
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
-    const result = await reconcilePaidCheckout(connection, session, livemode, {
-      recordInteraction: recordRecommendationInteraction,
-    });
+    const result = await reconcilePaidCheckout(connection, session, livemode);
     await connection.commit();
     const { sellerTransactions = [], ...responseResult } = result;
     for (const sale of sellerTransactions) {

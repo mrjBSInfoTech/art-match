@@ -40,16 +40,11 @@ const DEFAULT_HERO_SLIDE = {
 export default function UpcomingEventsSlider({ heroArtwork }) {
   const theme = useTheme();
   const [slides, setSlides] = useState([DEFAULT_HERO_SLIDE]);
-  const [loadError, setLoadError] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slideDirection, setSlideDirection] = useState("left");
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine !== false : true,
-  );
 
   const loadSlides = () => {
     let active = true;
-    setLoadError("");
     Promise.all([
       fetchPromotionSlides(),
       fetchPromotionHeroEnabled().catch((error) => {
@@ -61,7 +56,9 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
         if (active) {
           const nextSlides = heroEnabled
             ? [DEFAULT_HERO_SLIDE, ...loadedSlides]
-            : loadedSlides;
+            : loadedSlides.length > 0
+              ? loadedSlides
+              : [DEFAULT_HERO_SLIDE];
           setSlides(nextSlides);
           setCurrentIndex((prev) =>
             nextSlides.length > 0 ? Math.min(prev, nextSlides.length - 1) : 0,
@@ -71,7 +68,8 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
       .catch((error) => {
         if (active) {
           console.error("Unable to load promotion slides:", error);
-          setLoadError(error.message || "Unable to load promotion slides.");
+          setSlides([DEFAULT_HERO_SLIDE]);
+          setCurrentIndex(0);
         }
       });
     return () => {
@@ -85,18 +83,12 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
 
   useEffect(() => {
     const handleOnline = () => {
-      setIsOnline(true);
       loadSlides();
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
     };
 
     window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
     return () => {
       window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -118,10 +110,6 @@ export default function UpcomingEventsSlider({ heroArtwork }) {
         : (index === 0 ? slides.length : index) - 1,
     );
   };
-
-  if (!isOnline || loadError) {
-    return null;
-  }
 
   if (!slides.length) {
     return null;
