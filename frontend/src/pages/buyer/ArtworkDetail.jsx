@@ -20,7 +20,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import RemoveShoppingCart from "@mui/icons-material/RemoveShoppingCart";
-import ShoppingBag from "@mui/icons-material/ShoppingBag";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import { fetchArtworks, fetchArtworkById } from "../../api/buyer/artworkAPI";
 import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 import ArtworkCard from "../../components/buyer/Artwork/ArtworkCard";
@@ -797,7 +797,7 @@ export default function ArtworkDetail() {
                     ) : isInCart ? (
                       <RemoveShoppingCart />
                     ) : (
-                      <ShoppingBag />
+                      <ShoppingCartOutlinedIcon />
                     )
                   }
                   sx={{

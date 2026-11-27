@@ -4,12 +4,35 @@ import { API_BASE_URL } from "../apiBase.js";
 const api = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 20000,
+  timeout: 30000,
 });
 
 // HttpOnly cookies handle authentication automatically
 
+const isTransientNetworkError = (error) =>
+  !axios.isCancel(error) &&
+  (error?.code === "ECONNABORTED" || (!error?.response && Boolean(error?.request)));
+
+const requestWithRetry = async (requestFn, retries = 1) => {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      if (attempt < retries && isTransientNetworkError(error)) {
+        attempt += 1;
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        continue;
+      }
+      throw error;
+    }
+  }
+};
+
 const handleError = (error) => {
+  if (axios.isCancel(error)) {
+    throw error;
+  }
   if (error.response) {
     console.error(
       "Server error:",
@@ -31,14 +54,16 @@ const handleError = (error) => {
 };
 
 // Fetch all artworks
-export const fetchArtworks = async () => {
+export const fetchArtworks = async ({ signal } = {}) => {
   try {
-
-    const res = await api.get("/buyer/artworks");
-
+    const res = await requestWithRetry(() =>
+      api.get("/buyer/artworks", signal ? { signal } : undefined),
+    );
     return res.data;
   } catch (error) {
-    console.error("Error in fetchArtworks:", error);
+    if (!axios.isCancel(error)) {
+      console.error("Error in fetchArtworks:", error);
+    }
     handleError(error);
   }
 };

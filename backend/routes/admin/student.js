@@ -33,16 +33,17 @@ const persistCorValue = async (rawCor) => {
     if (!buffer.length || buffer.length > MAX_COR_BYTES) {
       throw Object.assign(new Error("COR image must be 2MB or smaller."), { status: 400 });
     }
+    const image = sharp(buffer);
     let metadata;
     try {
-      metadata = await sharp(buffer).metadata();
+      metadata = await image.metadata();
     } catch {
       throw Object.assign(new Error("Please upload a valid JPEG, PNG, or WebP COR image."), { status: 400 });
     }
     if (!SUPPORTED_COR_FORMATS.has(metadata.format)) {
       throw Object.assign(new Error("Please upload a valid JPEG, PNG, or WebP COR image."), { status: 400 });
     }
-    const webpBuffer = await sharp(buffer).rotate().webp().toBuffer();
+    const webpBuffer = await image.rotate().webp({ quality: 80, effort: 2 }).toBuffer();
     await fs.mkdir(corUploadDir, { recursive: true });
     const filename = `${Date.now()}-cor-${crypto.randomBytes(4).toString("hex")}.webp`;
     await fs.writeFile(path.join(corUploadDir, filename), webpBuffer);
@@ -53,6 +54,31 @@ const persistCorValue = async (rawCor) => {
     throw Object.assign(new Error("Invalid COR image reference."), { status: 400 });
   }
   return trimmed;
+};
+
+const MIN_STUDENT_AGE = 17;
+
+const isAtLeastStudentAge = (birthdateString, minAge = MIN_STUDENT_AGE) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(birthdateString || "").trim());
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const birthDate = new Date(year, month - 1, day);
+  if (
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  ) {
+    return false;
+  }
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const monthDiff = today.getMonth() + 1 - month;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < day)) {
+    age -= 1;
+  }
+  return age >= minAge;
 };
 
 const validateStudentContactFields = (payload) => {
@@ -565,7 +591,10 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
 
   const now = formatDateTime();
   const password = String(studentData.last_name).trim().toUpperCase();
-  const passwordHash = bcrypt.hashSync(password, 10);
+  bcrypt.hash(password, 10, (hashErr, passwordHash) => {
+    if (hashErr) {
+      return callback({ status: 500, message: "Unable to secure student password." }, null);
+    }
 
   const studentSql = `
     INSERT INTO student (
@@ -656,15 +685,31 @@ const createStudentRecord = (studentData, adminId, expirationDate, callback) => 
 
           return callback(null, {
             student_id: studentId,
+            first_name: studentData.first_name,
+            middle_name: studentData.middle_name || "",
+            last_name: studentData.last_name,
+            birthdate: studentData.birthdate || null,
+            email: studentData.email || null,
+            address: studentData.address || null,
+            phone_number: studentData.phone_number || null,
+            cor: studentData.cor || null,
+            year_level: studentData.year_level || null,
+            course: studentData.course || null,
+            student_number: studentData.student_number,
+            profile_image: "profile.jpg",
+            account_status: "active",
             register_status: "verified",
             registered_date: now,
             approved_date: now,
             admin_id: adminId || null,
+            strikes: 0,
+            is_banned: 0,
           });
         },
       );
     },
   );
+  });
 };
 
 router.post(
@@ -676,6 +721,11 @@ router.post(
     const validationError = validateStudentContactFields(studentData);
     if (validationError) {
       return res.status(400).json({ message: validationError });
+    }
+    if (!isAtLeastStudentAge(studentData.birthdate, MIN_STUDENT_AGE)) {
+      return res
+        .status(400)
+        .json({ message: `Student must be at least ${MIN_STUDENT_AGE} years old.` });
     }
 
     if (Object.prototype.hasOwnProperty.call(req.body || {}, "cor")) {

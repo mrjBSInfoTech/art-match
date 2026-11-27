@@ -71,9 +71,13 @@ export function formatDbError(error) {
 
 const db = mysql.createPool({
   ...dbConfig,
+  host: dbConfig.host === "localhost" ? "127.0.0.1" : dbConfig.host,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 15,
   queueLimit: 0,
+  connectTimeout: 10000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
 });
 
 db.on("error", (err) => {

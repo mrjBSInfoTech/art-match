@@ -54,6 +54,46 @@ const DropZone = styled(Box, {
   },
 }));
 
+const MIN_STUDENT_AGE = 17;
+
+const getMaxStudentBirthdate = () => {
+  const today = new Date();
+  const cutoff = new Date(
+    today.getFullYear() - MIN_STUDENT_AGE,
+    today.getMonth(),
+    today.getDate(),
+  );
+  const year = cutoff.getFullYear();
+  const month = String(cutoff.getMonth() + 1).padStart(2, "0");
+  const day = String(cutoff.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const isAtLeastStudentAge = (birthdateString, minAge = MIN_STUDENT_AGE) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(
+    String(birthdateString || "").trim(),
+  );
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const birthDate = new Date(year, month - 1, day);
+  if (
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  ) {
+    return false;
+  }
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const monthDiff = today.getMonth() + 1 - month;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < day)) {
+    age -= 1;
+  }
+  return age >= minAge;
+};
+
 const initialFormData = {
   first_name: "",
   middle_name: "",
@@ -221,6 +261,11 @@ export default function StudentForm({
       return;
     }
 
+    if (!isAtLeastStudentAge(formData.birthdate, MIN_STUDENT_AGE)) {
+      setError(`Student must be at least ${MIN_STUDENT_AGE} years old.`);
+      return;
+    }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       setError("Please enter a valid email address.");
       return;
@@ -235,6 +280,7 @@ export default function StudentForm({
       setIsSubmitting(true);
       setError("");
 
+      const trimmedCor = formData.cor.trim();
       const payload = {
         ...formData,
         first_name: formData.first_name.trim(),
@@ -247,9 +293,12 @@ export default function StudentForm({
         year_level: formData.year_level.trim(),
         course: formData.course.trim(),
         student_number: formData.student_number.trim(),
-        cor: formData.cor.trim(),
+        ...(selectedStudent || trimmedCor ? { cor: trimmedCor } : {}),
         profile_image: formData.profile_image.trim(),
       };
+      if (!selectedStudent && !trimmedCor) {
+        delete payload.cor;
+      }
 
       await onSubmit?.(payload);
       handleClose();
@@ -259,6 +308,12 @@ export default function StudentForm({
       setIsSubmitting(false);
     }
   };
+
+  const ageWarning =
+    Boolean(formData.birthdate) &&
+    !isAtLeastStudentAge(formData.birthdate, MIN_STUDENT_AGE)
+      ? `Student must be at least ${MIN_STUDENT_AGE} years old.`
+      : "";
 
   return (
     <Dialog
@@ -369,6 +424,9 @@ export default function StudentForm({
               onChange={handleChange}
               fullWidth
               InputLabelProps={{ shrink: true }}
+              inputProps={{ max: getMaxStudentBirthdate() }}
+              error={Boolean(ageWarning)}
+              helperText={ageWarning}
             />
             <TextField
               id="student-email"

@@ -18,6 +18,7 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CloseIcon from "@mui/icons-material/Close";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import WatermarkedArtworkImage from "./WatermarkedArtworkImage";
 import { getArtworkRemainingStock, getArtworkOrderLimit } from "../../../utils/artworkAvailability";
 
@@ -205,7 +206,7 @@ export default function CustomizeOrderDialog({
           fontWeight: 700,
         }}
       >
-        <ShoppingBagOutlinedIcon sx={{ color: "#ef3340" }} />
+        <ShoppingCartOutlinedIcon sx={{ color: "#ef3340" }} />
         {step === "choice"
           ? "Choose an option"
           : step === "customize"

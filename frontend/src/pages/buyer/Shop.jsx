@@ -19,6 +19,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { fetchArtworks } from "../../api/buyer/artworkAPI";
+import { fetchRecommendedArtworks } from "../../api/buyer/recommendationAPI";
 import { fetchFavorites, toggleFavorite } from "../../api/buyer/favoriteAPI";
 import { addToCart, fetchCart, removeFromCart } from "../../api/buyer/cartAPI";
 import { sendOrderNoteToSeller } from "../../utils/orderNoteMessaging";
@@ -89,6 +90,13 @@ export default function Shop() {
     (values) => values.length > 0,
   );
   const selectedGenre = genre ? decodeURIComponent(genre).toLowerCase() : "";
+  const isRecommendedView =
+    searchParams.get("view") === "recommended" &&
+    !searchQuery &&
+    !selectedCourse &&
+    !selectedGenre &&
+    !hasCategoryFilters &&
+    !hasPriceFilter;
   const [artworks, setArtworks] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [cartArtworkIds, setCartArtworkIds] = useState(new Set());
@@ -116,10 +124,24 @@ export default function Shop() {
     try {
       setLoading(true);
       setLoadError("");
-      const response = await fetchArtworks();
-      const list = Array.isArray(response)
-        ? response
-        : response?.data || [];
+      let list = [];
+      if (isRecommendedView) {
+        const recResponse = await fetchRecommendedArtworks(100);
+        list = Array.isArray(recResponse?.recommendations)
+          ? recResponse.recommendations
+          : [];
+        if (list.length === 0) {
+          const fallbackResponse = await fetchArtworks();
+          list = Array.isArray(fallbackResponse)
+            ? fallbackResponse
+            : fallbackResponse?.data || [];
+        }
+      } else {
+        const response = await fetchArtworks();
+        list = Array.isArray(response)
+          ? response
+          : response?.data || [];
+      }
       const availableList = (Array.isArray(list) ? list : []).filter(
         (artwork) => Number(artwork.is_sold_out) !== 1,
       );
@@ -129,7 +151,7 @@ export default function Shop() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isRecommendedView]);
 
   const loadFavoriteIds = useCallback(async () => {
     if (!isAuthenticated("buyer")) {
@@ -219,22 +241,24 @@ export default function Shop() {
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
-  const pageTitle = selectedCourse
-    ? `${selectedCourseLabel} artwork`
-    : selectedGenre
-      ? `${genre} artwork`
-      : searchQuery
-        ? "Search results"
+  const pageTitle = isRecommendedView
+    ? "Recommended artwork"
+    : selectedCourse
+      ? `${selectedCourseLabel} artwork`
+      : selectedGenre
+        ? `${genre} artwork`
         : "Shop artwork";
-  const collectionLabel = selectedCourse
-    ? `Course / ${selectedCourseLabel}`
-    : selectedGenre
-      ? `Shop / ${genre}`
-      : searchQuery
-        ? `Results for \u201c${searchLabel}\u201d`
-        : hasCategoryFilters
-          ? "Filtered artworks"
-          : "All artworks";
+  const collectionLabel = isRecommendedView
+    ? "Recommended for you"
+    : selectedCourse
+      ? `Course / ${selectedCourseLabel}`
+      : selectedGenre
+        ? `Shop / ${genre}`
+        : searchQuery
+          ? `Results for \u201c${searchLabel}\u201d`
+          : hasCategoryFilters
+            ? "Filtered artworks"
+            : "All artworks";
 
   useEffect(() => {
     setPage(1);

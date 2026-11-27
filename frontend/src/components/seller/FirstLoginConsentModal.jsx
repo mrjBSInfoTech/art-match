@@ -20,12 +20,15 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
+import { completeFirstLoginSetup } from "../../api/seller/sellerAPI";
+//Icons
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import CloseIcon from "@mui/icons-material/Close";
 import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import { completeFirstLoginSetup } from "../../api/seller/sellerAPI";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return (
@@ -61,24 +64,60 @@ export default function FirstLoginConsentModal({
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const fieldSx = {
-    "& .MuiOutlinedInput-root": {
-      borderRadius: 2,
-      backgroundColor: isDark
-        ? "rgba(255, 255, 255, 0.03)"
-        : "rgba(15, 23, 42, 0.02)",
-      "& fieldset": {
-        borderColor: isDark
-          ? "rgba(255, 255, 255, 0.14)"
-          : "rgba(15, 23, 42, 0.14)",
-      },
-      "&:hover fieldset": {
-        borderColor: "#ef3340",
-      },
-      "&.Mui-focused fieldset": {
-        borderColor: "#ef3340",
-      },
+  // Requirements state tracking
+  const requirements = [
+    { label: "At least 8 characters long", test: (pw) => pw.length >= 8 },
+    {
+      label: "Contains at least one uppercase letter (A-Z)",
+      test: (pw) => /[A-Z]/.test(pw),
     },
+    {
+      label: "Contains at least one lowercase letter (a-z)",
+      test: (pw) => /[a-z]/.test(pw),
+    },
+    {
+      label: "Contains at least one number (0-9)",
+      test: (pw) => /\d/.test(pw),
+    },
+    {
+      label: "Contains at least one special character (!@#$%^&*)",
+      test: (pw) => /[!@#$%^&*(),.?":{}|<>]/.test(pw),
+    },
+  ];
+
+  // Helper validation states
+  const allRequirementsMet = requirements.every((req) =>
+    req.test(newPassword),
+  );
+
+  const passwordsMatch =
+    newPassword.length > 0 && newPassword === confirmPassword;
+
+  const validateForm = () => {
+    if (!currentPassword.trim()) {
+      setErrorMessage("Current password is required.");
+      return false;
+    }
+    if (!newPassword.trim()) {
+      setErrorMessage("New password is required.");
+      return false;
+    }
+    if (newPassword === currentPassword) {
+      setErrorMessage(
+        "New password must be different from your current password.",
+      );
+      return false;
+    }
+    if (!allRequirementsMet) {
+      setErrorMessage("Please satisfy all new password requirements.");
+      return false;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMessage("Confirm password does not match.");
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (event) => {
@@ -92,19 +131,8 @@ export default function FirstLoginConsentModal({
       return;
     }
 
-    if (mustChangePassword) {
-      if (!currentPassword || !newPassword || !confirmPassword) {
-        setErrorMessage("Please fill in all password fields.");
-        return;
-      }
-      if (newPassword.length < 8) {
-        setErrorMessage("New password must be at least 8 characters long.");
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setErrorMessage("New password and confirmation do not match.");
-        return;
-      }
+    if (mustChangePassword && !validateForm()) {
+      return;
     }
 
     try {
@@ -114,9 +142,9 @@ export default function FirstLoginConsentModal({
         consent_version: "1.0",
         ...(mustChangePassword
           ? {
-              current_password: currentPassword,
-              new_password: newPassword,
-            }
+            current_password: currentPassword,
+            new_password: newPassword,
+          }
           : {}),
       });
       setCurrentPassword("");
@@ -240,7 +268,7 @@ export default function FirstLoginConsentModal({
                 color="text.secondary"
                 sx={{ lineHeight: 1.65, mb: 1 }}
               >
-                Your student artist account was provisioned by the College of Architecture and Fine Arts (CAFA) at the{" "} 
+                Your student artist account was provisioned by the College of Architecture and Fine Arts (CAFA) at the{" "}
                 Administration of EARIST using official academic enrollment records. We
                 process your personal and academic information solely to verify
                 your student status, showcase your artworks, process marketplace
@@ -298,30 +326,13 @@ export default function FirstLoginConsentModal({
                   label="Current Temporary Password"
                   type={showCurrentPassword ? "text" : "password"}
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    setErrorMessage("");
+                  }}
                   fullWidth
                   size="small"
                   required
-                  sx={fieldSx}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            setShowCurrentPassword((prev) => !prev)
-                          }
-                          edge="end"
-                        >
-                          {showCurrentPassword ? (
-                            <VisibilityOff fontSize="small" />
-                          ) : (
-                            <Visibility fontSize="small" />
-                          )}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
                 />
 
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -329,61 +340,84 @@ export default function FirstLoginConsentModal({
                     label="New Password"
                     type={showNewPassword ? "text" : "password"}
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setErrorMessage("");
+                    }}
                     fullWidth
                     size="small"
                     required
-                    helperText="Minimum 8 characters, different from your last name"
-                    sx={fieldSx}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            size="small"
-                            onClick={() => setShowNewPassword((prev) => !prev)}
-                            edge="end"
-                          >
-                            {showNewPassword ? (
-                              <VisibilityOff fontSize="small" />
-                            ) : (
-                              <Visibility fontSize="small" />
-                            )}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
+                    helperText="Must be different from your last name"
                   />
 
                   <TextField
                     label="Confirm New Password"
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setErrorMessage("");
+                    }}
                     fullWidth
                     size="small"
                     required
-                    sx={fieldSx}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              setShowConfirmPassword((prev) => !prev)
-                            }
-                            edge="end"
-                          >
-                            {showConfirmPassword ? (
-                              <VisibilityOff fontSize="small" />
-                            ) : (
-                              <Visibility fontSize="small" />
-                            )}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
+                    error={confirmPassword.length > 0 && !passwordsMatch}
+                    helperText={
+                      confirmPassword.length > 0 && !passwordsMatch
+                        ? "Passwords do not match."
+                        : ""
+                    }
                   />
                 </Stack>
+
+                {/* Dynamic Requirements Checklist */}
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: "action.hover",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: "bold", mb: 0.5 }}
+                  >
+                    Password Requirements:
+                  </Typography>
+                  {requirements.map((req, index) => {
+                    const isMet = req.test(newPassword);
+                    return (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          color: isMet ? "success.main" : "text.secondary",
+                        }}
+                      >
+                        {isMet ? (
+                          <CheckCircleIcon sx={{ fontSize: 18 }} />
+                        ) : (
+                          <CancelIcon
+                            sx={{ fontSize: 18, color: "text.disabled" }}
+                          />
+                        )}
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: isMet ? "bold" : "normal",
+                          }}
+                        >
+                          {req.label}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
               </Stack>
             )}
 
@@ -391,7 +425,10 @@ export default function FirstLoginConsentModal({
               control={
                 <Checkbox
                   checked={consentAccepted}
-                  onChange={(e) => setConsentAccepted(e.target.checked)}
+                  onChange={(e) => {
+                    setConsentAccepted(e.target.checked);
+                    setErrorMessage("");
+                  }}
                   sx={{
                     color: "#ef3340",
                     "&.Mui-checked": { color: "#ef3340" },
@@ -438,8 +475,9 @@ export default function FirstLoginConsentModal({
           <Button
             type="button"
             onClick={onLogout}
-            color="text.secondary"
+            color="inherit"
             disabled={submitting}
+            sx={{ textTransform: "none", color: "text.secondary" }}
           >
             Decline & Log Out
           </Button>
@@ -447,7 +485,12 @@ export default function FirstLoginConsentModal({
           <Button
             type="submit"
             variant="contained"
-            disabled={submitting}
+            disabled={
+              submitting ||
+              !consentAccepted ||
+              (mustChangePassword &&
+                (!currentPassword.trim() || !allRequirementsMet || !passwordsMatch))
+            }
             sx={{
               borderRadius: 1.5,
               px: 2.5,

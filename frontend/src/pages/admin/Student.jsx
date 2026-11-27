@@ -168,12 +168,15 @@ export default function Student() {
         await updateStudent(selectedStudent.student_id, formData);
         showSnackbar("Student updated successfully.", "success");
       } else {
-        await addStudents(formData);
+        const created = await addStudents(formData);
+        if (created?.student) {
+          setStudents((prev) => [created.student, ...prev]);
+        }
         showSnackbar("Student created successfully.", "success");
       }
 
-      await loadStudents();
       handleCloseForm();
+      loadStudents({ silent: true, forceFresh: true });
     } catch (err) {
       showSnackbar(err.message || "Unable to save student.", "error");
       throw err;

@@ -345,6 +345,7 @@ function BuyerLayoutContent({ children }) {
 
     const query = searchQuery.trim();
     const params = new URLSearchParams(location.search);
+    params.delete("view");
 
     if (query) {
       params.set("q", query);
@@ -494,6 +495,7 @@ function BuyerLayoutContent({ children }) {
 
   const handleApplyFiltersAndSearch = ({ includeSearchQuery = false } = {}) => {
     const params = new URLSearchParams(location.search);
+    params.delete("view");
 
     if (includeSearchQuery) {
       const query = searchQuery.trim();
@@ -797,195 +799,195 @@ function BuyerLayoutContent({ children }) {
               <AccountCircleIcon />
             </IconButton>
             {open && (
-            <Menu
-              anchorEl={anchorEl}
-              id="account-menu"
-              open={open}
-              onClose={handleClose}
-              onClick={(event) => event.stopPropagation()}
-              slotProps={{
-                paper: {
-                  elevation: 0,
-                  sx: {
-                    overflow: "visible",
-                    width: "min(340px, calc(100vw - 24px))",
-                    bgcolor: mode === "dark" ? "background.paper" : "#f7f4ee",
-                    border: "1px solid",
-                    borderColor: mode === "dark" ? "divider" : "#e9dfd1",
-                    borderRadius: 3,
-                    boxShadow: "0 18px 42px rgba(34, 29, 22, 0.18)",
-                    mt: 1.5,
-                    "& .MuiMenu-list": {
-                      p: 1.5,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1.5,
+              <Menu
+                anchorEl={anchorEl}
+                id="account-menu"
+                open={open}
+                onClose={handleClose}
+                onClick={(event) => event.stopPropagation()}
+                slotProps={{
+                  paper: {
+                    elevation: 0,
+                    sx: {
+                      overflow: "visible",
+                      width: "min(340px, calc(100vw - 24px))",
+                      bgcolor: mode === "dark" ? "background.paper" : "#f7f4ee",
+                      border: "1px solid",
+                      borderColor: mode === "dark" ? "divider" : "#e9dfd1",
+                      borderRadius: 3,
+                      boxShadow: "0 18px 42px rgba(34, 29, 22, 0.18)",
+                      mt: 1.5,
+                      "& .MuiMenu-list": {
+                        p: 1.5,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1.5,
+                      },
                     },
                   },
-                },
-              }}
-              transformOrigin={{ horizontal: "right", vertical: "top" }}
-              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-            >
-              <Box
-                sx={{
-                  p: 2.5,
-                  border: "1px solid",
-                  borderColor: mode === "dark" ? "divider" : "#ead4b3",
-                  borderRadius: 3,
-                  bgcolor: "background.paper",
-                  boxShadow: "0 5px 16px rgba(44, 36, 26, 0.10)",
                 }}
+                transformOrigin={{ horizontal: "right", vertical: "top" }}
+                anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
               >
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <ProfileAvatar
-                    image={profileImage}
-                    role="buyer"
-                    alt={firstName || username || "Buyer"}
-                    sx={{ width: 60, height: 60, flexShrink: 0 }}
-                  />
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: 18, fontWeight: 700 }} noWrap>
-                      {[firstName, lastName].filter(Boolean).join(" ") ||
-                        username}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Button
-                  variant="outlined"
-                  onClick={() =>
-                    handleAccountNavigation("/buyer/profile/details")
-                  }
+                <Box
                   sx={{
-                    mt: 2,
-                    minWidth: 164,
-                    height: 48,
-                    px: 2.5,
-                    border: "2px solid",
-                    borderColor: "text.primary",
-                    borderRadius: 999,
-                    color: "text.primary",
-                    textTransform: "none",
-                    fontWeight: 700,
-                    fontSize: 15,
-                    "&:hover": { borderWidth: 2, bgcolor: "action.hover" },
+                    p: 2.5,
+                    border: "1px solid",
+                    borderColor: mode === "dark" ? "divider" : "#ead4b3",
+                    borderRadius: 3,
+                    bgcolor: "background.paper",
+                    boxShadow: "0 5px 16px rgba(44, 36, 26, 0.10)",
                   }}
                 >
-                  Edit profile
-                </Button>
-              </Box>
-              <Box
-                sx={{
-                  p: 1,
-                  border: "1px solid",
-                  borderColor: mode === "dark" ? "divider" : "#ead4b3",
-                  borderRadius: 2.5,
-                  bgcolor: "background.paper",
-                  boxShadow: "0 5px 16px rgba(44, 36, 26, 0.10)",
-                  "& .MuiMenuItem-root": {
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <ProfileAvatar
+                      image={profileImage}
+                      role="buyer"
+                      alt={firstName || username || "Buyer"}
+                      sx={{ width: 60, height: 60, flexShrink: 0 }}
+                    />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 18, fontWeight: 700 }} noWrap>
+                        {[firstName, lastName].filter(Boolean).join(" ") ||
+                          username}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      handleAccountNavigation("/buyer/profile/details")
+                    }
+                    sx={{
+                      mt: 2,
+                      minWidth: 164,
+                      height: 48,
+                      px: 2.5,
+                      border: "2px solid",
+                      borderColor: "text.primary",
+                      borderRadius: 999,
+                      color: "text.primary",
+                      textTransform: "none",
+                      fontWeight: 700,
+                      fontSize: 15,
+                      "&:hover": { borderWidth: 2, bgcolor: "action.hover" },
+                    }}
+                  >
+                    Edit profile
+                  </Button>
+                </Box>
+                <Box
+                  sx={{
+                    p: 1,
+                    border: "1px solid",
+                    borderColor: mode === "dark" ? "divider" : "#ead4b3",
+                    borderRadius: 2.5,
+                    bgcolor: "background.paper",
+                    boxShadow: "0 5px 16px rgba(44, 36, 26, 0.10)",
+                    "& .MuiMenuItem-root": {
+                      minHeight: 48,
+                      px: 1.5,
+                      borderRadius: 1.5,
+                      fontSize: 15,
+                      fontWeight: 500,
+                    },
+                    "& .MuiListItemIcon-root": {
+                      minWidth: 38,
+                      color: "text.secondary",
+                    },
+                  }}
+                >
+                  <MenuItem
+                    onClick={() =>
+                      handleAccountNavigation("/buyer/profile/orders")
+                    }
+                  >
+                    <ListItemIcon>
+                      <ShoppingBagIcon fontSize="small" />
+                    </ListItemIcon>
+                    Orders
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      handleAccountNavigation("/buyer/profile/purchases")
+                    }
+                  >
+                    <ListItemIcon>
+                      <ReceiptLongOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    My Purchases
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      handleAccountNavigation("/buyer/profile/addresses")
+                    }
+                  >
+                    <ListItemIcon>
+                      <LocationOnOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    Addresses
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => handleAccountNavigation("/buyer/profile/messages")}
+                  >
+                    <ListItemIcon>
+                      <ChatIcon fontSize="small" />
+                    </ListItemIcon>
+                    Messages
+                    {unreadMessageCount > 0 && (
+                      <Box
+                        sx={{
+                          ml: "auto",
+                          minWidth: 30,
+                          height: 26,
+                          px: 1,
+                          borderRadius: 99,
+                          bgcolor: "rgba(211, 47, 47, 0.08)",
+                          color: "error.main",
+                          display: "grid",
+                          placeItems: "center",
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </Box>
+                    )}
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() =>
+                      handleAccountNavigation("/buyer/profile/settings")
+                    }
+                  >
+                    <ListItemIcon>
+                      <ShieldOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    Security &amp; privacy
+                  </MenuItem>
+                </Box>
+                <MenuItem
+                  onClick={() => {
+                    handleClose();
+                    handleOpenDialog();
+                  }}
+                  sx={{
                     minHeight: 48,
                     px: 1.5,
                     borderRadius: 1.5,
                     fontSize: 15,
-                    fontWeight: 500,
-                  },
-                  "& .MuiListItemIcon-root": {
-                    minWidth: 38,
-                    color: "text.secondary",
-                  },
-                }}
-              >
-                <MenuItem
-                  onClick={() =>
-                    handleAccountNavigation("/buyer/profile/orders")
-                  }
+                    fontWeight: 600,
+                    "& .MuiListItemIcon-root": {
+                      minWidth: 38,
+                      color: "text.primary",
+                    },
+                  }}
                 >
                   <ListItemIcon>
-                    <ShoppingBagIcon fontSize="small" />
+                    <Logout fontSize="small" />
                   </ListItemIcon>
-                  Orders
+                  Sign out
                 </MenuItem>
-                <MenuItem
-                  onClick={() =>
-                    handleAccountNavigation("/buyer/profile/purchases")
-                  }
-                >
-                  <ListItemIcon>
-                    <ReceiptLongOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  My Purchases
-                </MenuItem>
-                <MenuItem
-                  onClick={() =>
-                    handleAccountNavigation("/buyer/profile/addresses")
-                  }
-                >
-                  <ListItemIcon>
-                    <LocationOnOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  Addresses
-                </MenuItem>
-                <MenuItem
-                  onClick={() => handleAccountNavigation("/buyer/profile/messages")}
-                >
-                  <ListItemIcon>
-                    <ChatIcon fontSize="small" />
-                  </ListItemIcon>
-                  Messages
-                  {unreadMessageCount > 0 && (
-                    <Box
-                      sx={{
-                        ml: "auto",
-                        minWidth: 30,
-                        height: 26,
-                        px: 1,
-                        borderRadius: 99,
-                        bgcolor: "rgba(211, 47, 47, 0.08)",
-                        color: "error.main",
-                        display: "grid",
-                        placeItems: "center",
-                        fontSize: 13,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                    </Box>
-                  )}
-                </MenuItem>
-                <MenuItem
-                  onClick={() =>
-                    handleAccountNavigation("/buyer/profile/settings")
-                  }
-                >
-                  <ListItemIcon>
-                    <ShieldOutlinedIcon fontSize="small" />
-                  </ListItemIcon>
-                  Security &amp; privacy
-                </MenuItem>
-              </Box>
-              <MenuItem
-                onClick={() => {
-                  handleClose();
-                  handleOpenDialog();
-                }}
-                sx={{
-                  minHeight: 48,
-                  px: 1.5,
-                  borderRadius: 1.5,
-                  fontSize: 15,
-                  fontWeight: 600,
-                  "& .MuiListItemIcon-root": {
-                    minWidth: 38,
-                    color: "text.primary",
-                  },
-                }}
-              >
-                <ListItemIcon>
-                  <Logout fontSize="small" />
-                </ListItemIcon>
-                Sign out
-              </MenuItem>
-            </Menu>
+              </Menu>
             )}
           </Box>
 
@@ -1223,371 +1225,371 @@ function BuyerLayoutContent({ children }) {
       />
 
       {Boolean(categoriesAnchorPosition) && (
-      <Popover
-        open={Boolean(categoriesAnchorPosition)}
-        onClose={() => setCategoriesAnchorPosition(null)}
-        marginThreshold={0}
-        anchorReference="anchorPosition"
-        anchorPosition={categoriesAnchorPosition || { top: 0, left: 0 }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        PaperProps={{
-          sx: {
-            width: "100vw",
-            maxWidth: "100vw",
-            maxHeight: `calc(100dvh - ${categoriesAnchorPosition?.top ?? 150}px - 12px)`,
-            overflowY: "auto",
-            p: { xs: 2, md: 2.5 },
-            borderRadius: "0 0 20px 20px",
-            border: `1px solid ${theme.palette.divider}`,
-            backgroundColor: theme.palette.background.paper,
-            color: theme.palette.text.primary,
-            boxShadow: "0 12px 28px rgba(0, 0, 0, 0.14)",
-          },
-        }}
-      >
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
-          <Button
-            size="small"
-            onClick={clearDraftCategories}
-            disabled={!hasDraftCategories}
-            sx={{ textTransform: "none" }}
-          >
-            Clear selected categories
-          </Button>
-        </Box>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              md: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(3, minmax(0, 1fr))",
-              xl: "repeat(3, minmax(0, 2fr)) repeat(2, minmax(0, 1fr))",
+        <Popover
+          open={Boolean(categoriesAnchorPosition)}
+          onClose={() => setCategoriesAnchorPosition(null)}
+          marginThreshold={0}
+          anchorReference="anchorPosition"
+          anchorPosition={categoriesAnchorPosition || { top: 0, left: 0 }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+          transformOrigin={{ vertical: "top", horizontal: "left" }}
+          PaperProps={{
+            sx: {
+              width: "100vw",
+              maxWidth: "100vw",
+              maxHeight: `calc(100dvh - ${categoriesAnchorPosition?.top ?? 150}px - 12px)`,
+              overflowY: "auto",
+              p: { xs: 2, md: 2.5 },
+              borderRadius: "0 0 20px 20px",
+              border: `1px solid ${theme.palette.divider}`,
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
+              boxShadow: "0 12px 28px rgba(0, 0, 0, 0.14)",
             },
-            alignItems: "start",
-            gap: { xs: 2.5, md: 3 },
           }}
         >
-          {categoryGroups.map((group) => (
-            <Box key={group.title} sx={{ minWidth: 0 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontFamily: "Georgia, serif",
-                  fontSize: 16,
-                  fontWeight: 700,
-                  mb: 1,
-                }}
-              >
-                {group.title}
-              </Typography>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateRows: `repeat(${Math.min(6, group.options.length)}, minmax(32px, auto))`,
-                  gridAutoFlow: "column",
-                  gridAutoColumns: "minmax(0, 1fr)",
-                  columnGap: 1,
-                }}
-              >
-                {group.options.map((option) => (
-                  <FormControlLabel
-                    key={option}
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={(draftCategories[group.filterType] || []).some(
-                          (value) => value.toLowerCase() === option.toLowerCase(),
-                        )}
-                        onChange={() =>
-                          handleDraftCategoryToggle(
-                            group.filterType,
-                            option,
-                          )
-                        }
-                        sx={{
-                          p: 0.75,
-                          color: theme.palette.divider,
-                          "&.Mui-checked": { color: theme.palette.error.main },
-                        }}
-                      />
-                    }
-                    label={option}
-                    sx={{
-                      display: "flex",
-                      m: 0,
-                      minWidth: 0,
-                      minHeight: 32,
-                      ".MuiFormControlLabel-label": {
-                        fontSize: 14,
-                        color: theme.palette.text.secondary,
-                      },
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          ))}
-
-          <Box>
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontFamily: "Georgia, serif",
-                fontSize: 16,
-                fontWeight: 700,
-                mb: 1.5,
-              }}
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+            <Button
+              size="small"
+              onClick={clearDraftCategories}
+              disabled={!hasDraftCategories}
+              sx={{ textTransform: "none" }}
             >
-              Color Palette
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {COLOR_PALETTE.map(({ hex: color, name }) => {
-                const isSelected = (draftCategories.color || []).some(
-                  (value) => value.toLowerCase() === name.toLowerCase(),
-                );
-                return (
-                  <Box
-                    key={color}
-                    onClick={() => handleDraftColorToggle(name)}
-                    role="checkbox"
-                    tabIndex={0}
-                    aria-checked={isSelected}
-                    aria-label={`Filter by ${name}`}
-                    title={name}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        handleDraftColorToggle(name);
-                      }
-                    }}
-                    sx={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      backgroundColor: color,
-                      border: isSelected
-                        ? `2px solid ${theme.palette.error.main}`
-                        : `1px solid ${theme.palette.divider}`,
-                      outline: isSelected
-                        ? `2px solid ${theme.palette.error.main}`
-                        : "none",
-                      outlineOffset: 1,
-                      cursor: "pointer",
-                      transition: "transform 120ms ease",
-                      "&:hover": { transform: "scale(1.2)" },
-                    }}
-                  />
-                );
-              })}
-            </Stack>
-          </Box>
-
-          <Box>
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="baseline"
-            >
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontFamily: "Georgia, serif",
-                  fontSize: 16,
-                  fontWeight: 700,
-                }}
-              >
-                Price Range
-              </Typography>
-            </Stack>
-            <Typography variant="body2" color="error.main" sx={{ mt: 1, fontWeight: 600 }}>
-              {formatPriceRange(draftPriceRange)}
-            </Typography>
-            <Box sx={{ px: 1 }}>
-              <Slider
-                value={draftPriceRange}
-                min={0}
-                max={PRICE_LIMIT}
-                step={100}
-                disableSwap
-                getAriaLabel={(index) => index === 0 ? "Minimum price" : "Maximum price"}
-                getAriaValueText={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
-                valueLabelDisplay="auto"
-                valueLabelFormat={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
-                onChange={(_, range) => setDraftPriceRange(range)}
-                sx={{ color: theme.palette.error.main, mt: 1 }}
-              />
-            </Box>
-            <Button size="small" onClick={clearDraftPrice} sx={{ textTransform: "none" }}>
-              Clear price filter
+              Clear selected categories
             </Button>
           </Box>
-        </Box>
-
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            pt: 2,
-            mt: 2.5,
-            borderTop: `1px solid ${theme.palette.divider}`,
-            flexWrap: "wrap",
-            gap: 1.5,
-          }}
-        >
-          <Button
-            size="small"
-            onClick={resetAllDraftFilters}
-            disabled={!hasAnyDraftFilters}
-            sx={{ textTransform: "none", color: "text.secondary" }}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(3, minmax(0, 1fr))",
+                xl: "repeat(3, minmax(0, 2fr)) repeat(2, minmax(0, 1fr))",
+              },
+              alignItems: "start",
+              gap: { xs: 2.5, md: 3 },
+            }}
           >
-            Reset all filters
-          </Button>
-          <Stack direction="row" spacing={1.5} alignItems="center">
+            {categoryGroups.map((group) => (
+              <Box key={group.title} sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontFamily: "Georgia, serif",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    mb: 1,
+                  }}
+                >
+                  {group.title}
+                </Typography>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateRows: `repeat(${Math.min(6, group.options.length)}, minmax(32px, auto))`,
+                    gridAutoFlow: "column",
+                    gridAutoColumns: "minmax(0, 1fr)",
+                    columnGap: 1,
+                  }}
+                >
+                  {group.options.map((option) => (
+                    <FormControlLabel
+                      key={option}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={(draftCategories[group.filterType] || []).some(
+                            (value) => value.toLowerCase() === option.toLowerCase(),
+                          )}
+                          onChange={() =>
+                            handleDraftCategoryToggle(
+                              group.filterType,
+                              option,
+                            )
+                          }
+                          sx={{
+                            p: 0.75,
+                            color: theme.palette.divider,
+                            "&.Mui-checked": { color: theme.palette.error.main },
+                          }}
+                        />
+                      }
+                      label={option}
+                      sx={{
+                        display: "flex",
+                        m: 0,
+                        minWidth: 0,
+                        minHeight: 32,
+                        ".MuiFormControlLabel-label": {
+                          fontSize: 14,
+                          color: theme.palette.text.secondary,
+                        },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            ))}
+
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontFamily: "Georgia, serif",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  mb: 1.5,
+                }}
+              >
+                Color Palette
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {COLOR_PALETTE.map(({ hex: color, name }) => {
+                  const isSelected = (draftCategories.color || []).some(
+                    (value) => value.toLowerCase() === name.toLowerCase(),
+                  );
+                  return (
+                    <Box
+                      key={color}
+                      onClick={() => handleDraftColorToggle(name)}
+                      role="checkbox"
+                      tabIndex={0}
+                      aria-checked={isSelected}
+                      aria-label={`Filter by ${name}`}
+                      title={name}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleDraftColorToggle(name);
+                        }
+                      }}
+                      sx={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        backgroundColor: color,
+                        border: isSelected
+                          ? `2px solid ${theme.palette.error.main}`
+                          : `1px solid ${theme.palette.divider}`,
+                        outline: isSelected
+                          ? `2px solid ${theme.palette.error.main}`
+                          : "none",
+                        outlineOffset: 1,
+                        cursor: "pointer",
+                        transition: "transform 120ms ease",
+                        "&:hover": { transform: "scale(1.2)" },
+                      }}
+                    />
+                  );
+                })}
+              </Stack>
+            </Box>
+
+            <Box>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="baseline"
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontFamily: "Georgia, serif",
+                    fontSize: 16,
+                    fontWeight: 700,
+                  }}
+                >
+                  Price Range
+                </Typography>
+              </Stack>
+              <Typography variant="body2" color="error.main" sx={{ mt: 1, fontWeight: 600 }}>
+                {formatPriceRange(draftPriceRange)}
+              </Typography>
+              <Box sx={{ px: 1 }}>
+                <Slider
+                  value={draftPriceRange}
+                  min={0}
+                  max={PRICE_LIMIT}
+                  step={100}
+                  disableSwap
+                  getAriaLabel={(index) => index === 0 ? "Minimum price" : "Maximum price"}
+                  getAriaValueText={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(value) => `\u20b1${value.toLocaleString("en-PH")}${value === PRICE_LIMIT ? "+" : ""}`}
+                  onChange={(_, range) => setDraftPriceRange(range)}
+                  sx={{ color: theme.palette.error.main, mt: 1 }}
+                />
+              </Box>
+              <Button size="small" onClick={clearDraftPrice} sx={{ textTransform: "none" }}>
+                Clear price filter
+              </Button>
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              pt: 2,
+              mt: 2.5,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              flexWrap: "wrap",
+              gap: 1.5,
+            }}
+          >
             <Button
-              size="medium"
-              variant="outlined"
-              color="inherit"
-              onClick={() => setCategoriesAnchorPosition(null)}
-              sx={{
-                textTransform: "none",
-                borderRadius: "8px",
-                px: 2.5,
-                fontWeight: 500,
-              }}
+              size="small"
+              onClick={resetAllDraftFilters}
+              disabled={!hasAnyDraftFilters}
+              sx={{ textTransform: "none", color: "text.secondary" }}
             >
-              Cancel
+              Reset all filters
             </Button>
-            <Button
-              size="medium"
-              variant="contained"
-              color="error"
-              startIcon={<SearchIcon />}
-              onClick={() => handleApplyFiltersAndSearch()}
-              sx={{
-                textTransform: "none",
-                borderRadius: "8px",
-                px: 3.5,
-                py: 0.85,
-                fontWeight: 700,
-                fontSize: "0.95rem",
-                boxShadow: "0 4px 12px rgba(245, 34, 69, 0.3)",
-              }}
-            >
-              Search
-            </Button>
-          </Stack>
-        </Box>
-      </Popover>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Button
+                size="medium"
+                variant="outlined"
+                color="inherit"
+                onClick={() => setCategoriesAnchorPosition(null)}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  px: 2.5,
+                  fontWeight: 500,
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="medium"
+                variant="contained"
+                color="error"
+                startIcon={<SearchIcon />}
+                onClick={() => handleApplyFiltersAndSearch()}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  px: 3.5,
+                  py: 0.85,
+                  fontWeight: 700,
+                  fontSize: "0.95rem",
+                  boxShadow: "0 4px 12px rgba(245, 34, 69, 0.3)",
+                }}
+              >
+                Search
+              </Button>
+            </Stack>
+          </Box>
+        </Popover>
       )}
 
       {/* MOBILE DRAWER (Menu only) */}
       {mobileOpen && (
-      <Drawer
-        anchor="right"
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        PaperProps={{
-          sx: {
-            width: 270,
-            backgroundColor: theme.palette.background.paper,
-            color: theme.palette.text.primary,
-          },
-        }}
-      >
-        <Box
-          sx={{
-            height: "100%",
+        <Drawer
+          anchor="right"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          PaperProps={{
+            sx: {
+              width: 270,
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
+            },
           }}
         >
-          <List sx={{ p: 2 }}>
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
-              <IconButton
-                onClick={() => setMobileOpen(false)}
-                sx={{ color: theme.palette.text.primary }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
-            {menuItems.map((item, index) => (
-              <ListItem key={item.path} disablePadding>
-                <ListItemButton
-                  onClick={() => handleNavigation(item.path)}
-                  sx={{
-                    backgroundColor:
-                      activeIndex === index
-                        ? theme.palette.action.selected
-                        : "transparent",
-                    borderRadius: 2,
-                    mb: 1,
-                  }}
+          <Box
+            sx={{
+              height: "100%",
+            }}
+          >
+            <List sx={{ p: 2 }}>
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+                <IconButton
+                  onClick={() => setMobileOpen(false)}
+                  sx={{ color: theme.palette.text.primary }}
                 >
-                  <ListItemText primary={item.label} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-
-          {/* Bottom Section: Account Actions */}
-          <Box sx={{ p: 2, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-            {loggedIn ? (
-              <List disablePadding>
-                <Typography
-                  variant="caption"
-                  sx={{ opacity: 0.7, ml: 2, mb: 1, display: "block" }}
-                >
-                  Logged in as: {username}
-                </Typography>
-
-                <ListItem disablePadding>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+              {menuItems.map((item, index) => (
+                <ListItem key={item.path} disablePadding>
                   <ListItemButton
-                    onClick={() => {
-                      navigate("/buyer/profile");
-                      setMobileOpen(false);
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                      backgroundColor:
+                        activeIndex === index
+                          ? theme.palette.action.selected
+                          : "transparent",
+                      borderRadius: 2,
+                      mb: 1,
                     }}
-                    sx={{ borderRadius: 2 }}
                   >
-                    <ListItemIcon
-                      sx={{ color: theme.palette.text.primary, minWidth: 40 }}
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+
+            {/* Bottom Section: Account Actions */}
+            <Box sx={{ p: 2, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+              {loggedIn ? (
+                <List disablePadding>
+                  <Typography
+                    variant="caption"
+                    sx={{ opacity: 0.7, ml: 2, mb: 1, display: "block" }}
+                  >
+                    Logged in as: {username}
+                  </Typography>
+
+                  <ListItem disablePadding>
+                    <ListItemButton
+                      onClick={() => {
+                        navigate("/buyer/profile");
+                        setMobileOpen(false);
+                      }}
+                      sx={{ borderRadius: 2 }}
                     >
-                      <AccountCircleIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary="Profile" />
-                  </ListItemButton>
-                </ListItem>
+                      <ListItemIcon
+                        sx={{ color: theme.palette.text.primary, minWidth: 40 }}
+                      >
+                        <AccountCircleIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Profile" />
+                    </ListItemButton>
+                  </ListItem>
 
-                <ListItem disablePadding>
-                  <ListItemButton
-                    onClick={() => {
-                      handleOpenDialog();
-                      setMobileOpen(false);
-                    }}
-                    sx={{ borderRadius: 2, color: theme.palette.error.main }}
-                  >
-                    <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
-                      <Logout fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary="Logout" />
-                  </ListItemButton>
-                </ListItem>
-              </List>
-            ) : (
-              <Button
-                fullWidth
-                variant="outlined"
-                color="inherit"
-                onClick={() => handleNavigation("/buyer/login")}
-                startIcon={<AccountCircleIcon />}
-                sx={{ borderRadius: 2 }}
-              >
-                Login
-              </Button>
-            )}
+                  <ListItem disablePadding>
+                    <ListItemButton
+                      onClick={() => {
+                        handleOpenDialog();
+                        setMobileOpen(false);
+                      }}
+                      sx={{ borderRadius: 2, color: theme.palette.error.main }}
+                    >
+                      <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
+                        <Logout fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary="Logout" />
+                    </ListItemButton>
+                  </ListItem>
+                </List>
+              ) : (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => handleNavigation("/buyer/login")}
+                  startIcon={<AccountCircleIcon />}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Login
+                </Button>
+              )}
+            </Box>
           </Box>
-        </Box>
-      </Drawer>
+        </Drawer>
       )}
 
       {/* MOBILE SEARCH & FILTER DRAWER (Below MD, mounted lazily when opened) */}

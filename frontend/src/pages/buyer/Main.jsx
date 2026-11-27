@@ -22,10 +22,15 @@ import {
   ArtworkCardSkeleton,
   SectionHeader,
 } from "../../components/buyer/Main/MainSectionShared";
+import RecommendedSection from "../../components/buyer/Main/RecommendedSection";
 import UpcomingEventsSlider from "../../components/buyer/Main/UpcomingEventsSlider";
 import WatermarkedArtworkImage from "../../components/buyer/Artwork/WatermarkedArtworkImage";
 import artGenres from "../../data/artGenres";
 import { isAuthenticated } from "../../../utils/auth";
+import {
+  buildArtistRatingMap,
+  formatArtistRating,
+} from "../../utils/artistEngagement.js";
 // Icons
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
@@ -35,10 +40,7 @@ import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import ProfileAvatar from "../../components/common/ProfileAvatar";
 import { resolveProfileImageUrl } from "../../utils/profileImage.js";
-import {
-  buildArtistRatingMap,
-  formatArtistRating,
-} from "../../utils/artistEngagement.js";
+
 
 const getProfileImage = (artist) =>
   resolveProfileImageUrl(artist?.profile_image || artist?.image, "seller");
@@ -412,6 +414,13 @@ export default function Main() {
           )}
         </Box>
       </Box>
+
+      <RecommendedSection
+        onAddToCart={handleAddToCart}
+        onRemoveFromCart={handleRemoveFromCart}
+        cartArtworkIds={cartArtworkIds}
+        topK={4}
+      />
 
       {/* Recently Added Artworks From the Users Followings */}
       {Boolean(isAuthenticated("buyer")) &&

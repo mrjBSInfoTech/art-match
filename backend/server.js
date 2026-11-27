@@ -106,7 +106,6 @@ import sellerOrderRoutes from "./routes/seller/orders.js";
 import sellerReturnRoutes from "./routes/seller/returns.js";
 import sellerCertificateRoutes from "./routes/seller/certificates.js";
 import sellerReviewRoutes from "./routes/seller/reviews.js";
-//import sellerSalesRoutes from "./routes/seller/sales.js";
 import sellerAuthenticateRoutes from "./routes/seller/sellerAuthenticate.js";
 import sellerAuditLogsRoutes from "./routes/seller/auditLogs.js";
 // Routes (Buyer)
@@ -122,6 +121,7 @@ import buyerOrderRoutes from "./routes/buyer/orders.js";
 import buyerReturnRoutes from "./routes/buyer/returns.js";
 import buyerCertificateRoutes from "./routes/buyer/certificates.js";
 import buyerReviewRoutes from "./routes/buyer/reviews.js";
+import buyerRecommendationRoutes from "./routes/buyer/recommendation.js";
 
 // Routes (Payments)
 import paymongoPaymentRoutes from "./routes/payments/paymongo.js";
@@ -538,11 +538,17 @@ const getUploadToken = (req) => {
 
 const authenticateUploadCaller = (req, res, next) => {
   const token = getUploadToken(req);
-  if (!token) return res.status(401).json({ message: "Authentication required." });
+  if (!token)
+    return res.status(401).json({ message: "Authentication required." });
 
   try {
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ["HS256"] });
-    const role = String(decoded.role || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+    const decoded = jwt.verify(token, getJwtSecret(), {
+      algorithms: ["HS256"],
+    });
+    const role = String(decoded.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
     if (["admin", "superadmin", "moderator", "customize"].includes(role)) {
       return authenticateAdmin(req, res, next);
     }
@@ -554,7 +560,9 @@ const authenticateUploadCaller = (req, res, next) => {
     }
     return res.status(403).json({ message: "Access denied." });
   } catch {
-    return res.status(401).json({ message: "Invalid or expired session token." });
+    return res
+      .status(401)
+      .json({ message: "Invalid or expired session token." });
   }
 };
 
@@ -597,7 +605,9 @@ app.get(
       : "GUEST";
     const expiresAt =
       Math.floor(Date.now() / 1000) + ARTWORK_IMAGE_URL_TTL_SECONDS;
-    const signature = signArtworkImageUrl(filename, code, expiresAt, { variant });
+    const signature = signArtworkImageUrl(filename, code, expiresAt, {
+      variant,
+    });
     const imageUrl = new URL(
       `/api/artwork-images/${encodeURIComponent(filename)}`,
       "http://artmatch.invalid",
@@ -633,7 +643,9 @@ app.get(
         code === "GUEST" ? null : await getCustomerIdForWatermarkCode(code);
       if (code !== "GUEST" && !customerId) {
         await recordArtworkDenied(req);
-        return res.status(403).json({ message: "Invalid or expired image URL." });
+        return res
+          .status(403)
+          .json({ message: "Invalid or expired image URL." });
       }
 
       const image = await getWatermarkedArtwork(filename, customerId, variant);
@@ -665,13 +677,17 @@ app.get(
 
 // Legacy path kept as a signing oracle only: it never returns image bytes, so
 // the raw upload directory is not a public file server.
-app.get("/uploads/seller/uploadArtwork/:filename", artworkImageRateLimit, (req, res) => {
-  const filename = req.params.filename;
-  if (!filename || path.basename(filename) !== filename) {
+app.get(
+  "/uploads/seller/uploadArtwork/:filename",
+  artworkImageRateLimit,
+  (req, res) => {
+    const filename = req.params.filename;
+    if (!filename || path.basename(filename) !== filename) {
+      return res.status(404).json({ message: "Artwork image not found." });
+    }
     return res.status(404).json({ message: "Artwork image not found." });
-  }
-  return res.status(404).json({ message: "Artwork image not found." });
-});
+  },
+);
 
 // =====================================================
 // Seller, buyer, and admin profile images
@@ -679,7 +695,11 @@ app.get("/uploads/seller/uploadArtwork/:filename", artworkImageRateLimit, (req, 
 
 const defaultProfileImagePath = path.join(__dirname, "uploads", "profile.jpg");
 const serveDefaultProfileIfRequested = (req, res, next) => {
-  if (String(req.params?.filename || "").trim().toLowerCase() !== "profile.jpg") {
+  if (
+    String(req.params?.filename || "")
+      .trim()
+      .toLowerCase() !== "profile.jpg"
+  ) {
     return next();
   }
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -775,39 +795,46 @@ app.get(
 // =====================================================
 
 const serveChatAttachment = serveB2Cached({
-    keyPrefix: "app-uploads/chat",
-    localFolder: path.join(__dirname, "uploads", "chat"),
-    label: "Chat attachment",
-    contentType: "application/octet-stream",
-  });
+  keyPrefix: "app-uploads/chat",
+  localFolder: path.join(__dirname, "uploads", "chat"),
+  label: "Chat attachment",
+  contentType: "application/octet-stream",
+});
 
-app.get("/uploads/chat/:filename", authenticateUploadCaller, async (req, res, next) => {
-  const { filename } = req.params;
-  if (!hasSafeUploadFilename(filename)) {
-    return res.status(400).json({ message: "Invalid filename." });
-  }
+app.get(
+  "/uploads/chat/:filename",
+  authenticateUploadCaller,
+  async (req, res, next) => {
+    const { filename } = req.params;
+    if (!hasSafeUploadFilename(filename)) {
+      return res.status(400).json({ message: "Invalid filename." });
+    }
 
-  const accountId = req.user.role === "buyer"
-    ? req.user.customer_id
-    : req.user.student_id;
-  const accountColumn = req.user.role === "buyer" ? "c.customer_id" : "c.student_id";
-  try {
-    const [rows] = await db.promise().query(
-      `SELECT m.message_id
+    const accountId =
+      req.user.role === "buyer" ? req.user.customer_id : req.user.student_id;
+    const accountColumn =
+      req.user.role === "buyer" ? "c.customer_id" : "c.student_id";
+    try {
+      const [rows] = await db.promise().query(
+        `SELECT m.message_id
        FROM message m
        JOIN conversation c ON c.conversation_id = m.conversation_id
        WHERE SUBSTRING_INDEX(m.image, '/', -1) = ?
          AND ${accountColumn} = ?
        LIMIT 1`,
-      [filename, accountId],
-    );
-    if (!rows.length) return res.status(403).json({ message: "Access denied." });
-    return serveChatAttachment(req, res, next);
-  } catch (error) {
-    console.error("Unable to verify chat attachment access:", error);
-    return res.status(500).json({ message: "Unable to load chat attachment." });
-  }
-});
+        [filename, accountId],
+      );
+      if (!rows.length)
+        return res.status(403).json({ message: "Access denied." });
+      return serveChatAttachment(req, res, next);
+    } catch (error) {
+      console.error("Unable to verify chat attachment access:", error);
+      return res
+        .status(500)
+        .json({ message: "Unable to load chat attachment." });
+    }
+  },
+);
 
 // =====================================================
 // Support chat attachments - Authenticated Participants / Admins Only
@@ -818,47 +845,64 @@ const serveSupportChatAttachment = serveB2Cached({
   label: "Support chat attachment",
 });
 
-app.get("/uploads/support-chat/:filename", authenticateUploadCaller, async (req, res, next) => {
-  const { filename } = req.params;
-  if (!hasSafeUploadFilename(filename)) {
-    return res.status(400).json({ message: "Invalid filename." });
-  }
+app.get(
+  "/uploads/support-chat/:filename",
+  authenticateUploadCaller,
+  async (req, res, next) => {
+    const { filename } = req.params;
+    if (!hasSafeUploadFilename(filename)) {
+      return res.status(400).json({ message: "Invalid filename." });
+    }
 
-  try {
-    const [rows] = await db.promise().query(
-      `SELECT sc.customer_id, sc.student_id
+    try {
+      const [rows] = await db.promise().query(
+        `SELECT sc.customer_id, sc.student_id
        FROM support_message sm
        JOIN support_conversation sc ON sc.support_conversation_id = sm.support_conversation_id
        WHERE SUBSTRING_INDEX(sm.image, '/', -1) = ?
        LIMIT 1`,
-      [filename],
-    );
-    const match = rows?.[0];
-    if (!match) {
-      return res.status(404).json({ message: "Support chat attachment not found." });
-    }
+        [filename],
+      );
+      const match = rows?.[0];
+      if (!match) {
+        return res
+          .status(404)
+          .json({ message: "Support chat attachment not found." });
+      }
 
-    const adminRoles = ["admin", "superadmin", "super admin", "moderator", "customize", "customizable"];
-    const callerRole = String(req.user?.role || "").trim().toLowerCase();
-    const isAdmin = adminRoles.includes(callerRole);
-    const isBuyerOwner =
-      callerRole === "buyer" &&
-      match.customer_id &&
-      String(match.customer_id) === String(req.user?.customer_id);
-    const isSellerOwner =
-      (callerRole === "seller" || callerRole === "student") &&
-      match.student_id &&
-      String(match.student_id) === String(req.user?.student_id);
+      const adminRoles = [
+        "admin",
+        "superadmin",
+        "super admin",
+        "moderator",
+        "customize",
+        "customizable",
+      ];
+      const callerRole = String(req.user?.role || "")
+        .trim()
+        .toLowerCase();
+      const isAdmin = adminRoles.includes(callerRole);
+      const isBuyerOwner =
+        callerRole === "buyer" &&
+        match.customer_id &&
+        String(match.customer_id) === String(req.user?.customer_id);
+      const isSellerOwner =
+        (callerRole === "seller" || callerRole === "student") &&
+        match.student_id &&
+        String(match.student_id) === String(req.user?.student_id);
 
-    if (!isAdmin && !isBuyerOwner && !isSellerOwner) {
-      return res.status(403).json({ message: "Access denied." });
+      if (!isAdmin && !isBuyerOwner && !isSellerOwner) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+      return serveSupportChatAttachment(req, res, next);
+    } catch (error) {
+      console.error("Unable to verify support chat attachment access:", error);
+      return res
+        .status(500)
+        .json({ message: "Unable to load support chat attachment." });
     }
-    return serveSupportChatAttachment(req, res, next);
-  } catch (error) {
-    console.error("Unable to verify support chat attachment access:", error);
-    return res.status(500).json({ message: "Unable to load support chat attachment." });
-  }
-});
+  },
+);
 
 // =====================================================
 // Seller registration documents (COR) - Authenticated Only
@@ -873,7 +917,10 @@ app.get(
   "/uploads/seller/uploadCOR/:filename",
   (req, res, next) => {
     if (req.query?.token) {
-      return res.status(400).json({ error: "Passing authentication tokens in query parameters is prohibited. Use HttpOnly cookies or Authorization header." });
+      return res.status(400).json({
+        error:
+          "Passing authentication tokens in query parameters is prohibited. Use HttpOnly cookies or Authorization header.",
+      });
     }
     next();
   },
@@ -884,16 +931,25 @@ app.get(
       return res.status(400).json({ error: "Invalid filename." });
     }
     try {
-      const [rows] = await db.promise().query(
-        "SELECT student_id FROM student WHERE cor = ? LIMIT 1",
-        [filename],
-      );
+      const [rows] = await db
+        .promise()
+        .query("SELECT student_id FROM student WHERE cor = ? LIMIT 1", [
+          filename,
+        ]);
       const ownerId = rows[0]?.student_id;
       if (!ownerId) {
         return res.status(404).json({ error: "Document not found" });
       }
-      const adminRoles = ["admin", "superadmin", "super admin", "moderator", "customize"];
-      const callerRole = String(req.user?.role || "").trim().toLowerCase();
+      const adminRoles = [
+        "admin",
+        "superadmin",
+        "super admin",
+        "moderator",
+        "customize",
+      ];
+      const callerRole = String(req.user?.role || "")
+        .trim()
+        .toLowerCase();
       const isAdmin = adminRoles.includes(callerRole);
       if (!isAdmin && String(ownerId) !== String(req.user?.student_id)) {
         return res.status(403).json({ error: "Forbidden" });
@@ -901,14 +957,21 @@ app.get(
       return serveSellerCorDocument(req, res, next);
     } catch (error) {
       console.error("Unable to verify seller COR access:", error);
-      return res.status(500).json({ error: "Unable to load registration document." });
+      return res
+        .status(500)
+        .json({ error: "Unable to load registration document." });
     }
   },
 );
 
 // Serve static files with absolute path.
 // The artwork and COR document directories are excluded from public static access.
-const artworkUploadFolder = path.join(__dirname, "uploads", "seller", "uploadArtwork");
+const artworkUploadFolder = path.join(
+  __dirname,
+  "uploads",
+  "seller",
+  "uploadArtwork",
+);
 app.use(
   "/uploads",
   (req, res, next) =>
@@ -992,6 +1055,7 @@ app.use("/api/buyer/returns", buyerReturnRoutes);
 app.use("/api/buyer/certificates", buyerCertificateRoutes);
 app.use("/api/buyer/reviews", buyerReviewRoutes);
 app.use("/api/buyer/faqs", buyerFaqRoutes);
+app.use("/api/buyer/recommendations", buyerRecommendationRoutes);
 
 // Routes (Payments)
 app.use("/api/payments/paymongo", paymongoPaymentRoutes);
@@ -1057,7 +1121,9 @@ ensureAccountAccessTable()
     ensureHexArtworkColors(db.promise())
       .then((summary) => {
         if (summary.updated > 0) {
-          console.log(`✅ Normalized ${summary.updated} artwork color record(s) to hex codes`);
+          console.log(
+            `✅ Normalized ${summary.updated} artwork color record(s) to hex codes`,
+          );
         }
       })
       .catch((error) =>
@@ -1083,6 +1149,9 @@ ensureAccountAccessTable()
     );
   })
   .catch((error) => {
-    console.error("Unable to initialize database schema:", formatDbError(error));
+    console.error(
+      "Unable to initialize database schema:",
+      formatDbError(error),
+    );
     process.exit(1);
   });

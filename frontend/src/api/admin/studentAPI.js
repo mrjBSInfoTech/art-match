@@ -1,11 +1,23 @@
 import axios from "axios";
 import { API_BASE_URL } from "../apiBase.js";
 
-const api = axios.create({
+// Separate Axios clients so single-student actions fail/finish fast
+// while bulk spreadsheet imports keep a longer upload timeout.
+const SINGLE_REQUEST_TIMEOUT_MS = 15000;
+const BULK_UPLOAD_TIMEOUT_MS = 120000;
+
+const singleApi = axios.create({
   withCredentials: true,
   baseURL: `${API_BASE_URL}/api/admin/student`,
   headers: { "Content-Type": "application/json" },
-  timeout: 120000,
+  timeout: SINGLE_REQUEST_TIMEOUT_MS,
+});
+
+const bulkApi = axios.create({
+  withCredentials: true,
+  baseURL: `${API_BASE_URL}/api/admin/student`,
+  headers: { "Content-Type": "application/json" },
+  timeout: BULK_UPLOAD_TIMEOUT_MS,
 });
 
 // HttpOnly cookies handle authentication automatically
@@ -33,16 +45,17 @@ export const fetchStudents = async (register_status = "", options = {}) => {
     if (options?.forceFresh) {
       params._t = Date.now();
     }
-    const res = await api.get("/", { params });
+    const res = await singleApi.get("/", { params });
     return res.data || [];
   } catch (error) {
     handleError(error);
   }
 };
-// Add new student
+
+// Add a single student (uses short single-request timeout for StudentForm.jsx)
 export const addStudents = async (studentData) => {
   try {
-    const res = await api.post("/", studentData);
+    const res = await singleApi.post("/", studentData);
     return res.data;
   } catch (error) {
     handleError(error);
@@ -51,12 +64,12 @@ export const addStudents = async (studentData) => {
 
 const BULK_IMPORT_BATCH_SIZE = 100;
 
-// Bulk Add Students in batches so large spreadsheets never exceed proxy/request timeouts
+// Bulk Add Students (uses dedicated bulk upload timeout for StudentAddBulk.jsx)
 export const bulkAddStudents = async (students) => {
   try {
     const list = Array.isArray(students) ? students : [];
     if (list.length <= BULK_IMPORT_BATCH_SIZE) {
-      const res = await api.post("/bulk", { students: list });
+      const res = await bulkApi.post("/bulk", { students: list });
       return res.data;
     }
 
@@ -69,7 +82,7 @@ export const bulkAddStudents = async (students) => {
 
     for (let start = 0; start < list.length; start += BULK_IMPORT_BATCH_SIZE) {
       const batch = list.slice(start, start + BULK_IMPORT_BATCH_SIZE);
-      const res = await api.post("/bulk", { students: batch });
+      const res = await bulkApi.post("/bulk", { students: batch });
       const data = res.data || {};
       totals.added += Number(data.added) || 0;
       totals.updated += Number(data.updated) || 0;
@@ -90,7 +103,7 @@ export const bulkAddStudents = async (students) => {
 export const updateStudent = async (studentId, data) => {
   try {
     const payload = typeof data === "string" ? { register_status: data } : data;
-    const res = await api.put(`/${studentId}`, payload);
+    const res = await singleApi.put(`/${studentId}`, payload);
     return res.data;
   } catch (error) {
     handleError(error);
@@ -99,7 +112,7 @@ export const updateStudent = async (studentId, data) => {
 
 export const reactivateStudent = async (studentId) => {
   try {
-    const res = await api.post(`/${studentId}/reactivate`);
+    const res = await singleApi.post(`/${studentId}/reactivate`);
     return res.data;
   } catch (error) {
     handleError(error);
@@ -109,7 +122,7 @@ export const reactivateStudent = async (studentId) => {
 // Delete student
 export const deleteStudent = async (studentId) => {
   try {
-    const res = await api.delete(`/${studentId}`);
+    const res = await singleApi.delete(`/${studentId}`);
     return res.data;
   } catch (error) {
     handleError(error);
